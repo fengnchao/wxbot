@@ -1,0 +1,11 @@
+{
+  "url": "http://127.0.0.1:8765",
+  "token": "89b9e87b19c51b5ba963465910e4180a",
+  "timeout": 90,
+  "profile_to_contact": {
+    "wxbot-101": "101",
+    "wxbot-liuxuan": "liuxuan",
+    "wxbot-z": "z"
+  },
+  "_note": "profile_to_contact：Hermes Profile → wxbot 里那个独立聊天窗口的标题"
+}

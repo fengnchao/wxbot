@@ -1,0 +1,57 @@
+# 复制为 config.toml 后修改
+
+[bot]
+# 绑定的联系人/群：名字必须和独立聊天窗口的标题完全一致
+bound_users = ["101"]
+# 轮询间隔（秒）
+poll_interval = 1.5
+# 回复前随机延迟（秒），模拟真人
+reply_delay_min = 0.8
+reply_delay_max = 2.5
+# 以这个前缀开头的消息当作命令（/ping、/reset）
+command_prefix = "/"
+
+[model]
+# backend 可选：
+#   hermes  —— Hermes Agent（先运行 hermes gateway 开启 API Server）
+#   openai  —— 任意 OpenAI 兼容接口
+#   ollama  —— Ollama 原生接口
+#   echo    —— 调试用，原样返回
+backend = "echo"
+url = "http://127.0.0.1:8642/v1/chat/completions"
+model = "hermes-agent"
+api_key = ""                  # Hermes 设置了 API Server Key 时填写
+timeout = 300                 # 智能体可能先调用多个工具再回答，超时要给足
+max_history = 10              # 每个联系人保留的对话轮数
+system_prompt = "你正在通过微信和用户的朋友聊天。回答简洁，适合手机阅读，不使用 Markdown。不要执行任何修改文件、运行命令或访问本机隐私数据的操作。"
+
+# 使用 Ollama 时改成：
+# backend = "ollama"
+# url = "http://localhost:11434/api/chat"
+# model = "qwen2.5:7b"
+
+# ===== 微信控件定位（已按微信 4.x 校准，版本更新后可用 tools/probe.py 重新校准）=====
+# 字段都可选：control_type / name / class_name / automation_id，填了的才参与匹配。
+# 值支持前缀 "re:" 表示正则，例如 name = "re:^消息"
+
+[wechat]
+# 独立聊天窗口的类名
+window_class = "mmui::ChatSingleWindow"
+
+[wechat.message_list]
+control_type = "ListControl"
+automation_id = "chat_message_list"
+
+[wechat.input]
+control_type = "EditControl"
+automation_id = "chat_input_field"
+
+[wechat.text_item]
+# 文字消息条目；时间提示（ChatItemView）、图片等其他条目会被忽略
+class_name = "mmui::ChatTextItemView"
+
+[wechat.sender_detect]
+# 通过截图判断发送方：统计条目左右两侧与背景色不同的像素（头像位置）
+strip_width = 80        # 左右各检查多宽（像素）
+diff_threshold = 40     # 颜色差多少算"不是背景"
+min_pixels = 20         # 至少多少个像素才认定有头像

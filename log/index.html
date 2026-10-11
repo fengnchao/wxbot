@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>微信收件日志</title>
+<style>
+  :root{
+    --bg:#0e1116; --bg2:#151a22; --bg3:#1b222c; --line:#263040;
+    --fg:#d8e0ea; --fg2:#8b9bb0; --fg3:#5d6b7e;
+    --wx:#3ddc97; --bot:#5aa9ff; --warn:#ff7a59;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:13px/1.65 "Cascadia Mono","Consolas","Menlo","Microsoft YaHei",monospace}
+  header{position:sticky;top:0;z-index:10;background:var(--bg2);
+         border-bottom:1px solid var(--line);padding:10px 16px}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h1{font-size:15px;margin:0 12px 0 0;font-weight:600;letter-spacing:.5px}
+  select,input[type=text],button{
+    background:var(--bg3);color:var(--fg);border:1px solid var(--line);border-radius:6px;
+    padding:5px 9px;font-size:12px;font-family:inherit;outline:none}
+  input[type=text]:focus{border-color:var(--wx)}
+  button{cursor:pointer}
+  button:hover{border-color:var(--wx);color:#fff}
+  button.on{background:#1d3a5c;border-color:var(--bot)}
+  button.wx{border-color:#22553f}
+  .chip{background:var(--bg3);border:1px solid var(--line);border-radius:20px;
+        padding:3px 10px;font-size:11px;color:var(--fg2)}
+  .chip b{color:var(--fg);font-weight:600}
+  .tabs{display:flex;gap:6px;margin-top:8px}
+  .tabs button{padding:4px 16px;font-size:12px}
+  .hide{display:none !important}
+
+  main{display:grid;grid-template-columns:320px 1fr;height:calc(100vh - 100px)}
+  aside{border-right:1px solid var(--line);overflow-y:auto;background:var(--bg2)}
+  section{overflow-y:auto;padding:14px 18px 60px}
+
+  .user{padding:9px 12px;border-bottom:1px solid #1c232e;cursor:pointer}
+  .user:hover{background:#19212c}
+  .user.sel{background:#17352a;border-left:3px solid var(--wx);padding-left:9px}
+  .user .nm{font-size:13px;font-weight:600;color:var(--fg);
+            display:flex;align-items:center;gap:6px}
+  .user .nm .tag{font-size:9.5px;font-weight:400;border:1px solid #22553f;
+                 color:var(--wx);border-radius:4px;padding:0 4px}
+  .user .uid{font-size:10px;color:var(--fg3);word-break:break-all;margin:1px 0 2px}
+  .user .st{font-size:10.5px;color:var(--fg2);display:flex;gap:8px;flex-wrap:wrap}
+  .user .st b{color:var(--wx);font-weight:600}
+  .user .pv{font-size:10.5px;color:var(--fg3);white-space:nowrap;overflow:hidden;
+            text-overflow:ellipsis;margin-top:2px}
+
+  .head{background:var(--bg2);border:1px solid var(--line);border-radius:8px;
+        padding:10px 14px;margin-bottom:14px}
+  .head h2{margin:0 0 6px;font-size:14px}
+  .head .kv{display:flex;gap:18px;flex-wrap:wrap;font-size:11.5px;color:var(--fg2)}
+  .head .kv b{color:var(--fg)}
+
+  .day{margin:16px 0 6px;font-size:11px;color:var(--fg3);
+       border-bottom:1px dashed #232c3a;padding-bottom:3px}
+  .day b{color:var(--fg2)}
+
+  .m{display:flex;gap:10px;margin-bottom:9px}
+  .m .t{flex:0 0 62px;color:var(--fg3);font-size:10.5px;padding-top:3px;text-align:right}
+  .m .b{flex:1;min-width:0}
+  .m.in .bubble{background:#16302a;border:1px solid #22553f;border-left:3px solid var(--wx);
+                border-radius:0 8px 8px 0;padding:7px 11px;white-space:pre-wrap;
+                word-break:break-word;font-size:13px}
+  .m.out .bubble{background:#16283a;border:1px solid #1d3a5c;border-left:3px solid var(--bot);
+                 border-radius:0 8px 8px 0;padding:7px 11px;white-space:pre-wrap;
+                 word-break:break-word;font-size:12.5px;color:#bcd4ee}
+  .m .lbl{font-size:10px;margin-bottom:3px}
+  .m.in .lbl{color:var(--wx)}
+  .m.out .lbl{color:var(--bot)}
+  .empty{color:var(--fg3);padding:26px;text-align:center}
+  .warn{color:var(--warn)}
+
+  /* wxbot 通道 */
+  .m.exp .bubble{background:#2a2412;border:1px solid #5c4a1d;border-left:3px solid #e0b341;
+                 border-radius:0 8px 8px 0;padding:7px 11px;white-space:pre-wrap;
+                 word-break:break-word;font-size:12.5px;color:#e8d9a8}
+  .m.exp .lbl{color:#e0b341}
+  .m.err .bubble{background:#2a1512;border:1px solid #5c2a1d;border-left:3px solid var(--warn);
+                 border-radius:0 8px 8px 0;padding:6px 11px;color:#f0b9a8;font-size:11.5px}
+  .m.err .lbl{color:var(--warn)}
+  .m.sysline .bubble{background:transparent;border:none;color:var(--fg3);padding:0;
+                     font-size:11px;white-space:pre-wrap}
+  .m .meta{font-size:10px;color:var(--fg3);margin-top:4px;display:flex;gap:9px;
+           flex-wrap:wrap;align-items:center}
+  .m .meta .k{color:var(--fg2)}
+  .slow{color:#ff5252;font-weight:700}
+  .sbadge{font-size:9.5px;border-radius:4px;padding:0 5px;border:1px solid}
+  .sb-ok{color:var(--wx);border-color:#22553f;background:#12281f}
+  .sb-timeout,.sb-error{color:var(--warn);border-color:#5c2a1d;background:#2a1712}
+  .sb-task{color:#e0b341;border-color:#5c4a1d;background:#2a2412}
+  .sb-manual{color:var(--fg2);border-color:var(--line);background:#1a1f28}
+  .sb-infer{color:var(--fg3);border-color:var(--line)}
+  select#w-kind{padding:4px 6px}
+
+  /* 定时任务卡片 */
+  .jsec{margin-bottom:20px}
+  .jsec h2{font-size:13px;margin:0 0 8px;padding:6px 10px;background:var(--bg2);
+           border:1px solid var(--line);border-radius:7px;display:flex;gap:10px;
+           align-items:center;flex-wrap:wrap}
+  .jsec h2 .uid{font-size:10.5px;color:var(--fg3);font-weight:400}
+  .jsec h2 .k{font-size:10.5px;color:var(--fg2);font-weight:400}
+  .jgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:10px}
+  .jcard{background:var(--bg2);border:1px solid var(--line);border-left:3px solid var(--fg3);
+         border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+  .jcard.active{border-left-color:var(--ok)}
+  .jcard.paused{border-left-color:var(--fg3)}
+  .jcard.done{border-left-color:var(--asst)}
+  .jcard.error{border-left-color:var(--warn)}
+  .jcard .t{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .jcard .nm{font-size:12.5px;font-weight:600;color:var(--fg)}
+  .jbadge{font-size:9.5px;border-radius:4px;padding:0 5px;border:1px solid}
+  .jb-active{color:var(--ok);border-color:#22553f;background:#12281f}
+  .jb-paused{color:var(--fg2);border-color:var(--line);background:#1a1f28}
+  .jb-done{color:var(--asst);border-color:#1d3a5c;background:#12202f}
+  .jb-error{color:var(--warn);border-color:#5c2a1d;background:#2a1712}
+  .jcard .kv{font-size:11px;color:var(--fg2);display:grid;
+             grid-template-columns:auto 1fr;gap:1px 8px;align-items:baseline}
+  .jcard .kv .l{color:var(--fg3);white-space:nowrap}
+  .jcard .kv .v{color:var(--fg);word-break:break-word}
+  .jcard .kv .v.err{color:var(--warn)}
+  .jcard .foot{font-size:10px;color:var(--fg3);display:flex;gap:10px;flex-wrap:wrap;
+               border-top:1px solid #1c232e;padding-top:5px;margin-top:2px}
+  .jcard details{font-size:11px}
+  .jcard .pre{margin-top:4px;font-size:10.5px;max-height:200px}
+  code{color:var(--fg2);background:#0b0e13;padding:1px 5px;border-radius:3px;font-size:11px}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#2b3646;border-radius:6px}
+  ::-webkit-scrollbar-track{background:transparent}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="row">
+    <h1>微信管家日志 <span style="color:var(--fg3);font-weight:400;font-size:11.5px">wxbot 通道流水 · 定时任务</span></h1>
+  </div>
+  <div class="row" style="margin-top:8px">
+    <button id="b-refresh">刷新</button>
+    <button id="b-auto">自动刷新：关</button>
+    <button id="w-order">排序：倒序（新→旧）</button>
+    <select id="w-kind">
+      <option value="all">全部事件</option>
+      <option value="chat">只看收发（收到/回复）</option>
+      <option value="outbound">只看外发</option>
+      <option value="slow">只看慢轮（&gt;300s）</option>
+    </select>
+    <span style="flex:1"></span>
+  </div>
+  <div class="tabs">
+    <button id="tab-wxbot" class="on">wxbot 通道</button>
+    <button id="tab-jobs">定时任务</button>
+  </div>
+</header>
+
+<main>
+  <aside id="list"></aside>
+  <section id="pane"><div class="empty">左侧选一项查看详情</div></section>
+</main>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => (s==null?'':String(s)).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const p2 = n => String(n).padStart(2,'0');
+const d2 = t => { const d=new Date(t*1000); return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`; };
+const hm = t => { const d=new Date(t*1000); return `${p2(d.getHours())}:${p2(d.getMinutes())}`; };
+const full = t => { if(!t) return '-'; const d=new Date(t*1000);
+  return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`; };
+const ago = t => { if(!t) return '-'; const s=(Date.now()/1000)-t;
+  if(s<60) return '刚刚'; if(s<3600) return Math.floor(s/60)+'分钟前';
+  if(s<86400) return Math.floor(s/3600)+'小时前'; return Math.floor(s/86400)+'天前'; };
+
+let state = { tab:'wxbot', jobUid:'all', jobs:null, auto:0, timer:null,
+              wdata:null, wUid:'all', wOrder:'desc', wKind:'all' };
+
+async function get(u){ const r = await fetch(u); return r.json(); }
+
+/* ---------------- wxbot 通道 ---------------- */
+const hhmmss = s => (s||'').slice(11,19);
+const daystr = s => (s||'').slice(0,10);
+const sec1 = n => (n==null? '' : Number(n).toFixed(1));
+
+async function loadWxbot(){
+  try{
+    state.wdata = await get('/api/wxbot');
+  }catch(e){
+    $('#pane').innerHTML = '<div class="empty">载入失败：'+esc(e.message||e)+'</div>';
+    return;
+  }
+  renderWxNav();
+  renderWxPane();
+}
+
+function renderWxNav(){
+  const d = state.wdata, el = $('#list'), st = d.stats;
+  const head = `<div class="user ${state.wUid==='all'?'sel':''}" data-u="all">
+      <div class="nm">全部联系人</div>
+      <div class="st"><span>事件 <b>${st.events}</b></span><span>收到 ${st.received}</span>
+        <span>回复 ${st.reply}</span><span>外发 ${st.outbound}</span></div>
+      <div class="st">${st.slow_rounds?`<span class="warn">慢轮(&gt;300s) ${st.slow_rounds}</span>`:''}
+        ${st.timeouts?`<span class="warn">超时 ${st.timeouts}</span>`:''}
+        <span>任务推断 ${st.inferred_tasks}</span></div>
+    </div>`;
+  el.innerHTML = head + d.contacts.map(c=>`
+    <div class="user ${state.wUid===c.uid?'sel':''}" data-u="${esc(c.uid)}">
+      <div class="nm">${esc(c.name)}${c.window?` <span class="sbadge ${c.window==='connected'?'sb-ok':'sb-timeout'}">${c.window==='connected'?'窗口在线':'窗口未开'}</span>`:''}</div>
+      <div class="uid">${esc(c.user_id||c.uid)}${c.profile?` · ${esc(c.profile)}`:''}</div>
+      <div class="st"><span>事件 <b>${c.count}</b></span><span>外发 ${c.out}</span>
+        ${c.slow?`<span class="warn">慢轮 ${c.slow}</span>`:''}</div>
+    </div>`).join('');
+  el.querySelectorAll('.user').forEach(n=>n.onclick=()=>{
+    state.wUid = n.dataset.u;
+    el.querySelectorAll('.user').forEach(x=>x.classList.toggle('sel', x.dataset.u===state.wUid));
+    renderWxPane();
+  });
+}
+
+function wxMeta(e){
+  const bits = [];
+  if(e.elapsed_s!=null){
+    const sl = e.elapsed_s>300 && e.elapsed_kind!=='session';
+    const lbl = e.elapsed_kind==='session' ? '会话累计耗时（非本轮）' : '调用 agent 耗时';
+    bits.push(`<span>${lbl} <b class="${sl?'slow':''}">${sec1(e.elapsed_s)}s</b>${sl?' <span class="sbadge sb-error">慢</span>':''}</span>`);
+  }
+  if(e.reply_wait_s!=null) bits.push(`<span class="k">收到→回复 ${sec1(e.reply_wait_s)}s</span>`);
+  if(e.status==='timeout') bits.push('<span class="sbadge sb-timeout">超时</span>');
+  else if(e.status==='error') bits.push('<span class="sbadge sb-error">出错</span>');
+  else if(e.status==='ok') bits.push('<span class="sbadge sb-ok">ok</span>');
+  if(e.agent){
+    bits.push(`<span class="k">session ${esc(e.agent.session_id)}</span>`);
+    bits.push(`<span class="k">${e.agent.api_call_count} 次 API 调用</span>`);
+    bits.push(`<span class="k">${e.agent.tool_call_count} 次工具调用</span>`);
+  }
+  return bits.join('');
+}
+
+function wxEvent(e){
+  const t = `<div class="t">${hhmmss(e.time)}</div>`;
+  if(e.direction==='system'){
+    const txt = (e.content||'').trim();
+    if(!txt) return '';
+    return `<div class="m sysline">${t}<div class="b"><div class="bubble">· ${esc(txt)}</div></div></div>`;
+  }
+  if(e.direction==='api_error'){
+    return `<div class="m err">${t}<div class="b">
+      <div class="lbl">Hermes API 调用失败</div>
+      <div class="bubble">${esc(e.content)}</div></div></div>`;
+  }
+  if(e.direction==='outbound'){
+    const tk = e.task || {};
+    const badge = tk.job_id
+      ? `<span class="sbadge sb-task">任务 ${esc(tk.name)}</span><span class="sbadge sb-infer">推断</span><span class="k">job ${esc(tk.job_id)}</span>`
+      : `<span class="sbadge sb-manual">${esc(tk.name||'管家 / 手动推送')}</span>`;
+    const sent = e.sent_time ? `<span class="k">已发出 ${hhmmss(e.sent_time)}</span>` : '';
+    return `<div class="m exp">${t}<div class="b">
+      <div class="lbl">外发（wxbot 通道）</div>
+      <div class="bubble">${esc(e.content)}</div>
+      <div class="meta">${badge}${sent}</div></div></div>`;
+  }
+  const cls = e.direction==='received' ? 'in' : 'out';
+  const lbl = e.direction==='received'
+      ? `收到 · ${esc(e.name)} (${esc(e.uid)})` : '机器人回复';
+  return `<div class="m ${cls}">${t}<div class="b">
+    <div class="lbl">${lbl}</div>
+    <div class="bubble">${esc(e.content)}</div>
+    <div class="meta">${wxMeta(e)}</div></div></div>`;
+}
+
+function renderWxPane(){
+  const d = state.wdata;
+  if(!d){ $('#pane').innerHTML='<div class="empty">载入中…</div>'; return; }
+  let evs = d.events.filter(e=>state.wUid==='all' || e.uid===state.wUid);
+  if(state.wKind==='chat') evs = evs.filter(e=>e.direction==='received'||e.direction==='reply');
+  else if(state.wKind==='outbound') evs = evs.filter(e=>e.direction==='outbound');
+  else if(state.wKind==='slow') evs = evs.filter(e=>e.elapsed_s!=null && e.elapsed_s>300);
+  if(state.wOrder==='asc') evs = evs.slice().reverse();
+  const st = d.stats;
+  const head = `<div class="head">
+    <h2>wxbot 通道 · 真实聊天窗口流水
+      <span style="color:var(--fg3);font-weight:400;font-size:11px">${esc(d.log)}</span></h2>
+    <div class="kv">
+      <span>事件 <b>${st.events}</b></span>
+      <span>收到 <b>${st.received}</b></span>
+      <span>回复 <b>${st.reply}</b></span>
+      <span>外发 <b>${st.outbound}</b></span>
+      <span>超时 <b class="${st.timeouts?'slow':''}">${st.timeouts}</b></span>
+      <span>慢轮(&gt;300s) <b class="${st.slow_rounds?'slow':''}">${st.slow_rounds}</b></span>
+      <span>任务推断 <b>${st.inferred_tasks}</b></span>
+      <span>会话 <b>${st.sessions}</b></span>
+      <span style="flex:1"></span>
+      <span class="k">生成 ${esc(d.generated_at)}</span>
+    </div></div>`;
+  if(!evs.length){ $('#pane').innerHTML = head + '<div class="empty">没有匹配的事件</div>'; return; }
+  let lastDay = null, html = '';
+  for(const e of evs){
+    const day = daystr(e.time);
+    if(day!==lastDay){ html += `<div class="day"><b>${day}</b></div>`; lastDay = day; }
+    html += wxEvent(e);
+  }
+  $('#pane').innerHTML = head + html;
+}
+
+/* ---------------- 定时任务 ---------------- */
+const JSTATE = { active:['运行中','jb-active'], paused:['已暂停','jb-paused'],
+                 done:['已完成','jb-done'], error:['出错','jb-error'] };
+const parseTs = s => { if(!s) return null; const t = Date.parse(s); return isNaN(t) ? null : t/1000; };
+
+function jobCard(j){
+  const st = JSTATE[j.ui_state] || ['?','jb-paused'];
+  const err = j.last_delivery_error || j.last_error || '';
+  const nxt = parseTs(j.next_run_at), lst = parseTs(j.last_run_at);
+  const rows = [
+    ['计划', esc(j.schedule||'-')],
+    ['下次跑', nxt ? full(nxt) : '-'],
+    ['上次跑', (lst ? full(lst) : '-') + (j.last_status ? ` · ${esc(j.last_status)}` : '')],
+    ['投递到', esc(j.deliver||'-') + (j.uid_source==='profile' ? ' <span style="color:var(--fg3)">(按 Profile 归属)</span>' : '')],
+    ['类型', (j.script ? 'script '+esc(j.script) : (j.no_agent ? 'no_agent' : 'agent'))
+             + (j.repeat ? ` · ${esc(j.repeat)}` : '')],
+  ];
+  if(err) rows.push(['错误', `<span class="err">${esc(err)}</span>`]);
+  return `<div class="jcard ${j.ui_state}">
+    <div class="t"><span class="nm">${esc(j.name)}</span><span class="jbadge ${st[1]}">${st[0]}</span></div>
+    <div class="kv">${rows.map(r=>`<span class="l">${r[0]}</span><span class="v">${r[1]}</span>`).join('')}</div>
+    ${j.prompt ? `<details><summary>prompt 摘要</summary><div class="pre">${esc(j.prompt)}</div></details>` : ''}
+    <div class="foot"><span>job ${esc(j.job_id)}</span><span>profile ${esc(j.profile)}</span></div>
+  </div>`;
+}
+
+async function loadJobs(){
+  const d = await get('/api/jobs');
+  state.jobs = d;
+  const el = $('#list');
+  const head = `<div class="user ${state.jobUid==='all'?'sel':''}" data-u="all">
+      <div class="nm">全部归属</div>
+      <div class="st"><span>归属 <b>${d.count}</b></span><span>活跃 ${d.active}</span>
+        <span>暂停 ${d.paused}</span>${d.done?`<span>已完成 ${d.done}</span>`:''}
+        ${d.error?`<span class="warn">出错 ${d.error}</span>`:''}</div>
+    </div>`;
+  el.innerHTML = head + d.users.map(u=>`
+    <div class="user ${state.jobUid===u.uid?'sel':''}" data-u="${esc(u.uid)}">
+      <div class="nm">${esc(u.name)}</div>
+      <div class="uid">${esc(u.uid_display||u.uid)}</div>
+      <div class="st"><span>归属 <b>${u.count}</b></span><span>活跃 ${u.active}</span>
+        <span>暂停 ${u.paused}</span>${u.error?`<span class="warn">出错 ${u.error}</span>`:''}</div>
+    </div>`).join('');
+  el.querySelectorAll('.user').forEach(n=>n.onclick=()=>{
+    state.jobUid = n.dataset.u;
+    el.querySelectorAll('.user').forEach(x=>x.classList.toggle('sel', x.dataset.u===state.jobUid));
+    renderJobs();
+  });
+  renderJobs();
+}
+
+function renderJobs(){
+  const d = state.jobs;
+  if(!d){ $('#pane').innerHTML='<div class="empty">载入中…</div>'; return; }
+  const secs = state.jobUid==='all' ? d.users : d.users.filter(u=>u.uid===state.jobUid);
+  if(!secs.length){ $('#pane').innerHTML='<div class="empty">没有定时任务</div>'; return; }
+  $('#pane').innerHTML = secs.map(u=>`<div class="jsec">
+      <h2>${esc(u.name)} <span class="uid">${esc(u.uid_display||u.uid)}</span>
+        <span class="k">共 ${u.count} 个</span><span class="k">活跃 ${u.active}</span>
+        <span class="k">暂停 ${u.paused}</span>
+        ${u.error?`<span class="k warn">出错 ${u.error}</span>`:''}</h2>
+      <div class="jgrid">${u.jobs.map(jobCard).join('')}</div>
+    </div>`).join('');
+}
+
+function switchTab(t){
+  state.tab = t;
+  $('#tab-wxbot').classList.toggle('on', t==='wxbot');
+  $('#tab-jobs').classList.toggle('on', t==='jobs');
+  if(t==='jobs'){
+    state.jobUid = 'all';
+    $('#pane').innerHTML = '<div class="empty">载入中…</div>';
+    loadJobs();
+  } else {
+    state.wUid = 'all';
+    $('#pane').innerHTML = '<div class="empty">载入中…</div>';
+    loadWxbot();
+  }
+}
+$('#tab-wxbot').onclick = ()=>switchTab('wxbot');
+$('#tab-jobs').onclick = ()=>switchTab('jobs');
+
+$('#w-order').onclick = ()=>{
+  state.wOrder = state.wOrder==='desc' ? 'asc' : 'desc';
+  $('#w-order').textContent = '排序：'+(state.wOrder==='desc'?'倒序（新→旧）':'正序（旧→新）');
+  renderWxPane();
+};
+$('#w-kind').onchange = ()=>{ state.wKind = $('#w-kind').value; renderWxPane(); };
+
+function refreshCurrent(){
+  if(state.tab==='jobs') loadJobs();
+  else loadWxbot();
+}
+$('#b-refresh').onclick = refreshCurrent;
+$('#b-auto').onclick = ()=>{
+  state.auto = state.auto?0:15;
+  $('#b-auto').textContent = '自动刷新：'+(state.auto?state.auto+'s':'关');
+  $('#b-auto').classList.toggle('on', !!state.auto);
+  clearInterval(state.timer);
+  if(state.auto) state.timer = setInterval(refreshCurrent, state.auto*1000);
+};
+
+async function boot(){
+  const qp = new URLSearchParams(location.search);
+  if(qp.get('kind')){ state.wKind = qp.get('kind'); $('#w-kind').value = state.wKind; }
+  if(qp.get('worder')==='asc'){ state.wOrder = 'asc'; $('#w-order').textContent = '排序：正序（旧→新）'; }
+  const tab = qp.get('tab') || 'wxbot';      // wxbot 通道为第一个标签，默认展示
+  switchTab(tab === 'jobs' ? 'jobs' : 'wxbot');
+}
+boot();
+</script>
+</body>
+</html>
