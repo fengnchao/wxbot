@@ -11,8 +11,20 @@ from __future__ import annotations
 import json
 import urllib.error
 import urllib.request
+from urllib.parse import quote
 
 from .contacts import Contact
+
+
+def header_value(value: str) -> str:
+    """HTTP 头只接受 latin-1：非 ASCII（群聊兜底联系人的 uid 就是中文群名）必须转义，
+    否则 urllib 在发包前就抛 UnicodeEncodeError: 'latin-1' codec ... position 23-27。
+
+    百分号转义是确定性的：同一个群每轮得到同一个 Key，记忆归属不变。
+    中文原文照旧走 body（身份提示，UTF-8），不受影响。
+    """
+    s = str(value or "")
+    return s if s.isascii() else quote(s, safe="")
 
 
 class HermesError(Exception):
@@ -67,7 +79,7 @@ class HermesClient:
         if self.api_key:
             h["Authorization"] = f"Bearer {self.api_key}"
         if session_key:
-            h["X-Hermes-Session-Key"] = session_key
+            h["X-Hermes-Session-Key"] = header_value(session_key)
         return h
 
     def chat(self, contact: Contact, text: str, *, extra_system: str = "",
@@ -83,7 +95,7 @@ class HermesClient:
         url = f"{self._api_base(contact.profile)}/v1/chat/completions"
         headers = self._headers(contact.profile, contact.key())
         sid = self.session_id(contact)
-        headers["X-Hermes-Session-Id"] = sid
+        headers["X-Hermes-Session-Id"] = header_value(sid)
         body = {"model": self.model, "messages": messages, "stream": False}
 
         try:

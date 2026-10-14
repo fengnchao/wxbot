@@ -17,7 +17,7 @@ Windows 上的个人微信机器人，Python 项目，拆成两个本地进程�
 
 - 窗口定位、轮询、消息差分、发送和 `/ping` 等通道命令属于 wxbot；联系人身份、Hermes Profile/uid、会话 id、补发、静默和 skill 决策属于 butler。
 - wxbot 通过 `wxbot/processor/butler.py` 把消息发给 butler；仍支持 `echo`、Hermes/OpenAI 兼容和 Ollama 后端，路由见 `wxbot/main.py`。
-- 群聊监听通过 `[bot].bound_groups` 配置窗口标题，通过 `[bot].mention_names` 配置机器人昵称；仅处理以 `@昵称` 开头的其他成员文字消息，移除提及前缀后走同一处理器并在原群聊回复。
+- 群聊监听通过 `[bot].bound_groups` 配置窗口标题，通过 `[bot].mention_names` 配置机器人昵称；仅处理包含 `@昵称` 的其他成员文字消息，移除提及后走同一处理器并在原群聊回复。
 - butler HTTP 接口都要求 `Authorization: Bearer <token>`：`GET /health`、`GET /v1/catalogue`、`POST /v1/handle`、`POST /v1/reset`、`POST /v1/push`。默认仅绑定 loopback。处理接口形状见 `butler/server.py`。
 - Hermes 调用同时传 `X-Hermes-Session-Key`（长期身份/记忆归属）和 `X-Hermes-Session-Id`（同一段对话连续性）。只传前者可能每轮派生新会话。`/new` 或 `/重置` 会轮换会话 id。
 - 模型行动标记 `<<butler:action {"skill":"...","args":{...}}>>` 由 `butler/router.py` 去除并交 `butler/skills.py` 白名单执行；未知 skill 失败留痕。现有 catalog：`reminder.create/list/cancel`（本地实现）、`learn.card`、`quiz.next`（再委派 Hermes）。`<<butler:silent>>` 等标记用于静默。

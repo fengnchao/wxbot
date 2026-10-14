@@ -25,7 +25,7 @@ from .wechat.chat_window import ChatWindow
 
 
 def _mentioned_text(text: str, names: list[str]) -> str | None:
-    """Return the message body when it starts with an @mention of this bot."""
+    """Return the message body when it contains an @mention of this bot."""
     import re
 
     separators = r"[\s\u00a0\u2000-\u200b\u202f\u205f\u3000]"
@@ -33,11 +33,11 @@ def _mentioned_text(text: str, names: list[str]) -> str | None:
         name = str(name).strip().lstrip("@")
         if not name:
             continue
-        match = re.match(r"^\s*@" + re.escape(name) + r"(?=" + separators + r"|[:：,，]|$)"
+        match = re.search(r"@" + re.escape(name) + r"(?=" + separators + r"|[:：,，]|$)"
                          r"(?:[\s\u00a0\u2000-\u200b\u202f\u205f\u3000]+|[:：,，]\s*)?",
                          text, flags=re.IGNORECASE)
         if match:
-            return text[match.end():].strip()
+            return (text[:match.start()] + text[match.end():]).strip()
     return None
 
 

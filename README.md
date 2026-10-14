@@ -85,7 +85,7 @@ copy config.wxbot.example.toml  config.wxbot.toml     # 填 bound_users；要监
 .\.venv\Scripts\python -m wxbot.main
 ```
 
-群聊监听：在 `[bot]` 配置 `bound_groups = ["群聊窗口标题"]` 和 `mention_names = ["机器人昵称"]`，并在微信中打开对应群聊独立窗口。只有明确 `@机器人昵称` 的群消息会进入同一处理器流程并在群内回复。
+群聊监听：在 `[bot]` 配置 `bound_groups = ["群聊窗口标题"]` 和 `mention_names = ["机器人昵称"]`，并在微信中打开对应群聊独立窗口。只有明确包含 `@机器人昵称` 提及的群消息会进入同一处理器流程并在群内回复。
 
 > 首次使用 UI 自动化，建议先把 `config.wxbot.toml` 里 `backend = "echo"` 测试收发，
 > 并用 `python tools\probe.py` 校准微信控件。详见 `README.wxbot.md`。

@@ -2,8 +2,10 @@
 from __future__ import annotations
 
 import json
+import threading
 import urllib.error
 import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
@@ -56,6 +58,46 @@ def test_hermes_wire_format(make_home, monkeypatch):
     assert msgs[0]["role"] == "system" and "user_id=101" in msgs[0]["content"]
     assert msgs[-1] == {"role": "user", "content": "帮我看下明天天气"}
     assert client.session_ids["101"] == "echoed-id", "服务端回显的 id 要记住"
+
+
+def test_chinese_contact_name_survives_http_headers(make_home):
+    """群聊没有 [[contacts]] 条目时，兜底 Contact 的 uid 就是中文群名 → 头必须能编 latin-1。
+
+    回归：'latin-1' codec can't encode characters in position 23-27
+    （'agent:default:wxbot:dm:' 正好 23 个 ASCII 字符，中文群名从第 24 个字符起）。
+    真 socket 才复现得了：urllib 在发包前编头，monkeypatch urlopen 会绕过这一步。
+    """
+    seen = {}
+
+    class _H(BaseHTTPRequestHandler):
+        def do_POST(self):
+            seen["key"] = self.headers.get("X-Hermes-Session-Key")
+            seen["sid"] = self.headers.get("X-Hermes-Session-Id")
+            out = json.dumps({"choices": [{"message": {"content": "回你一句"}}]}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(out)))
+            self.end_headers()
+            self.wfile.write(out)
+
+        def log_message(self, *a):
+            pass
+
+    httpd = ThreadingHTTPServer(("127.0.0.1", 0), _H)
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    try:
+        cfg = make_home().cfg
+        cfg.hermes_url = "http://127.0.0.1:%d" % httpd.server_address[1]
+        contact = load_contacts([{"name": "鸭王集训营", "profile": "default",
+                                  "uid": "鸭王集训营"}]).get("鸭王集训营")
+        assert HermesClient(cfg).chat(contact, "你好") == "回你一句"
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+
+    assert seen["key"].isascii() and seen["sid"].isascii(), "头里只能有 ASCII"
+    assert "%E9%B8%AD" in seen["key"], "同一个群每轮要得到同一个转义后的 key"
+    assert ":" not in seen["sid"], "冒号会被服务端当成 Windows 盘符 → 400"
 
 
 def test_hermes_wire_format_named_profile(make_home, monkeypatch):
