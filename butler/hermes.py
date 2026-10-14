@@ -29,8 +29,14 @@ class HermesClient:
         self.model = cfg.hermes_model
         self.timeout = cfg.hermes_timeout
         self.send_identity = cfg.send_identity
+        self.profile_in_path = getattr(cfg, "hermes_profile_in_path", False)
         self.log = log or (lambda *a, **k: None)
         self.session_ids: dict[str, str] = {}          # contact name → 会话 id（/new 时轮换）
+
+    # ---------- URL 拼接 ----------
+    def _api_base(self, profile: str) -> str:
+        """返回接口前缀：带命名 Profile 时为 {base}/p/{profile}，否则为扁平的 {base}。"""
+        return f"{self.base}/p/{profile}" if self.profile_in_path else self.base
 
     # ---------- 会话 ----------
     def session_id(self, contact: Contact) -> str:
@@ -42,7 +48,7 @@ class HermesClient:
 
     # ---------- 探活（不跑 agent、不污染会话）----------
     def alive(self, profile: str) -> bool:
-        req = urllib.request.Request(f"{self.base}/p/{profile}/v1/models",
+        req = urllib.request.Request(f"{self._api_base(profile)}/v1/models",
                                      headers=self._headers(profile, None))
         try:
             with urllib.request.urlopen(req, timeout=15) as r:
@@ -74,7 +80,7 @@ class HermesClient:
             messages.append({"role": "system", "content": contact.identity()})
         messages.append({"role": "user", "content": text})
 
-        url = f"{self.base}/p/{contact.profile}/v1/chat/completions"
+        url = f"{self._api_base(contact.profile)}/v1/chat/completions"
         headers = self._headers(contact.profile, contact.key())
         sid = self.session_id(contact)
         headers["X-Hermes-Session-Id"] = sid

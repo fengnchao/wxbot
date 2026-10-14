@@ -4,6 +4,10 @@
   GET  /v1/catalogue              → 能调的 skill 白名单（给运维看）
   POST /v1/handle  {contact,text} → {"reply":..., "actions":[...], "meta":{...}}
   POST /v1/reset   {contact}      → 开新会话
+  POST /v1/push    {contact?,text,type?,messageType?}
+      主动推送（不走模型）：记外发日志 + 转发 wxbot 代发。
+      type: 1=指定用户发送（用 contact，缺省即 1）/ 2=群发（按 messageType 查「用户分组」字典）
+      messageType: 1=新闻消息 2=问候消息 3=其他（群发时必填）
 
 全部要求 `Authorization: Bearer <server.token>`；只绑 127.0.0.1。
 启动： python -m butler.server --config config.toml
@@ -20,6 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from . import skills
 from .config import Config, load, masked
 from .core import Butler
+from .groups import parse_int as _as_int
 
 MAX_BODY = 1 << 20
 
@@ -107,6 +112,49 @@ def make_handler(butler: Butler, cfg: Config):
                     return
                 self._send(200, butler.reset(contact).as_dict())
                 return
+            if self.path.startswith("/v1/push"):
+                if not self._authed():
+                    return
+                b = self._body()
+                text = str(b.get("text") or "")
+                if not text.strip():
+                    self._send(400, {"error": "缺少 text"})
+                    return
+                if b.get("type") is None:
+                    push_type = 1                        # 兼容旧请求：不给 type 就是指定用户发送
+                else:
+                    push_type = _as_int(b.get("type"))
+                    if push_type is None:
+                        self._send(400, {"error": "type 非法（1=指定用户发送 2=群发）"})
+                        return
+                if b.get("messageType") is None:
+                    msg_type = None
+                else:
+                    msg_type = _as_int(b.get("messageType"))
+                    if msg_type is None:
+                        self._send(400, {"error": "messageType 非法（1=新闻消息 2=问候消息 3=其他）"})
+                        return
+                try:
+                    if push_type == 1:
+                        contact = str(b.get("contact") or "").strip()
+                        if not contact:
+                            self._send(400, {"error": "缺少 contact（指定用户发送）"})
+                            return
+                        res = butler.push(contact, text, push_type=1, message_type=msg_type)
+                    elif push_type == 2:
+                        if msg_type is None:
+                            self._send(400, {"error": "群发需要 messageType（1=新闻消息 2=问候消息 3=其他）"})
+                            return
+                        res = butler.push_group(msg_type, text)
+                    else:
+                        self._send(400, {"error": "type 只支持 1(指定用户发送) / 2(群发)"})
+                        return
+                except Exception as e:                     # 通道异常不能变成 500 以外的崩溃
+                    _log("push 异常: %s: %s", type(e).__name__, e)
+                    self._send(500, {"error": f"{type(e).__name__}: {e}"})
+                    return
+                self._send(200, res.as_dict())
+                return
             self._send(404, {"error": "not found"})
 
     return Handler
@@ -135,6 +183,7 @@ def status(cfg: Config) -> int:
     _log("  Hermes    %s   key=%s   model=%s   root=%s",
          cfg.hermes_url, masked(cfg.hermes_key), cfg.hermes_model, cfg.hermes_root or "(未配)")
     _log("  wxbot     %s   token=%s", cfg.wxbot_url, masked(cfg.wxbot_token))
+    _log("  流水日志  %s", cfg.flow_log_path() or "(禁用：hermes.root 与 log.flow_file 都未配)")
     _log("  决策层    actions_enabled=%s  script_dir=%s  respond_after=%s",
          cfg.actions_enabled, cfg.script_dir or "(未配)", cfg.respond_after_action)
     _log("  联系人    %s", ", ".join(f"{c.name}→{c.profile}/{c.uid}"

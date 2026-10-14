@@ -39,8 +39,9 @@ with open(HERE / "events.log", "a", encoding="utf-8") as fh:
     fh.write(cmd if cmd == "json" else "flush %s" % (sys.argv[2] if len(sys.argv) > 2 else ""))
     fh.write("\\n")
 if cmd == "json":
-    print(json.dumps({"items": json.loads((HERE / "items.json").read_text(encoding="utf-8"))},
-                     ensure_ascii=False))
+    # 注意用默认 ensure_ascii（ASCII 转义）输出：子进程 stdout 走管道时按系统
+    # 区域编码（中文 Windows 是 GBK），Emoji 正文直接输出会 UnicodeEncodeError。
+    print(json.dumps({"items": json.loads((HERE / "items.json").read_text(encoding="utf-8"))}))
 '''
 
 

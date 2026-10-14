@@ -1,0 +1,13 @@
+# wxbot 统一依赖清单（一次安装即可，butler 与 wxbot 两个模块共用同一个 .venv）
+#
+#   pip install -r requirements.txt
+#
+# 说明：butler 管家层是纯 Python 标准库，无需第三方包；
+#       下面这些是 wxbot UI 自动化层需要的。
+
+uiautomation>=2.0.18   # Windows 控件自动化（读写微信窗口）
+requests>=2.31         # 调用大模型 HTTP 接口
+pillow>=10.0           # 截图判断消息发送方
+
+# 测试
+pytest>=8.0

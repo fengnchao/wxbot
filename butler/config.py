@@ -11,7 +11,7 @@ from pathlib import Path
 
 from .contacts import ContactMap, load_contacts
 
-DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config.toml"
+DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config.butler.toml"
 
 
 @dataclass
@@ -27,6 +27,10 @@ class Config:
     hermes_timeout: int = 600
     hermes_root: str = ""
     send_identity: bool = True
+    # Hermes URL 是否带命名 Profile 前缀 /p/{profile}/。
+    # True  → {base}/p/{profile}/v1/...（Hermes 侧配了命名 Profile 时）
+    # False → {base}/v1/...（扁平接口，默认；记忆隔离仍靠 X-Hermes-Session-Key 头）
+    hermes_profile_in_path: bool = False
     # wxbot（主动推送）
     wxbot_url: str = "http://127.0.0.1:8765"
     wxbot_token: str = ""
@@ -35,6 +39,10 @@ class Config:
     actions_enabled: bool = True
     script_dir: str = ""
     respond_after_action: bool = False
+    # 流水日志（供 log 看板 8788 解析）：留空则用 {hermes_root}/cache/wxbot.log
+    flow_log: str = ""
+    # 用户分组字典（messageType → 绑定用户）：留空则用 {hermes_root}/cache/butler_groups.json
+    groups_file: str = ""
     # 联系人
     contacts: ContactMap = field(default_factory=ContactMap)
 
@@ -44,6 +52,23 @@ class Config:
 
     def hermes_up(self) -> bool:
         return bool(self.hermes_url)
+
+    def flow_log_path(self) -> str:
+        """流水日志文件路径。显式配置优先；否则 {hermes_root}/cache/wxbot.log（看板默认读这里）；都无则返回空=禁用。"""
+        if self.flow_log:
+            return self.flow_log
+        if self.hermes_root:
+            return os.path.join(self.hermes_root, "cache", "wxbot.log")
+        return ""
+
+    def group_file_path(self) -> str:
+        """用户分组字典路径。显式配置优先；否则 {hermes_root}/cache/butler_groups.json
+        （log 看板「用户分组」页默认读写同一路径）；都无则返回空=禁用（群发按无人绑定处理）。"""
+        if self.groups_file:
+            return self.groups_file
+        if self.hermes_root:
+            return os.path.join(self.hermes_root, "cache", "butler_groups.json")
+        return ""
 
 
 def load(path: str | os.PathLike | None = None) -> Config:
@@ -57,6 +82,8 @@ def load(path: str | os.PathLike | None = None) -> Config:
     h = raw.get("hermes") or {}
     w = raw.get("wxbot") or {}
     d = raw.get("dispatch") or {}
+    lg = raw.get("log") or {}
+    gp = raw.get("groups") or {}
 
     return Config(
         host=str(srv.get("host") or "127.0.0.1"),
@@ -68,12 +95,15 @@ def load(path: str | os.PathLike | None = None) -> Config:
         hermes_timeout=int(h.get("timeout") or 600),
         hermes_root=str(h.get("root") or "").rstrip("/\\"),
         send_identity=bool(h.get("send_identity", True)),
+        hermes_profile_in_path=bool(h.get("profile_in_path", False)),
         wxbot_url=str(w.get("url") or "http://127.0.0.1:8765").rstrip("/"),
         wxbot_token=str(w.get("token") or "").strip(),
         wxbot_timeout=int(w.get("timeout") or 120),
         actions_enabled=bool(d.get("actions_enabled", True)),
         script_dir=str(d.get("script_dir") or "").rstrip("/\\"),
         respond_after_action=bool(d.get("respond_after_action", False)),
+        flow_log=str(lg.get("flow_file") or "").strip(),
+        groups_file=str(gp.get("file") or "").strip(),
         contacts=load_contacts(raw.get("contacts")),
     )
 

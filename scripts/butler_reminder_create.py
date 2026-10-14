@@ -29,7 +29,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(r"D:/ai/hermes")
-PUSH = Path(r"D:/bot/scripts/butler_reminder_push.py")   # 2026-10-11 搬到 D:\bot\scripts
+PUSH = Path(__file__).resolve().parent / "butler_reminder_push.py"   # 与本脚本同目录（项目 scripts/，自定位）
 STAGES = ("main", "chase1", "chase2", "chase3")
 CHASE_OFFSET_MIN = {"main": 0, "chase1": 2, "chase2": 4, "chase3": 6}
 LABEL = {"main": "main", "chase1": "chase1", "chase2": "chase2", "chase3": "chase3"}

@@ -25,7 +25,7 @@ PROFILE_ID = "wxbot-101"                    # 默认；多用户时由 argv[2] +
 PROFILE_HOME = PROFILES_ROOT / PROFILE_ID
 REMINDERS = PROFILE_HOME / "reminders.json"
 LOG = PROFILE_HOME / "logs" / "butler_reminder.log"
-WXBOT_DELIVER = Path(r"D:/bot/scripts/wxbot_deliver.py")
+WXBOT_DELIVER = Path(__file__).resolve().parent / "wxbot_deliver.py"   # 与本脚本同目录（自定位）
 DRY = os.environ.get("BUTLER_DRY") == "1"
 _DRY = DRY
 

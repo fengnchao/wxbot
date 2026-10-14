@@ -2,4 +2,16 @@
 name = "wxbot"
 version = "0.1.0"
 requires-python = ">=3.14"
-dependencies = []
+description = "微信机器人：butler 管家（决策层）+ wxbot（UI 自动化层）两个模块"
+dependencies = [
+    "uiautomation>=2.0.18",
+    "requests>=2.31",
+    "pillow>=10.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

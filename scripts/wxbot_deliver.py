@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""经 wxbot 投递一条提醒/推送；wxbot 不可用时**转入补发队列**，不丢消息。
+r"""经 wxbot 投递一条提醒/推送；wxbot 不可用时**转入补发队列**，不丢消息。
 
 为什么需要它：iLink 通道主动推送受会话窗口限制（实测 ≈40 分钟，且 bot 自己发消息不能续期），
 而 wxbot 走本机微信客户端 UI 自动化，没有 token、也就没有过期——所以**定时提醒应该走这里**。
@@ -15,7 +15,7 @@
   1  = wxbot 不可用    → 内容已入补发队列，stdout 为空（等下次有机会补发）
   2  = 该 Profile 没接 wxbot → stdout 打原文，交回默认投递
 
-关键约定：**数据根**（HERMES_HOME）与**本脚本位置**分开取 —— 脚本在 D:\bot\scripts，
+关键约定：**数据根**（HERMES_HOME）与**本脚本位置**分开取 —— 脚本在 <项目根>/scripts，
 数据仍在 $HERMES_HOME（2026-10-11 搬出 Hermes 之后改的）。
 """
 import argparse

@@ -14,9 +14,10 @@ import time
 import urllib.error
 import urllib.request
 
-WX = r"D:\ai\wxbot"
-PY = r"D:\ai\hermes\hermes-agent\venv\Scripts\python.exe"
-LOG = r"D:\ai\hermes\cache\wxbot.log"
+# 项目根 = 本脚本上级目录（scripts 的上一级），拉起的就是含 8765 外发服务的合并版 wxbot
+WX = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # D:\work\code\wxbot
+PY = os.path.join(WX, ".venv", "Scripts", "python.exe")            # 本项目 uv 管理的解释器
+LOG = r"D:\ai\hermes\cache\wxbot.log"                              # 看板默认读取路径，保持不变
 PORT = 8765
 DETACHED = 0x00000008 | 0x00000200          # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
 

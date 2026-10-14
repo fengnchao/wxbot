@@ -4,7 +4,7 @@
 
 不看思考过程、不看工具调用、不看 token 和成本——只看谁发了什么、什么时候发的。
 
-纯只读，不动任何现有数据。
+所有数据库一律只读；唯一的写接口是「用户分组」字典文件（`POST /api/groups`，不动任何库）。
 
 ## 快速开始
 
@@ -32,9 +32,12 @@ python server.py --port 9000
 
 ## 定时任务（第二个标签）
 
-顶部「定时任务」标签，把当前所有 cron 任务做成卡片，**按发送人分组**。
+顶部「定时任务」标签，把当前所有 cron 任务做成卡片，**按归属分组**（用户 / 全局任务 / 系统无归属）。
 
-左侧是发送人列表（每人显示任务数 / 活跃 / 暂停 / 出错），点一下只看那个人的；右侧每组标题下是卡片网格。
+「已完成」的任务**默认隐藏**（一次性提醒跑完就挪走，不刷屏）：右上角「显示已完成」按钮可切换，
+侧栏会提示「隐藏已完成 N」，整组都是已完成时右侧显示提示。
+
+左侧是归属列表（每项显示任务数 / 活跃 / 暂停 / 出错），点一下只看那一组；右侧每组标题下是卡片网格。
 
 每张卡片显示：
 
@@ -43,14 +46,23 @@ python server.py --port 9000
 | 任务名 + 状态徽章 | 运行中(绿) / 已暂停(灰) / 已完成(蓝) / 出错(红) |
 | 计划 | `every 30m`、`0 9-18 * * 1-5` 之类 |
 | 下次跑 / 上次跑 | 上次跑后面带 `· ok` / `· error` |
-| 投递到 | `weixin:<uid>` 或 `origin`（后者标「按 Profile 归属」） |
+| 投递到 | `weixin:<uid>` 或 `local`；推出来的归属在后面括号标注来源 |
 | 类型 | `agent` / `no_agent` / `script <名字>`，以及重复次数 `forever`、`1/1` |
+| 推送 | 有线索时显示 `type=1 单发 · messageType=1（新闻消息）` 等 |
 | 错误 | 有 `last_delivery_error` / `last_error` 时红字展示原文 |
 | prompt 摘要 | 折叠，最多 600 字符 |
 | 页脚 | job id + 所属 profile |
 
-归属规则：先看 `deliver` 里的 uid；`deliver` 是 `origin`/`local` 的，用**所属 Profile 名**反推
-（Profile 名 = `wechat-<uid 小写>`）；都推不出来的归到「系统 / 无归属」（例如看门狗任务）。
+归属规则（按优先级，前一条推不出才看下一条）：
+
+1. `deliver` 里的 `weixin:<uid>`
+2. 所属 Profile 名反推：`wxbot-<uid>`（查 wxbot_channel.json）或 `wechat-<uid>`
+3. **脚本同名 json**（`{HERMES_HOME}/scripts/<script名>.json`，no_agent 脚本约定）：
+   `type=1` → 归 `contact` 指定的用户；`type=2` → **全局任务**（群发，收件人由「用户分组」字典按 messageType 决定）
+4. **脚本文本内置目标**：`TARGET = "101"`（Hermes 生成的提醒 wrapper），或 `"wxbot-101"` 字面量（butler_reminder_* wrapper）
+5. **prompt 里的 `--contact X` / `--to X`**（agent 任务实际执行的命令行）
+
+都推不出来 → 「系统 / 无归属」（例如看门狗任务）。
 
 分组按 **bare uid 小写** 归一，所以 `deliver` 里带 `@im.wechat` 的和 Profile 反推出来的会合并成同一个人。
 
@@ -76,6 +88,16 @@ python server.py --port 9000
 | agent 耗时 | `profiles/wxbot-*/state.db` 的 `sessions`/`messages`（只读 URI）；收到时刻 ±15s 内的会话即那一轮 |
 | 任务归属 | `cron/jobs.json` + `profiles/*/cron/jobs.json`，以及 `cron/output/<job_id>/*.md` 标题；执行记录在 `cron/executions.db` 与 `profiles/*/cron/executions.db` |
 
+## 用户分组（第三个标签）
+
+展示并维护 **推送分组字典**：`messageType（1=新闻消息 2=问候消息 3=其他）→ 绑定的用户（微信窗口标题）`。
+
+- 列表每行一个类型，**点行头展开/收起**，展开后显示绑定的用户（chip，带 ✕ 可解绑）
+- 绑定：从下拉选一个已绑定联系人，或直接输入窗口标题，点「绑定」
+- 左侧可只看某一类型；底部显示字典文件路径与更新时间
+- 字典文件默认 `{HERMES_HOME}/cache/butler_groups.json`（可用 env `BUTLER_GROUP_FILE` 覆盖），
+  与 butler 侧一致：butler 收到 `type=2`（群发）的推送时，按此字典逐条转发
+
 ## 数据来源
 
 | 内容 | 来源 |
@@ -95,7 +117,10 @@ python server.py --port 9000
 
 ```
 GET /api/health
+GET /api/jobs                               定时任务（按归属分组：用户/全局/无归属；?uid= 过滤）
 GET /api/wxbot                              wxbot 通道流水：收到/回复/外发 + 这一轮 agent 耗时 + 任务归属
+GET /api/groups                             用户分组字典（messageType → 绑定用户）
+POST /api/groups  {type, action: bind|unbind, user}   增删绑定（写字典文件）
 ```
 
 深链接：`http://127.0.0.1:8788/?tab=wxbot&kind=slow&worder=asc`（wxbot 通道）

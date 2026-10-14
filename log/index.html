@@ -7,7 +7,7 @@
   :root{
     --bg:#0e1116; --bg2:#151a22; --bg3:#1b222c; --line:#263040;
     --fg:#d8e0ea; --fg2:#8b9bb0; --fg3:#5d6b7e;
-    --wx:#3ddc97; --bot:#5aa9ff; --warn:#ff7a59;
+    --wx:#3ddc97; --bot:#5aa9ff; --warn:#ff7a59; --ok:#3ddc97; --asst:#5aa9ff;
   }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--fg);
@@ -125,6 +125,29 @@
                border-top:1px solid #1c232e;padding-top:5px;margin-top:2px}
   .jcard details{font-size:11px}
   .jcard .pre{margin-top:4px;font-size:10.5px;max-height:200px}
+
+  /* 用户分组 */
+  .gcard{background:var(--bg2);border:1px solid var(--line);border-radius:8px;
+         margin-bottom:12px;overflow:hidden}
+  .gcard .gh{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;
+             border-left:3px solid #3a4763;flex-wrap:wrap}
+  .gcard .gh:hover{background:#19212c}
+  .gcard.open .gh{border-left-color:var(--wx)}
+  .gcaret{font-size:10px;color:var(--fg3);width:12px}
+  .gcard .gt{font-size:13px;font-weight:600;color:var(--fg)}
+  .gcard .gn{font-size:10.5px;color:var(--fg3)}
+  .gcard .gc{font-size:10.5px;color:var(--fg2)}
+  .gcard .gc b{color:var(--wx);font-weight:600}
+  .gcard .gb{display:none;padding:6px 14px 12px;border-top:1px solid #1c232e}
+  .gcard.open .gb{display:block}
+  .gchip{display:inline-flex;align-items:center;gap:6px;margin:4px 6px 0 0;font-size:11.5px}
+  .gchip .k2{color:var(--fg3);font-size:10px}
+  .gchip .gx{border:none;background:transparent;color:var(--fg3);font-size:12px;
+             padding:0 2px;cursor:pointer;font-family:inherit}
+  .gchip .gx:hover{color:var(--warn)}
+  .gadd{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
+  .gadd select,.gadd input[type=text]{min-width:140px;max-width:230px}
+  .gempty{color:var(--fg3);font-size:11.5px;padding:4px 0}
   code{color:var(--fg2);background:#0b0e13;padding:1px 5px;border-radius:3px;font-size:11px}
   ::-webkit-scrollbar{width:10px;height:10px}
   ::-webkit-scrollbar-thumb{background:#2b3646;border-radius:6px}
@@ -140,6 +163,7 @@
   <div class="row" style="margin-top:8px">
     <button id="b-refresh">刷新</button>
     <button id="b-auto">自动刷新：关</button>
+    <button id="j-showdone" class="hide">显示已完成</button>
     <button id="w-order">排序：倒序（新→旧）</button>
     <select id="w-kind">
       <option value="all">全部事件</option>
@@ -152,6 +176,7 @@
   <div class="tabs">
     <button id="tab-wxbot" class="on">wxbot 通道</button>
     <button id="tab-jobs">定时任务</button>
+    <button id="tab-groups">用户分组</button>
   </div>
 </header>
 
@@ -172,8 +197,9 @@ const ago = t => { if(!t) return '-'; const s=(Date.now()/1000)-t;
   if(s<60) return '刚刚'; if(s<3600) return Math.floor(s/60)+'分钟前';
   if(s<86400) return Math.floor(s/3600)+'小时前'; return Math.floor(s/86400)+'天前'; };
 
-let state = { tab:'wxbot', jobUid:'all', jobs:null, auto:0, timer:null,
-              wdata:null, wUid:'all', wOrder:'desc', wKind:'all' };
+let state = { tab:'wxbot', jobUid:'all', jobShowDone:false, jobs:null, auto:0, timer:null,
+              wdata:null, wUid:'all', wOrder:'desc', wKind:'all',
+              gdata:null, gUid:'all', gOpen:{}, gError:'' };
 
 async function get(u){ const r = await fetch(u); return r.json(); }
 
@@ -305,7 +331,12 @@ function renderWxPane(){
 /* ---------------- 定时任务 ---------------- */
 const JSTATE = { active:['运行中','jb-active'], paused:['已暂停','jb-paused'],
                  done:['已完成','jb-done'], error:['出错','jb-error'] };
+const JTYPE = { 1:'type=1 单发', 2:'type=2 群发' };
+const JMT = { 1:'新闻消息', 2:'问候消息', 3:'其他' };
+const JSRC = { profile:'按 Profile 归属', script:'按 script 配置', prompt:'按 prompt 归属',
+               'script-target':'脚本内置目标', 'script-profile':'脚本内置 Profile' };
 const parseTs = s => { if(!s) return null; const t = Date.parse(s); return isNaN(t) ? null : t/1000; };
+const jUidText = u => u.uid==='global' ? '群发 · 收件人由字典决定' : (u.uid_display||u.uid);
 
 function jobCard(j){
   const st = JSTATE[j.ui_state] || ['?','jb-paused'];
@@ -315,10 +346,17 @@ function jobCard(j){
     ['计划', esc(j.schedule||'-')],
     ['下次跑', nxt ? full(nxt) : '-'],
     ['上次跑', (lst ? full(lst) : '-') + (j.last_status ? ` · ${esc(j.last_status)}` : '')],
-    ['投递到', esc(j.deliver||'-') + (j.uid_source==='profile' ? ' <span style="color:var(--fg3)">(按 Profile 归属)</span>' : '')],
+    ['投递到', esc(j.deliver||'-') + (JSRC[j.uid_source] ? ` <span style="color:var(--fg3)">（${esc(JSRC[j.uid_source])}）</span>` : '')],
     ['类型', (j.script ? 'script '+esc(j.script) : (j.no_agent ? 'no_agent' : 'agent'))
              + (j.repeat ? ` · ${esc(j.repeat)}` : '')],
   ];
+  if(j.push_type || j.message_type){
+    const bits = [];
+    if(j.push_type) bits.push(JTYPE[j.push_type] || `type=${j.push_type}`);
+    if(j.message_type) bits.push(`messageType=${j.message_type}（${JMT[j.message_type]||'?'}）`);
+    if(j.scope==='global') bits.push('收件人按「用户分组」字典');
+    rows.push(['推送', esc(bits.join(' · '))]);
+  }
   if(err) rows.push(['错误', `<span class="err">${esc(err)}</span>`]);
   return `<div class="jcard ${j.ui_state}">
     <div class="t"><span class="nm">${esc(j.name)}</span><span class="jbadge ${st[1]}">${st[0]}</span></div>
@@ -328,29 +366,48 @@ function jobCard(j){
   </div>`;
 }
 
+const jVisible = j => state.jobShowDone || j.ui_state !== 'done';   // 默认隐藏已完成
+const jStats = jobs => ({
+  count: jobs.length,
+  active: jobs.filter(j=>j.ui_state==='active').length,
+  paused: jobs.filter(j=>j.ui_state==='paused').length,
+  error:  jobs.filter(j=>j.ui_state==='error').length,
+  done:   jobs.filter(j=>j.ui_state==='done').length,
+});
+
 async function loadJobs(){
-  const d = await get('/api/jobs');
-  state.jobs = d;
-  const el = $('#list');
+  state.jobs = await get('/api/jobs');
+  renderJobsNav();
+  renderJobs();
+}
+
+function renderJobsNav(){
+  const d = state.jobs, el = $('#list');
+  const all = jStats(d.users.flatMap(u=>u.jobs).filter(jVisible));
   const head = `<div class="user ${state.jobUid==='all'?'sel':''}" data-u="all">
       <div class="nm">全部归属</div>
-      <div class="st"><span>归属 <b>${d.count}</b></span><span>活跃 ${d.active}</span>
-        <span>暂停 ${d.paused}</span>${d.done?`<span>已完成 ${d.done}</span>`:''}
-        ${d.error?`<span class="warn">出错 ${d.error}</span>`:''}</div>
+      <div class="st"><span>归属 <b>${all.count}</b></span><span>活跃 ${all.active}</span>
+        <span>暂停 ${all.paused}</span>${all.done?`<span>已完成 ${all.done}</span>`:''}
+        ${d.count-all.count?`<span>隐藏已完成 ${d.count-all.count}</span>`:''}
+        ${all.error?`<span class="warn">出错 ${all.error}</span>`:''}</div>
     </div>`;
-  el.innerHTML = head + d.users.map(u=>`
-    <div class="user ${state.jobUid===u.uid?'sel':''}" data-u="${esc(u.uid)}">
+  el.innerHTML = head + d.users.map(u=>{
+    const st = jStats(u.jobs.filter(jVisible));
+    const hidden = u.count - st.count;
+    return `<div class="user ${state.jobUid===u.uid?'sel':''}" data-u="${esc(u.uid)}">
       <div class="nm">${esc(u.name)}</div>
-      <div class="uid">${esc(u.uid_display||u.uid)}</div>
-      <div class="st"><span>归属 <b>${u.count}</b></span><span>活跃 ${u.active}</span>
-        <span>暂停 ${u.paused}</span>${u.error?`<span class="warn">出错 ${u.error}</span>`:''}</div>
-    </div>`).join('');
+      <div class="uid">${esc(jUidText(u))}</div>
+      <div class="st"><span>归属 <b>${st.count}</b></span><span>活跃 ${st.active}</span>
+        <span>暂停 ${st.paused}</span>${st.done?`<span>已完成 ${st.done}</span>`:''}
+        ${hidden?`<span>隐藏已完成 ${hidden}</span>`:''}
+        ${st.error?`<span class="warn">出错 ${st.error}</span>`:''}</div>
+    </div>`;
+  }).join('');
   el.querySelectorAll('.user').forEach(n=>n.onclick=()=>{
     state.jobUid = n.dataset.u;
     el.querySelectorAll('.user').forEach(x=>x.classList.toggle('sel', x.dataset.u===state.jobUid));
     renderJobs();
   });
-  renderJobs();
 }
 
 function renderJobs(){
@@ -358,23 +415,158 @@ function renderJobs(){
   if(!d){ $('#pane').innerHTML='<div class="empty">载入中…</div>'; return; }
   const secs = state.jobUid==='all' ? d.users : d.users.filter(u=>u.uid===state.jobUid);
   if(!secs.length){ $('#pane').innerHTML='<div class="empty">没有定时任务</div>'; return; }
-  $('#pane').innerHTML = secs.map(u=>`<div class="jsec">
-      <h2>${esc(u.name)} <span class="uid">${esc(u.uid_display||u.uid)}</span>
-        <span class="k">共 ${u.count} 个</span><span class="k">活跃 ${u.active}</span>
-        <span class="k">暂停 ${u.paused}</span>
-        ${u.error?`<span class="k warn">出错 ${u.error}</span>`:''}</h2>
-      <div class="jgrid">${u.jobs.map(jobCard).join('')}</div>
+  const hiddenIn = secs.reduce((a,u)=>a+u.jobs.filter(j=>!jVisible(j)).length, 0);
+  if(secs.every(u=>!u.jobs.some(jVisible))){
+    $('#pane').innerHTML = `<div class="empty">没有可显示的任务${
+      hiddenIn?` —— ${hiddenIn} 个已完成已隐藏（点上方「显示已完成」查看）`:''}</div>`;
+    return;
+  }
+  $('#pane').innerHTML = secs.map(u=>{
+    const vjobs = u.jobs.filter(jVisible), st = jStats(vjobs);
+    const hidden = u.jobs.length - vjobs.length;
+    return `<div class="jsec">
+      <h2>${esc(u.name)} <span class="uid">${esc(jUidText(u))}</span>
+        <span class="k">共 ${st.count} 个</span><span class="k">活跃 ${st.active}</span>
+        <span class="k">暂停 ${st.paused}</span>${st.done?`<span class="k">已完成 ${st.done}</span>`:''}
+        ${hidden?`<span class="k">已完成 ${hidden}（已隐藏）</span>`:''}
+        ${st.error?`<span class="k warn">出错 ${st.error}</span>`:''}</h2>
+      ${vjobs.length ? `<div class="jgrid">${vjobs.map(jobCard).join('')}</div>`
+        : '<div class="empty" style="padding:12px">该组的任务全部已完成（已隐藏）</div>'}
+    </div>`;
+  }).join('');
+}
+
+/* ---------------- 用户分组（messageType → 绑定用户） ---------------- */
+async function postJSON(u, body){
+  const r = await fetch(u, {method:'POST', headers:{'Content-Type':'application/json'},
+                            body: JSON.stringify(body)});
+  return r.json();
+}
+
+async function loadGroups(){
+  try{
+    state.gdata = await get('/api/groups');
+    state.gError = '';
+  }catch(e){
+    $('#pane').innerHTML = '<div class="empty">载入失败：'+esc(e.message||e)+'</div>';
+    return;
+  }
+  renderGroupsNav();
+  renderGroupsPane();
+}
+
+function renderGroupsNav(){
+  const d = state.gdata, el = $('#list');
+  const total = d.message_types.reduce((a,t)=>a+t.count, 0);
+  el.innerHTML = `<div class="user ${state.gUid==='all'?'sel':''}" data-g="all">
+      <div class="nm">全部类型</div>
+      <div class="st"><span>类型 <b>${d.message_types.length}</b></span><span>绑定合计 ${total}</span></div>
+      <div class="pv">绑定字典：收到群发消息按类型推给绑定的用户</div>
+    </div>` + d.message_types.map(t=>`
+    <div class="user ${state.gUid===String(t.type)?'sel':''}" data-g="${t.type}">
+      <div class="nm">${esc(t.label)} <span class="tag">type=${t.type}</span></div>
+      <div class="st"><span>绑定用户 <b>${t.count}</b></span></div>
+      <div class="pv">${t.users.length? esc(t.users.join('、')) : '（未绑定）'}</div>
     </div>`).join('');
+  el.querySelectorAll('.user').forEach(n=>n.onclick=()=>{
+    state.gUid = n.dataset.g;
+    if(state.gUid!=='all') state.gOpen[state.gUid] = true;
+    el.querySelectorAll('.user').forEach(x=>x.classList.toggle('sel', x.dataset.g===state.gUid));
+    renderGroupsPane();
+  });
+}
+
+function gCard(t){
+  const open = state.gUid==='all' ? !!state.gOpen[String(t.type)] : true;
+  const chips = t.members.map(m=>`<span class="chip gchip">${esc(m.name)}${m.label?` <span class="k2">${esc(m.label)}</span>`:''}${m.known?'':' <span class="k2">（不在绑定清单）</span>'} <button class="gx" data-t="${t.type}" data-u="${esc(m.name)}" title="解除绑定">✕</button></span>`).join('');
+  const bound = new Set(t.users);
+  const free = (state.gdata.contacts||[]).filter(c=>!bound.has(c.name));
+  const opts = free.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}${c.label?`（${esc(c.label)}）`:''}</option>`).join('');
+  return `<div class="gcard ${open?'open':''}" data-t="${t.type}">
+    <div class="gh" data-t="${t.type}">
+      <span class="gcaret">${open?'▾':'▸'}</span>
+      <span class="gt">${esc(t.label)}</span>
+      <span class="gn">messageType = ${t.type}</span>
+      <span class="gc">绑定 <b>${t.count}</b> 人</span>
+      <span style="flex:1"></span>
+      <span class="gn">${t.users.length? esc(t.users.join('、')) : ''}</span>
+    </div>
+    <div class="gb">
+      <div>${chips || '<div class="gempty">还没有绑定用户 —— 收到该类型的群发消息时不会推送给任何人</div>'}</div>
+      <div class="gadd">
+        <select id="gsel-${t.type}">${opts || '<option value="">（没有可选的已绑定联系人）</option>'}</select>
+        <input type="text" id="gtxt-${t.type}" placeholder="或直接输入微信窗口标题">
+        <button class="wx" data-add="${t.type}">绑定</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderGroupsPane(){
+  const d = state.gdata;
+  if(!d){ $('#pane').innerHTML='<div class="empty">载入中…</div>'; return; }
+  const types = state.gUid==='all' ? d.message_types
+                                   : d.message_types.filter(t=>String(t.type)===state.gUid);
+  const total = d.message_types.reduce((a,t)=>a+t.count, 0);
+  const head = `<div class="head">
+    <h2>用户分组 · messageType → 绑定用户（群发按此字典投递）
+      <span style="color:var(--fg3);font-weight:400;font-size:11px">${esc(d.file)}（点标题展开/收起）</span></h2>
+    <div class="kv">
+      <span>类型 <b>${d.message_types.length}</b></span>
+      <span>绑定合计 <b>${total}</b></span>
+      <span>可选联系人 <b>${(d.contacts||[]).length}</b></span>
+      <span>字典更新 <b>${esc(d.updated_at||'-')}</b></span>
+      <span class="k">1=新闻消息 2=问候消息 3=其他</span>
+      <span style="flex:1"></span>
+      ${state.gError?`<span class="warn">${esc(state.gError)}</span>`:''}
+    </div></div>`;
+  $('#pane').innerHTML = head + (types.length
+      ? types.map(gCard).join('') : '<div class="empty">没有该类型</div>');
+  $('#pane').querySelectorAll('.gh').forEach(n=>n.onclick=()=>{
+    const t = n.dataset.t;
+    state.gOpen[t] = !state.gOpen[t];
+    renderGroupsPane();
+  });
+  $('#pane').querySelectorAll('.gx').forEach(n=>n.onclick=(e)=>{
+    e.stopPropagation();
+    gMutate('unbind', n.dataset.t, n.dataset.u);
+  });
+  $('#pane').querySelectorAll('[data-add]').forEach(n=>n.onclick=()=>{
+    const t = n.dataset.add;
+    const sel = $('#pane').querySelector('#gsel-'+t), txt = $('#pane').querySelector('#gtxt-'+t);
+    const name = ((txt && txt.value) || '').trim() || ((sel && sel.value) || '').trim();
+    if(!name){ state.gError = '请先选择或输入要绑定的用户'; renderGroupsPane(); return; }
+    gMutate('bind', t, name);
+  });
+}
+
+async function gMutate(action, type, user){
+  state.gError = '';
+  try{
+    const res = await postJSON('/api/groups', {action, type: Number(type), user});
+    if(res && res.message_types){ state.gdata = res; }
+    else { state.gError = '操作失败：'+((res && (res.error||res.detail)) || '未知原因'); }
+  }catch(e){ state.gError = '操作失败：'+(e.message||e); }
+  renderGroupsNav();
+  renderGroupsPane();
 }
 
 function switchTab(t){
   state.tab = t;
   $('#tab-wxbot').classList.toggle('on', t==='wxbot');
   $('#tab-jobs').classList.toggle('on', t==='jobs');
+  $('#tab-groups').classList.toggle('on', t==='groups');
+  $('#j-showdone').classList.toggle('hide', t!=='jobs');     // 各标签专属按钮
+  $('#w-order').classList.toggle('hide', t!=='wxbot');
+  $('#w-kind').classList.toggle('hide', t!=='wxbot');
   if(t==='jobs'){
     state.jobUid = 'all';
     $('#pane').innerHTML = '<div class="empty">载入中…</div>';
     loadJobs();
+  } else if(t==='groups'){
+    state.gUid = 'all';
+    $('#pane').innerHTML = '<div class="empty">载入中…</div>';
+    loadGroups();
   } else {
     state.wUid = 'all';
     $('#pane').innerHTML = '<div class="empty">载入中…</div>';
@@ -383,6 +575,7 @@ function switchTab(t){
 }
 $('#tab-wxbot').onclick = ()=>switchTab('wxbot');
 $('#tab-jobs').onclick = ()=>switchTab('jobs');
+$('#tab-groups').onclick = ()=>switchTab('groups');
 
 $('#w-order').onclick = ()=>{
   state.wOrder = state.wOrder==='desc' ? 'asc' : 'desc';
@@ -390,9 +583,16 @@ $('#w-order').onclick = ()=>{
   renderWxPane();
 };
 $('#w-kind').onchange = ()=>{ state.wKind = $('#w-kind').value; renderWxPane(); };
+$('#j-showdone').onclick = ()=>{                       // 默认隐藏「已完成」任务
+  state.jobShowDone = !state.jobShowDone;
+  $('#j-showdone').textContent = state.jobShowDone ? '隐藏已完成' : '显示已完成';
+  $('#j-showdone').classList.toggle('on', state.jobShowDone);
+  if(state.jobs){ renderJobsNav(); renderJobs(); }
+};
 
 function refreshCurrent(){
   if(state.tab==='jobs') loadJobs();
+  else if(state.tab==='groups') loadGroups();
   else loadWxbot();
 }
 $('#b-refresh').onclick = refreshCurrent;
@@ -409,7 +609,7 @@ async function boot(){
   if(qp.get('kind')){ state.wKind = qp.get('kind'); $('#w-kind').value = state.wKind; }
   if(qp.get('worder')==='asc'){ state.wOrder = 'asc'; $('#w-order').textContent = '排序：正序（旧→新）'; }
   const tab = qp.get('tab') || 'wxbot';      // wxbot 通道为第一个标签，默认展示
-  switchTab(tab === 'jobs' ? 'jobs' : 'wxbot');
+  switchTab(tab === 'jobs' ? 'jobs' : (tab === 'groups' ? 'groups' : 'wxbot'));
 }
 boot();
 </script>

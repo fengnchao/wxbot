@@ -44,7 +44,10 @@ def test_hermes_wire_format(make_home, monkeypatch):
     client = HermesClient(cfg)
     assert client.chat(contact, "帮我看下明天天气") == "回你一句"
 
-    assert captured["url"].endswith("/p/wxbot-101/v1/chat/completions")
+    # 默认扁平接口（config.butler.toml: profile_in_path = false）；命名 Profile 部署才带 /p/{profile} 前缀，
+    # 见 test_hermes_wire_format_named_profile。记忆隔离靠 X-Hermes-Session-Key 头，不靠路径。
+    assert captured["url"].endswith("/v1/chat/completions")
+    assert "/p/" not in captured["url"], "profile_in_path=false 时不该出现 /p/{profile} 前缀"
     h = captured["headers"]
     assert "x-hermes-session-key" in h and "x-hermes-session-id" in h, \
         "少一个 Id 就变成'每条消息一段新对话'"
@@ -53,6 +56,23 @@ def test_hermes_wire_format(make_home, monkeypatch):
     assert msgs[0]["role"] == "system" and "user_id=101" in msgs[0]["content"]
     assert msgs[-1] == {"role": "user", "content": "帮我看下明天天气"}
     assert client.session_ids["101"] == "echoed-id", "服务端回显的 id 要记住"
+
+
+def test_hermes_wire_format_named_profile(make_home, monkeypatch):
+    """profile_in_path=true 时恢复 /p/{profile}/v1/...（Hermes 侧建了命名 Profile 的部署）。"""
+    captured = {}
+
+    def fake_urlopen(req, timeout=None):
+        captured["url"] = req.full_url
+        return _Resp()
+
+    monkeypatch.setattr(H.urllib.request, "urlopen", fake_urlopen)
+    cfg = make_home().cfg
+    cfg.hermes_profile_in_path = True          # config.butler.toml: profile_in_path = true
+    contact = load_contacts([CONTACT]).get("101")
+    HermesClient(cfg).chat(contact, "在吗")
+    assert captured["url"].endswith("/p/wxbot-101/v1/chat/completions")
+    assert cfg.hermes_profile_in_path is True
 
 
 def _call(base, path, payload=None, token="t0ken"):

@@ -1,5 +1,6 @@
-# 密钥与运行产物不进版本库
-config.toml
+# 密钥与运行产物不进版本库（*.example.toml 模板可以提交）
+config.butler.toml
+config.wxbot.toml
 *.pyc
 __pycache__/
 .pytest_cache/

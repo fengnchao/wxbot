@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 HERMES = Path(r"D:/ai/hermes")
-DELIVER = Path(r"D:/bot/scripts/wxbot_deliver.py")      # 投递脚本 2026-10-11 搬到 D:\bot\scripts
+DELIVER = Path(__file__).resolve().parent / "wxbot_deliver.py"      # 与本脚本同目录（自定位）
 
 CONFIG = {
     "profile": "wxbot-101",          # 经哪个 Hermes Profile 投递（决定发到哪个微信窗口）

@@ -1,4 +1,0 @@
-# 只放 pytest 配置：本项目纯 stdlib，没有构建步骤，不需要 [project] 段。
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-addopts = "-q"

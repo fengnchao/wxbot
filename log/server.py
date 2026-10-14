@@ -19,9 +19,12 @@
     GET /api/users               用户列表（含称呼、消息数、首末时间）
     GET /api/messages?uid=&q=&limit=&with_reply=1
     GET /api/stats
-    GET /api/jobs                定时任务（按人分组）
+    GET /api/jobs                定时任务（按归属分组：用户 / 全局任务 / 无归属）
     GET /api/wxbot               wxbot 通道流水（收到/回复/外发 + agent 耗时 + 任务归属）
-    """
+    GET /api/groups              用户分组字典（messageType → 绑定用户，看板可展开维护）
+    POST /api/groups             {type, action: bind|unbind, user} 增删绑定
+                                 （唯一的写接口：只写分组字典文件，不动任何库）
+"""
 import argparse
 import datetime
 import hashlib
@@ -36,8 +39,23 @@ from urllib.parse import urlparse, parse_qs, quote
 HERE = os.path.dirname(os.path.abspath(__file__))
 HERMES_HOME = os.environ.get("HERMES_HOME", r"D:\ai\hermes")
 EXPORT_DIR = os.path.join(HERMES_HOME, "logs", "wechat-inbox")
+
+
 # wxbot 侧的绑定关系（联系人 ↔ Profile ↔ uid）唯一事实来源
-WXBOT_CONFIG = os.environ.get("WXBOT_CONFIG", r"D:\ai\wxbot\config.toml")
+def _default_wxbot_config():
+    """按仓库自定位找 wxbot 配置：repo/config.wxbot.toml → repo/config.toml → 旧部署路径。"""
+    repo = os.path.dirname(HERE)
+    for name in ("config.wxbot.toml", "config.toml"):
+        cand = os.path.join(repo, name)
+        if os.path.exists(cand):
+            return cand
+    return r"D:\ai\wxbot\config.toml"
+
+
+def wxbot_config_path():
+    return os.environ.get("WXBOT_CONFIG") or _default_wxbot_config()
+
+
 WXBOT_CHANNEL = os.path.join(HERMES_HOME, "scripts", "wxbot_channel.json")
 
 
@@ -157,8 +175,78 @@ def _parse_deliver_uid(deliver):
     return rest if "@" in rest else ""
 
 
+_JOB_TEXT_MAX = 65536       # 扫脚本源码最多读 64KB
+
+_SCRIPT_TARGET_RE = re.compile(r"""(?m)^\s*TARGET\s*=\s*["']([^"']{1,64})["']""")
+_SCRIPT_PROFILE_RE = re.compile(r"""["'](?:wxbot|wechat)-([A-Za-z0-9_\-]{1,64})["']""")
+_PROMPT_CONTACT_RE = re.compile(
+    r"--(?:contact|to)[=\s]+[\"']?([A-Za-z0-9_\-\.@\u4e00-\u9fff]{1,64})")
+
+
+def _job_scripts_dir(home, prof):
+    """任务脚本目录：default → {home}/scripts；其它 profile → {home}/profiles/<p>/scripts
+    （对齐 Hermes 规则：profile 的脚本互不共享）。"""
+    if prof and prof != "default":
+        return os.path.join(home, "profiles", str(prof), "scripts")
+    return os.path.join(home, "scripts")
+
+
+def _read_job_sidecar(home, prof, script):
+    """脚本同名 sidecar json（morning_report.py → morning_report.json）。
+
+    Hermes 侧 no_agent 脚本的约定：{"type": 1|2, "messageType": 1|2|3, "contact": "<窗口标题>"}。
+    type=1 单发给 contact；type=2 群发（收件人由「用户分组」字典按 messageType 决定）。
+    无 sidecar / 读不出 → {}。
+    """
+    if not script:
+        return {}
+    stem = os.path.splitext(os.path.basename(str(script)))[0]
+    if not stem:
+        return {}
+    path = os.path.join(_job_scripts_dir(home, prof), stem + ".json")
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            data = json.load(fh)
+    except Exception:
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _scan_script_owner(home, prof, script):
+    """扫脚本文本里的收件人线索 → (uid, source)：
+    1) TARGET = "101"（Hermes 生成的提醒 wrapper → script-target）
+    2) "wxbot-101" / "wechat-101" 字面量（butler_reminder_* wrapper 的 profile 参数 → script-profile）
+    """
+    if not script:
+        return "", ""
+    path = os.path.join(_job_scripts_dir(home, prof), os.path.basename(str(script)))
+    try:
+        with open(path, "r", encoding="utf-8", errors="replace") as fh:
+            text = fh.read(_JOB_TEXT_MAX)
+    except Exception:
+        return "", ""
+    m = _SCRIPT_TARGET_RE.search(text)
+    if m and m.group(1).strip():
+        return m.group(1).strip(), "script-target"
+    m = _SCRIPT_PROFILE_RE.search(text)
+    if m:
+        return m.group(1), "script-profile"
+    return "", ""
+
+
+def _scan_prompt_owner(prompt):
+    """agent 任务的归属线索：prompt 里实际执行的 --contact X / --to X（如自检任务）。"""
+    m = _PROMPT_CONTACT_RE.search(str(prompt or ""))
+    return m.group(1) if m else ""
+
+
 def collect_jobs(home):
-    """读所有 Profile 的 cron/jobs.json，按发送人归属。"""
+    """读所有 Profile 的 cron/jobs.json，按发送人归属。
+
+    归属优先级：deliver 里的 weixin uid > Profile 名反推 > script 同名 json
+    （type=1→contact / type=2→全局群发）> 脚本文本内置目标（TARGET="x" / "wxbot-x" 字面量）
+    > prompt 里的 --contact/--to。都推不出来 → 无归属。
+    """
     out = []
     root = os.path.join(home, "cron", "jobs.json")
     targets = [("default", root)]
@@ -191,6 +279,27 @@ def collect_jobs(home):
             if not owner and prof.startswith("wechat-"):
                 owner = prof[len("wechat-"):]     # Profile 名 = uid 小写
                 owner_src = "profile"
+            # —— no_agent 脚本线索（deliver=local 时靠这两条兜底）——
+            script = str(j.get("script") or "")
+            side = _read_job_sidecar(home, prof, script)
+            ptype = _as_pos_int(side.get("type"))
+            mtype = _as_pos_int(side.get("messageType"))
+            is_global = False
+            if not owner:
+                if ptype == 2:                          # 群发：收件人由「用户分组」字典定
+                    is_global = True
+                    owner_src = "script"
+                elif ptype == 1 and str(side.get("contact") or "").strip():
+                    owner = str(side["contact"]).strip()
+                    owner_src = "script"
+                else:
+                    cand, cand_src = _scan_script_owner(home, prof, script)
+                    if cand:
+                        owner, owner_src = cand, cand_src
+                    else:
+                        cand = _scan_prompt_owner(j.get("prompt"))
+                        if cand:
+                            owner, owner_src = cand, "prompt"
             sched = j.get("schedule")
             if isinstance(sched, dict):
                 sched = sched.get("display") or json.dumps(sched, ensure_ascii=False)
@@ -208,9 +317,12 @@ def collect_jobs(home):
                 "uid": owner,
                 "uid_key": (owner or "").split("@")[0].lower(),
                 "uid_source": owner_src,
+                "scope": "global" if is_global else ("user" if owner else ""),
+                "push_type": ptype,          # sidecar 的 type：1 单发 / 2 群发
+                "message_type": mtype,       # sidecar 的 messageType
                 "enabled": bool(j.get("enabled")),
                 "state": j.get("state") or ("scheduled" if j.get("enabled") else "paused"),
-                "script": j.get("script") or "",
+                "script": script,
                 "no_agent": bool(j.get("no_agent")),
                 "repeat": rep or "",
                 "next_run_at": j.get("next_run_at"),
@@ -415,7 +527,7 @@ def load_wxbot_contacts():
     out, cfg = [], {}
     try:
         import tomllib
-        with open(WXBOT_CONFIG, "rb") as fh:
+        with open(wxbot_config_path(), "rb") as fh:
             cfg = tomllib.load(fh)
     except Exception:
         cfg = {}
@@ -441,6 +553,110 @@ def load_wxbot_profile_map():
         return _json.loads(open(WXBOT_CHANNEL, encoding="utf-8").read()).get("profile_to_contact") or {}
     except Exception:
         return {}
+
+
+# ---------------------------------------------------------------- 用户分组（订阅字典）
+
+# 与 butler/groups.py 保持同步（看板是独立进程，不 import butler 包，只认同一份文件）
+GROUP_MESSAGE_TYPES = {1: "新闻消息", 2: "问候消息", 3: "其他"}
+
+
+def _as_pos_int(v):
+    """1 / "1" / 1.0 → int；bool 与非法值 → None。"""
+    if v is None or isinstance(v, bool):
+        return None
+    if isinstance(v, int):
+        n = v
+    elif isinstance(v, float):
+        n = int(v) if v.is_integer() else 0
+    else:
+        try:
+            n = int(str(v).strip())
+        except (TypeError, ValueError):
+            return None
+    return n if n > 0 else None
+
+
+def group_file_path(home):
+    """分组字典文件：env BUTLER_GROUP_FILE 优先，默认 {HERMES_HOME}/cache/butler_groups.json
+    （与 butler 侧 Config.group_file_path 的默认一致）。"""
+    return os.environ.get("BUTLER_GROUP_FILE") or os.path.join(home, "cache", "butler_groups.json")
+
+
+def load_groups_file(path):
+    """读分组字典 → (groups {type(str): [user]}, updated_at)。文件缺失/坏掉 → ({}, "")。"""
+    groups, updated = {}, ""
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except Exception:
+        return groups, updated
+    if not isinstance(raw, dict):
+        return groups, updated
+    updated = str(raw.get("updated_at") or "")
+    g = raw.get("groups")
+    if not isinstance(g, dict):
+        g = raw                        # 兼容裸 {type: [users]} 的写法
+    for k, v in g.items():
+        n = _as_pos_int(k)
+        if n is None or not isinstance(v, list):
+            continue
+        users, seen = [], set()
+        for u in v:
+            s = str(u or "").strip()
+            if s and s not in seen:
+                seen.add(s)
+                users.append(s)
+        if users:
+            groups[str(n)] = users
+    return groups, updated
+
+
+def save_groups_file(path, groups):
+    """原子写（tmp + replace）：与 butler 侧 GroupStore._save 同一格式。"""
+    payload = {"version": 1, "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+               "groups": groups}
+    d = os.path.dirname(path)
+    if d:
+        os.makedirs(d, exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+
+def build_groups_payload(home):
+    """「用户分组」页数据：字典 + 可绑定的联系人（config.wxbot.toml 的绑定关系）。
+
+    1/2/3 三个已知类型总在列表里（哪怕空），文件里多出来的未知类型原样带上。
+    """
+    path = group_file_path(home)
+    groups, updated = load_groups_file(path)
+    contacts = load_wxbot_contacts()
+    known = {c["name"]: c for c in contacts}
+
+    def member(u):
+        c = known.get(u) or {}
+        return {"name": u, "label": c.get("label") or "",
+                "profile": c.get("profile") or "", "known": bool(c)}
+
+    keys = [str(t) for t in sorted(GROUP_MESSAGE_TYPES)]
+    keys += sorted(k for k in groups if k not in keys)
+    types = []
+    for k in keys:
+        n = _as_pos_int(k)
+        if n is None:
+            continue
+        users = list(groups.get(k) or [])
+        types.append({"type": n, "label": GROUP_MESSAGE_TYPES.get(n, f"类型{n}"),
+                      "users": users, "count": len(users),
+                      "members": [member(u) for u in users]})
+    return {
+        "ok": True, "file": path, "exists": os.path.exists(path),
+        "updated_at": updated, "message_types": types,
+        "contacts": [{"name": c["name"], "label": c.get("label") or "",
+                      "profile": c.get("profile") or ""} for c in contacts],
+    }
 
 
 def parse_wxbot_log(home):
@@ -862,6 +1078,16 @@ class Handler(BaseHTTPRequestHandler):
     def _json(self, obj, code=200):
         self._send(code, json.dumps(obj, ensure_ascii=False, default=str))
 
+    def _body(self):
+        """读 JSON 请求体（POST 用）；读不出就回空 dict（校验层再拒）。"""
+        n = int(self.headers.get("Content-Length") or 0)
+        if n <= 0 or n > (1 << 20):
+            return {}
+        try:
+            return json.loads(self.rfile.read(n).decode("utf-8", "replace"))
+        except Exception:
+            return {}
+
     def do_GET(self):
         u = urlparse(self.path)
         qs = parse_qs(u.query)
@@ -907,6 +1133,8 @@ class Handler(BaseHTTPRequestHandler):
                 by_uid = {}
                 for j in jobs:
                     k = j.get("uid_key") or ""
+                    if not k and j.get("scope") == "global":
+                        k = "global"                # 全局任务单独一组（群发，收件人按字典）
                     if flt != "all" and k != flt:
                         continue
                     by_uid.setdefault(k or "(no-owner)", []).append(j)
@@ -914,7 +1142,9 @@ class Handler(BaseHTTPRequestHandler):
                 for key, js in by_uid.items():
                     nm = ""
                     disp = ""
-                    if key != "(no-owner)":
+                    if key == "global":
+                        nm = "全局任务"
+                    elif key != "(no-owner)":
                         nm = display_of_ci(key, directory)
                         disp = orig.get(key) or next(
                             (x.get("uid") for x in js if x.get("uid")), key)
@@ -924,8 +1154,8 @@ class Handler(BaseHTTPRequestHandler):
                         x["ui_state"] = jobs_ui_state(x)
                     js.sort(key=lambda x: (x["ui_state"] != "active", x.get("name") or ""))
                     users_out.append({
-                        "uid": "" if key == "(no-owner)" else key,
-                        "uid_display": "" if key == "(no-owner)" else (disp or key),
+                        "uid": "global" if key == "global" else ("" if key == "(no-owner)" else key),
+                        "uid_display": "" if key in ("(no-owner)", "global") else (disp or key),
                         "name": nm or "系统 / 无归属",
                         "count": len(js),
                         "active": sum(1 for x in js if x["ui_state"] == "active"),
@@ -933,7 +1163,8 @@ class Handler(BaseHTTPRequestHandler):
                         "error": sum(1 for x in js if x["ui_state"] == "error"),
                         "jobs": js,
                     })
-                users_out.sort(key=lambda u: (u["uid"] == "(no-owner)",
+                _rank = {"global": 1, "": 2}    # 用户在前，全局次之，无归属最后
+                users_out.sort(key=lambda u: (_rank.get(u["uid"], 0),
                                               -u["active"], -u["count"], u["name"]))
                 self._json({
                     "count": len(jobs),
@@ -949,13 +1180,53 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(collect_wxbot(self.home, directory))
                 return
 
+            if p == "/api/groups":
+                self._json(build_groups_payload(self.home))
+                return
+
+            self._json({"error": "not found", "path": p}, 404)
+        except Exception as exc:
+            self._json({"error": type(exc).__name__, "detail": str(exc)}, 500)
+
+    def do_POST(self):
+        u = urlparse(self.path)
+        p = u.path.rstrip("/") or "/"
+        try:
+            if p == "/api/groups":       # 用户分组：绑定/解绑（只写字典文件）
+                b = self._body()
+                mt = _as_pos_int(b.get("type"))
+                action = str(b.get("action") or "").strip()
+                user = str(b.get("user") or "").strip()
+                if mt is None:
+                    self._json({"ok": False,
+                                "error": "type 非法（须为正整数：1=新闻消息 2=问候消息 3=其他）"}, 400)
+                    return
+                if action not in ("bind", "unbind"):
+                    self._json({"ok": False, "error": "action 只支持 bind / unbind"}, 400)
+                    return
+                if not user or len(user) > 64:
+                    self._json({"ok": False,
+                                "error": "user 为空或过长（微信窗口标题，≤64 字符）"}, 400)
+                    return
+                path = group_file_path(self.home)
+                groups, _ = load_groups_file(path)
+                users = list(groups.get(str(mt), []))
+                if action == "bind":
+                    if user not in users:
+                        users.append(user)
+                else:
+                    users = [x for x in users if x != user]
+                groups[str(mt)] = users
+                save_groups_file(path, groups)
+                self._json(build_groups_payload(self.home))
+                return
             self._json({"error": "not found", "path": p}, 404)
         except Exception as exc:
             self._json({"error": type(exc).__name__, "detail": str(exc)}, 500)
 
 
 def main():
-    ap = argparse.ArgumentParser(description="微信管家日志（wxbot 通道流水 + 定时任务，只读）")
+    ap = argparse.ArgumentParser(description="微信管家日志（wxbot 通道流水 + 定时任务 + 用户分组）")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8788)
     ap.add_argument("--home", default=HERMES_HOME)
