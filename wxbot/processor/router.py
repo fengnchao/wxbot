@@ -20,10 +20,12 @@ class Router:
         names = "、".join(self.prefix + n for n in self.commands)
         return f"可用命令：{names}\n其他消息会交给 AI 回复。"
 
-    def handle(self, contact: str, text: str) -> str | None:
+    def handle(self, contact: str, text: str, *, context: str = "") -> str | None:
         text = text.strip()
         if text.startswith(self.prefix):
             name, *args = text[len(self.prefix):].split()
             cmd = self.commands.get(name.lower()) if name else None
             return cmd(contact, args) if cmd else f"未知命令，发送 {self.prefix}help 查看"
+        if context:
+            text = f"{context}\n{text}"
         return self.model.handle(contact, text)

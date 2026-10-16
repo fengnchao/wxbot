@@ -51,19 +51,46 @@ wxbot 只负责把消息从微信拿出来/发回去；管家负责"投递给 He
 ```
 GET  /health                     → {"ok":true,"hermes":{"wxbot-101":true,...},"contacts":[...]}
 POST /v1/handle                  → {"reply":"文本"|null, "actions":[...], "meta":{...}}
-     {"contact":"101","text":"...","msg_id":"...","ts":"..."}
+     {"contact":"101","text":"...","msg_id":"...","ts":"...","channel_type":"dm|group"}
 POST /v1/reset  {"contact":"101"} → {"ok":true}      # /new 语义：换会话 id
+POST /v1/heartbeat/trigger {"contact":"101"} → 立即为该联系人执行一次心跳
 POST /v1/push   {"contact":"101","text":"...","type":1,"messageType":1}
                                  → {"reply":null,"meta":{...}}   # 主动推送（不走模型）
      type: 1=指定用户发送（用 contact，缺省即 1）/ 2=群发（按 messageType 查「用户分组」字典，忽略 contact）
      messageType: 1=新闻消息 2=问候消息 3=其他（群发时必填；type=1 时仅记录）
 ```
 
-两个请求都要求 `Authorization: Bearer <server.token>`；只绑 127.0.0.1。
+`channel_type` 可选，缺省为 `dm`；群聊消息传 `group`，Hermes 身份注入会说明这是共享群会话，并将 `member_id` 解释为发言者标签。群聊与私聊的 Session Key 分开。两个请求都要求 `Authorization: Bearer <server.token>`；只绑 127.0.0.1。
 
 用户分组字典（`{hermes.root}/cache/butler_groups.json`，`[groups].file` 可覆盖）：
 `messageType → 绑定的联系人（微信窗口标题）`，群发按它逐条投递；log 看板 8788「用户分组」页
 可视化管理（butler 每次推送现读文件，改完即时生效）。
+
+## 联系人角色、skill 白名单与心跳
+
+log 看板 8788「心跳与角色」页可为每个 Butler 私聊联系人选择 Hermes 角色 skill、多选允许使用的 skills，
+并独立开关该用户的心跳。角色 skill 会自动并入白名单；普通消息每次动态读取配置并发送给 Hermes。
+Hermes API 会按活动 Profile 校验 skill 名称，并在当前请求的 `skills_list` / `skill_view` 入口强制白名单。
+未配置策略的联系人维持旧行为。策略改变后使用新的会话 id，长期身份 `X-Hermes-Session-Key` 不变。
+
+策略文件默认 `{hermes.root}/cache/butler_heartbeat.json`；心跳状态文件默认
+`{hermes.root}/cache/butler_heartbeat_state.json`，执行审计默认
+`{hermes.root}/cache/butler_heartbeat_audit.jsonl`。可在 `[heartbeat]` 配置中覆盖路径与随机间隔。
+审计记录包括调度启动/下次计划、被选用户与角色、Hermes 结果、建议推送状态和错误；不会记录普通聊天内容或密钥。
+心跳调度随 Butler HTTP 服务启动，在进程内随机等待（默认 180–360 分钟），每次随机选择一位开启者。
+心跳 Hermes 请求仅开放只读文件/会话/网页检索与 skills 查看工具；结果必须是 JSON 的 `none` 或 `suggestion`。
+Butler 只把建议私聊给目标用户，不执行建议或 `butler:action` 指令。
+
+推荐配置：
+
+```toml
+[heartbeat]
+config_file = ""              # 默认 {hermes.root}/cache/butler_heartbeat.json
+state_file = ""               # 默认 {hermes.root}/cache/butler_heartbeat_state.json
+audit_file = ""               # 默认 {hermes.root}/cache/butler_heartbeat_audit.jsonl
+min_interval_minutes = 180
+max_interval_minutes = 360
+```
 
 wxbot 侧（管家推给它）：`POST http://127.0.0.1:8765/send` `{contact,text,wait:true,timeout}`，
 退出语义沿用现有三态（0 已发出 / 1 通道不可用已入补发 / 2 该 Profile 没接 wxbot）。

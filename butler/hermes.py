@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import urllib.error
 import urllib.request
 from urllib.parse import quote
@@ -43,7 +44,7 @@ class HermesClient:
         self.send_identity = cfg.send_identity
         self.profile_in_path = getattr(cfg, "hermes_profile_in_path", False)
         self.log = log or (lambda *a, **k: None)
-        self.session_ids: dict[str, str] = {}          # contact name → 会话 id（/new 时轮换）
+        self.session_ids: dict[str, str] = {}          # contact/policy/type → 会话 id（/new 时轮换）
 
     # ---------- URL 拼接 ----------
     def _api_base(self, profile: str) -> str:
@@ -51,12 +52,30 @@ class HermesClient:
         return f"{self.base}/p/{profile}" if self.profile_in_path else self.base
 
     # ---------- 会话 ----------
-    def session_id(self, contact: Contact) -> str:
-        return self.session_ids.get(contact.name) or contact.session_id()
+    @staticmethod
+    def _session_scope(contact: Contact, skill_policy: dict | None, session_kind: str) -> tuple[str, str]:
+        # Keep the legacy DM session id untouched until a user gets an explicit policy.
+        if session_kind == "chat" and not skill_policy:
+            return contact.name, contact.session_id()
+        scoped_policy = ({"role_skill": skill_policy.get("role_skill"),
+                         "allowed_skills": sorted(skill_policy.get("allowed_skills") or [])}
+                        if skill_policy else {})
+        encoded = json.dumps(scoped_policy, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        policy_tag = hashlib.sha256(encoded).hexdigest()[:12]
+        kind = "heartbeat" if session_kind == "heartbeat" else "chat"
+        key = f"{contact.name}:{kind}:{policy_tag}"
+        return key, f"{contact.session_id()}-{kind}-{policy_tag}"
 
-    def reset(self, contact: Contact) -> None:
+    def session_id(self, contact: Contact, *, skill_policy: dict | None = None,
+                   session_kind: str = "chat") -> str:
+        key, initial = self._session_scope(contact, skill_policy, session_kind)
+        return self.session_ids.get(key) or initial
+
+    def reset(self, contact: Contact, *, skill_policy: dict | None = None,
+              session_kind: str = "chat") -> None:
         import time
-        self.session_ids[contact.name] = f"{contact.session_id()}-{int(time.time())}"
+        key, initial = self._session_scope(contact, skill_policy, session_kind)
+        self.session_ids[key] = f"{initial}-{int(time.time())}"
 
     # ---------- 探活（不跑 agent、不污染会话）----------
     def alive(self, profile: str) -> bool:
@@ -83,7 +102,8 @@ class HermesClient:
         return h
 
     def chat(self, contact: Contact, text: str, *, extra_system: str = "",
-             timeout: int | None = None) -> str:
+             timeout: int | None = None, skill_policy: dict | None = None,
+             session_kind: str = "chat") -> str:
         """把一条用户消息交给 Hermes，返回最终文本。失败抛 HermesError。"""
         messages = []
         if extra_system:
@@ -94,9 +114,16 @@ class HermesClient:
 
         url = f"{self._api_base(contact.profile)}/v1/chat/completions"
         headers = self._headers(contact.profile, contact.key())
-        sid = self.session_id(contact)
+        session_key, sid = self._session_scope(contact, skill_policy, session_kind)
+        sid = self.session_ids.get(session_key) or sid
         headers["X-Hermes-Session-Id"] = header_value(sid)
         body = {"model": self.model, "messages": messages, "stream": False}
+        if skill_policy:
+            body["skill_policy"] = {
+                "role_skill": skill_policy["role_skill"],
+                "allowed_skills": list(skill_policy["allowed_skills"]),
+                "read_only": session_kind == "heartbeat",
+            }
 
         try:
             req = urllib.request.Request(
@@ -105,7 +132,7 @@ class HermesClient:
             with urllib.request.urlopen(req, timeout=timeout or self.timeout) as r:
                 echoed = (r.headers.get("X-Hermes-Session-Id") or "").strip()
                 if echoed:
-                    self.session_ids[contact.name] = echoed   # 服务端改写 id 也不丢连续性
+                    self.session_ids[session_key] = echoed   # 服务端改写 id 也不丢连续性
                 data = json.loads(r.read().decode("utf-8", "replace"))
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", "replace")[:300]

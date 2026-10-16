@@ -32,6 +32,13 @@ flow_file = ""                # 流水日志（供 log 看板 8788 的「wxbot �
 file = ""                     # 用户分组字典（messageType → 绑定用户）；留空=默认 {hermes.root}/cache/butler_groups.json
                               # 群发推送（type=2）按此字典投递；看板 8788「用户分组」页读写同一份
 
+[heartbeat]
+config_file = ""              # 用户角色/skill/心跳开关；默认 {hermes.root}/cache/butler_heartbeat.json
+state_file = ""               # 下次心跳时间；默认 {hermes.root}/cache/butler_heartbeat_state.json
+audit_file = ""               # 心跳执行审计；默认 {hermes.root}/cache/butler_heartbeat_audit.jsonl
+min_interval_minutes = 180    # 每轮完成后随机等待 180–360 分钟
+max_interval_minutes = 360
+
 # 联系人 → Hermes Profile / uid。uid 必须 ASCII（会进 HTTP header）。
 [[contacts]]
 name = "101"                  # 微信独立聊天窗口标题，必须完全一致

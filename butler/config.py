@@ -43,6 +43,12 @@ class Config:
     flow_log: str = ""
     # 用户分组字典（messageType → 绑定用户）：留空则用 {hermes_root}/cache/butler_groups.json
     groups_file: str = ""
+    # 用户角色技能 + 心跳开关；log 看板与 Butler 读写同一文件。
+    heartbeat_config_file: str = ""
+    heartbeat_state_file: str = ""
+    heartbeat_audit_file: str = ""
+    heartbeat_min_interval_minutes: int = 180
+    heartbeat_max_interval_minutes: int = 360
     # 联系人
     contacts: ContactMap = field(default_factory=ContactMap)
 
@@ -70,6 +76,27 @@ class Config:
             return os.path.join(self.hermes_root, "cache", "butler_groups.json")
         return ""
 
+    def heartbeat_config_path(self) -> str:
+        if self.heartbeat_config_file:
+            return self.heartbeat_config_file
+        if self.hermes_root:
+            return os.path.join(self.hermes_root, "cache", "butler_heartbeat.json")
+        return ""
+
+    def heartbeat_state_path(self) -> str:
+        if self.heartbeat_state_file:
+            return self.heartbeat_state_file
+        if self.hermes_root:
+            return os.path.join(self.hermes_root, "cache", "butler_heartbeat_state.json")
+        return ""
+
+    def heartbeat_audit_path(self) -> str:
+        if self.heartbeat_audit_file:
+            return self.heartbeat_audit_file
+        if self.hermes_root:
+            return os.path.join(self.hermes_root, "cache", "butler_heartbeat_audit.jsonl")
+        return ""
+
 
 def load(path: str | os.PathLike | None = None) -> Config:
     p = Path(path) if path else DEFAULT_CONFIG
@@ -84,6 +111,7 @@ def load(path: str | os.PathLike | None = None) -> Config:
     d = raw.get("dispatch") or {}
     lg = raw.get("log") or {}
     gp = raw.get("groups") or {}
+    hb = raw.get("heartbeat") or {}
 
     return Config(
         host=str(srv.get("host") or "127.0.0.1"),
@@ -104,6 +132,11 @@ def load(path: str | os.PathLike | None = None) -> Config:
         respond_after_action=bool(d.get("respond_after_action", False)),
         flow_log=str(lg.get("flow_file") or "").strip(),
         groups_file=str(gp.get("file") or "").strip(),
+        heartbeat_config_file=str(hb.get("config_file") or "").strip(),
+        heartbeat_state_file=str(hb.get("state_file") or "").strip(),
+        heartbeat_audit_file=str(hb.get("audit_file") or "").strip(),
+        heartbeat_min_interval_minutes=max(1, int(hb.get("min_interval_minutes") or 180)),
+        heartbeat_max_interval_minutes=max(1, int(hb.get("max_interval_minutes") or 360)),
         contacts=load_contacts(raw.get("contacts")),
     )
 

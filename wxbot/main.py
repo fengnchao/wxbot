@@ -61,8 +61,9 @@ def run() -> None:
     router = build_processor(cfg)
     users = list(bcfg.get("bound_users", []))
     groups = list(bcfg.get("bound_groups", []))
-    chats = {name: ChatWindow(name, cfg["wechat"]) for name in dict.fromkeys(users + groups)}
     group_names = set(groups)
+    chats = {name: ChatWindow(name, cfg["wechat"], group_mode=name in group_names)
+             for name in dict.fromkeys(users + groups)}
     mention_names = bcfg.get("mention_names", [])
     snapshots: dict[str, list] = {}
     warned: set[str] = set()
@@ -125,7 +126,12 @@ def run() -> None:
             new_all = new_messages(snapshots[name], msgs)
             snapshots[name] = msgs
             for m in new_all:                   # 每条新消息都打印，含发送方判断，便于调试
-                log.info("[%s] 接收到新消息 [发送方=%s]: %s", name, m.sender, m.text)
+                if name in group_names:
+                    speaker = m.sender_name or "未知成员"
+                    log.info("[%s] 接收到新消息 [发言人=%s; member_id=%s]: %s",
+                             name, speaker, m.sender_key or "unknown", m.text)
+                else:
+                    log.info("[%s] 接收到新消息 [发送方=%s]: %s", name, m.sender, m.text)
 
             fresh = []
             for m in new_all:
@@ -139,7 +145,10 @@ def run() -> None:
                         continue
                     log.info("[%s] 群消息 @机器人，交给处理器", name)
                 fresh.append(m)
-                reply = router.handle(name, text)
+                context = (f"[群聊发言人：{m.sender_name or '未知成员'}; "
+                           f"member_id={m.sender_key or 'unknown'}]"
+                           if name in group_names else "")
+                reply = router.handle(name, text, context=context)
                 if not reply:
                     log.info("[%s] （本条判定不回复）", name)
                     continue

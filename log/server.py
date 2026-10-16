@@ -23,7 +23,12 @@
     GET /api/wxbot               wxbot 通道流水（收到/回复/外发 + agent 耗时 + 任务归属）
     GET /api/groups              用户分组字典（messageType → 绑定用户，看板可展开维护）
     POST /api/groups             {type, action: bind|unbind, user} 增删绑定
-                                 （唯一的写接口：只写分组字典文件，不动任何库）
+    GET /api/heartbeat-config    联系人角色、skill 和心跳策略
+    GET /api/heartbeat-status    心跳下次计划时间和最近执行记录
+    POST /api/heartbeat-trigger  立即触发指定联系人的一次心跳
+    GET /api/skills?contact=     服务端读取该联系人 Profile 的 Hermes 技能目录
+    POST /api/heartbeat-config   原子保存角色技能与心跳策略
+                                 （只写配置文件，不动任何库）
 """
 import argparse
 import datetime
@@ -32,9 +37,13 @@ import json
 import os
 import re
 import sqlite3
+import threading
 import time
+import tomllib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs, quote
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HERMES_HOME = os.environ.get("HERMES_HOME", r"D:\ai\hermes")
@@ -57,6 +66,210 @@ def wxbot_config_path():
 
 
 WXBOT_CHANNEL = os.path.join(HERMES_HOME, "scripts", "wxbot_channel.json")
+_HEARTBEAT_CONFIG_LOCK = threading.Lock()
+
+
+def butler_config_path():
+    """Butler's Hermes credentials/profile mapping; never returned to the browser."""
+    configured = os.environ.get("BUTLER_CONFIG")
+    if configured:
+        return configured
+    repo = os.path.dirname(HERE)
+    candidate = os.path.join(repo, "config.butler.toml")
+    if os.path.exists(candidate):
+        return candidate
+    return r"D:\ai\wxbot\config.butler.toml"
+
+
+def _load_butler_config():
+    try:
+        with open(butler_config_path(), "rb") as fh:
+            return tomllib.load(fh)
+    except Exception as exc:
+        raise RuntimeError(f"无法读取 Butler 配置（{type(exc).__name__}）") from None
+
+
+def load_butler_contacts():
+    """Direct-message contacts from Butler's configured identity map."""
+    config = _load_butler_config()
+    contacts = []
+    for item in config.get("contacts") or []:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        contacts.append({"name": name, "uid": str(item.get("uid") or name).strip(),
+                         "profile": str(item.get("profile") or "default").strip(),
+                         "label": str(item.get("label") or "").strip()})
+    return contacts, config
+
+
+def heartbeat_config_path(home, config=None):
+    config = config if config is not None else _load_butler_config()
+    path = str((config.get("heartbeat") or {}).get("config_file") or "").strip()
+    return path or os.path.join(home, "cache", "butler_heartbeat.json")
+
+
+def heartbeat_state_path(home, config):
+    path = str((config.get("heartbeat") or {}).get("state_file") or "").strip()
+    return path or os.path.join(home, "cache", "butler_heartbeat_state.json")
+
+
+def heartbeat_audit_path(home, config):
+    path = str((config.get("heartbeat") or {}).get("audit_file") or "").strip()
+    return path or os.path.join(home, "cache", "butler_heartbeat_audit.jsonl")
+
+
+def trigger_butler_heartbeat(contact, config):
+    """Use Butler's server token locally; its credential never reaches the browser."""
+    server = config.get("server") or {}
+    host = "127.0.0.1"  # The bearer token is sent only over the local loopback interface.
+    port = int(server.get("port") or 8770)
+    token = str(server.get("token") or "").strip()
+    if not token:
+        raise RuntimeError("Butler API token 未配置")
+    request = Request(
+        f"http://{host}:{port}/v1/heartbeat/trigger",
+        data=json.dumps({"contact": contact}, ensure_ascii=False).encode("utf-8"),
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        method="POST")
+    try:
+        with urlopen(request, timeout=10) as response:
+            return response.status, json.loads(response.read().decode("utf-8", "replace"))
+    except HTTPError as exc:
+        try:
+            payload = json.loads(exc.read().decode("utf-8", "replace"))
+        except Exception:
+            payload = {"error": f"Butler 返回 HTTP {exc.code}"}
+        return exc.code, payload
+    except (URLError, TimeoutError) as exc:
+        raise RuntimeError(f"无法连接 Butler（{type(exc).__name__}）") from None
+    except Exception as exc:
+        raise RuntimeError(f"Butler 触发请求失败（{type(exc).__name__}）") from None
+
+
+def load_heartbeat_events(path, limit=30):
+    """Read recent JSONL audit rows without loading an unbounded file into memory."""
+    try:
+        size = os.path.getsize(path)
+        with open(path, "rb") as fh:
+            start = max(0, size - 1_048_576)
+            fh.seek(start)
+            if start:
+                fh.readline()  # discard a possible partial first row
+            lines = fh.readlines()[-limit:]
+    except FileNotFoundError:
+        return []
+    events = []
+    for line in reversed(lines):
+        try:
+            row = json.loads(line.decode("utf-8", "replace"))
+        except Exception:
+            continue
+        if isinstance(row, dict):
+            events.append(row)
+    return events
+
+
+def load_heartbeat_status(home, config, limit=30):
+    state = {}
+    state_error = ""
+    try:
+        with open(heartbeat_state_path(home, config), "r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+        if isinstance(raw, dict):
+            state = raw
+    except FileNotFoundError:
+        pass
+    except Exception as exc:
+        state_error = type(exc).__name__
+    try:
+        events = load_heartbeat_events(heartbeat_audit_path(home, config), limit)
+    except Exception as exc:
+        events = []
+        audit_error = type(exc).__name__
+    else:
+        audit_error = ""
+    return {"next_run_at": state.get("next_run_at"), "state_error": state_error,
+            "audit_error": audit_error, "events": events}
+
+
+def load_heartbeat_config(path):
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except FileNotFoundError:
+        return {}
+    except Exception as exc:
+        raise RuntimeError(f"心跳配置文件不可读取（{type(exc).__name__}）") from None
+    users = raw.get("users") if isinstance(raw, dict) else None
+    if not isinstance(users, dict):
+        raise RuntimeError("心跳配置格式无效")
+    for name, policy in users.items():
+        if (not isinstance(name, str) or not isinstance(policy, dict)
+                or not isinstance(policy.get("role_skill"), str)
+                or not policy.get("role_skill", "").strip()
+                or not isinstance(policy.get("allowed_skills"), list)
+                or any(not isinstance(skill, str) for skill in policy.get("allowed_skills", []))
+                or not isinstance(policy.get("heartbeat_enabled"), bool)):
+            raise RuntimeError("心跳配置包含格式无效的联系人策略")
+    return users
+
+
+def save_heartbeat_config(path, users):
+    payload = {"version": 1, "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+               "users": users}
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)
+
+
+def fetch_hermes_skills(contact, config):
+    hermes = config.get("hermes") or {}
+    base = str(hermes.get("url") or "http://127.0.0.1:8642").rstrip("/")
+    profile = str(contact.get("profile") or "default")
+    if hermes.get("profile_in_path", False):
+        url = f"{base}/p/{quote(profile, safe='')}/v1/skills"
+    else:
+        url = f"{base}/v1/skills"
+    headers = {"Accept": "application/json"}
+    api_key = str(hermes.get("api_key") or "").strip()
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    request = Request(url, headers=headers)
+    try:
+        with urlopen(request, timeout=15) as response:
+            payload = json.loads(response.read().decode("utf-8", "replace"))
+    except HTTPError as exc:
+        raise RuntimeError(f"Hermes 技能目录请求失败（HTTP {exc.code}）") from None
+    except (URLError, TimeoutError) as exc:
+        raise RuntimeError(f"无法连接 Hermes（{type(exc).__name__}）") from None
+    except Exception as exc:
+        raise RuntimeError(f"Hermes 技能目录响应无效（{type(exc).__name__}）") from None
+    rows = payload.get("data") if isinstance(payload, dict) else None
+    if not isinstance(rows, list):
+        raise RuntimeError("Hermes 技能目录格式无效")
+    skills = []
+    for item in rows:
+        if not isinstance(item, dict) or not isinstance(item.get("name"), str):
+            continue
+        raw_tags = item.get("tags")
+        tags = sorted({tag.strip() for tag in raw_tags
+                       if isinstance(tag, str) and tag.strip()}, key=str.casefold) \
+            if isinstance(raw_tags, list) else []
+        skills.append({"name": item["name"], "description": str(item.get("description") or ""),
+                       "category": str(item.get("category") or ""), "tags": tags})
+    return skills
+
+
+def is_butler_role_skill(skill):
+    return any(str(tag).strip().casefold() == "butler-role"
+               for tag in skill.get("tags", []))
 
 
 # ---------------------------------------------------------------- 库
@@ -1184,6 +1397,50 @@ class Handler(BaseHTTPRequestHandler):
                 self._json(build_groups_payload(self.home))
                 return
 
+            if p == "/api/heartbeat-config":
+                contacts, config = load_butler_contacts()
+                path = heartbeat_config_path(self.home, config)
+                with _HEARTBEAT_CONFIG_LOCK:
+                    users = load_heartbeat_config(path)
+                names = {item["name"] for item in contacts}
+                policies = {name: users[name] for name in names if name in users}
+                heartbeat = config.get("heartbeat") or {}
+                interval_min = max(1, int(heartbeat.get("min_interval_minutes") or 180))
+                interval_max = max(interval_min, int(heartbeat.get("max_interval_minutes") or 360))
+                self._json({
+                    "contacts": contacts,
+                    "policies": policies,
+                    "interval_minutes": {
+                        "min": interval_min,
+                        "max": interval_max,
+                    },
+                })
+                return
+
+            if p == "/api/heartbeat-status":
+                contacts, config = load_butler_contacts()
+                path = heartbeat_config_path(self.home, config)
+                with _HEARTBEAT_CONFIG_LOCK:
+                    users = load_heartbeat_config(path)
+                status = load_heartbeat_status(self.home, config, max(1, min(100, num("limit", 30))))
+                names = {item["name"] for item in contacts}
+                status["enabled_contacts"] = sum(
+                    1 for name, policy in users.items()
+                    if name in names and policy.get("heartbeat_enabled") is True)
+                self._json(status)
+                return
+
+            if p == "/api/skills":
+                contact_name = one("contact")
+                contacts, config = load_butler_contacts()
+                contact = next((item for item in contacts if item["name"] == contact_name), None)
+                if contact is None:
+                    self._json({"error": "未知的 Butler 联系人"}, 400)
+                    return
+                self._json({"contact": contact["name"], "profile": contact["profile"],
+                            "skills": fetch_hermes_skills(contact, config)})
+                return
+
             self._json({"error": "not found", "path": p}, 404)
         except Exception as exc:
             self._json({"error": type(exc).__name__, "detail": str(exc)}, 500)
@@ -1192,6 +1449,20 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         p = u.path.rstrip("/") or "/"
         try:
+            if p == "/api/heartbeat-trigger":
+                body = self._body()
+                contact_name = str(body.get("contact") or "").strip()
+                contacts, config = load_butler_contacts()
+                if not any(item["name"] == contact_name for item in contacts):
+                    self._json({"ok": False, "error": "未知的 Butler 联系人"}, 400)
+                    return
+                status, result = trigger_butler_heartbeat(contact_name, config)
+                if status >= 400:
+                    self._json({"ok": False, "code": result.get("code"),
+                                "error": result.get("error") or f"Butler 返回 HTTP {status}"}, status)
+                    return
+                self._json({"ok": True, "status": "started", "contact": contact_name}, 202)
+                return
             if p == "/api/groups":       # 用户分组：绑定/解绑（只写字典文件）
                 b = self._body()
                 mt = _as_pos_int(b.get("type"))
@@ -1219,6 +1490,57 @@ class Handler(BaseHTTPRequestHandler):
                 groups[str(mt)] = users
                 save_groups_file(path, groups)
                 self._json(build_groups_payload(self.home))
+                return
+            if p == "/api/heartbeat-config":
+                b = self._body()
+                contact_name = str(b.get("contact") or "").strip()
+                contacts, config = load_butler_contacts()
+                contact = next((item for item in contacts if item["name"] == contact_name), None)
+                if contact is None:
+                    self._json({"ok": False, "error": "未知的 Butler 联系人"}, 400)
+                    return
+                role = str(b.get("role_skill") or "").strip()
+                allowed = b.get("allowed_skills")
+                enabled = b.get("heartbeat_enabled")
+                if not role or len(role) > 128:
+                    self._json({"ok": False, "error": "必须选择有效的角色 skill"}, 400)
+                    return
+                if not isinstance(allowed, list) or any(not isinstance(x, str) for x in allowed):
+                    self._json({"ok": False, "error": "allowed_skills 必须是字符串列表"}, 400)
+                    return
+                if not isinstance(enabled, bool):
+                    self._json({"ok": False, "error": "heartbeat_enabled 必须是布尔值"}, 400)
+                    return
+                skills = fetch_hermes_skills(contact, config)
+                skill_by_name = {item["name"]: item for item in skills}
+                role_skill = skill_by_name.get(role)
+                if role_skill is None or not is_butler_role_skill(role_skill):
+                    self._json({"ok": False,
+                                "error": "角色 skill 必须存在且带有 butler-role 标签"}, 400)
+                    return
+                role_names = {item["name"] for item in skills if is_butler_role_skill(item)}
+                requested = {x.strip() for x in allowed if x.strip()}
+                # Accept the role in an older browser draft, but never persist it as a tool.
+                requested.discard(role)
+                if requested & role_names:
+                    self._json({"ok": False, "error": "角色 skill 不能放入允许调用的工具列表"}, 400)
+                    return
+                tool_names = set(skill_by_name) - role_names
+                if not requested <= tool_names:
+                    self._json({"ok": False, "error": "技能已不在 Hermes 可用目录中，请刷新后重试"}, 400)
+                    return
+                path = heartbeat_config_path(self.home, config)
+                with _HEARTBEAT_CONFIG_LOCK:
+                    users = load_heartbeat_config(path)
+                    valid_contacts = {item["name"] for item in contacts}
+                    users = {name: value for name, value in users.items() if name in valid_contacts}
+                    users[contact_name] = {
+                        "role_skill": role,
+                        "allowed_skills": sorted(requested),
+                        "heartbeat_enabled": enabled,
+                    }
+                    save_heartbeat_config(path, users)
+                self._json({"ok": True, "contact": contact_name, "policy": users[contact_name]})
                 return
             self._json({"error": "not found", "path": p}, 404)
         except Exception as exc:

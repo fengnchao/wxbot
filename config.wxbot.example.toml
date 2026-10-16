@@ -68,6 +68,15 @@ automation_id = "chat_input_field"
 # 文字消息条目；时间提示（ChatItemView）、图片等其他条目会被忽略
 class_name = "mmui::ChatTextItemView"
 
+[wechat.group_sender]
+# 微信 UIA 不暴露群成员昵称；用左侧头像的感知哈希稳定区分成员
+avatar_size = 48
+avatar_left_offset = 4
+avatar_top_offset = 0
+# 把日志中的 member_id 映射为真实群昵称；未映射时模型看到“成员-<id>”
+[wechat.group_sender.member_names]
+# "0123456789abcdef" = "群成员昵称"
+
 [wechat.sender_detect]
 # 通过截图判断发送方：统计条目左右两侧与背景色不同的像素（头像位置）
 strip_width = 80        # 左右各检查多宽（像素）

@@ -17,7 +17,7 @@ Windows 上的个人微信机器人，Python 项目，拆成两个本地进程�
 
 - 窗口定位、轮询、消息差分、发送和 `/ping` 等通道命令属于 wxbot；联系人身份、Hermes Profile/uid、会话 id、补发、静默和 skill 决策属于 butler。
 - wxbot 通过 `wxbot/processor/butler.py` 把消息发给 butler；仍支持 `echo`、Hermes/OpenAI 兼容和 Ollama 后端，路由见 `wxbot/main.py`。
-- 群聊监听通过 `[bot].bound_groups` 配置窗口标题，通过 `[bot].mention_names` 配置机器人昵称；仅处理包含 `@昵称` 的其他成员文字消息，移除提及后走同一处理器并在原群聊回复。
+- 群聊监听通过 `[bot].bound_groups` 配置窗口标题，通过 `[bot].mention_names` 配置机器人昵称；仅处理包含 `@昵称` 的其他成员文字消息。WeChat UIA 不暴露群昵称，wxbot 用左侧头像感知哈希生成 member_id，可在 `[wechat.group_sender.member_names]` 配真实昵称；每条消息携 speaker/member_id 标签进入同一群聊会话。
 - butler HTTP 接口都要求 `Authorization: Bearer <token>`：`GET /health`、`GET /v1/catalogue`、`POST /v1/handle`、`POST /v1/reset`、`POST /v1/push`。默认仅绑定 loopback。处理接口形状见 `butler/server.py`。
 - Hermes 调用同时传 `X-Hermes-Session-Key`（长期身份/记忆归属）和 `X-Hermes-Session-Id`（同一段对话连续性）。只传前者可能每轮派生新会话。`/new` 或 `/重置` 会轮换会话 id。
 - 模型行动标记 `<<butler:action {"skill":"...","args":{...}}>>` 由 `butler/router.py` 去除并交 `butler/skills.py` 白名单执行；未知 skill 失败留痕。现有 catalog：`reminder.create/list/cancel`（本地实现）、`learn.card`、`quiz.next`（再委派 Hermes）。`<<butler:silent>>` 等标记用于静默。
@@ -57,3 +57,13 @@ Windows 上的个人微信机器人，Python 项目，拆成两个本地进程�
 ## 扫描时工作区状态
 
 扫描时 `git status --short` 显示大量已修改、删除和未跟踪文件，涉及根目录重组（原 `wxbot/`、`wxbot-util/` 内容移至根目录布局等）。这些改动属于当时工作区现状，本次只新增本记忆文档；后续编辑前先检查 git diff，避免覆盖或误认为这些变化是新产生的。
+
+## Butler 用户角色技能与心跳
+
+- 日志服务「心跳与角色」页按 Butler `[[contacts]]` 配置私聊联系人，可设置 `role_skill`、`allowed_skills` 和 `heartbeat_enabled`。
+- 策略默认存于 `{HERMES_HOME}/cache/butler_heartbeat.json`。log 服务只在服务端使用 Butler 配置中的 Hermes API key 查询技能目录，不把 key 返回浏览器。
+- Butler 普通私聊每轮重读策略，并把 `skill_policy` 发送到 Hermes。Hermes 校验当前 Profile 中的 skill 名称，在执行线程作用域内限制 `skills_list` / `skill_view`；无策略请求保留既有行为。
+- Butler 会话 id 根据角色与白名单指纹隔离；长期 session key 不变。群聊按群窗口名读取明确绑定的群策略，不继承成员的私聊角色策略。
+- 心跳在 Butler 服务进程内调度，默认随机等待 180–360 分钟，每轮只随机选择一名开启者；下次触发时间存于 `{HERMES_HOME}/cache/butler_heartbeat_state.json`。
+- 心跳请求单独会话，并在 Hermes 侧收窄为只读文件/历史/网页检索及 skill 查看工具。只接受 `{"action":"none","text":""}` 或 `{"action":"suggestion","text":"..."}`；Butler 只把建议私聊给目标用户，不执行建议。
+- 代码改动后需要由用户自行重启 Butler、log 服务和 Hermes API 服务，使调度、UI/API 和 Hermes 运行时白名单生效；本次不会替用户重启。

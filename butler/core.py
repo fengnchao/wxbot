@@ -9,13 +9,14 @@
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from .config import Config
 from .contacts import Contact
 from .flowlog import FlowLog
 from .groups import GroupStore
 from .hermes import HermesClient, HermesError
+from .skill_policy import SkillPolicyStore
 from .pending import PendingQueue
 from .push import push_to_wxbot
 from . import router, skills
@@ -37,6 +38,7 @@ class Butler:
         self.cfg = cfg
         self.log = log or (lambda *a, **k: None)
         self.hermes = HermesClient(cfg, self.log)
+        self.skill_policies = SkillPolicyStore(cfg.heartbeat_config_path(), self.log)
         self.pending = PendingQueue(cfg.hermes_root, self.log)
         self.flow = FlowLog(cfg.flow_log_path(), self.log)
         self.groups = GroupStore(cfg.group_file_path(), self.log)
@@ -51,8 +53,13 @@ class Butler:
         return c
 
     # ---------- 主流程 ----------
-    def handle(self, contact_name: str, text: str, msg_id: str | None = None) -> Result:
-        c = self.contact_of(contact_name)
+    def handle(self, contact_name: str, text: str, msg_id: str | None = None,
+               channel_type: str = "dm") -> Result:
+        c = replace(self.contact_of(contact_name),
+                    channel_type="group" if channel_type == "group" else "dm")
+        # Policies are keyed by WeChat window title. Apply a group role only when that
+        # group window has an explicit policy; never infer it from an individual member.
+        policy = self.skill_policies.for_contact(c.name)
         self.flow.received(c.name, text)          # 流水：收到（在看板里与后面的回复配成一轮）
 
         # 1. 补发：先认领（这样模型自己再查队列看到的是空的，不会说两遍）
@@ -63,8 +70,9 @@ class Butler:
         # 2. 前置规则
         dec = router.pre_route(c, text)
         if dec.kind == "reset":
-            self.hermes.reset(c)
-            self.log("[%s] 新会话 id=%s", contact_name, self.hermes.session_id(c))
+            self.hermes.reset(c, skill_policy=policy)
+            self.log("[%s] 新会话 id=%s", contact_name,
+                     self.hermes.session_id(c, skill_policy=policy))
             reply = router.compose(["好，这段翻篇了，重新开始"], pending)
             self.flow.reply(c.name, reply)
             return Result(reply, meta={"reset": True, "pending": len(pending)})
@@ -77,7 +85,7 @@ class Butler:
         # 3. 投递 Hermes
         raw = ""
         try:
-            raw = self.hermes.chat(c, text)
+            raw = self.hermes.chat(c, text, skill_policy=policy)
         except HermesError as e:
             self.log("[%s] %s", contact_name, e)
             self.flow.api_error(c.name, str(e))
@@ -116,7 +124,7 @@ class Butler:
 
         meta = {"pending": len(pending), "actions": len(results),
                 "model_silent": model_silent, "sent": reply is not None,
-                "session_id": self.hermes.session_id(c)}
+                "session_id": self.hermes.session_id(c, skill_policy=policy)}
         if msg_id:
             meta["msg_id"] = msg_id
         return Result(reply, results, meta)
@@ -157,7 +165,8 @@ class Butler:
 
     def reset(self, contact_name: str) -> Result:
         c = self.contact_of(contact_name)
-        self.hermes.reset(c)
+        policy = self.skill_policies.for_contact(c.name)
+        self.hermes.reset(c, skill_policy=policy)
         return Result("好，这段翻篇了，重新开始", meta={"reset": True})
 
     def health(self) -> dict:

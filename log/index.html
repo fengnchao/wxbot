@@ -148,6 +148,25 @@
   .gadd{display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap}
   .gadd select,.gadd input[type=text]{min-width:140px;max-width:230px}
   .gempty{color:var(--fg3);font-size:11.5px;padding:4px 0}
+  .hbform{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:14px 16px;max-width:1000px}
+  .hbform h2{font-size:14px;margin:0 0 8px}
+  .hbrow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:12px 0}
+  .hbrow label{color:var(--fg2)}
+  .hbskills{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:7px;margin:10px 0 16px}
+  .hbskill{background:var(--bg3);border:1px solid var(--line);border-radius:6px;padding:7px 9px;display:flex;gap:8px;align-items:flex-start}
+  .hbskill input{margin-top:4px;accent-color:var(--wx)}
+  .hbskill .desc{font-size:10.5px;color:var(--fg3);line-height:1.45;margin-top:2px}
+  .hbnote{font-size:11px;color:var(--fg2);padding:8px 10px;background:#121923;border-radius:6px;margin:10px 0}
+  .hbstatus{background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:14px;max-width:1000px}
+  .hbstatus h2{font-size:13px;margin:0 0 8px;display:flex;gap:14px;flex-wrap:wrap}
+  .hbstatus .summary{font-size:11px;color:var(--fg2);font-weight:400}
+  .hbactions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px}
+  .hbactions .hint{font-size:10.5px;color:var(--fg3)}
+  .hbevent{border-top:1px solid #1c232e;padding:8px 2px;font-size:11px}
+  .hbevent .evt{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline}
+  .hbevent time,.hbevent .meta{color:var(--fg3)}
+  .hbevent .detail{color:var(--fg2);white-space:pre-wrap;word-break:break-word;margin-top:3px}
+  .hbevent pre{white-space:pre-wrap;word-break:break-word;background:#121923;border-radius:5px;padding:8px;margin:5px 0 0;color:var(--fg);font-family:inherit;font-size:11px;line-height:1.55}
   code{color:var(--fg2);background:#0b0e13;padding:1px 5px;border-radius:3px;font-size:11px}
   ::-webkit-scrollbar{width:10px;height:10px}
   ::-webkit-scrollbar-thumb{background:#2b3646;border-radius:6px}
@@ -177,6 +196,7 @@
     <button id="tab-wxbot" class="on">wxbot 通道</button>
     <button id="tab-jobs">定时任务</button>
     <button id="tab-groups">用户分组</button>
+    <button id="tab-heartbeat">心跳与角色</button>
   </div>
 </header>
 
@@ -199,7 +219,9 @@ const ago = t => { if(!t) return '-'; const s=(Date.now()/1000)-t;
 
 let state = { tab:'wxbot', jobUid:'all', jobShowDone:false, jobs:null, auto:0, timer:null,
               wdata:null, wUid:'all', wOrder:'desc', wKind:'all',
-              gdata:null, gUid:'all', gOpen:{}, gError:'' };
+              gdata:null, gUid:'all', gOpen:{}, gError:'',
+              hdata:null, hstatus:null, hStatusError:'', hContact:'', hSkills:[], hSkillsContact:'', hRequest:0, hDraft:null, hError:'', hSaved:'',
+              hTriggering:false, hTriggerMessage:'' };
 
 async function get(u){ const r = await fetch(u); return r.json(); }
 
@@ -551,11 +573,215 @@ async function gMutate(action, type, user){
   renderGroupsPane();
 }
 
+/* ---------------- 心跳与角色 skill ---------------- */
+async function apiGet(u){
+  const r = await fetch(u), data = await r.json();
+  if(!r.ok) throw new Error((data && (data.detail||data.error)) || `HTTP ${r.status}`);
+  return data;
+}
+
+async function loadHeartbeat(){
+  state.hError = '';
+  try{
+    state.hdata = await apiGet('/api/heartbeat-config');
+    try{
+      state.hstatus = await apiGet('/api/heartbeat-status?limit=30');
+      state.hStatusError = '';
+    }catch(e){ state.hstatus = null; state.hStatusError = e.message||String(e); }
+    const contacts = state.hdata.contacts || [];
+    if(!contacts.some(c=>c.name===state.hContact)) state.hContact = contacts[0]?.name || '';
+    if(state.hContact) await loadHeartbeatSkills(state.hContact);
+    else if(!state.hContact){ state.hSkills=[]; state.hDraft=null; }
+  }catch(e){ state.hError = '载入失败：'+(e.message||e); }
+  renderHeartbeatNav();
+  renderHeartbeatPane();
+}
+
+function isRoleSkill(skill){
+  return (Array.isArray(skill.tags) ? skill.tags : [])
+    .some(tag=>String(tag).trim().toLowerCase()==='butler-role');
+}
+
+async function loadHeartbeatSkills(contact){
+  const requestId=++state.hRequest;
+  state.hContact = contact;
+  state.hSkillsContact = contact;
+  state.hSkills = [];
+  state.hError = '';
+  state.hSaved = '';
+  try{
+    const data = await apiGet('/api/skills?contact='+encodeURIComponent(contact));
+    if(requestId!==state.hRequest) return;
+    state.hSkills = data.skills || [];
+    const saved = (state.hdata && state.hdata.policies && state.hdata.policies[contact]) || {};
+    const roleOptions = new Set(state.hSkills.filter(isRoleSkill).map(s=>s.name));
+    const toolOptions = new Set(state.hSkills.filter(s=>!isRoleSkill(s)).map(s=>s.name));
+    const savedRole = saved.role_skill || '';
+    const role = roleOptions.has(savedRole) ? savedRole : '';
+    const allowed = Array.isArray(saved.allowed_skills)
+      ? [...new Set(saved.allowed_skills.filter(name=>toolOptions.has(name)))] : [];
+    state.hDraft = {role_skill:role, allowed_skills:allowed,
+                    heartbeat_enabled:saved.heartbeat_enabled===true};
+    if(savedRole && !role) state.hError='已保存的角色 skill 未标记 butler-role，请重新选择角色 skill。';
+  }catch(e){ if(requestId!==state.hRequest) return; state.hError = '技能目录载入失败：'+(e.message||e); }
+  renderHeartbeatNav();
+  renderHeartbeatPane();
+}
+
+function renderHeartbeatNav(){
+  const el = $('#list'), contacts = (state.hdata && state.hdata.contacts) || [];
+  el.innerHTML = contacts.length ? contacts.map(c=>{
+    const p = (state.hdata.policies||{})[c.name] || {};
+    return `<div class="user ${state.hContact===c.name?'sel':''}" data-hcontact="${esc(c.name)}">
+      <div class="nm">${esc(c.label||c.name)} ${p.heartbeat_enabled?'<span class="tag">心跳开</span>':''}</div>
+      <div class="uid">${esc(c.name)} · ${esc(c.profile)}</div>
+      <div class="pv">${p.role_skill?'角色：'+esc(p.role_skill):'尚未绑定角色 skill'}</div>
+    </div>`;
+  }).join('') : '<div class="empty">Butler 配置中没有可管理的私聊联系人</div>';
+  el.querySelectorAll('[data-hcontact]').forEach(n=>n.onclick=()=>loadHeartbeatSkills(n.dataset.hcontact));
+}
+
+function heartbeatDate(value){
+  if(!value) return '-';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value) : full(date.getTime()/1000);
+}
+
+function heartbeatEventTitle(event){
+  const labels={scheduler_started:'Butler 心跳调度启动',scheduled:'下次心跳已安排',
+    trigger_started:'心跳开始执行',trigger_skipped:'本轮跳过',contact_selected:'选中联系人',
+    hermes_call_started:'开始调用 Hermes',hermes_result:'Hermes 返回结果',
+    push_succeeded:'建议已发送',push_failed:'建议发送失败',error:'执行错误',
+    scheduler_not_started:'调度未启动',scheduler_stopping:'调度正在停止',scheduler_stopped:'调度已停止',
+    manual_trigger_requested:'收到手动触发请求',manual_trigger_accepted:'Butler 已接受手动触发',
+    manual_trigger_rejected:'手动触发未执行'};
+  if(event.event==='hermes_result') return event.result==='none'?'Hermes 检查完成：没有建议':
+    (event.result==='suggestion'?'Hermes 返回了建议':(event.result==='invalid'?'Hermes 返回格式无效':'Hermes 返回'));
+  if(event.event==='error') return '执行错误（'+(event.phase||'未知阶段')+'）';
+  return labels[event.event]||event.event||'心跳事件';
+}
+
+function renderHeartbeatStatus(){
+  const status=state.hstatus;
+  if(!status) return `<div class="hbstatus"><h2>心跳运行记录</h2><div class="warn">读取运行记录失败：${esc(state.hStatusError||'未知错误')}</div></div>`;
+  const events=Array.isArray(status.events)?status.events:[];
+  const due=Number(status.next_run_at);
+  const next=Number.isFinite(due)&&due>0?full(due):'尚未安排';
+  const rows=events.map(event=>{
+    const meta=[event.source&&('来源：'+(event.source==='manual'?'手动':'定时')),
+      event.contact&&('用户：'+event.contact),event.role_skill&&('角色：'+event.role_skill),
+      event.elapsed_ms!=null&&('耗时：'+event.elapsed_ms+' ms'),
+      Array.isArray(event.allowed_skills)&&event.allowed_skills.length&&('允许技能：'+event.allowed_skills.join('、'))]
+      .filter(Boolean).join(' · ');
+    const detail=event.text||event.detail||(event.next_run_at?'下次触发：'+full(Number(event.next_run_at)):
+      ({no_enabled_contacts:'没有已开启心跳的联系人',contact_not_configured:'联系人未配置',
+        policy_missing:'联系人尚未保存角色和 Skill 配置',policy_unavailable:'角色和 Skill 配置不可读取',
+        busy:'已有一轮心跳正在执行',start_failed:'无法启动执行'}[event.reason]||''));
+    return `<div class="hbevent"><div class="evt"><b>${esc(heartbeatEventTitle(event))}</b><time>${esc(heartbeatDate(event.at))}</time></div>
+      ${meta?`<div class="meta">${esc(meta)}</div>`:''}${detail?`<div class="detail">${esc(detail)}</div>`:''}</div>`;
+  }).join('');
+  const errors=[status.state_error&&'调度状态读取失败（'+status.state_error+'）',
+    status.audit_error&&'审计文件读取失败（'+status.audit_error+'）'].filter(Boolean);
+  return `<div class="hbstatus"><h2>心跳运行记录 <span class="summary">已开启 ${esc(status.enabled_contacts||0)} 位 · 下次计划：${esc(next)}</span></h2>
+    ${errors.length?`<div class="warn">${esc(errors.join('；'))}</div>`:''}
+    ${rows||'<div class="empty">暂无心跳事件记录；Butler 调度启动或下一轮触发后会显示过程。</div>'}</div>`;
+}
+
+function renderHeartbeatPane(){
+  const d = state.hdata, contact = d && (d.contacts||[]).find(c=>c.name===state.hContact);
+  if(!d){ $('#pane').innerHTML = `<div class="empty">${esc(state.hError||'正在载入心跳配置…')}</div>`; return; }
+  if(!contact){ $('#pane').innerHTML = `<div class="empty">${esc(state.hError||'请选择一个私聊联系人')}</div>`; return; }
+  if(!state.hDraft){ $('#pane').innerHTML = `<div class="empty">${esc(state.hError||'正在载入角色 skill…')}</div>`; return; }
+  const draft = state.hDraft, skills = state.hSkills;
+  const roleSkills = skills.filter(isRoleSkill);
+  const toolSkills = skills.filter(s=>!isRoleSkill(s));
+  const roleOptions = roleSkills.map(s=>`<option value="${esc(s.name)}" ${draft.role_skill===s.name?'selected':''}>${esc(s.name)}${s.category?' · '+esc(s.category):''}</option>`).join('');
+  const selected = new Set(draft.allowed_skills||[]);
+  const boxes = toolSkills.map(s=>{
+    const checked = selected.has(s.name);
+    return `<label class="hbskill"><input type="checkbox" data-hskill="${esc(s.name)}" ${checked?'checked':''}>
+      <span><b>${esc(s.name)}</b>
+        <div class="desc">${esc(s.description||s.category||'')}</div></span></label>`;
+  }).join('');
+  const interval = d.interval_minutes || {min:180,max:360};
+  const savedPolicy = (d.policies||{})[contact.name] || {};
+  $('#pane').innerHTML = `<div class="head"><h2>用户角色与心跳 · ${esc(contact.label||contact.name)}</h2>
+    <div class="kv"><span>微信窗口 <b>${esc(contact.name)}</b></span><span>Hermes Profile <b>${esc(contact.profile)}</b></span>
+      <span>心跳间隔 <b>${esc(interval.min)}–${esc(interval.max)} 分钟随机</b></span></div>
+    <div class="hbactions"><button id="hb-trigger" class="wx" ${savedPolicy.role_skill&&!state.hTriggering?'':'disabled'}>${state.hTriggering?'提交中…':'立即触发此用户'}</button>
+      <span class="hint">手动触发不受自动心跳开关限制，需先保存角色 Skill 配置。</span></div>
+    ${state.hTriggerMessage?`<div class="hbnote">${esc(state.hTriggerMessage)}</div>`:''}</div>
+    ${renderHeartbeatStatus()}
+    <div class="hbform">
+      <div class="hbnote">普通私聊会使用下方角色和技能白名单，保存后下一条消息生效。心跳开启后，Butler 每次随机选择一名已开启用户，Hermes 只返回建议，由 Butler 私聊发送。</div>
+      <div class="hbrow"><label><input id="hb-enabled" type="checkbox" ${draft.heartbeat_enabled?'checked':''}> 为此用户开启心跳</label></div>
+      <div class="hbrow"><label for="hb-role">角色 skill</label>
+        <select id="hb-role"><option value="">请选择角色 skill</option>${roleOptions}</select>
+        <span class="chip">角色 skill 会由 Hermes 单独加入运行时白名单</span></div>
+      <h2>允许调用的工具 skills</h2>
+      ${toolSkills.length?`<div class="hbskills">${boxes}</div>`:'<div class="empty">Hermes 没有返回可用的工具 skills</div>'}
+      ${state.hError?`<div class="warn">${esc(state.hError)}</div>`:''}
+      ${state.hSaved?`<div style="color:var(--ok);margin:8px 0">${esc(state.hSaved)}</div>`:''}
+      <button id="hb-save" class="wx" ${skills.length?'':'disabled'}>保存配置</button>
+    </div>`;
+  $('#hb-enabled').onchange = e=>{ draft.heartbeat_enabled=e.target.checked; };
+  $('#hb-role').onchange = e=>{
+    draft.role_skill=e.target.value;
+    draft.allowed_skills=draft.allowed_skills.filter(name=>name!==draft.role_skill);
+    state.hSaved=''; renderHeartbeatPane();
+  };
+  $('#pane').querySelectorAll('[data-hskill]').forEach(box=>box.onchange=e=>{
+    const name=e.target.dataset.hskill;
+    const allowed=new Set(draft.allowed_skills);
+    if(e.target.checked) allowed.add(name); else allowed.delete(name);
+    draft.allowed_skills=[...allowed]; state.hSaved='';
+  });
+  $('#hb-save').onclick=saveHeartbeatPolicy;
+  $('#hb-trigger').onclick=triggerHeartbeat;
+}
+
+async function triggerHeartbeat(){
+  if(state.hTriggering||!state.hContact) return;
+  state.hTriggering=true;
+  state.hTriggerMessage='正在向 Butler 提交手动心跳…';
+  renderHeartbeatPane();
+  try{
+    const result=await postJSON('/api/heartbeat-trigger',{contact:state.hContact});
+    if(!result||!result.ok) throw new Error((result&&(result.error||result.detail))||'提交失败');
+    state.hTriggerMessage='Butler 已接受请求；执行过程和建议会写入上方记录。';
+    await new Promise(resolve=>setTimeout(resolve,400));
+    try{
+      state.hstatus=await apiGet('/api/heartbeat-status?limit=30');
+      state.hStatusError='';
+    }catch(e){ state.hStatusError=e.message||String(e); }
+  }catch(e){ state.hTriggerMessage='触发失败：'+(e.message||e); }
+  finally{
+    state.hTriggering=false;
+    renderHeartbeatPane();
+  }
+}
+
+async function saveHeartbeatPolicy(){
+  const draft=state.hDraft;
+  state.hError=''; state.hSaved='';
+  if(!draft.role_skill){ state.hError='请先选择角色 skill'; renderHeartbeatPane(); return; }
+  try{
+    const result=await postJSON('/api/heartbeat-config', {contact:state.hContact,
+      role_skill:draft.role_skill, allowed_skills:draft.allowed_skills,
+      heartbeat_enabled:draft.heartbeat_enabled});
+    if(!result || !result.ok) throw new Error((result && (result.error||result.detail)) || '保存失败');
+    state.hdata.policies[state.hContact]=result.policy;
+    state.hSaved='已保存；普通消息与下一次心跳会读取此配置。';
+  }catch(e){ state.hError='保存失败：'+(e.message||e); }
+  renderHeartbeatNav(); renderHeartbeatPane();
+}
+
 function switchTab(t){
   state.tab = t;
   $('#tab-wxbot').classList.toggle('on', t==='wxbot');
   $('#tab-jobs').classList.toggle('on', t==='jobs');
   $('#tab-groups').classList.toggle('on', t==='groups');
+  $('#tab-heartbeat').classList.toggle('on', t==='heartbeat');
   $('#j-showdone').classList.toggle('hide', t!=='jobs');     // 各标签专属按钮
   $('#w-order').classList.toggle('hide', t!=='wxbot');
   $('#w-kind').classList.toggle('hide', t!=='wxbot');
@@ -567,6 +793,9 @@ function switchTab(t){
     state.gUid = 'all';
     $('#pane').innerHTML = '<div class="empty">载入中…</div>';
     loadGroups();
+  } else if(t==='heartbeat'){
+    $('#pane').innerHTML = '<div class="empty">载入心跳配置…</div>';
+    loadHeartbeat();
   } else {
     state.wUid = 'all';
     $('#pane').innerHTML = '<div class="empty">载入中…</div>';
@@ -576,6 +805,7 @@ function switchTab(t){
 $('#tab-wxbot').onclick = ()=>switchTab('wxbot');
 $('#tab-jobs').onclick = ()=>switchTab('jobs');
 $('#tab-groups').onclick = ()=>switchTab('groups');
+$('#tab-heartbeat').onclick = ()=>switchTab('heartbeat');
 
 $('#w-order').onclick = ()=>{
   state.wOrder = state.wOrder==='desc' ? 'asc' : 'desc';
@@ -593,6 +823,7 @@ $('#j-showdone').onclick = ()=>{                       // 默认隐藏「已完�
 function refreshCurrent(){
   if(state.tab==='jobs') loadJobs();
   else if(state.tab==='groups') loadGroups();
+  else if(state.tab==='heartbeat') loadHeartbeat();
   else loadWxbot();
 }
 $('#b-refresh').onclick = refreshCurrent;
@@ -609,7 +840,7 @@ async function boot(){
   if(qp.get('kind')){ state.wKind = qp.get('kind'); $('#w-kind').value = state.wKind; }
   if(qp.get('worder')==='asc'){ state.wOrder = 'asc'; $('#w-order').textContent = '排序：正序（旧→新）'; }
   const tab = qp.get('tab') || 'wxbot';      // wxbot 通道为第一个标签，默认展示
-  switchTab(tab === 'jobs' ? 'jobs' : (tab === 'groups' ? 'groups' : 'wxbot'));
+  switchTab(tab === 'jobs' ? 'jobs' : (tab === 'groups' ? 'groups' : (tab === 'heartbeat' ? 'heartbeat' : 'wxbot')));
 }
 boot();
 </script>

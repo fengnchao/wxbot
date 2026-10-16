@@ -4,7 +4,7 @@
 
 不看思考过程、不看工具调用、不看 token 和成本——只看谁发了什么、什么时候发的。
 
-所有数据库一律只读；唯一的写接口是「用户分组」字典文件（`POST /api/groups`，不动任何库）。
+所有数据库一律只读；写接口只维护用户分组、心跳角色策略配置文件，不动任何数据库。
 
 ## 快速开始
 
@@ -98,6 +98,18 @@ python server.py --port 9000
 - 字典文件默认 `{HERMES_HOME}/cache/butler_groups.json`（可用 env `BUTLER_GROUP_FILE` 覆盖），
   与 butler 侧一致：butler 收到 `type=2`（群发）的推送时，按此字典逐条转发
 
+## 心跳与角色（第四个标签）
+
+按 Butler 配置中的私聊联系人绑定 Hermes 角色 skill、多选运行时允许的 skills，并单独开关该用户的心跳。
+角色 skill 自动加入白名单。Butler 普通私聊下一轮开始应用新策略；策略变化会切换 Hermes 会话 id，避免旧会话中残留已加载的角色或技能。
+
+心跳由 Butler 进程内调度，每轮随机等待配置的间隔（默认 180–360 分钟），随机选一名心跳开启用户。
+Hermes 心跳请求限制为只读工具与已选 skills，只能返回「无事」或一条建议；Butler 不执行建议中的操作，只通过微信私聊发给该用户。
+
+配置文件默认 `{HERMES_HOME}/cache/butler_heartbeat.json`，由 `[heartbeat].config_file` 覆盖；调度时间默认在
+`{HERMES_HOME}/cache/butler_heartbeat_state.json`。Hermes 技能目录由日志服务使用 Butler 配置中的 API 地址和密钥在服务端读取，密钥不会返回浏览器。
+若 Butler 配置不在项目根目录 `config.butler.toml`，启动日志服务时设置 `BUTLER_CONFIG` 指向实际配置文件。
+
 ## 数据来源
 
 | 内容 | 来源 |
@@ -121,7 +133,16 @@ GET /api/jobs                               定时任务（按归属分组：用
 GET /api/wxbot                              wxbot 通道流水：收到/回复/外发 + 这一轮 agent 耗时 + 任务归属
 GET /api/groups                             用户分组字典（messageType → 绑定用户）
 POST /api/groups  {type, action: bind|unbind, user}   增删绑定（写字典文件）
+GET /api/heartbeat-config                   私聊联系人与已保存策略（不含密钥）
+GET /api/heartbeat-status                   下次计划时间和最近心跳事件
+POST /api/heartbeat-trigger {contact}       立即触发指定联系人的心跳
+GET /api/skills?contact=<窗口标题>           经日志服务读取所选 Profile 的 Hermes 技能目录
+POST /api/heartbeat-config                  保存联系人角色、skills 白名单和心跳开关
 ```
+
+「心跳与角色」页显示下次计划时间和最近执行记录。审计文件默认位于
+`{HERMES_HOME}/cache/butler_heartbeat_audit.jsonl`，可用 `[heartbeat].audit_file` 覆盖。
+用户面板的「立即触发此用户」会绕过自动心跳开关，但要求已保存该联系人的角色和 Skill 配置；若已有一轮心跳在执行，会提示稍后重试。
 
 深链接：`http://127.0.0.1:8788/?tab=wxbot&kind=slow&worder=asc`（wxbot 通道）
 或 `http://127.0.0.1:8788/?uid=<uid>&order=asc&reply=1&q=关键词&tab=jobs`（定时任务）

@@ -28,8 +28,10 @@ class ButlerProcessor(Processor):
 
     def handle(self, contact: str, text: str) -> str | None:
         try:
+            channel_type = "group" if text.startswith("[群聊发言人：") else "dm"
             resp = requests.post(self.url + "/v1/handle", headers=self._headers(),
-                                 json={"contact": contact, "text": text}, timeout=self.timeout)
+                                 json={"contact": contact, "text": text,
+                                       "channel_type": channel_type}, timeout=self.timeout)
             resp.raise_for_status()
             data = resp.json()
         except Exception as e:

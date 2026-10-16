@@ -1,8 +1,8 @@
 """
-一个绑定联系人的【独立聊天窗口】：读取消息、发送消息。（适配微信 4.x mmui 界面）
+一个绑定联系人或群聊的【独立聊天窗口】：读取消息、发送消息。（适配微信 4.x mmui 界面）
 
-微信 4.x 的消息条目不暴露头像等子控件，只能读到文字，
-所以"谁发的"用截图判断：对方的头像在左侧，自己的在右侧。
+微信 4.x 的消息条目不暴露头像/成员名子控件，只能读到文字；
+发送方和群成员头像 ID 用消息行截图判断。
 因此运行时聊天窗口必须完整显示在屏幕上，不能被遮挡或最小化。
 """
 import time
@@ -10,7 +10,7 @@ from collections import deque
 from dataclasses import dataclass
 
 import uiautomation as auto
-from PIL import ImageGrab
+from PIL import Image, ImageGrab
 
 from ..log import log
 from .locator import find, matches
@@ -20,6 +20,8 @@ from .locator import find, matches
 class Message:
     sender: str   # "other" 对方 / "self" 自己 / "system" 时间、系统提示、非文字消息
     text: str
+    sender_name: str | None = None  # 群聊成员映射名或稳定头像 ID
+    sender_key: str | None = None   # 头像感知哈希，用于稳定区分/配置映射
 
 
 def _color_diff(a, b) -> int:
@@ -27,10 +29,12 @@ def _color_diff(a, b) -> int:
 
 
 class ChatWindow:
-    def __init__(self, title: str, wcfg: dict):
+    def __init__(self, title: str, wcfg: dict, *, group_mode: bool = False):
         self.title = title
         self.wcfg = wcfg
+        self.group_mode = group_mode
         self.detect = wcfg.get("sender_detect", {})
+        self.group_sender_cfg = wcfg.get("group_sender", {})
         self._win: auto.WindowControl | None = None
         self._list: auto.Control | None = None
         self._sent: deque[str] = deque(maxlen=50)   # 机器人自己发过的内容，作为兜底判断
@@ -86,8 +90,6 @@ class ChatWindow:
         return lcount, rcount
 
     def _classify(self, item: auto.Control, text: str, list_rect) -> str:
-        if not matches(item, self.wcfg.get("text_item", {})):
-            return "system"
         scores = self.side_scores(item, list_rect)
         sender = "unknown"
         if scores:
@@ -101,6 +103,37 @@ class ChatWindow:
             return "self"
         return sender if sender != "unknown" else "system"
 
+    def _group_sender_identity(self, item: auto.Control, list_rect):
+        """Return a configured display name or stable visual ID for a group avatar."""
+        rect = item.BoundingRectangle
+        size = int(self.group_sender_cfg.get("avatar_size", 48))
+        x_offset = int(self.group_sender_cfg.get("avatar_left_offset", 4))
+        y_offset = int(self.group_sender_cfg.get("avatar_top_offset", 0))
+        left = max(rect.left + x_offset, list_rect.left)
+        top = max(rect.top + y_offset, list_rect.top)
+        right = min(rect.right, list_rect.right, left + size)
+        bottom = min(rect.bottom, list_rect.bottom, top + size)
+        sender_key = None
+        sender_name = None
+        if right - left >= 16 and bottom - top >= 16:
+            try:
+                avatar = ImageGrab.grab(bbox=(left, top, right, bottom), all_screens=True)
+                gray = avatar.convert("L").resize((9, 8), Image.Resampling.LANCZOS)
+                low, high = gray.getextrema()
+                pixels = gray.load()
+                bits = 0
+                for y in range(8):
+                    for x in range(8):
+                        bits = (bits << 1) | int(pixels[x, y] > pixels[x + 1, y])
+                if high - low >= 8 and bits not in (0, (1 << 64) - 1):
+                    sender_key = f"{bits:016x}"
+                    member_names = self.group_sender_cfg.get("member_names", {})
+                    sender_name = str(member_names.get(sender_key) or f"成员-{sender_key[:8]}")
+            except Exception as e:
+                log.debug("[%s] 读取群成员头像失败: %s", self.title, type(e).__name__)
+
+        return sender_name, sender_key
+
     # ---------- 读取 ----------
     def read_messages(self) -> list[Message]:
         lst = self._message_list()
@@ -109,10 +142,19 @@ class ChatWindow:
         list_rect = lst.BoundingRectangle
         result = []
         for item in lst.GetChildren():
+            # 只收文字消息条目。时间分隔条（ChatItemView）、图片等其他条目
+            # 不进入快照，避免被增量检测当作新消息记录。
+            if not matches(item, self.wcfg.get("text_item", {})):
+                continue
             text = item.Name or ""
             if not text.strip():
                 continue
-            result.append(Message(self._classify(item, text, list_rect), text))
+            sender = self._classify(item, text, list_rect)
+            sender_name = None
+            sender_key = None
+            if self.group_mode and sender == "other":
+                sender_name, sender_key = self._group_sender_identity(item, list_rect)
+            result.append(Message(sender, text, sender_name, sender_key))
         return result
 
     # ---------- 发送 ----------
