@@ -15,6 +15,9 @@ from PIL import Image, ImageGrab
 from ..log import log
 from .locator import find, matches
 
+_SEND_CHARS_PER_BATCH = 5
+_SEND_BATCH_INTERVAL_SECONDS = 1.0
+
 
 @dataclass(frozen=True)
 class Message:
@@ -158,30 +161,24 @@ class ChatWindow:
         return result
 
     # ---------- 发送 ----------
-    def _input_text(self, edit) -> str | None:
-        """读输入框当前内容；控件不支持 ValuePattern 时返回 None。"""
+    @staticmethod
+    def _input_text(edit) -> str | None:
+        """读取输入框当前内容；控件不支持 ValuePattern 时返回 None。"""
         try:
             return edit.GetValuePattern().Value or ""
         except Exception:
             return None
 
-    def _wait_paste(self, edit, timeout: float = 3.0) -> bool:
-        """等粘贴真的落到输入框里再回车。
-
-        固定 sleep 在长文本 / 慢机器上不够：回车会在空框上触发，消息直接丢掉，
-        而且不留痕迹（2026-10-11 实测两条多段长回复没进窗口、输入框也是空的）。
-        读不到输入框内容（控件不支持）时退化成定时等待，保持原来的行为。
-        """
-        deadline = time.time() + timeout
-        while time.time() < deadline:
-            val = self._input_text(edit)
-            if val is None:
-                time.sleep(0.4)
-                return True
-            if val.strip():
-                return True
-            time.sleep(0.1)
-        return False
+    @staticmethod
+    def _escape_sendkeys_text(text: str) -> str:
+        """转义 SendKeys 的特殊键语法，并将换行作为 Shift+Enter 输入。"""
+        return "".join(
+            "{{}" if char == "{" else
+            "{}}" if char == "}" else
+            "{Shift}({Enter})" if char == "\n" else
+            char
+            for char in text
+        )
 
     def send(self, text: str) -> bool:
         win = self._window()
@@ -195,17 +192,47 @@ class ChatWindow:
             log.error("[%s] 找不到输入框，请检查 [wechat.input] 配置", self.title)
             return False
         edit.Click(simulateMove=False)
-        for attempt in (1, 2):
-            auto.SetClipboardText(text)          # 用剪贴板粘贴，中文和长文本都稳定
-            auto.SendKeys("{Ctrl}v", waitTime=0.1)
-            if self._wait_paste(edit):
-                break
-            log.warning("[%s] 粘贴后输入框仍是空的（第 %d 次），重试", self.title, attempt)
-            time.sleep(0.3)
-        else:
-            # 两次都没确认到正文：不按回车（按了发出去的是空的/残文），如实返回失败
-            log.error("[%s] 正文没能进输入框，放弃发送（长度 %d）", self.title, len(text))
+        if not text:
+            log.warning("[%s] 消息正文为空，放弃发送", self.title)
             return False
+        input_before = self._input_text(edit)
+        if input_before:
+            log.warning("[%s] 输入框已有未发送内容，放弃发送以免拼接消息", self.title)
+            return False
+
+        # 统一换行，再按字符分批键入；Shift+Enter 保留消息中的换行而不提前发送。
+        normalized_text = text.replace("\r\n", "\n").replace("\r", "\n")
+        chunks = [
+            normalized_text[i:i + _SEND_CHARS_PER_BATCH]
+            for i in range(0, len(normalized_text), _SEND_CHARS_PER_BATCH)
+        ]
+        for index, chunk in enumerate(chunks):
+            try:
+                auto.SendKeys(
+                    self._escape_sendkeys_text(chunk),
+                    interval=0.01,
+                    waitTime=0.05,
+                    charMode=False,
+                )
+            except Exception as exc:
+                # 不按回车，避免把只输入了一部分的内容发出去。
+                log.error(
+                    "[%s] 键盘输入失败，第 %d/%d 批；未按回车发送: %s",
+                    self.title, index + 1, len(chunks), type(exc).__name__,
+                )
+                if input_before == "":
+                    try:
+                        edit.Click(simulateMove=False)
+                        auto.SendKeys("{Ctrl}a{Backspace}", waitTime=0.1)
+                    except Exception as cleanup_exc:
+                        log.warning(
+                            "[%s] 未能清理未发送的部分草稿: %s",
+                            self.title, type(cleanup_exc).__name__,
+                        )
+                return False
+            if index + 1 < len(chunks):
+                time.sleep(_SEND_BATCH_INTERVAL_SECONDS)
+
         auto.SendKeys("{Enter}", waitTime=0.1)
         self._sent.append(text)
         return True
