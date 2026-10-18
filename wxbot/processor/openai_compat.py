@@ -10,7 +10,8 @@ from .base import Processor
 
 
 class OpenAICompatProcessor(Processor):
-    def __init__(self, mcfg: dict):
+    def __init__(self, mcfg: dict, *, raise_errors=False):
+        self.raise_errors = raise_errors
         self.url = mcfg.get("url", "http://127.0.0.1:8642/v1/chat/completions")
         self.model = mcfg.get("model", "hermes-agent")
         self.api_key = mcfg.get("api_key", "")
@@ -19,7 +20,7 @@ class OpenAICompatProcessor(Processor):
         self.system_prompt = mcfg.get("system_prompt", "")
         self.histories: dict[str, list[dict]] = {}
 
-    def reset(self, contact: str) -> None:
+    def reset(self, contact: str, *, channel_type='dm') -> None:
         self.histories.pop(contact, None)
 
     def handle(self, contact: str, text: str) -> str | None:
@@ -41,6 +42,8 @@ class OpenAICompatProcessor(Processor):
         except Exception as e:
             history.pop()
             log.error("智能体调用失败: %s", e)
+            if self.raise_errors:
+                raise
             return "抱歉，我这边暂时出了点问题，稍后再试。"
         if not reply:
             history.pop()

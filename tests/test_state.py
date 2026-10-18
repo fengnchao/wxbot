@@ -52,3 +52,9 @@ def test_no_prev_returns_nothing():
 def test_identical_lists_return_nothing():
     same = [m("other", "在"), m("self", "在的")]
     assert new_messages(same, list(same)) == []
+
+
+def test_repeated_identical_message_is_still_a_new_message():
+    prev = [m("other", "你好")]
+    curr = prev + [m("other", "你好")]
+    assert new_messages(prev, curr) == curr[1:]

@@ -6,7 +6,8 @@ from .base import Processor
 
 
 class OllamaProcessor(Processor):
-    def __init__(self, mcfg: dict):
+    def __init__(self, mcfg: dict, *, raise_errors=False):
+        self.raise_errors = raise_errors
         self.url = mcfg.get("url", "http://localhost:11434/api/chat")
         self.model = mcfg.get("model", "qwen2.5:7b")
         self.timeout = mcfg.get("timeout", 120)
@@ -14,7 +15,7 @@ class OllamaProcessor(Processor):
         self.system_prompt = mcfg.get("system_prompt", "")
         self.histories: dict[str, list[dict]] = {}
 
-    def reset(self, contact: str) -> None:
+    def reset(self, contact: str, *, channel_type='dm') -> None:
         self.histories.pop(contact, None)
 
     def handle(self, contact: str, text: str) -> str | None:
@@ -32,6 +33,8 @@ class OllamaProcessor(Processor):
         except Exception as e:
             history.pop()
             log.error("本地模型调用失败: %s", e)
+            if self.raise_errors:
+                raise
             return "抱歉，我这边暂时出了点问题，稍后再试。"
         history.append({"role": "assistant", "content": reply})
         del history[:-self.max_history * 2]

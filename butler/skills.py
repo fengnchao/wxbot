@@ -15,6 +15,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from contextlib import nullcontext
 
 # 让模型知道"想说执行动作时怎么说"。这段属于管家（协议由管家定义），
 # 但需要由 Hermes 侧的 skill 转述给模型，所以放在这里 export 出去。
@@ -47,6 +48,8 @@ class Ctx:
     contact: object
     hermes: object
     log: object = field(default=lambda *a, **k: None)
+    skill_policy: dict | None = None
+    runtime_locks: object | None = None
 
     def profile_dir(self) -> Path:
         return Path(self.cfg.hermes_root) / "profiles" / self.contact.profile
@@ -150,7 +153,8 @@ def _delegate(instruction: str, user_text: str = ""):
     def run(ctx: Ctx, args: dict) -> ActionResult:
         text = str(args.get("text") or user_text or "").strip()
         try:
-            out = ctx.hermes.chat(ctx.contact, text, extra_system=instruction)
+            out = ctx.hermes.chat(ctx.contact, text, extra_system=instruction,
+                                  skill_policy=ctx.skill_policy)
         except Exception as e:
             return ActionResult("delegate", False, f"delegate 调用失败: {e}")
         return ActionResult("delegate", True, "已由 Hermes 侧 skill 执行", out)
@@ -189,7 +193,10 @@ def execute(action: dict, ctx: Ctx) -> ActionResult:
                             f"不在白名单里；可用：{', '.join(sorted(CATALOG))}")
     args = action.get("args") or {}
     try:
-        res = spec.run(ctx, args)
+        guard = (ctx.runtime_locks.profile(ctx.contact.profile)
+                 if spec.kind == 'local' and ctx.runtime_locks else nullcontext())
+        with guard:
+            res = spec.run(ctx, args)
     except Exception as e:
         return ActionResult(name, False, f"{type(e).__name__}: {e}")
     res.skill = name

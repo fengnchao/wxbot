@@ -1,5 +1,5 @@
 """
-主循环：轮询每个绑定联系人的独立窗口 → 发现对方新消息 → 本地处理 → 发送回复。
+启动收发服务：默认监听主微信窗口，兼容按绑定列表轮询独立聊天窗口。
 
 运行：python -m wxbot.main
 """
@@ -22,36 +22,22 @@ from .processor.openai_compat import OpenAICompatProcessor
 from .processor.router import Router
 from .state import new_messages
 from .wechat.chat_window import ChatWindow
-
-
-def _mentioned_text(text: str, names: list[str]) -> str | None:
-    """Return the message body when it contains an @mention of this bot."""
-    import re
-
-    separators = r"[\s\u00a0\u2000-\u200b\u202f\u205f\u3000]"
-    for name in names:
-        name = str(name).strip().lstrip("@")
-        if not name:
-            continue
-        match = re.search(r"@" + re.escape(name) + r"(?=" + separators + r"|[:：,，]|$)"
-                         r"(?:[\s\u00a0\u2000-\u200b\u202f\u205f\u3000]+|[:：,，]\s*)?",
-                         text, flags=re.IGNORECASE)
-        if match:
-            return (text[:match.start()] + text[match.end():]).strip()
-    return None
+from .wechat.clipboard import restore_pending
+from .inbox import mentioned_text as _mentioned_text, run_main_inbox
 
 
 def build_processor(cfg: dict) -> Router:
     mcfg = cfg.get("model", {})
     backend = mcfg.get("backend", "ollama")
+    raise_errors = cfg.get("wechat", {}).get("mode", "main") == "main"
     if backend == "echo":
         model = EchoProcessor()
     elif backend == "butler":
-        model = ButlerProcessor(cfg.get("butler", {}))
+        model = ButlerProcessor(cfg.get("butler", {}), raise_errors=raise_errors)
     elif backend in ("hermes", "openai"):
-        model = OpenAICompatProcessor(mcfg)
+        model = OpenAICompatProcessor(mcfg, raise_errors=raise_errors)
     else:
-        model = OllamaProcessor(mcfg)
+        model = OllamaProcessor(mcfg, raise_errors=raise_errors)
     return Router(model, cfg["bot"].get("command_prefix", "/"))
 
 
@@ -78,7 +64,14 @@ def run() -> None:
             start_server(host, port, str(ocfg.get("token", "")), queue)
             log.info("外发服务已启动 → http://%s:%s（接收 butler/脚本的主动推送）", host, port)
         except Exception as e:
-            log.error("外发服务启动失败（主动推送不可用，轮询照常）: %s", e)
+            if cfg["wechat"]["mode"] == "main":
+                log.error("外发服务启动失败，停止启动主窗口收发: %s", e)
+                raise RuntimeError("主窗口模式停止启动，请先检查是否已运行另一个 wxbot") from e
+            log.error("外发服务启动失败（主动推送不可用，独立窗口轮询照常）: %s", e)
+
+    if cfg["wechat"]["mode"] == "main":
+        run_main_inbox(cfg, router, queue)
+        return
 
     log.info("已绑定联系人：%s；群聊：%s。请在微信里把这些聊天打开为独立窗口。按 Ctrl+C 退出。",
              "、".join(users) or "(无)", "、".join(groups) or "(无)")
@@ -86,6 +79,7 @@ def run() -> None:
         log.warning("配置了群聊监听，但 [bot].mention_names 为空；群消息不会触发回复")
 
     while True:
+        restore_pending()
         # 每轮先排空外发队列：在主线程调 ChatWindow.send，HTTP 线程绝不触碰 uiautomation
         for req in queue.drain():
             chat = chats.get(req.contact)
@@ -169,6 +163,9 @@ def main() -> None:
             run()
         except KeyboardInterrupt:
             log.info("已退出")
+        finally:
+            if not restore_pending(force=True):
+                log.warning('退出时剪贴板仍被占用，原内容尚未恢复')
 
 
 if __name__ == "__main__":

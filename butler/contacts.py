@@ -69,6 +69,12 @@ class ContactMap:
     def names(self) -> list:
         return list(self.by_name)
 
+    def is_sole_profile_owner(self, contact: Contact) -> bool:
+        configured = self.get(contact.name)
+        return bool(configured and (configured.profile, configured.uid) ==
+                    (contact.profile, contact.uid) and
+                    {c.uid for c in self.by_name.values() if c.profile == contact.profile} == {contact.uid})
+
 
 def load_contacts(rows) -> ContactMap:
     """从 config 的 [[contacts]] 读。没有 name 的行跳过（不猜）。"""

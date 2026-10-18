@@ -57,7 +57,7 @@ def test_hermes_wire_format(make_home, monkeypatch):
     msgs = captured["body"]["messages"]
     assert msgs[0]["role"] == "system" and "user_id=101" in msgs[0]["content"]
     assert msgs[-1] == {"role": "user", "content": "帮我看下明天天气"}
-    assert client.session_ids["101"] == "echoed-id", "服务端回显的 id 要记住"
+    assert client.session_id(contact) == "echoed-id", "服务端回显的 id 要记住"
 
 
 def test_chinese_contact_name_survives_http_headers(make_home):

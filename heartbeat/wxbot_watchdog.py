@@ -35,8 +35,8 @@ PAUSE_FLAG = os.path.join(HERMES_HOME, "cache", "wechat_stack_paused.flag")
 PORT = 8765
 DETACHED = 0x00000008 | 0x00000200   # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
 
-RE_MISSING = re.compile(r"没找到独立聊天窗口")
-RE_CONNECTED = re.compile(r"\[(\S+)\] 已连接，当前")
+RE_MISSING = re.compile(r"没找到独立聊天窗口|没找到微信主窗口")
+RE_CONNECTED = re.compile(r"\[主窗口\] 已连接微信主窗口|窗口已连接|\[\S+\] 已连接，当前")
 
 
 def port_up(timeout=3.0):
@@ -179,7 +179,7 @@ def main() -> int:
     prev = load_state().get("state")
     if ws == "no_window" and prev != "no_window":
         save_state({"state": "no_window", "ts": time.strftime("%Y-%m-%d %H:%M:%S")})
-        print("[wxbot 看门狗] 进程在跑但找不到独立聊天窗口 —— 请把目标会话双击开成独立窗口（否则收不到也发不出）")
+        print("[wxbot 看门狗] 进程在跑但微信收发窗口不可用 —— 请打开微信主窗口；独立窗口模式需打开绑定聊天窗口")
         return 0
     if ws == "ok" and prev != "ok":
         save_state({"state": "ok", "ts": time.strftime("%Y-%m-%d %H:%M:%S")})

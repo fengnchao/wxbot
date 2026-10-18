@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-微信收件日志 — 只读
+微信日志、收发队列和配置总览
 
 只做一件事：把微信机器人（wechat-butler）**收到的消息**按发送人分组记下来。
-不显示思考过程、工具调用、token、成本 —— 只看谁发了什么、什么时候发的。
+展示消息与请求流转、工具执行状态；不记录模型内部推理或工具参数/结果。
 
 数据源：$HERMES_HOME/state.db 及 $HERMES_HOME/profiles/*/state.db 里
         role=user 且 source=weixin 的消息，跨库按发送人 uid 合并。
@@ -21,12 +21,16 @@
     GET /api/stats
     GET /api/jobs                定时任务（按归属分组：用户 / 全局任务 / 无归属）
     GET /api/wxbot               wxbot 通道流水（收到/回复/外发 + agent 耗时 + 任务归属）
+    GET /api/flow                消息流转：队列事实 + 按 contact/msg_id 关联的服务阶段
     GET /api/groups              用户分组字典（messageType → 绑定用户，看板可展开维护）
     POST /api/groups             {type, action: bind|unbind, user} 增删绑定
     GET /api/heartbeat-config    联系人角色、skill 和心跳策略
     GET /api/heartbeat-status    心跳下次计划时间和最近执行记录
     POST /api/heartbeat-trigger  立即触发指定联系人的一次心跳
     GET /api/skills?contact=     服务端读取该联系人 Profile 的 Hermes 技能目录
+    GET /api/queue              SQLite 收发队列、逐用户阻塞原因与恢复命令（只读）
+    POST /api/queue-action      显式确认后重试、确认已发或丢弃指定异常任务
+    GET /api/configuration      wxbot/Butler/角色心跳/分组配置及默认值（服务端脱敏）
     POST /api/heartbeat-config   原子保存角色技能与心跳策略
                                  （只写配置文件，不动任何库）
 """
@@ -37,6 +41,7 @@ import json
 import os
 import re
 import sqlite3
+import sys
 import threading
 import time
 import tomllib
@@ -46,6 +51,13 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# Direct `python log/server.py` and file-based test imports use the same modules.
+if os.path.dirname(HERE) not in sys.path:
+    sys.path.insert(0, os.path.dirname(HERE))
+from log.config_view import ConfigView
+from log.queue_view import QueueView
+from log.queue_actions import QueueActions
+from log.flow_view import FlowView
 HERMES_HOME = os.environ.get("HERMES_HOME", r"D:\ai\hermes")
 EXPORT_DIR = os.path.join(HERMES_HOME, "logs", "wechat-inbox")
 
@@ -1114,7 +1126,17 @@ def attribute_task(ts, execs, names, window=90):
             "source": "cron", "status": e["status"]}
 
 
-def collect_wxbot(home, directory):
+def read_message_flow(home, *, contact='', limit=50, offset=0):
+    view = ConfigView(wxbot_config_path(),butler_config_path(),home)
+    view.read()
+    try:
+        return view.scrub(FlowView(**view.flow_options()).read(contact=contact,limit=limit,offset=offset))
+    except Exception as exc:
+        return {'read_only':True,'status':'error','flows':[],'contacts':[],
+                'error':'无法读取流转配置（'+type(exc).__name__+'）'}
+
+
+def collect_wxbot(home, directory, *, flow_contact='', flow_offset=0):
     """组装 wxbot 通道流水（收到 / 回复 / 外发 + 这一轮 agent 耗时 + 任务归属）。"""
     raw_events, log_path = parse_wxbot_log(home)
     events = merge_outbound(raw_events)
@@ -1252,6 +1274,18 @@ def collect_wxbot(home, directory):
         "execs": len(execs),
         "jobs_known": len(names),
     }
+    flow = read_message_flow(home,contact=flow_contact,offset=flow_offset)
+    known = {c['uid']:c for c in contacts}
+    for item in flow.get('contacts',[]):
+        uid = item['contact']
+        if uid not in known:
+            c = {'uid':uid,'name':display_of_ci(uid,directory) or uid,'user_id':'','profile':'',
+                 'count':0,'out':0,'slow':0,'window':'','window_time':''}
+            contacts.append(c)
+            known[uid] = c
+        known[uid]['flow_reason'] = item['reason']['code']
+    for c in contacts:
+        c['flow_count'] = sum(f['contact']==c['uid'] for f in flow.get('flows',[]))
     return {
         "ok": True,
         "log": log_path,
@@ -1261,6 +1295,7 @@ def collect_wxbot(home, directory):
         "stats": stats,
         "contacts": contacts,
         "events": rows,
+        "flow": flow,
     }
 
 
@@ -1323,6 +1358,29 @@ class Handler(BaseHTTPRequestHandler):
             if p == "/":
                 with open(os.path.join(HERE, "index.html"), "r", encoding="utf-8") as fh:
                     self._send(200, fh.read(), "text/html; charset=utf-8")
+                return
+
+            if p == '/api/flow':
+                self._json(read_message_flow(self.home,contact=one('contact'),limit=num('limit',50),offset=num('offset',0)))
+                return
+
+            if p in ("/api/queue", "/api/configuration"):
+                view = ConfigView(wxbot_config_path(), butler_config_path(), self.home,
+                                  groups_override=group_file_path(self.home),
+                                  log_runtime={'host': self.server.server_address[0],
+                                               'port': self.server.server_address[1]})
+                configuration = view.read()
+                if p == '/api/configuration':
+                    self._json(configuration)
+                else:
+                    try:
+                        payload = QueueView(**view.queue_options()).read(
+                            contact=one('contact'), state=one('state','all'),
+                            limit=num('limit',50), offset=num('offset',0))
+                        self._json(view.scrub(payload))
+                    except Exception as exc:
+                        self._json({'read_only':True,'status':'error',
+                                    'error':'无法读取队列配置（'+type(exc).__name__+'）'},500)
                 return
 
             directory = load_directory(self.home)
@@ -1390,7 +1448,8 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
             if p == "/api/wxbot":
-                self._json(collect_wxbot(self.home, directory))
+                self._json(collect_wxbot(self.home, directory,
+                                        flow_contact=one('flow_contact'),flow_offset=num('flow_offset',0)))
                 return
 
             if p == "/api/groups":
@@ -1449,6 +1508,33 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         p = u.path.rstrip("/") or "/"
         try:
+            if p == '/api/queue-action':
+                # A custom header + JSON prevents ordinary cross-site forms from issuing actions.
+                origin=self.headers.get('Origin')
+                host=self.headers.get('Host','').lower()
+                try:
+                    target=urlparse('//'+host)
+                    # Do not trust matching Origin/Host alone: reject DNS rebinding domains.
+                    local_addresses={'localhost','127.0.0.1','::1',self.connection.getsockname()[0].lower()}
+                    requested_port=target.port if target.port is not None else 80
+                    valid_host=target.hostname in local_addresses and requested_port==self.server.server_port
+                except ValueError:
+                    valid_host=False
+                content_type=self.headers.get('Content-Type','').split(';')[0].strip().lower()
+                if (not valid_host or self.headers.get('X-Wxbot-Queue-Action')!='1' or content_type!='application/json' or
+                        (origin and (urlparse(origin).scheme not in {'http','https'} or
+                                     urlparse(origin).netloc.lower()!=host))):
+                    self._json({'ok':False,'error':'队列操作仅接受当前页面发出的确认请求'},403)
+                    return
+                try:
+                    view=ConfigView(wxbot_config_path(),butler_config_path(),self.home)
+                    result=QueueActions(view.queue_options()['path']).perform(self._body())
+                    self._json(result)
+                except ValueError as exc:
+                    self._json({'ok':False,'error':str(exc)},409)
+                except (OSError,sqlite3.Error) as exc:
+                    self._json({'ok':False,'error':'队列操作失败（'+type(exc).__name__+'）'},503)
+                return
             if p == "/api/heartbeat-trigger":
                 body = self._body()
                 contact_name = str(body.get("contact") or "").strip()

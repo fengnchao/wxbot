@@ -10,6 +10,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+import time
+import uuid
+
+from common.flow_trace import FlowTrace, butler_trace_path, record
 
 from .config import Config
 from .contacts import Contact
@@ -19,6 +23,8 @@ from .hermes import HermesClient, HermesError
 from .skill_policy import SkillPolicyStore
 from .pending import PendingQueue
 from .push import push_to_wxbot
+from .reply import split_reply
+from .concurrency import RuntimeLocks
 from . import router, skills
 
 
@@ -30,17 +36,20 @@ class Result:
 
     def as_dict(self) -> dict:
         return {"reply": self.reply, "actions": [a.as_dict() for a in self.actions],
-                "meta": self.meta}
+                "reply_parts": split_reply(self.reply),
+                "meta": {**self.meta, "reply_complete": True}}
 
 
 class Butler:
     def __init__(self, cfg: Config, log=None):
         self.cfg = cfg
         self.log = log or (lambda *a, **k: None)
-        self.hermes = HermesClient(cfg, self.log)
+        self.runtime_locks = RuntimeLocks(cfg.hermes_url)
+        self.hermes = HermesClient(cfg, self.log, locks=self.runtime_locks)
         self.skill_policies = SkillPolicyStore(cfg.heartbeat_config_path(), self.log)
-        self.pending = PendingQueue(cfg.hermes_root, self.log)
+        self.pending = PendingQueue(cfg.hermes_root, self.log, locks=self.runtime_locks)
         self.flow = FlowLog(cfg.flow_log_path(), self.log)
+        self.trace = FlowTrace(butler_trace_path(cfg.flow_log_path()), self.log)
         self.groups = GroupStore(cfg.group_file_path(), self.log)
 
     # ---------- 身份 ----------
@@ -55,17 +64,36 @@ class Butler:
     # ---------- 主流程 ----------
     def handle(self, contact_name: str, text: str, msg_id: str | None = None,
                channel_type: str = "dm") -> Result:
-        c = replace(self.contact_of(contact_name),
-                    channel_type="group" if channel_type == "group" else "dm")
+        started = time.monotonic()
+        with self.trace.bind(contact_name, msg_id or uuid.uuid4().hex):
+            record('butler_received','ok',characters=len(text))
+            try:
+                c = replace(self.contact_of(contact_name),
+                            channel_type="group" if channel_type == "group" else "dm")
+                record('butler_session','waiting')
+                with self.runtime_locks.session(c):
+                    record('butler_session','ok')
+                    result = self._handle(c, text)
+                record('butler_result','error' if result.meta.get('error') else 'ok',
+                       characters=len(result.reply or ''),elapsed_ms=round((time.monotonic()-started)*1000))
+            except Exception as exc:
+                record('butler_result','error',error_type=type(exc).__name__,
+                       elapsed_ms=round((time.monotonic()-started)*1000))
+                raise
+        if msg_id is not None:
+            result.meta["msg_id"] = msg_id
+        return result
+
+    def _handle(self, c: Contact, text: str) -> Result:
+        contact_name = c.name
         # Policies are keyed by WeChat window title. Apply a group role only when that
         # group window has an explicit policy; never infer it from an individual member.
         policy = self.skill_policies.for_contact(c.name)
         self.flow.received(c.name, text)          # 流水：收到（在看板里与后面的回复配成一轮）
 
         # 1. 补发：先认领（这样模型自己再查队列看到的是空的，不会说两遍）
-        pending = self.pending.take(c.profile)
-        if pending:
-            self.pending.claim(c.profile, [i.get("key") for i in pending])
+        pending = self.pending.take_and_claim(
+            c, allow_unowned=self.cfg.contacts.is_sole_profile_owner(c))
 
         # 2. 前置规则
         dec = router.pre_route(c, text)
@@ -102,9 +130,12 @@ class Butler:
         clean, acts = router.parse_actions(raw)
         results = []
         if acts and self.cfg.actions_enabled:
-            ctx = skills.Ctx(cfg=self.cfg, contact=c, hermes=self.hermes, log=self.log)
+            ctx = skills.Ctx(cfg=self.cfg, contact=c, hermes=self.hermes, log=self.log,
+                             skill_policy=policy, runtime_locks=self.runtime_locks)
             for a in acts:
+                record('butler_action','running',tool=a.get('skill',''))
                 r = skills.execute(a, ctx)
+                record('butler_action','completed' if r.ok else 'failed',tool=r.skill)
                 results.append(r)
                 self.log("[%s] action %s ok=%s %s", contact_name, r.skill, r.ok, r.detail[:120])
 
@@ -125,8 +156,6 @@ class Butler:
         meta = {"pending": len(pending), "actions": len(results),
                 "model_silent": model_silent, "sent": reply is not None,
                 "session_id": self.hermes.session_id(c, skill_policy=policy)}
-        if msg_id:
-            meta["msg_id"] = msg_id
         return Result(reply, results, meta)
 
     # ---------- 其它 ----------
@@ -163,10 +192,11 @@ class Butler:
             "type": 2, "messageType": message_type,
             "targets": list(users), "results": results})
 
-    def reset(self, contact_name: str) -> Result:
-        c = self.contact_of(contact_name)
-        policy = self.skill_policies.for_contact(c.name)
-        self.hermes.reset(c, skill_policy=policy)
+    def reset(self, contact_name: str, *, channel_type: str = 'dm') -> Result:
+        c = replace(self.contact_of(contact_name), channel_type=channel_type)
+        with self.runtime_locks.session(c):
+            policy = self.skill_policies.for_contact(c.name)
+            self.hermes.reset(c, skill_policy=policy)
         return Result("好，这段翻篇了，重新开始", meta={"reset": True})
 
     def health(self) -> dict:

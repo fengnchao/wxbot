@@ -35,7 +35,10 @@ wxbot/                          项目根（唯一 pyproject.toml / requirements
 ├── butler/        ★管家模块★   决策编排层（server.py 为 HTTP 入口）
 │   └── README.md               管家详细文档（架构、接口契约、行动协议）
 ├── wxbot/         ★UI 模块★    微信自动化（main.py 为主循环入口）
-│   ├── main.py                 轮询→发现新消息→处理→回复
+│   ├── main.py                 收发服务入口
+│   ├── inbox.py                UI 线程采集与发送调度
+│   ├── queue_store.py          SQLite 收件、合并批次与发件持久化
+│   ├── queue_worker.py         后台单线程调用 Butler/模型
 │   ├── wechat/                 窗口定位、读消息、发消息
 │   └── processor/              后端路由：hermes/openai/ollama/echo
 ├── heartbeat/                  看门狗：进程挂了自动重启
@@ -69,7 +72,7 @@ uv pip install --python .\.venv\Scripts\python.exe -r requirements.txt
 
 ```powershell
 copy config.butler.example.toml config.butler.toml   # 填 server.token / hermes.api_key
-copy config.wxbot.example.toml  config.wxbot.toml     # 填 bound_users；要监听群聊时再填 bound_groups / mention_names
+copy config.wxbot.example.toml  config.wxbot.toml     # 默认监听主窗口全部会话；填 mention_names 以处理群聊 @
 ```
 
 > 两个配置文件格式不同、用途不同，**不要合并**。含密钥，已在 `.gitignore` 中忽略。
@@ -81,11 +84,13 @@ copy config.wxbot.example.toml  config.wxbot.toml     # 填 bound_users；要监
 .\.venv\Scripts\python -m butler.server --config config.butler.toml
 .\.venv\Scripts\python -m butler.server --status        # 仅探活后退出
 
-# 终端 2：wxbot UI 自动化（先在微信里双击联系人打开独立聊天窗口）
+# 终端 2：wxbot UI 自动化（保持微信主窗口打开）
 .\.venv\Scripts\python -m wxbot.main
 ```
 
-群聊监听：在 `[bot]` 配置 `bound_groups = ["群聊窗口标题"]` 和 `mention_names = ["机器人昵称"]`，并在微信中打开对应群聊独立窗口。只有明确包含 `@机器人昵称` 提及的群消息会进入同一处理器流程并在群内回复。
+默认 `[wechat].mode = "main"`：扫描左侧会话列表的未读数量，自动选择会话，从右侧标题的人数括号识别群聊。私聊按新消息处理，群聊只有明确包含 `[bot].mention_names` 中 `@机器人昵称` 的正文才进入处理器。当前已打开会话即使没有未读角标也持续检查；每次发送前核对聊天对象。`[wechat.main_window].listen_all = false` 可限定为 `bound_users` / `bound_groups`。设置 `mode = "independent"` 可使用原独立窗口模式。
+
+主窗口消息先写入 SQLite 队列，默认按会话等待安静 **3 秒**合并，最长 **10 秒**成批；后台默认最多 **2** 个请求同时等待模型，界面逐项采集或发送。Butler 整理完整回复后按句号/问号等分句，wxbot 在用户之间轮流发送，每句仍分步键入并核对新增的自己消息气泡；同一用户全部句子结束后才开始其下一轮。不确定任务保留供人工核对。用 `python -m wxbot.queue_admin status` 查看数量，`list` 查看分句 ID、序号/总数、整轮进度和异常原因。配置与恢复命令见 [队列说明](README.wxbot.md#队列配置与恢复)。更新后请先停止旧 wxbot，再自行重启 **Butler 和 wxbot**；首次启动新版 wxbot 自动迁移旧队列，Hermes 无需为此功能重启。
 
 > 首次使用 UI 自动化，建议先把 `config.wxbot.toml` 里 `backend = "echo"` 测试收发，
 > 并用 `python tools\probe.py` 校准微信控件。详见 `README.wxbot.md`。

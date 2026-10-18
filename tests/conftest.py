@@ -20,10 +20,22 @@ if str(ROOT) not in sys.path:
 from butler.config import Config                    # noqa: E402
 from butler.contacts import load_contacts           # noqa: E402
 from butler.core import Butler                      # noqa: E402
+from butler.hermes import HermesClient              # noqa: E402
 from butler.server import make_handler              # noqa: E402
 
 DEFAULT_CONTACT = {"name": "101", "profile": "wxbot-101", "uid": "101", "label": "微信联系人101"}
 DEFAULT_PENDING = [{"key": "reminder-x@2026-10-11 00:00:00", "text": "⏰ 该喝水啦"}]
+
+
+@pytest.fixture(autouse=True)
+def no_system_clipboard(monkeypatch):
+    """A missing test double must never reach the machine's actual clipboard."""
+    from wxbot.wechat.clipboard import WindowsClipboard
+    def forbidden(self):
+        pytest.fail('Clipboard tests must inject a fake native API')
+    monkeypatch.setattr(WindowsClipboard,'__init__',forbidden)
+
+
 DEFAULT_REMINDERS = {"reminders": [
     {"id": "abc123", "content": "喝水", "status": "scheduled",
      "scheduled_at": "2026-10-12T10:00:00", "cron_job_id": "j1", "followup_job_ids": ["j2", "j3"]},
@@ -42,30 +54,32 @@ if cmd == "json":
     # 注意用默认 ensure_ascii（ASCII 转义）输出：子进程 stdout 走管道时按系统
     # 区域编码（中文 Windows 是 GBK），Emoji 正文直接输出会 UnicodeEncodeError。
     print(json.dumps({"items": json.loads((HERE / "items.json").read_text(encoding="utf-8"))}))
+elif cmd == "flush":
+    items = json.loads((HERE / "items.json").read_text(encoding="utf-8"))
+    (HERE / "items.json").write_text(json.dumps([i for i in items if not isinstance(i,dict) or i.get("key") != sys.argv[2]]), encoding="utf-8")
 '''
 
 
-class FakeHermes:
+class FakeHermes(HermesClient):
     """替身：把 'chat' 写进同一个 events.log（顺序可断言），并可返回预设异常。"""
 
-    def __init__(self, events_file: Path, replies=None):
+    def __init__(self, events_file: Path, replies=None, *, cfg, locks):
+        super().__init__(cfg, locks=locks)
         self.events_file = events_file
         self.replies = list(replies if replies is not None else ["好的"])
         self.calls: list[dict] = []
-        self.session_ids: dict[str, str] = {}
-
-    def session_id(self, contact):
-        return self.session_ids.get(contact.name) or contact.session_id()
-
-    def reset(self, contact):
-        self.session_ids[contact.name] = contact.session_id() + "-reset"
 
     def alive(self, profile):
         return True
 
-    def chat(self, contact, text, *, extra_system="", timeout=None):
+    def chat(self, contact, text, *, extra_system="", timeout=None, skill_policy=None, session_kind='chat'):
+        with self.session_guard(contact, skill_policy=skill_policy, session_kind=session_kind):
+            return self._fake_chat(contact,text,extra_system=extra_system,skill_policy=skill_policy,session_kind=session_kind)
+
+    def _fake_chat(self, contact, text, *, extra_system='',skill_policy=None,session_kind='chat'):
         self.calls.append({"contact": contact.name, "profile": contact.profile,
-                           "uid": contact.uid, "text": text, "extra_system": extra_system})
+                           "uid": contact.uid, "text": text, "extra_system": extra_system,
+                           "skill_policy":skill_policy,"session_kind":session_kind})
         with open(self.events_file, "a", encoding="utf-8") as fh:
             fh.write("chat\n")
         if not self.replies:
@@ -114,7 +128,7 @@ def make_home(tmp_path_factory):
         cfg = Config(token="t0ken", hermes_root=str(root), script_dir="",
                      contacts=load_contacts(contacts or [DEFAULT_CONTACT]))
         butler = Butler(cfg)
-        hermes = FakeHermes(events, replies)
+        hermes = FakeHermes(events, replies, cfg=cfg, locks=butler.runtime_locks)
         butler.hermes = hermes
         return Home(root, cfg, butler, hermes, events, profile, scripts)
 

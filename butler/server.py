@@ -142,7 +142,11 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 if not contact:
                     self._send(400, {"error": "缺少 contact"})
                     return
-                self._send(200, butler.reset(contact).as_dict())
+                channel_type = str(b.get('channel_type') or 'dm').strip().lower()
+                if channel_type not in ('dm', 'group'):
+                    self._send(400, {'error': 'channel_type 只支持 dm / group'})
+                    return
+                self._send(200, butler.reset(contact, channel_type=channel_type).as_dict())
                 return
             if self.path.startswith("/v1/push"):
                 if not self._authed():

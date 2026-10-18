@@ -12,9 +12,14 @@ import json
 import hashlib
 import urllib.error
 import urllib.request
+import time
 from urllib.parse import quote
 
+from common.flow_trace import record, tracing
+from .hermes_stream import read_complete
+
 from .contacts import Contact
+from .concurrency import RuntimeLocks
 
 
 def header_value(value: str) -> str:
@@ -36,7 +41,7 @@ class HermesError(Exception):
 
 
 class HermesClient:
-    def __init__(self, cfg, log=None):
+    def __init__(self, cfg, log=None, *, locks=None):
         self.base = cfg.hermes_url
         self.api_key = cfg.hermes_key
         self.model = cfg.hermes_model
@@ -44,7 +49,8 @@ class HermesClient:
         self.send_identity = cfg.send_identity
         self.profile_in_path = getattr(cfg, "hermes_profile_in_path", False)
         self.log = log or (lambda *a, **k: None)
-        self.session_ids: dict[str, str] = {}          # contact/policy/type → 会话 id（/new 时轮换）
+        self.session_ids: dict[tuple, str] = {}        # canonical identity/policy/kind → SID
+        self.locks = locks or RuntimeLocks(self.base)
 
     # ---------- URL 拼接 ----------
     def _api_base(self, profile: str) -> str:
@@ -52,30 +58,35 @@ class HermesClient:
         return f"{self.base}/p/{profile}" if self.profile_in_path else self.base
 
     # ---------- 会话 ----------
-    @staticmethod
-    def _session_scope(contact: Contact, skill_policy: dict | None, session_kind: str) -> tuple[str, str]:
+    def _session_scope(self, contact: Contact, skill_policy: dict | None, session_kind: str) -> tuple[tuple, str]:
+        identity = (self.base.rstrip('/'), contact.profile, contact.key())
         # Keep the legacy DM session id untouched until a user gets an explicit policy.
         if session_kind == "chat" and not skill_policy:
-            return contact.name, contact.session_id()
+            return (*identity, 'chat', ''), contact.session_id()
         scoped_policy = ({"role_skill": skill_policy.get("role_skill"),
                          "allowed_skills": sorted(skill_policy.get("allowed_skills") or [])}
                         if skill_policy else {})
         encoded = json.dumps(scoped_policy, ensure_ascii=False, sort_keys=True).encode("utf-8")
         policy_tag = hashlib.sha256(encoded).hexdigest()[:12]
         kind = "heartbeat" if session_kind == "heartbeat" else "chat"
-        key = f"{contact.name}:{kind}:{policy_tag}"
+        key = (*identity, kind, policy_tag)
         return key, f"{contact.session_id()}-{kind}-{policy_tag}"
+
+    def session_guard(self, contact, *, skill_policy=None, session_kind='chat'):
+        return self.locks.session(contact, session_kind=session_kind)
 
     def session_id(self, contact: Contact, *, skill_policy: dict | None = None,
                    session_kind: str = "chat") -> str:
-        key, initial = self._session_scope(contact, skill_policy, session_kind)
-        return self.session_ids.get(key) or initial
+        with self.session_guard(contact, session_kind=session_kind):
+            key, initial = self._session_scope(contact, skill_policy, session_kind)
+            return self.session_ids.get(key) or initial
 
     def reset(self, contact: Contact, *, skill_policy: dict | None = None,
               session_kind: str = "chat") -> None:
-        import time
-        key, initial = self._session_scope(contact, skill_policy, session_kind)
-        self.session_ids[key] = f"{initial}-{int(time.time())}"
+        import uuid
+        with self.session_guard(contact, session_kind=session_kind):
+            key, initial = self._session_scope(contact, skill_policy, session_kind)
+            self.session_ids[key] = f"{initial}-{uuid.uuid4().hex[:12]}"
 
     # ---------- 探活（不跑 agent、不污染会话）----------
     def alive(self, profile: str) -> bool:
@@ -104,6 +115,13 @@ class HermesClient:
     def chat(self, contact: Contact, text: str, *, extra_system: str = "",
              timeout: int | None = None, skill_policy: dict | None = None,
              session_kind: str = "chat") -> str:
+        with self.session_guard(contact, session_kind=session_kind):
+            return self._chat(contact, text, extra_system=extra_system, timeout=timeout,
+                              skill_policy=skill_policy, session_kind=session_kind)
+
+    def _chat(self, contact: Contact, text: str, *, extra_system: str = "",
+              timeout: int | None = None, skill_policy: dict | None = None,
+              session_kind: str = "chat") -> str:
         """把一条用户消息交给 Hermes，返回最终文本。失败抛 HermesError。"""
         messages = []
         if extra_system:
@@ -117,7 +135,9 @@ class HermesClient:
         session_key, sid = self._session_scope(contact, skill_policy, session_kind)
         sid = self.session_ids.get(session_key) or sid
         headers["X-Hermes-Session-Id"] = header_value(sid)
-        body = {"model": self.model, "messages": messages, "stream": False}
+        body = {"model": self.model, "messages": messages, "stream": tracing()}
+        if body['stream']:
+            body['hermes_final_response'] = True
         if skill_policy:
             body["skill_policy"] = {
                 "role_skill": skill_policy["role_skill"],
@@ -125,23 +145,45 @@ class HermesClient:
                 "read_only": session_kind == "heartbeat",
             }
 
+        started = time.monotonic()
+        record('hermes_request','started',profile=contact.profile,session_id=sid)
         try:
             req = urllib.request.Request(
                 url, data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
                 headers=headers, method="POST")
             with urllib.request.urlopen(req, timeout=timeout or self.timeout) as r:
+                record('hermes_request','accepted',http_status=getattr(r,'status',200),
+                       profile=contact.profile,session_id=sid)
                 echoed = (r.headers.get("X-Hermes-Session-Id") or "").strip()
                 if echoed:
                     self.session_ids[session_key] = echoed   # 服务端改写 id 也不丢连续性
+                if 'text/event-stream' in (r.headers.get('Content-Type') or '').lower():
+                    reply = read_complete(r,timeout or self.timeout)
+                    record('hermes_result','ok',characters=len(reply),progress_available=True,
+                           elapsed_ms=round((time.monotonic()-started)*1000))
+                    return reply
                 data = json.loads(r.read().decode("utf-8", "replace"))
         except urllib.error.HTTPError as e:
+            record('hermes_result','error',http_status=e.code,error_type=type(e).__name__,
+                   elapsed_ms=round((time.monotonic()-started)*1000))
             detail = e.read().decode("utf-8", "replace")[:300]
             raise HermesError(f"Hermes API HTTP {e.code}", e.code, detail) from None
         except Exception as e:
+            record('hermes_result','error',error_type=type(e).__name__,
+                   error_code=getattr(e,'code',''),
+                   elapsed_ms=round((time.monotonic()-started)*1000))
             raise HermesError(f"Hermes API 调用失败: {type(e).__name__}: {e}") from None
 
         try:
-            reply = (data["choices"][0]["message"].get("content") or "").strip()
+            choice = data['choices'][0]
+            flags = data.get('hermes') or {}
+            if (data.get('error') or choice.get('finish_reason') not in (None,'stop') or
+                    flags.get('completed') is False or flags.get('partial') or flags.get('failed')):
+                raise ValueError('Hermes did not finish normally')
+            reply = (choice['message'].get('content') or '').strip()
         except Exception:
-            raise HermesError("Hermes 返回体读不出 content", 0, str(data)[:200]) from None
+            record('hermes_result','error',error_type='InvalidResponse')
+            raise HermesError("Hermes 返回体无效或回复不完整") from None
+        record('hermes_result','ok',characters=len(reply),progress_available=False,
+               elapsed_ms=round((time.monotonic()-started)*1000))
         return reply

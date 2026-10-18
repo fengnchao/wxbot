@@ -15,10 +15,6 @@ from PIL import Image, ImageGrab
 from ..log import log
 from .locator import find, matches
 
-_SEND_CHARS_PER_BATCH = 5
-_SEND_BATCH_INTERVAL_SECONDS = 1.0
-
-
 @dataclass(frozen=True)
 class Message:
     sender: str   # "other" 对方 / "self" 自己 / "system" 时间、系统提示、非文字消息
@@ -59,12 +55,15 @@ class ChatWindow:
     def available(self) -> bool:
         return self._window() is not None
 
+    def _find(self, win, spec):
+        return find(win, spec)
+
     def _message_list(self) -> auto.Control | None:
         win = self._window()
         if win is None:
             return None
         if self._list is None or not self._list.Exists(0):
-            self._list = find(win, self.wcfg["message_list"])
+            self._list = self._find(win, self.wcfg["message_list"])
         return self._list
 
     # ---------- 判断发送方 ----------
@@ -92,7 +91,7 @@ class ChatWindow:
                     rcount += 1
         return lcount, rcount
 
-    def _classify(self, item: auto.Control, text: str, list_rect) -> str:
+    def _classify(self, item: auto.Control, text: str, list_rect, *, use_sent_cache=True) -> str:
         scores = self.side_scores(item, list_rect)
         sender = "unknown"
         if scores:
@@ -102,7 +101,7 @@ class ChatWindow:
                 sender = "other"
             elif rc >= min_px and rc > lc * 2:
                 sender = "self"
-        if text in self._sent:           # 机器人自己发过的，一定不是对方的
+        if sender == "unknown" and use_sent_cache and text in self._sent:
             return "self"
         return sender if sender != "unknown" else "system"
 
@@ -138,27 +137,54 @@ class ChatWindow:
         return sender_name, sender_key
 
     # ---------- 读取 ----------
-    def read_messages(self) -> list[Message]:
-        lst = self._message_list()
+    def _read_entries(self, lst=None, *, strict_sender=False) -> list[tuple[Message, bool]]:
+        lst = self._message_list() if lst is None else lst
         if lst is None:
-            return []
+            raise RuntimeError(f"[{self.title}] 消息列表暂时不可读取")
         list_rect = lst.BoundingRectangle
         result = []
         for item in lst.GetChildren():
-            # 只收文字消息条目。时间分隔条（ChatItemView）、图片等其他条目
-            # 不进入快照，避免被增量检测当作新消息记录。
-            if not matches(item, self.wcfg.get("text_item", {})):
+            is_text = matches(item, self.wcfg.get("text_item", {}))
+            cls = item.ClassName or ""
+            # 时间提示不计数；图片等真实消息参与未读数量对齐，但不交给模型。
+            if not is_text and (not cls.startswith("mmui::Chat")
+                                or not cls.endswith("ItemView") or cls == "mmui::ChatItemView"):
                 continue
             text = item.Name or ""
-            if not text.strip():
+            if is_text and not text.strip():
                 continue
-            sender = self._classify(item, text, list_rect)
+            sender = (self._classify(item, text, list_rect, use_sent_cache=False)
+                      if strict_sender else self._classify(item, text, list_rect))
             sender_name = None
             sender_key = None
             if self.group_mode and sender == "other":
                 sender_name, sender_key = self._group_sender_identity(item, list_rect)
-            result.append(Message(sender, text, sender_name, sender_key))
+            result.append((Message(sender, text, sender_name, sender_key), is_text))
         return result
+
+    def read_messages(self, *, strict_sender=False) -> list[Message]:
+        return [message for message, is_text in self._read_entries(strict_sender=strict_sender) if is_text]
+
+    def read_from_window(self, root, *, strict_sender=False) -> list[Message]:
+        """只读当前面板，不选择会话；用于离开会话前的最后一次收件。"""
+        lst = self._find(root, self.wcfg["message_list"])
+        if lst is None:
+            raise RuntimeError(f"[{self.title}] 当前面板消息列表暂时不可读取")
+        return [message for message, is_text in self._read_entries(lst, strict_sender=strict_sender) if is_text]
+
+    def read_unread_messages(self, count: int) -> list[Message]:
+        return self.read_bundle(count)[1]
+
+    def read_bundle(self, count: int):
+        all_entries = self._read_entries()
+        messages = [message for message, is_text in all_entries if is_text]
+        entries = [(message, is_text) for message, is_text in all_entries
+                   if message.sender == "other"]
+        if count > len(entries):
+            log.warning("[%s] 未读 %d 条，当前可读取 %d 条；超出已加载消息区的历史不会自动补读",
+                        self.title, count, len(entries))
+        fresh = [message for message, is_text in entries[-count:] if is_text] if count > 0 else []
+        return messages, fresh
 
     # ---------- 发送 ----------
     @staticmethod
@@ -169,70 +195,65 @@ class ChatWindow:
         except Exception:
             return None
 
-    @staticmethod
-    def _escape_sendkeys_text(text: str) -> str:
-        """转义 SendKeys 的特殊键语法，并将换行作为 Shift+Enter 输入。"""
-        return "".join(
-            "{{}" if char == "{" else
-            "{}}" if char == "}" else
-            "{Shift}({Enter})" if char == "\n" else
-            char
-            for char in text
-        )
+    def _can_send(self, win, edit) -> bool:
+        return self.target_is_current(win) and edit.HasKeyboardFocus
 
-    def send(self, text: str) -> bool:
+    def target_is_current(self, win) -> bool:
+        return win.Name == self.title and auto.GetForegroundWindow() == win.NativeWindowHandle
+
+    def send_diagnostics(self, win=None, edit=None):
+        """Failure metadata only; never read drafts, clipboard text or other apps' titles."""
+        data={'expected_contact':self.title,'expected_group':self.group_mode}
+        for key,read in (
+            ('actual_contact',lambda:win.Name),('expected_hwnd',lambda:win.NativeWindowHandle),
+            ('foreground_hwnd',auto.GetForegroundWindow),('input_focused',lambda:bool(edit.HasKeyboardFocus))):
+            try:data[key]=read()
+            except Exception:data[key]=None
+        return data
+
+    def remember_sent(self, text):
+        self._sent.append(text)
+
+    def start_send(self, text: str, *, clock=time.monotonic):
+        from .typing import TypingSession
+
         win = self._window()
         if win is None:
             log.warning("[%s] 窗口不存在，无法发送", self.title)
-            return False
+            return None
         win.SetActive()
         time.sleep(0.2)
-        edit = find(win, self.wcfg["input"])
+        edit = self._find(win, self.wcfg["input"])
         if edit is None:
             log.error("[%s] 找不到输入框，请检查 [wechat.input] 配置", self.title)
-            return False
+            return None
         edit.Click(simulateMove=False)
         if not text:
             log.warning("[%s] 消息正文为空，放弃发送", self.title)
-            return False
+            return None
         input_before = self._input_text(edit)
+        if input_before is None:
+            log.warning("[%s] 无法确认输入框是否为空，停止发送并保留输入内容", self.title)
+            return None
         if input_before:
             log.warning("[%s] 输入框已有未发送内容，放弃发送以免拼接消息", self.title)
+            return None
+        return TypingSession(self, win, edit, text, clock=clock)
+
+    def send(self, text: str) -> bool:
+        """兼容独立窗口模式；主窗口队列使用 start_send 后逐步调用 step。"""
+        task = self.start_send(text)
+        if task is None:
             return False
-
-        # 统一换行，再按字符分批键入；Shift+Enter 保留消息中的换行而不提前发送。
-        normalized_text = text.replace("\r\n", "\n").replace("\r", "\n")
-        chunks = [
-            normalized_text[i:i + _SEND_CHARS_PER_BATCH]
-            for i in range(0, len(normalized_text), _SEND_CHARS_PER_BATCH)
-        ]
-        for index, chunk in enumerate(chunks):
-            try:
-                auto.SendKeys(
-                    self._escape_sendkeys_text(chunk),
-                    interval=0.01,
-                    waitTime=0.05,
-                    charMode=False,
-                )
-            except Exception as exc:
-                # 不按回车，避免把只输入了一部分的内容发出去。
-                log.error(
-                    "[%s] 键盘输入失败，第 %d/%d 批；未按回车发送: %s",
-                    self.title, index + 1, len(chunks), type(exc).__name__,
-                )
-                if input_before == "":
-                    try:
-                        edit.Click(simulateMove=False)
-                        auto.SendKeys("{Ctrl}a{Backspace}", waitTime=0.1)
-                    except Exception as cleanup_exc:
-                        log.warning(
-                            "[%s] 未能清理未发送的部分草稿: %s",
-                            self.title, type(cleanup_exc).__name__,
-                        )
-                return False
-            if index + 1 < len(chunks):
-                time.sleep(_SEND_BATCH_INTERVAL_SECONDS)
-
-        auto.SendKeys("{Enter}", waitTime=0.1)
-        self._sent.append(text)
-        return True
+        try:
+            while task.state == "typing":
+                task.step()
+                if task.state == "typing":
+                    time.sleep(0.05)
+        finally:
+            task.close()
+        if task.state == "submitted":
+            self.remember_sent(text)
+            return True
+        log.warning("[%s] 输入/发送停止，状态=%s: %s", self.title, task.state, task.error)
+        return False

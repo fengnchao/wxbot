@@ -1,7 +1,7 @@
-# 复制为 config.toml 后修改
+# 复制为 config.wxbot.toml 后修改
 
 [bot]
-# 绑定的联系人/群：名字必须和独立聊天窗口的标题完全一致
+# 名称必须与微信会话名完全一致；主窗口默认监听全部会话，独立窗口模式按这里绑定
 bound_users = ["101"]
 # 群聊窗口标题（可以留空）；群内只有明确 @机器人 的文字消息会交给处理器
 bound_groups = []
@@ -14,6 +14,16 @@ reply_delay_min = 0.8
 reply_delay_max = 2.5
 # 以这个前缀开头的消息当作命令（/ping、/reset）
 command_prefix = "/"
+
+# ===== 主窗口模式收发队列（省略此段也使用以下默认值）=====
+[queue]
+# 发件 blocked/uncertain 从首次失败起180秒自动丢弃该句，保留原文/日志；重试/重启不重置。
+# 此为固定规则，可在 log 的收发队列页查看倒计时及人工核对按钮。
+max_model_requests = 2       # 同时等待模型的请求数；界面收发仍由主线程逐项执行
+database = "cache/wxbot_queue.sqlite3"  # 相对项目根目录；保存消息、快照、批次与回复
+quiet_seconds = 3.0                    # 同一用户最后一条消息后安静多久再合并处理
+max_wait_seconds = 10.0                # 连续发言时单批最多等待多久；模型排队时间另计
+confirm_timeout = 5.0                  # 回车后等待确认新增自己的气泡
 
 [model]
 # backend 可选：
@@ -53,8 +63,18 @@ token = ""                        # 必须 = config.butler.toml 的 [wxbot].toke
 # 值支持前缀 "re:" 表示正则，例如 name = "re:^消息"
 
 [wechat]
+mode = "main"  # main=主微信窗口自动选择会话；independent=原来的独立窗口模式
 # 独立聊天窗口的类名
 window_class = "mmui::ChatSingleWindow"
+
+[wechat.main_window]
+window_class = "mmui::MainWindow"
+chat_tab_name = "微信"        # 左侧功能栏的聊天入口
+session_list_id = "session_list"
+search_depth = 32
+listen_all = true           # false 时只监听上方 bound_users/bound_groups
+max_scan_pages = 20          # 实际选择目标时的会话列表扫描上限；闲时不滚动扫描
+switch_timeout = 3.0         # 点击会话后等待右侧标题/消息区就绪的秒数
 
 [wechat.message_list]
 control_type = "ListControl"

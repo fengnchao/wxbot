@@ -3,6 +3,13 @@
 微信侧的"管家"从 wxbot 里拆出来，成为一个**能独立启动的 Python 项目**。
 wxbot 只负责把消息从微信拿出来/发回去；管家负责"投递给 Hermes → 判断要不要调别的 skill → 出最终文案"。
 
+## 请求流转与 Hermes 过程记录（2026-10-18）
+
+- `/v1/handle` 在等待会话锁之前记录 `butler_received`，控制台立即打印关联的联系人和 `msg_id`。阶段事件写入现有流水日志路径加 `.events.jsonl`，由 log 页面只读展示。
+- 普通消息仍走 `/v1/chat/completions`，保留两个 Hermes 会话头与原 `skill_policy`。Butler 内部请求 `stream=true, hermes_final_response=true`，记录工具名称、调用 ID、开始/结束及接口耗时；不记录模型内部推理、工具参数、预览 label 或工具返回内容。
+- Butler 只使用 `event: hermes.final_response` 中同一 completion ID 的最终正文，并等待正常结束及 `[DONE]`，之后才解析行动标记、整理补发和返回完整 `reply/reply_parts`。中间 content 会被丢弃，防止把最终稿已经撤回的行动交给执行器。
+- Hermes 返回普通 JSON 时仍兼容，但明确失败/不完整的结果被拒绝；过程流缺少最终正文、ID 错配或中断均不把半截内容当回复，不自动重试。旧 Hermes 需更新并重启以提供新增事件，其他客户端默认不接收该事件。
+
 ## 三个进程，两条边
 
 ```
@@ -50,9 +57,9 @@ wxbot 只负责把消息从微信拿出来/发回去；管家负责"投递给 He
 
 ```
 GET  /health                     → {"ok":true,"hermes":{"wxbot-101":true,...},"contacts":[...]}
-POST /v1/handle                  → {"reply":"文本"|null, "actions":[...], "meta":{...}}
+POST /v1/handle                  → {"reply":"完整文本"|null, "reply_parts":[...], "actions":[...], "meta":{...}}
      {"contact":"101","text":"...","msg_id":"...","ts":"...","channel_type":"dm|group"}
-POST /v1/reset  {"contact":"101"} → {"ok":true}      # /new 语义：换会话 id
+POST /v1/reset  {"contact":"101","channel_type":"dm|group"} → {"reply":...,"meta":{"reset":true,...}}
 POST /v1/heartbeat/trigger {"contact":"101"} → 立即为该联系人执行一次心跳
 POST /v1/push   {"contact":"101","text":"...","type":1,"messageType":1}
                                  → {"reply":null,"meta":{...}}   # 主动推送（不走模型）
@@ -61,6 +68,22 @@ POST /v1/push   {"contact":"101","text":"...","type":1,"messageType":1}
 ```
 
 `channel_type` 可选，缺省为 `dm`；群聊消息传 `group`，Hermes 身份注入会说明这是共享群会话，并将 `member_id` 解释为发言者标签。群聊与私聊的 Session Key 分开。两个请求都要求 `Authorization: Bearer <server.token>`；只绑 127.0.0.1。
+
+### 完整回复与分句
+
+Butler 等 Hermes 返回完整结果，执行行动并拼入已认领补发后才分句，一次返回全部内容：
+
+```json
+{"reply":"你好。今天怎么样？","reply_parts":["你好。","今天怎么样？"],"actions":[],"meta":{"msg_id":"wxbot批次ID","reply_complete":true}}
+```
+
+按 `。？！!?` 和代码区外的换行分句；连续句尾标点、右引号保留在前一句，拆分后的独立标点合入相邻正文；若整轮本来只有标点则保留原表达。逗号、ASCII 点、URL 查询符、行内代码和代码围栏不拆。静默返回空数组；全部 handle 路径均回显传入的 `msg_id`。旧客户端可继续只读完整 `reply`，无流式或迟到分句。
+
+同一实际 endpoint/Profile/稳定会话 key 的整轮处理和 reset 串行，窗口别名共享 SID；不同身份可以并发。角色策略指纹与 heartbeat kind 继续隔离 SID。补发读取、归属过滤和认领在 Profile 锁内完成，锁不覆盖模型等待。支持字符串 `contact`、`uid`、`user_id`，提供的字段须全部匹配；旧无归属补发只允许明确且唯一属于该用户的 Profile，别名相同 UID 算同一用户。归属不明或认领失败的条目留存。
+
+本地提醒文件操作共享 Profile 资源锁，delegate 透传当前角色和白名单；锁只协调当前 Butler 进程，不能协调 Hermes/cron 等外部进程写文件。
+
+白名单边界沿用现有设计：`skill_policy.allowed_skills` 管理 Hermes 的 skill 目录和执行；Butler 自己的 `reminder.create` 等行动由固定 `CATALOG` 管理，两者名称不作隐式映射。本轮没有新增本地行动的动态权限配置。补发出现不支持的 recipient/receiver/to/target/user 等归属字段时保留未认领，不能按旧无归属记录投递。
 
 用户分组字典（`{hermes.root}/cache/butler_groups.json`，`[groups].file` 可覆盖）：
 `messageType → 绑定的联系人（微信窗口标题）`，群发按它逐条投递；log 看板 8788「用户分组」页
