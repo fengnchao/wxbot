@@ -6,22 +6,28 @@ import time
 
 from wxbot.queue_schema import is_latest
 from wxbot.queue_store import FAILURE_TIMEOUT_SECONDS,FAILURE_DETAIL_FIELDS
+from wxbot.model_recovery import model_failure_info
 
 
 TERMINAL = ('sent', 'skipped')
 
 
 class QueueView:
-    def __init__(self, path, *, quiet=3, max_wait=10, prefix='/'):
+    def __init__(self, path, *, quiet=3, max_wait=10, prefix='/',failure_timeout_seconds=FAILURE_TIMEOUT_SECONDS):
         self.path = str(path)
         self.quiet, self.max_wait, self.prefix = quiet, max_wait, prefix
+        from wxbot.config import validate_failure_timeout
+        self.failure_timeout_seconds=validate_failure_timeout(failure_timeout_seconds)
 
-    def read(self, *, contact='', state='all', limit=50, offset=0, now=None):
+    def read(self, *, contact='', state='all', limit=50, offset=0, now=None,
+             offsets=None, scope='', order=''):
         limit, offset = max(1, min(200, int(limit))), max(0, int(offset))
+        offsets=offsets or {}
+        scope=scope if scope in ('active','issues','history') else ''
         result = {'read_only': True, 'database': self.path, 'at': time.time() if now is None else now,
                   'status': 'ok', 'contacts': [], 'counts': {}, 'pages': {},
                   'inbox': [], 'batches': [], 'outbox': [], 'events':[], 'error': '',
-                  'actions_enabled':False,'failure_timeout_seconds':FAILURE_TIMEOUT_SECONDS}
+                  'actions_enabled':False,'failure_timeout_seconds':self.failure_timeout_seconds}
         path = Path(self.path)
         if self.path == ':memory:' or not path.is_file():
             result.update(status='missing', error='没有可读取的磁盘队列（尚未创建或使用内存队列）')
@@ -63,14 +69,27 @@ class QueueView:
                 if contact:
                     terms.append('contact=?')
                     args.append(contact)
+                if scope:
+                    if table=='inbox':
+                        if scope!='active':terms.append('0')
+                    elif scope=='issues':terms.append("state IN ('blocked','uncertain')")
+                    elif scope=='history':terms.append("state IN ('done','sent','skipped')")
+                    else:terms.append("state NOT IN ('done','sent','skipped')")
                 where = ' WHERE '+' AND '.join(terms) if terms else ''
                 total = db.execute(f'SELECT COUNT(*) FROM {table}'+where, args).fetchone()[0]
-                order = 'id' if table == 'inbox' else 'seq'
-                rows = db.execute(f'SELECT * FROM {table}'+where+f' ORDER BY {order} LIMIT ? OFFSET ?',
-                                  [*args, limit, offset]).fetchall()
-                result[table] = [self._row(db, table, row,now=result['at']) for row in rows]
-                result['pages'][table] = {'total': total, 'offset': offset, 'limit': limit,
-                                          'has_more': offset+len(rows) < total}
+                stable = 'id' if table == 'inbox' else 'seq'
+                direction='DESC' if order=='desc' or (not order and scope=='history') else 'ASC'
+                sorting=f'{stable} {direction}'
+                if scope=='issues':
+                    columns={r[1] for r in db.execute(f'PRAGMA table_info({table})')}
+                    failure='COALESCE(failed_at,created_at)' if 'failed_at' in columns else 'COALESCE(finished_at,created_at)'
+                    if table!='inbox':sorting=f'{failure} ASC,{stable} ASC'
+                page_offset=max(0,int(offsets.get(table,offset)))
+                rows = db.execute(f'SELECT * FROM {table}'+where+f' ORDER BY {sorting} LIMIT ? OFFSET ?',
+                                  [*args, limit, page_offset]).fetchall()
+                result[table] = [self._row(db, table, row,now=result['at'],failure_timeout_seconds=self.failure_timeout_seconds) for row in rows]
+                result['pages'][table] = {'total': total, 'offset': page_offset, 'limit': limit,
+                                          'has_more': page_offset+len(rows) < total}
             if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='delivery_events'").fetchone():
                 where=' WHERE contact=?' if contact else ''
                 args=[contact] if contact else []
@@ -104,14 +123,17 @@ class QueueView:
                 data['finished_at']=row['finished_at']
                 if kind=='batches':data['attempts']=row['attempts']
                 data['actions']=self._actions(db,kind,row)
-                if kind=='outbox':data.update(self._deadline(row,now))
+                if kind=='outbox':data.update(self._deadline(row,now,self.failure_timeout_seconds))
             return data
         if problem:
             return reason(problem['state'], '旧回复存在异常分句，后续消息暂停提交', 'outbox', problem)
         if batch and batch['state'] in ('blocked','uncertain'):
             if db.execute('SELECT 1 FROM outbox WHERE batch_id=? LIMIT 1', (batch['id'],)).fetchone():
                 return reason('state_mismatch', '批次状态与分句状态不一致，请核对运行中的 wxbot 版本及日志')
-            return reason(batch['state'], '旧模型批次结果待核对，后续消息暂停提交', 'batches', batch)
+            info=model_failure_info(db,batch,now,self.failure_timeout_seconds)
+            message=('模型初始化失败，等待自动重试' if info['retry_at'] is not None else
+                     '模型结果未知，不重放本条；到期结束失败批次并放行后续消息')
+            return reason(batch['state'],message,'batches',batch,**info)
         if batch and batch['state'] in ('ready','processing'):
             return reason(batch['state'], '已提交，等待模型完整回复' if batch['state']=='processing' else '待提交模型，等待请求槽位', 'batches', batch)
         if outgoing:
@@ -135,7 +157,7 @@ class QueueView:
         return reason('idle', '没有待处理任务')
 
     @staticmethod
-    def _row(db, table, row, *, now=None):
+    def _row(db, table, row, *, now=None,failure_timeout_seconds=FAILURE_TIMEOUT_SECONDS):
         # No message/confirmation snapshots in the API; bounded message preview only.
         keys = ('id','contact','state','created_at','received_at','started_at','submitted_at','finished_at',
                 'not_before','attempts','batch_id','member_key','error','part_seq','reply_complete','failed_at','resolution')
@@ -147,21 +169,26 @@ class QueueView:
         elif table == 'batches':
             result['part_count'] = db.execute('SELECT COUNT(*) FROM outbox WHERE batch_id=?', (row['id'],)).fetchone()[0]
             result['completed_parts'] = db.execute("SELECT COUNT(*) FROM outbox WHERE batch_id=? AND state IN ('sent','skipped')", (row['id'],)).fetchone()[0]
+            complete=row['reply_complete'] if 'reply_complete' in row.keys() else False
+            if not complete and not result['part_count']:
+                if row['state'] in ('blocked','uncertain'):
+                    result.update(model_failure_info(db,row,time.time() if now is None else now,failure_timeout_seconds))
+                elif row['state']=='done' and row['error']:result['display_state']='model_failed'
         elif table == 'outbox':
             result['part_seq'] = row['part_seq'] if 'part_seq' in row.keys() else 1
             result['part_count'] = db.execute('SELECT COUNT(*) FROM outbox WHERE batch_id=?', (row['batch_id'],)).fetchone()[0] if row['batch_id'] else 1
             if row['state'] in ('blocked','uncertain'):
-                result.update(QueueView._deadline(row,time.time() if now is None else now))
+                result.update(QueueView._deadline(row,time.time() if now is None else now,failure_timeout_seconds))
         result['actions']=QueueView._actions(db,table,row) if table!='inbox' else []
         return result
 
     @staticmethod
-    def _deadline(row,now):
+    def _deadline(row,now,failure_timeout_seconds=FAILURE_TIMEOUT_SECONDS):
         failed=(row['failed_at'] if 'failed_at' in row.keys() else
                 next((row[k] for k in ('finished_at','submitted_at','created_at') if row[k] is not None),None))
         if failed is None:return {}
-        return {'failed_at':failed,'discard_at':failed+FAILURE_TIMEOUT_SECONDS,
-                'remaining_seconds':max(0,failed+FAILURE_TIMEOUT_SECONDS-now)}
+        return {'failed_at':failed,'discard_at':failed+failure_timeout_seconds,
+                'remaining_seconds':max(0,failed+failure_timeout_seconds-now)}
 
     @staticmethod
     def _actions(db,kind,row):

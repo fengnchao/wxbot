@@ -8,7 +8,7 @@ from common.flow_trace import FlowTrace,queue_trace_path
 from .wechat.clipboard import restore_pending
 
 from .delivery import DeliveryPump
-from .config import validate_model_concurrency
+from .config import validate_model_concurrency, validate_runtime_config
 from .log import log
 from .queue_store import Incoming, QueueStore, queue_database
 from .queue_worker import ModelWorker
@@ -36,6 +36,7 @@ def mentioned_text(text: str, names: list[str]) -> str | None:
 class MainInbox:
     def __init__(self, cfg, router, *, desktop=None, store=None,
                  clock=time.time, monotonic=time.monotonic):
+        validate_runtime_config(cfg)
         self.cfg, self.bot = cfg, cfg["bot"]
         self.clock, self.monotonic = clock, monotonic
         self.desktop = desktop if desktop is not None else MainWindow(cfg["wechat"])
@@ -48,7 +49,8 @@ class MainInbox:
         if (not all(math.isfinite(value) for value in (quiet, max_wait, confirm_timeout))
                 or quiet < 0 or max_wait <= 0 or confirm_timeout <= 0):
             raise ValueError("queue.quiet_seconds 必须 >= 0，max_wait_seconds/confirm_timeout 必须 > 0，且为有限数值")
-        self.store = store if store is not None else QueueStore(queue_database(cfg))
+        self.store = store if store is not None else QueueStore(
+            queue_database(cfg), failure_timeout_seconds=qcfg.get('failure_discard_seconds', 180))
         self.trace = FlowTrace(queue_trace_path(self.store.path),log.info)
         self.chats, self.snapshots, self.pending = {}, {}, {}
         self.groups = set(self.bot.get("bound_groups", []))
@@ -242,6 +244,11 @@ class MainInbox:
         if allow_switch and not self.delivery.busy:
             self._receive_one()
         active = self.delivery.active
+        # After Enter, the delivery reader owns this snapshot until it has
+        # classified the new bubble. Do not enqueue it through a second,
+        # potentially different visual reading before confirmation completes.
+        if active is not None and active.typing.enter_attempted:
+            return
         self._capture_current(root=active.typing.win if active is not None else None)
 
     def tick(self):

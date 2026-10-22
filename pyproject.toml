@@ -1,16 +1,22 @@
 [project]
 name = "wxbot"
-version = "0.1.0"
+version = "1.0.0"
 requires-python = ">=3.14"
 description = "微信机器人：butler 管家（决策层）+ wxbot（UI 自动化层）两个模块"
 dependencies = [
     "uiautomation>=2.0.18",
     "requests>=2.31",
     "pillow>=10.0",
+    "tomlkit>=0.13,<1",
+    "openai-codex==0.163.0",
+    "openai-codex-cli-bin==0.163.0",
+    "croniter==6.2.4",
+    "PyYAML==6.0.3",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+telegram = ["Telethon==1.45.0", "python-socks[asyncio]>=2.7,<3"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

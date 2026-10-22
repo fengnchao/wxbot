@@ -48,6 +48,7 @@ Windows 上的个人微信机器人，Python 项目，拆成两个本地进程�
 
 ## 维护注意
 
+- 服务启停偏好（2026-10-21）：Butler、wxbot 和 log 均由用户在 IDE 中手动启动。Codex 不代为启动或重启；改动需要重启时明确告知用户。
 - 此仓库的 UI 自动化是非官方方式，存在账号风险；当前发送使用每 5 字、间隔 0.5 秒的 Unicode 模拟按键，绕过输入法转换，仍依赖窗口焦点。
 - `config.*.example.toml` 是安全文档/示例来源；运行时配置可能含真实密钥，不要在日志、记忆或提交里复制秘密。
 - `butler/README.md` 的示例含旧机器路径和过期目录/文件名（例如旧的根目录、`config.example.toml`、`kmg/`），实际操作请以根目录 README、当前代码和 `config.*.example.toml` 为准。
@@ -180,3 +181,23 @@ Windows 上的个人微信机器人，Python 项目，拆成两个本地进程�
 - 新 POST /api/queue-action 只操作服务器配置的现有库，不操作UI、不调用shell、不recover或迁移；要求JSON、自定义请求头、明确确认、可信Host/同源、联系人+状态+失败时间快照。模型批次另校验执行次数，防同状态再次失败后旧页面误操作。已有发件的批次不能重跑模型；批次无“确认已发”。
 - 新回归覆盖180秒边界、重试重启期限、逐句保留、旧v2迁移、自动超时与人工动作并发、模型快照ABA、HTTP跨站/Host重绑定拒绝、失败元数据、前端转义/异步切页。全套 **291 passed in 21.54s**；10个Python文件AST、示例TOML和git diff空白检查通过。独立审查提出的模型快照与Host校验问题均已修复。
 - 使用临时配置和临时SQLite启动独立log预览，浏览器确认三个按钮、倒计时、失败记录可见，随后关闭预览并删除临时助手；未访问真实微信或更改真实队列、未重启任何服务、未提交Git。用户需自行重启 **wxbot → log**；旧失败任务如已超过180秒会自动丢弃。Butler/Hermes无需重启。实际微信发送结果待用户观察，不据离线验证声称已修复焦点变化根因。
+
+## log 配置编辑（2026-10-18）
+
+- 用户明确批准全部实际配置可编辑、中文名称/用途/保存、生效提示、注释保留、备份和版本冲突检查、密钥仅显式替换/清空，以及临时配置离线验证。覆盖wxbot/Butler/联系人/角色Skill心跳/分组/log启动参数；运行事实、推导路径与机制说明只读。Hermes地址指Butler调用目标，不更改Hermes进程监听配置。
+- 新增log/config_editor.py、config_schema.py、settings.py；GET /api/configuration输出类型/字段路径/生效方式/来源版本，POST按来源+版本+字段patch保存。可信Host/Origin、自定义header和明确确认保护；400为参数错误、409版本冲突、503文件/技能目录不可用。服务器登记写入路径，客户端不能指定任意文件。
+- tomlkit保留TOML注释和未改项；合作文件锁、版本复核、原文件旁备份、临时文件fsync后原子replace。密钥/备份/锁文件已Git忽略；嵌套JSON隐藏会话模板按原name或唯一稳定身份保留，联系人合并歧义拒绝猜测，名称禁止首尾空格/重复，uid须ASCII。角色/工具变更继续验证Hermes目录和butler-role标签。
+- 值脱敏与协议元数据分开，服务端未脱敏catalog用于字段授权；密钥恰好为timeout/butler/integer/ok不能改写字段路径、来源ID、版本或编辑器类型。含隐藏凭据的URL修改后若仍含星号占位则拒绝，要求完整新值，防止把真实token覆盖成***。
+- 表单有来源级内存草稿、保存/取消/恢复默认，切分类/tab及自动刷新保留草稿；密钥新值不入HTML、确认文案或localStorage，明确保持/替换/清空。只显示当前分类来源保存区，额外保留其他来源草稿/消息，按钮仍绑定正确来源索引。
+- 新配置wechat.typing.chunk_size默认5（1–100），chunk_interval默认0.5（0.05–10秒）；queue.failure_discard_seconds默认180（1–86400秒），QueueStore实例TTL保留首次failed_at，重启后已有失败任务也用新期限；log倒计时读取文件值并注明未核验运行参数。保留输入/目标/焦点校验、仅一次回车与不确定不自动重发。
+- log自身配置为config.log.toml（LOG_CONFIG可覆盖），模板config.log.example.toml；命令行与既有环境变量优先。start.bat改用server.py --open，默认读取保存值，不再硬编码home/port。tomlkit依赖已加入requirements并通过uv安装到共享.venv（pip模块缺失）。未创建或更改用户当前真实配置。
+- fresh验证 **374 passed in 23.21s**，11个Python AST、3个示例TOML与diff空白检查通过。独立审查发现的URL占位、元数据脱敏、联系人模板串号/歧义与strip冲突均有RED→GREEN回归并修复，最终无剩余P1/P2。临时log浏览器预览确认Hermes地址/Key/模型/超时及保存区可见；临时服务器自动结束，未发送微信、未写真实队列、未重启任何服务、未提交Git。
+- 使用新页面需用户自行重启log；更改wxbot参数后自行重启wxbot，更改Butler文件参数（Hermes调用地址等）后自行重启Butler。动态角色/白名单/心跳开关和分组在后续读取生效；不要自动重启用户管理的服务。
+
+## 持续 OSError 发送失败诊断（2026-10-19）
+
+- 用户贴09:06–09:55的101发送记录：多个批次每句均“分批粘贴失败（OSError）”，phase=paste_guard、characters_entered=0、enter_attempted=false，满180秒逐句丢弃。只读查询真实队列事件确认相同事实；未更改任务状态或恢复已丢弃任务。
+- 不能据此认定剪贴板具体占用者/格式/系统调用：paste_guard旧阶段同时包含输入前缀检查、ClipboardLease备份/写入、目标/焦点复核、Ctrl+V；typing异常处理只保留type(exc).__name__，原OSError消息被丢弃，stdout也未持久化单独异常日志。0字符计数表示尚无成功完成的输入批次，不足以证明Ctrl+V从未尝试。
+- 本次只补诊断：clipboard固定错误附clipboard_operation/clipboard_error/clipboard_format/os_error_code；区分OpenClipboard、格式枚举/备份/大小/复制、内存写入、恢复等失败。恢复失败保留结构化原因供后续pending阻断透传。typing细分clipboard_acquire/paste_key阶段，错误追加固定原因；异常类型/安全数值进入队列审计白名单，不记录剪贴板正文或任意异常str。
+- 未调整剪贴板保留、输入/焦点守卫、等待、自动重发或失败丢弃策略；没有证据可声称发送根因已修复。3文件AST与diff空白检查通过；本轮用户只要求排查，未添加或运行测试。未操作真实剪贴板/微信、未改实际配置、未重启服务、未提交Git。
+- 需要用户自行重启wxbot以加载诊断并发一条新消息，取得更具体失败原因后再修实际根因；原已超时丢弃的句子不会自动重发。log原进程若未重载新白名单，错误原因文本仍可看到，新增现场字段需重启log才完整显示。

@@ -8,6 +8,7 @@
 import time
 from collections import deque
 from dataclasses import dataclass
+from statistics import median
 
 import uiautomation as auto
 from PIL import Image, ImageGrab
@@ -70,16 +71,33 @@ class ChatWindow:
     def side_scores(self, item: auto.Control, list_rect) -> tuple[int, int] | None:
         """返回 (左侧非背景像素数, 右侧非背景像素数)；条目不在可见区域时返回 None。"""
         r = item.BoundingRectangle
-        top, bottom = max(r.top, list_rect.top), min(r.bottom, list_rect.bottom)
+        # Only the avatar-height band carries reliable direction evidence. The
+        # middle of a wide outgoing bubble is NOT the conversation background.
+        # A clipped row may have lost its avatar; do not classify its text tail.
+        top = r.top
+        avatar_band = max(48, int(self.group_sender_cfg.get("avatar_size", 48))) + 8
+        bottom = min(r.bottom, top + avatar_band)
         left, right = r.left, r.right
+        if (top < list_rect.top or bottom > list_rect.bottom
+                or left < list_rect.left or right > list_rect.right):
+            return None
         if bottom - top < 10 or right - left < 100:
             return None
         img = ImageGrab.grab(bbox=(left, top, right, bottom), all_screens=True).convert("RGB")
         w, h = img.size
         px = img.load()
-        bg = px[w // 2, 1]                       # 条目顶部中间的空白处作为背景色
         strip = int(self.detect.get("strip_width", 80))
         threshold = int(self.detect.get("diff_threshold", 40))
+        # Sample the two outer gutters, away from bubbles. Require agreement:
+        # an overlay, partial row or nonstandard layout is not sender evidence.
+        def gutter_color(columns):
+            samples = [px[x, y] for x in columns for y in range(0, h, 2)]
+            return tuple(int(median(p[channel] for p in samples)) for channel in range(3))
+
+        bg = gutter_color((0, 1, 2))
+        right_bg = gutter_color((w - 3, w - 2, w - 1))
+        if _color_diff(bg, right_bg) > threshold:
+            return None
         step = 2
         lcount = rcount = 0
         for y in range(0, h, step):

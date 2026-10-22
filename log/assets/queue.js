@@ -1,0 +1,158 @@
+const QUEUE_LABELS={unbatched:'待合并',ready:'待提交模型',processing:'等待模型',waiting_delivery:'回复就绪',
+  pending:'待发送',sending:'键入中',confirming:'发送确认中',blocked:'已阻断',uncertain:'结果不确定',
+  sent:'已发送',skipped:'已跳过',timeout_discard:'超时丢弃',done:'整轮完成',idle:'空闲',pending_capture:'待采集',merging:'合并中',ready_to_merge:'待调度',state_mismatch:'状态待核对',
+  completed:'已完成',ok:'完成',failed:'失败',error:'错误',started:'已开始',running:'执行中',accepted:'已接受',finished:'已结束'};
+const ORIGIN_LABELS={file:'文件值',default:'默认值',code:'固定规则',runtime:'运行参数'};
+function queueBadge(status){
+  const cls=['blocked','uncertain','failed','error','model_failed'].includes(status)?'sb-error':(['done','sent','skipped','completed','ok','finished'].includes(status)?'sb-ok':'sb-manual');
+  return `<span class="sbadge ${cls}">${esc(QUEUE_LABELS[status]||status)}</span>`;
+}
+QUEUE_LABELS.model_failed='模型失败已结束';
+function modelRecoveryNote(row){
+  const retry=row.retry_at!=null?`下次自动重试：${full(row.retry_at)} · 已尝试 ${row.attempts||0}/${row.max_attempts||3} 次`:
+    row.retry_safe===false?'结果未知，不自动重放本条；到期结束失败批次并放行后续消息':'';
+  return retry?`<div class="monitor-note">${esc(retry)}</div>`:'';
+}
+async function loadQueue(){
+  if(state.qBusy) return;
+  const request=++state.qRequest;
+  const qs=new URLSearchParams({contact:state.qContact,state:state.qState,scope:state.qScope,limit:'50',
+    ...Object.fromEntries(Object.entries(state.qOffsets).map(([k,v])=>[k+'_offset',String(v)]))});
+  try{
+    const data=await apiGet('/api/queue?'+qs);
+    if(request!==state.qRequest||state.tab!=='queue') return;
+    state.qdata=data; state.qError='';
+  }catch(e){
+    if(request!==state.qRequest||state.tab!=='queue') return;
+    state.qdata=null; state.qError=e.message||'队列载入失败';
+  }
+  renderQueueNav(); renderQueuePane();
+}
+function renderQueueNav(){
+  const contacts=state.qdata?.contacts||[];
+  $('#list').innerHTML=`<div class="user ${!state.qContact?'sel':''}" data-qindex="-1"><div class="nm">全部会话</div><div class="st">查看所有用户和群聊的队列</div></div>`+
+    contacts.map((c,i)=>`<div class="user ${state.qContact===c.contact?'sel':''}" data-qindex="${i}">
+      <div class="nm">${esc(c.contact)} ${queueBadge(c.reason.code)}</div>
+      <div class="st">待合并 <b>${c.unbatched}</b> · 待发 <b>${Object.entries(c.outbox).filter(([s])=>!['sent','skipped'].includes(s)).reduce((n,[s,v])=>n+v,0)}</b></div>
+      <div class="pv">${esc(c.reason.message)}</div></div>`).join('');
+  $('#list').querySelectorAll('[data-qindex]').forEach(el=>el.onclick=()=>{
+    const i=Number(el.dataset.qindex); state.qContact=i<0?'':contacts[i].contact; resetQueuePages(); loadQueue();
+  });
+}
+const QUEUE_ACTION_LABELS={retry:'重试',sent:'确认已发',skip:'立即丢弃'};
+function queueActionButtons(r,kind,records){
+  if(!state.qdata?.actions_enabled || !r.actions?.length) return '';
+  const index=records.push({id:r.id||r.record_id,kind,contact:r.contact,
+    expected_state:r.state,expected_finished_at:r.finished_at??null,
+    ...(kind==='batches'?{expected_attempts:r.attempts}:{})})-1;
+  return `<div class="queue-actions">${r.actions.map(action=>`<button class="${action==='skip'?'discard':''}" data-q-action="${action}" data-q-record="${index}" ${state.qBusy?'disabled':''}>${QUEUE_ACTION_LABELS[action]||''}</button>`).join('')}</div>`;
+}
+function queueCountdown(at){
+  if(at==null) return '';
+  const left=Math.max(0,Math.ceil(at-Date.now()/1000));
+  return `<div class="monitor-note warn" data-discard-at="${Number(at)}">${left?'剩余 '+left+' 秒自动丢弃':'已到丢弃时间，等待 wxbot 巡检'}</div>`;
+}
+function updateQueueCountdowns(){
+  if(state.tab!=='queue') return;
+  $('#pane').querySelectorAll('[data-discard-at]').forEach(el=>{
+    const left=Math.max(0,Math.ceil(Number(el.dataset.discardAt)-Date.now()/1000));
+    el.textContent=left?'剩余 '+left+' 秒结束失败任务':'已到结束时间，等待 wxbot 巡检';
+  });
+}
+setInterval(updateQueueCountdowns,1000);
+async function performQueueAction(record,action){
+  if(state.qBusy || !record || !QUEUE_ACTION_LABELS[action]) return;
+  const caution=action==='retry'?(record.kind==='outbox'?
+    '请先核对微信实际发送结果，并清理残留草稿。重试可能重复发送，首次失败的超时期限不会重置。':
+    '请先核对模型与工具实际执行结果。重试可能重复执行工具。'):
+    action==='sent'?'请确认已在微信看到这条消息实际发送成功。此操作只登记结果，不再发送。':
+    '此操作放弃这条任务并释放后续队列，保留消息和失败记录。';
+  if(!confirm(`${QUEUE_ACTION_LABELS[action]} · ${record.contact}\n任务 ${record.id}\n\n${caution}`)) return;
+  state.qBusy=true;state.qMessage='正在处理…';state.qActionFailed=false;
+  if(state.tab==='queue')renderQueuePane();
+  try{
+    const response=await fetch('/api/queue-action',{method:'POST',
+      headers:{'Content-Type':'application/json','X-Wxbot-Queue-Action':'1'},
+      body:JSON.stringify({...record,action,acknowledge:true})});
+    const data=await response.json();
+    if(!response.ok||!data.ok)throw new Error(data.error||'操作失败');
+    state.qMessage=`${record.contact} · ${record.id}：${QUEUE_ACTION_LABELS[action]}已登记`;
+  }catch(error){state.qActionFailed=true;state.qMessage=error.message||'操作失败';}
+  finally{state.qBusy=false;}
+  if(state.tab==='queue')await loadQueue();
+}
+function queueReason(c,records){
+  const r=c.reason, bad=['blocked','uncertain'].includes(r.code);
+  const actionsInList=(state.qdata?.[r.record_kind]||[]).some(row=>String(row.id)===String(r.record_id)&&row.actions?.length&&matchesQuery(row.contact,row.preview,row.error,row.id));
+  const labels={sent:'已核对实际发送成功',retry:'确需重试（可能重复操作）',skip:'放弃此异常任务'};
+  return `<div class="queue-reason ${bad?'error':''}"><h3>${esc(c.contact)} · ${queueBadge(r.code)}</h3>
+    <div>${esc(r.message)}${r.wait_seconds>0?' · 约 '+Math.ceil(r.wait_seconds)+' 秒':''}</div>
+    ${r.record_id?`<div class="monitor-source">${r.record_kind==='outbox'?'发件 ID':'批次 ID'}：<code>${esc(r.record_id)}</code></div>`:''}
+    ${r.error?`<div class="monitor-note warn">${esc(r.error)}</div>`:''}
+    ${modelRecoveryNote(r)}
+    ${queueCountdown(r.discard_at)}
+    ${r.actions?.length?'<div class="monitor-source">人工核对：先确认微信实际发送结果及输入框草稿，再操作。</div>':''}
+    ${actionsInList?'<div class="monitor-note">在下方对应任务行执行人工核对操作。</div>':queueActionButtons({...r,contact:c.contact},r.record_kind,records)}
+    ${r.commands?`<details><summary>查看对应恢复命令</summary><div class="monitor-note">先核对微信、草稿和实际发送结果；也可使用页面的人工核对按钮。以下命令请在项目目录的 PowerShell 中使用，不会自动执行。</div>
+      <div class="queue-commands">${Object.entries(r.commands).map(([kind,cmd])=>`<div>${esc(labels[kind]||kind)}<code>${esc(cmd)}</code></div>`).join('')}</div></details>`:''}</div>`;
+}
+function resetQueuePages(){state.qOffset=0;state.qOffsets={inbox:0,batches:0,outbox:0};}
+function queueTable(title,rows,kind,page,records){
+  rows=rows.filter(r=>matchesQuery(r.contact,r.preview,r.error,r.id));
+  const offset=page?.offset||0,limit=page?.limit||50;
+  const pager=`<div class="pagination"><button data-q-page="${kind}" data-q-delta="-1" ${offset?'':'disabled'}>上一页</button><span>第 ${Math.floor(offset/limit)+1} 页 · 共 ${page?.total||0} 条</span><button data-q-page="${kind}" data-q-delta="1" ${page?.has_more?'':'disabled'}>下一页</button></div>`;
+  return `<h3 class="monitor-section-title">${title} <span class="monitor-source">${page?.total||0} 条，当前显示 ${rows.length} 条</span></h3>`+
+    (rows.length?`<div class="monitor-table-wrap"><table class="monitor-table"><thead><tr><th>会话 / 状态</th><th>内容预览</th><th>时间 / 进度</th><th>任务 ID</th></tr></thead><tbody>`+
+    rows.map(r=>`<tr><td>${esc(r.contact)}<br>${queueBadge(r.display_state||(r.resolution==='timeout'?'timeout_discard':r.state))}</td><td class="preview">${esc(r.preview)}<div class="monitor-source">${r.characters} 字${r.characters>240?'，仅显示前 240 字':''}</div>
+      ${r.error?`<div class="warn">${esc(r.error)}</div>`:''}${queueCountdown(r.discard_at)}
+      ${kind==='batches'?modelRecoveryNote(r):''}
+      ${queueActionButtons(r,kind,records)}</td><td>${esc(full(r.received_at??r.created_at))}
+      ${kind==='outbox'?`<div>第 ${r.part_seq}/${r.part_count} 句</div>`:kind==='batches'?`<div>已结束 ${r.completed_parts}/${r.part_count} 句</div><div>提交次数 ${r.attempts||0}</div>`:''}
+      ${r.started_at?`<div class="monitor-source">模型开始 ${esc(full(r.started_at))}</div>`:''}
+      ${r.submitted_at?`<div class="monitor-source">回车 ${esc(full(r.submitted_at))}</div>`:''}</td>
+      <td><details data-detail="queue:${kind}:${esc(r.id)}"><summary>任务详情</summary><code>${esc(r.id)}</code>${r.batch_id?`<div class="monitor-source">批次 ${esc(r.batch_id)}</div>`:''}</details></td></tr>`).join('')+
+      '</tbody></table></div>':'<div class="monitor-note">当前筛选下没有任务</div>')+pager;
+}
+function queueEventTable(events){
+  const labels={failed:'发送失败',timeout_discard:'失败超时丢弃',retry:'人工重试',confirm_sent:'人工确认已发',manual_discard:'人工丢弃',
+    model_retryable:'模型失败，等待自动重试',model_uncertain:'模型结果未知',model_retry:'模型自动重试',model_abandoned:'模型失败已结束'};
+  return '<h3 class="monitor-section-title">失败与恢复记录 · 最近50条</h3>'+(events.length?
+    `<div class="monitor-table-wrap"><table class="monitor-table"><thead><tr><th>时间 / 会话</th><th>处理记录</th><th>任务</th></tr></thead><tbody>${events.map(e=>
+      `<tr><td>${esc(full(e.at))}<br>${esc(e.contact)}</td><td><b>${esc(labels[e.action]||e.action)}</b><div class="monitor-note">${esc(e.reason)}</div>
+      ${Object.keys(e.details||{}).length?`<details data-detail="failure:${esc(e.seq||e.record_id+':'+e.at)}"><summary>失败现场信息</summary><pre>${esc(JSON.stringify(e.details,null,2))}</pre></details>`:''}</td>
+      <td><code>${esc(e.record_id)}</code><div class="monitor-source">来源 ${esc(e.source)}</div></td></tr>`).join('')}</tbody></table></div>`:
+    '<div class="monitor-note">暂无失败或人工处理记录</div>');
+}
+function renderQueuePane(){
+  const d=state.qdata;
+  if(!d){ $('#pane').innerHTML=`<div class="empty warn">${esc(state.qError||'正在载入队列…')}</div>`; return; }
+  if(d.status!=='ok'){ $('#pane').innerHTML=`<div class="head"><h2>收发队列</h2><div class="warn">${esc(d.error)}</div><div class="monitor-source">${esc(d.database)}</div></div>`; return; }
+  const total=(which,status)=>d.counts[which]?.[status]||0;
+  const contacts=(d.contacts||[]).filter(c=>(state.qContact?c.contact===state.qContact:c.reason.code!=='idle')&&matchesQuery(c.contact,c.reason.message,c.reason.error));
+  const records=[];
+  const configuredTimeout=Number(d.failure_timeout_seconds);
+  const timeoutSeconds=Number.isFinite(configuredTimeout)&&configuredTimeout>0?configuredTimeout:180;
+  $('#pane').innerHTML=`<div class="head"><h2>收发队列 · ${esc(state.qContact||'全部会话')}</h2>
+    <div class="monitor-grid"><span class="chip">全队列待合并 <b>${d.counts.unbatched||0}</b></span><span class="chip">待提交 <b>${total('batches','ready')}</b></span>
+    <span class="chip">等待模型 <b>${total('batches','processing')}</b></span><span class="chip">待发句子 <b>${total('outbox','pending')}</b></span>
+    <span class="chip">异常句子 <b class="warn">${total('outbox','blocked')+total('outbox','uncertain')}</b></span></div>
+    <div class="monitor-note">同一会话按顺序处理。发件失败从首次失败起最多等待${timeoutSeconds}秒，超时自动丢弃该句并保留日志。模型确认未提交时最多尝试3次；模型结果未知时不重放，失败满${timeoutSeconds}秒结束旧批次，继续处理后续消息。人工核对按钮在下方异常任务旁，操作前需要确认。</div>
+    ${state.qMessage?`<div class="monitor-note ${state.qActionFailed?'warn':''}">${esc(state.qMessage)}</div>`:''}
+    <details class="diagnostic" data-detail="queue-settings"><summary>诊断详情 · 队列规则与来源</summary><div class="monitor-source">倒计时按配置文件计算，修改后需重启 wxbot；运行参数未核验。</div>
+    ${!d.actions_enabled?'<div class="monitor-note warn">请先重启更新后的 wxbot 完成队列升级，启用失败超时规则和人工核对按钮。</div>':''}
+    <div class="monitor-source">数据库：${esc(d.database)} · 查询时间：${esc(full(d.at))}</div></details></div>`+
+    `<div class="segmented">${[['active','待处理'],['issues','异常待核对'],['history','历史记录']].map(([value,label])=>`<button data-q-scope="${value}" class="${state.qScope===value?'on':''}">${label}</button>`).join('')}</div>
+    <div class="monitor-note">${state.qScope==='history'?'最新记录在前':state.qScope==='issues'?'最早失败在前 · 请先核对实际发送结果':'按实际处理序号排列'}${currentQuery()?' · 搜索作用于本页及当前会话摘要':''}</div>`+
+    (state.qScope!=='history'?(contacts.length?contacts.map(c=>queueReason(c,records)).join(''):'<div class="monitor-note">没有待处理任务</div>'):'')+
+    (state.qScope==='active'?queueTable('待合并消息',d.inbox||[],'inbox',d.pages.inbox,records):'')+queueTable('模型批次',d.batches||[],'batches',d.pages.batches,records)+
+    queueTable('回复分句 / 主动推送',d.outbox||[],'outbox',d.pages.outbox,records)+
+    `<details data-detail="queue-audit" ${state.qScope==='issues'?'open':''}><summary>失败、自动恢复与人工核对记录</summary>${queueEventTable(d.events||[])}</details>`;
+  $('#pane').querySelectorAll('[data-q-scope]').forEach(button=>button.onclick=()=>{
+    state.qScope=button.dataset.qScope;state.qState='all';$('#q-state').value='all';resetQueuePages();loadQueue();
+  });
+  $('#pane').querySelectorAll('[data-q-page]').forEach(button=>button.onclick=()=>{
+    const kind=button.dataset.qPage,page=d.pages[kind];state.qOffsets[kind]=Math.max(0,(page?.offset||0)+Number(button.dataset.qDelta)*(page?.limit||50));loadQueue();
+  });
+  $('#pane').querySelectorAll('[data-q-action]').forEach(button=>button.onclick=()=>
+    performQueueAction(records[Number(button.dataset.qRecord)],button.dataset.qAction));
+}

@@ -35,9 +35,15 @@ def _log(msg, *args):
     print(("[butler] " + (msg % args if args else msg)), flush=True)
 
 
+def backend_description(cfg: Config) -> str:
+    if cfg.provider=='codex':
+        return f"Codex model={cfg.codex_model or '(runtime default)'} home={cfg.codex_home_path()}"
+    return f"Hermes {cfg.hermes_url} ({masked(cfg.hermes_key)})"
+
+
 def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | None = None):
     class Handler(BaseHTTPRequestHandler):
-        server_version = "butler/0.1"
+        server_version = "butler/1.0"
 
         def log_message(self, fmt, *args):        # 默认会写 stderr，太吵
             _log("http " + (fmt % args))
@@ -73,6 +79,20 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
 
         # ---------- 路由 ----------
         def do_GET(self):
+            if self.path == '/v1/skills':
+                if not self._authed(): return
+                if cfg.provider!='codex':
+                    self._send(400,{'error':'Use the configured Hermes catalogue'})
+                else:
+                    self._send(200,{'object':'list','data':butler.catalogue.list()})
+                return
+            if self.path == '/v1/runtime':
+                if not self._authed(): return
+                self._send(200,{'backend':cfg.provider,'protocol_version':1,
+                    'reminders':butler.store.reminders(order='due') if butler.store else [],
+                    'memory':butler.store.runtime_memory() if butler.store else [],
+                    'events':butler.store.events() if butler.store else []})
+                return
             if self.path.startswith("/health"):
                 if not self._authed():
                     return
@@ -82,11 +102,34 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
             if self.path.startswith("/v1/catalogue"):
                 if not self._authed():
                     return
-                self._send(200, {"skills": skills.catalogue(), "hint": skills.HERMES_HINT})
+                self._send(200, {"skills": (butler.catalogue.list() if cfg.provider=='codex' else skills.catalogue()),
+                                 "hint": '' if cfg.provider=='codex' else skills.HERMES_HINT})
                 return
             self._send(404, {"error": "not found"})
 
         def do_POST(self):
+            if self.path == '/mcp':
+                if butler.tools is None:
+                    self._send(503,{'error':'Codex tools unavailable'}); return
+                try:
+                    from .mcp_gateway import dispatch
+                    origin=self.headers.get('Origin')
+                    if origin:
+                        from urllib.parse import urlsplit
+                        if urlsplit(origin).hostname not in ('127.0.0.1','localhost','::1'):
+                            self._send(403,{'error':'Invalid origin'}); return
+                    auth=self.headers.get('Authorization','')
+                    if not auth.startswith('Bearer '): raise PermissionError('Capability required')
+                    result=dispatch(butler.tools,self._body(),auth[7:])
+                    if result is None:
+                        self.send_response(202);self.send_header('Content-Length','0');self.end_headers()
+                    else:
+                        self._send(200,result)
+                except PermissionError:
+                    self._send(401,{'error':'Invalid or expired tool capability'})
+                except (ValueError,TypeError):
+                    self._send(400,{'error':'Invalid MCP request'})
+                return
             if self.path == "/v1/heartbeat/trigger":
                 if not self._authed():
                     return
@@ -197,21 +240,30 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
 
 
 def serve(cfg: Config) -> int:
+    if cfg.provider=='codex' and cfg.host not in ('127.0.0.1','localhost','::1'):
+        raise ValueError('Codex Butler must listen on loopback')
     if not cfg.have_token:
         _log("!! server.token 没配 —— 接口会拒绝所有请求。先在 config.toml 里配一个。")
     butler = Butler(cfg, log=_log)
     heartbeat = HeartbeatScheduler(butler, cfg, log=_log)
-    _log("管家启动 → http://%s:%s  |  Profile: %s  |  Hermes: %s (%s)",
+    reminders=None
+    if cfg.provider=='codex':
+        from .reminders import ReminderScheduler
+        reminders=ReminderScheduler(butler)
+    _log("管家启动 → http://%s:%s  |  Profile: %s  |  后端: %s",
          cfg.host, cfg.port, ", ".join(sorted(cfg.contacts.profiles())) or "(无联系人)",
-         cfg.hermes_url, masked(cfg.hermes_key))
+         backend_description(cfg))
     httpd = ThreadingHTTPServer((cfg.host, cfg.port), make_handler(butler, cfg, heartbeat))
     heartbeat.start()
+    if reminders: reminders.start()
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         _log("收到 Ctrl+C，退出")
     finally:
         heartbeat.stop()
+        if reminders: reminders.stop()
+        if cfg.provider=='codex': butler.backend.close()
         httpd.server_close()
     return 0
 
@@ -219,8 +271,7 @@ def serve(cfg: Config) -> int:
 def status(cfg: Config) -> int:
     _log("配置: %s", cfg.__class__.__name__)
     _log("  接口      http://%s:%s   token=%s", cfg.host, cfg.port, masked(cfg.token))
-    _log("  Hermes    %s   key=%s   model=%s   root=%s",
-         cfg.hermes_url, masked(cfg.hermes_key), cfg.hermes_model, cfg.hermes_root or "(未配)")
+    _log("  后端      %s", backend_description(cfg))
     _log("  wxbot     %s   token=%s", cfg.wxbot_url, masked(cfg.wxbot_token))
     _log("  流水日志  %s", cfg.flow_log_path() or "(禁用：hermes.root 与 log.flow_file 都未配)")
     _log("  决策层    actions_enabled=%s  script_dir=%s  respond_after=%s",
@@ -230,13 +281,13 @@ def status(cfg: Config) -> int:
     rc = 0
     for p in sorted(cfg.contacts.profiles()):
         ok = Butler(cfg, log=_log).hermes.alive(p)
-        _log("  Hermes 探活 profile=%s → %s", p, "通" if ok else "不通")
+        _log("  %s 探活 profile=%s → %s", cfg.provider, p, "通" if ok else "不通")
         rc = rc or (0 if ok else 1)
     return rc
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="管家（wxbot ⇄ Hermes 之间的编排层）")
+    ap = argparse.ArgumentParser(description="管家（wxbot 与模型后端之间的编排层）")
     ap.add_argument("--config", default=None, help="config.toml 路径（默认项目根下 config.toml）")
     ap.add_argument("--status", action="store_true", help="打印配置 + 各 Profile 探活后退出")
     ap.add_argument("--host", default=None)

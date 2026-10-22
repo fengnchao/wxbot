@@ -1,4 +1,6 @@
 """读取 config.toml，其他模块只从这里取配置。"""
+import math
+import os
 from pathlib import Path
 
 try:
@@ -14,12 +16,44 @@ def validate_model_concurrency(value):
         raise ValueError('queue.max_model_requests 必须是正整数（不能是布尔值）')
 
 
+def validate_typing_config(wcfg):
+    if not isinstance(wcfg, dict):
+        raise ValueError('wechat 必须是配置表')
+    typing = wcfg.get('typing', {})
+    if not isinstance(typing, dict):
+        raise ValueError('wechat.typing 必须是配置表')
+    chunk_size = typing.get('chunk_size', 5)
+    if type(chunk_size) is not int or not 1 <= chunk_size <= 100:
+        raise ValueError('wechat.typing.chunk_size 必须是 1–100 的整数（不能是布尔值）')
+    chunk_interval = typing.get('chunk_interval', .5)
+    if (type(chunk_interval) not in (int, float) or not .05 <= chunk_interval <= 10
+            or not math.isfinite(chunk_interval)):
+        raise ValueError('wechat.typing.chunk_interval 必须是 0.05–10 的有限数值（秒）')
+    return chunk_size, float(chunk_interval)
+
+
+def validate_failure_timeout(value):
+    if (type(value) not in (int, float) or not 1 <= value <= 86400
+            or not math.isfinite(value)):
+        raise ValueError('queue.failure_discard_seconds 必须是 1–86400 的有限数值（秒）')
+    return value
+
+
+def validate_runtime_config(cfg):
+    validate_typing_config(cfg.get('wechat', {}))
+    qcfg = cfg.get('queue', {})
+    if not isinstance(qcfg, dict):
+        raise ValueError('queue 必须是配置表')
+    validate_failure_timeout(qcfg.get('failure_discard_seconds', 180))
+
+
 def load_config(path: str | Path | None = None) -> dict:
-    path = Path(path) if path else ROOT / "config.wxbot.toml"
+    path = Path(path or os.environ.get('WXBOT_CONFIG') or ROOT / "config.wxbot.toml")
     if not path.exists():
         raise FileNotFoundError(f"找不到配置文件 {path}，请先复制 config.wxbot.example.toml 为 config.wxbot.toml")
     with open(path, "rb") as f:
         cfg = tomllib.load(f)
+    validate_runtime_config(cfg)
     bot = cfg.setdefault("bot", {})
     qcfg = cfg.setdefault('queue', {})
     validate_model_concurrency(qcfg.setdefault('max_model_requests', 2))

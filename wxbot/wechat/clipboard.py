@@ -5,6 +5,23 @@ from ctypes import wintypes as wt
 import time
 
 
+def _clipboard_error(reason,operation,*,fmt=None,native=False):
+    """Attach only fixed diagnostic labels and numeric codes, never clipboard data."""
+    error=OSError(reason)
+    error.clipboard_details={'clipboard_operation':operation,'clipboard_error':reason}
+    if fmt is not None:error.clipboard_details['clipboard_format']=int(fmt)
+    if native:error.clipboard_details['os_error_code']=ct.get_last_error()
+    return error
+
+
+def failure_details(error):
+    details={**getattr(error,'clipboard_details',{}),'exception_type':type(error).__name__}
+    code=getattr(error,'winerror',None)
+    if type(code) is not int:code=getattr(error,'errno',None)
+    if type(code) is int:details.setdefault('os_error_code',code)
+    return details
+
+
 class _Medium(ct.Structure):
     _fields_=[('tymed',wt.DWORD),('handle',ct.c_void_p),('owner',ct.c_void_p)]
 
@@ -44,14 +61,14 @@ class WindowsClipboard:
         # A message-only owner avoids OpenClipboard(NULL) / EmptyClipboard ownership issues.
         self.window=create(0,'STATIC','wxbot clipboard',0,0,0,0,0,ct.c_void_p(-3),None,None,None)
         if not self.window:
-            raise OSError('无法创建剪贴板所有者')
+            raise _clipboard_error('无法创建剪贴板所有者','create_owner',native=True)
 
     @contextmanager
     def open(self):
         deadline=time.monotonic()+.2
         while not self._open(self.window):
             if time.monotonic()>=deadline:
-                raise OSError('剪贴板正被其他程序占用')
+                raise _clipboard_error('剪贴板正被其他程序占用','open',native=True)
             time.sleep(.005)
         try:
             yield
@@ -73,7 +90,7 @@ class WindowsClipboard:
         base={0x82:2,0x83:3,0x8E:14}.get(fmt,fmt)
         medium={2:16,9:16,3:32,14:64}.get(base,1)
         copy=self._copy_enhanced(handle,None) if base==14 else self._duplicate(handle,base,2)
-        if not copy: raise OSError('剪贴板数据复制失败')
+        if not copy: raise _clipboard_error('剪贴板数据复制失败','duplicate_format',fmt=fmt,native=True)
         return _Medium(medium,copy,None)
 
     def snapshot(self):
@@ -85,19 +102,23 @@ class WindowsClipboard:
                 ct.set_last_error(0)
                 fmt=self._enum(fmt)
                 if not fmt:
-                    if ct.get_last_error(): raise OSError('无法枚举剪贴板格式')
+                    if ct.get_last_error(): raise _clipboard_error('无法枚举剪贴板格式','enumerate_formats',native=True)
                     return saved
-                if len(saved)>=128 or fmt==0x80:
-                    raise OSError('剪贴板格式无法安全备份')
+                if len(saved)>=128:
+                    raise _clipboard_error('剪贴板格式数量超过安全备份上限','snapshot_limit',fmt=fmt)
+                if fmt==0x80:
+                    raise _clipboard_error('剪贴板包含无法安全备份的OWNERDISPLAY格式','snapshot_format',fmt=fmt)
                 handle=self._get(fmt)
-                if not handle: raise OSError('剪贴板数据无法安全备份')
+                if not handle: raise _clipboard_error('剪贴板数据无法安全备份','get_format',fmt=fmt,native=True)
                 base={0x82:2,0x83:3,0x8E:14}.get(fmt,fmt)
                 medium={2:16,9:16,3:32,14:64}.get(base,1)
                 if medium==1:
                     size=self._size(handle)
                     total+=size
-                    if not size or total>64*1024*1024:
-                        raise OSError('剪贴板数据无法安全备份或超过64MB')
+                    if not size:
+                        raise _clipboard_error('剪贴板格式的内存大小不可读取','format_size',fmt=fmt,native=True)
+                    if total>64*1024*1024:
+                        raise _clipboard_error('剪贴板备份数据超过64MB','snapshot_limit',fmt=fmt)
                 saved.append((fmt,self._copy_format(fmt,handle)))
         except BaseException:
             self.free_snapshot(saved)
@@ -107,14 +128,16 @@ class WindowsClipboard:
         # Python len() is not UTF-16 code-unit length: allocate bytes, including emoji pairs.
         encoded=text.encode('utf-16-le')+b'\0\0'
         handle=self._alloc(2,len(encoded))
-        if not handle: raise OSError('剪贴板内存分配失败')
+        if not handle: raise _clipboard_error('剪贴板内存分配失败','allocate_text',native=True)
         try:
             address=self._lock(handle)
-            if not address: raise OSError('剪贴板内存不可写')
+            if not address: raise _clipboard_error('剪贴板内存不可写','lock_text',native=True)
             try: ct.memmove(address,encoded,len(encoded))
             finally: self._unlock(handle)
-            if not self._empty() or not self._set(13,handle):
-                raise OSError('剪贴板写入失败')
+            if not self._empty():
+                raise _clipboard_error('清空剪贴板以写入正文失败','empty_for_write',native=True)
+            if not self._set(13,handle):
+                raise _clipboard_error('剪贴板写入失败','set_text',fmt=13,native=True)
             handle=None  # Ownership moved to Windows.
         finally:
             if handle: self._free(handle)
@@ -126,9 +149,9 @@ class WindowsClipboard:
         try:
             for fmt,medium in saved:
                 copies.append((fmt,self._copy_format(fmt,medium.handle)))
-            if not self._empty(): raise OSError('剪贴板恢复失败')
+            if not self._empty(): raise _clipboard_error('剪贴板恢复失败','empty_for_restore',native=True)
             for fmt,medium in copies:
-                if not self._set(fmt,medium.handle): raise OSError('剪贴板格式恢复失败')
+                if not self._set(fmt,medium.handle): raise _clipboard_error('剪贴板格式恢复失败','restore_format',fmt=fmt,native=True)
                 medium.handle=None  # Transferred handles now belong to Windows.
         finally:
             self.free_snapshot(copies)
@@ -163,14 +186,24 @@ class ClipboardLease:
         if not isinstance(text,str) or '\0' in text:
             raise ValueError('粘贴正文必须是无NUL的Unicode字符串')
         if not restore_pending(force=True):
-            raise OSError('上一批剪贴板尚未恢复，停止继续粘贴')
+            error=_clipboard_error('上一批剪贴板尚未恢复，停止继续粘贴','pending_restore')
+            if _pending:
+                previous=getattr(_pending[-1],'restore_failure',{})
+                error.clipboard_details.update({key:value for key,value in previous.items() if key!='exception_type'})
+                error.clipboard_details['clipboard_error']='上一批剪贴板尚未恢复；'+previous.get('clipboard_error','恢复原因未确认')
+            raise error
         self.api=api if api is not None else WindowsClipboard()
         self.saved,self.seq,self.closed=None,None,False
+        self.restore_failure={}
         self.sequence_at_write,self.sequence_after_close,self.sequence_at_check=None,None,None
         try:
             with self.api.open():
-                if self.api.sequence()==0: raise OSError('无法核对剪贴板序号')
+                initial_sequence=self.api.sequence()
                 self.saved=self.api.snapshot()
+                # A new, empty Windows clipboard can legitimately begin at zero.
+                # Existing formats with an unreadable generation remain unsafe.
+                if initial_sequence==0 and self.saved:
+                    raise _clipboard_error('无法核对已有剪贴板内容的序号','initial_sequence')
                 try:
                     self.api.write_text(text)
                 finally:
@@ -178,6 +211,8 @@ class ClipboardLease:
                     self.sequence_at_write=self.seq
             self.sequence_after_close=self.api.sequence()
             self._adopt_owned_sequence()
+            if not self.seq:
+                raise _clipboard_error('写入后无法核对剪贴板序号','committed_sequence')
         except BaseException:
             try:
                 self._adopt_owned_sequence()
@@ -221,6 +256,7 @@ class ClipboardLease:
             if self.saved is not None: self.api.free_snapshot(self.saved)
             self.api.dispose()
         except BaseException as exc:
+            self.restore_failure=failure_details(exc)
             # Keep the owned backup alive for the UI loop's next retry; don't overwrite new copies.
             if self not in _pending: _pending.append(self)
             if restore_attempted:

@@ -126,7 +126,8 @@ class HeartbeatScheduler:
                     allowed_skills=allowed_skills)
         started = time.monotonic()
         try:
-            contact = self.butler.contact_of(contact_name)
+            contact = (self.butler.heartbeat_contact(contact_name)
+                       if getattr(self.cfg,'provider','hermes')=='codex' else self.butler.contact_of(contact_name))
             self._audit("hermes_call_started", source=source, contact=contact_name,
                         role_skill=role_skill)
             raw = self.butler.hermes.chat(

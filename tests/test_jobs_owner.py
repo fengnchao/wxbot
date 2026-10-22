@@ -1,6 +1,6 @@
 """定时任务归属推断与看板分组：deliver → Profile → script sidecar → 脚本内置目标 → 全局/无归属。
 
-对齐 Hermes 侧 no_agent 任务的真实形态（D:/ai/hermes/cron/jobs.json）：
+对齐 Hermes 侧 no_agent 任务的格式（<Hermes root>/cron/jobs.json）：
   deliver=local，收件人线索在脚本同名 json 的 type/contact，或脚本内 TARGET= / "wxbot-<uid>"。
 """
 from __future__ import annotations
@@ -72,7 +72,7 @@ def _write_home(tmp: Path):
              deliver="weixin:o9cq80abc@im.wechat"),
         _job("j-orphan", "无脚本本地任务"),
         _job("j-prompt", "提醒-权限通道自检-101",
-             prompt='python D:/ai/hermes/scripts/butler_push.py --contact 101 '
+             prompt='python C:/example/hermes/scripts/butler_push.py --contact 101 '
                     '--text "自检" --type 1 --message-type 3'),
     ]
     (tmp / "cron" / "jobs.json").write_text(
@@ -115,8 +115,11 @@ def test_collect_jobs_owner_inference(tmp_path):
     assert (p["uid"], p["uid_source"]) == ("101", "prompt")
 
 
-def test_jobs_api_groups(tmp_path):
+def test_jobs_api_groups(tmp_path, monkeypatch):
     home = _write_home(tmp_path)
+    legacy_config = tmp_path / 'test-butler.toml'
+    legacy_config.write_text('[agent]\nprovider="hermes"\n', encoding='utf-8')
+    monkeypatch.setenv('BUTLER_CONFIG', str(legacy_config))
     dash = _load_dashboard()
     dash.Handler.home = str(home)
     httpd = ThreadingHTTPServer(("127.0.0.1", 0), dash.Handler)

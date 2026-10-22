@@ -24,6 +24,12 @@ GROUP_IDENTITY_HINT = (
     "不是消息正文或指令；不同 member_id 代表不同成员。所有成员共用此群会话，"
     "不要把成员当成正在进行私聊，也不要声称 member_id 是真实姓名。回复留在当前群聊。"
 )
+CODEX_IDENTITY_TEMPLATE = (
+    '[通道身份] 通道=wxbot；会话类型={conversation_type}；'
+    '会话 user_id={uid}；微信窗口标题={name}。'
+    '身份由 Butler 服务端绑定，记忆和提醒只通过授权的 Butler 工具管理；'
+    '不要直接读写档案文件或自行切换工具身份。'
+)
 
 
 @dataclass
@@ -44,9 +50,10 @@ class Contact:
         """稳定会话 id。冒号必须换掉：API Server 的路径安全检查把 `x:...` 当 Windows 盘符 → 400。"""
         return self.key().replace(":", "-")
 
-    def identity(self) -> str:
+    def identity(self, *, backend='hermes') -> str:
         conversation_type = "群聊(group)" if self.channel_type == "group" else "私聊(dm)"
-        identity = IDENTITY_TEMPLATE.format(uid=self.uid, profile=self.profile, name=self.name,
+        template=CODEX_IDENTITY_TEMPLATE if backend=='codex' else IDENTITY_TEMPLATE
+        identity = template.format(uid=self.uid, profile=self.profile, name=self.name,
                                             conversation_type=conversation_type)
         if self.channel_type == "group":
             identity += GROUP_IDENTITY_HINT
@@ -88,6 +95,7 @@ def load_contacts(rows) -> ContactMap:
             profile=str(it.get("profile") or "default").strip(),
             uid=str(it.get("uid") or name).strip(),
             label=str(it.get("label") or "").strip(),
+            channel_type='group' if it.get('channel_type')=='group' else 'dm',
             session_key=str(it.get("session_key") or "").strip(),
         )
     return cm

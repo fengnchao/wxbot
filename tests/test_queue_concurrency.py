@@ -70,6 +70,7 @@ def test_config_default_and_one_valid(tmp_path):
 def test_stop_budget_includes_a_blocked_queue_prepare():
     entered,release,stopped=Event(),Event(),Event()
     class Store:
+        def recover_model_failures(self,**kw):return []
         def prepare(self,**kw):
             entered.set()
             assert release.wait(3)

@@ -15,6 +15,12 @@ import sys
 from .concurrency import RuntimeLocks
 
 _OWNER_FIELDS = frozenset({'contact', 'uid', 'user_id'})
+
+
+class EmptyPendingQueue:
+    """A fresh Codex install never inspects or imports a legacy Hermes outbox."""
+    def take_and_claim(self,*args,**kwargs):
+        return []
 _OWNER_WORDS = frozenset({'contact', 'uid', 'user', 'userid', 'username', 'recipient',
                           'recipients', 'receiver', 'receivers', 'target', 'targets',
                           'to', 'owner', 'profile'})

@@ -77,6 +77,32 @@ def test_clipboard_lease_restores_all_original_formats_after_paste():
     assert lease.close()
 
 
+def test_initially_empty_zero_sequence_clipboard_can_be_pasted_and_restored():
+    from wxbot.wechat.clipboard import ClipboardLease
+    api=DeferredClipboard();api.data={};api.seq=0
+    lease=ClipboardLease('first clipboard write',api=api)
+    assert lease.seq>0 and lease.is_current()
+    assert lease.close()
+    assert api.data=={} and api.disposed
+
+
+def test_zero_sequence_with_existing_formats_is_rejected_without_overwriting():
+    from wxbot.wechat.clipboard import ClipboardLease
+    api=FakeClipboard();api.seq=0;before=deepcopy(api.data)
+    with pytest.raises(OSError):ClipboardLease('unsafe',api=api)
+    assert api.data==before and api.disposed
+
+
+def test_unreadable_sequence_after_write_is_blocked_and_original_restored():
+    from wxbot.wechat.clipboard import ClipboardLease
+    api=FakeClipboard();api.data={}
+    def untracked_write(text):
+        api.data={13:text};api.seq=0
+    api.write_text=untracked_write
+    with pytest.raises(OSError):ClipboardLease('unsafe',api=api)
+    assert api.data=={} and api.disposed
+
+
 def test_copy_by_user_is_preserved_instead_of_restoring_stale_clipboard():
     from wxbot.wechat.clipboard import ClipboardLease
     api=FakeClipboard()

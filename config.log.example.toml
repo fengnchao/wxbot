@@ -1,0 +1,11 @@
+# log 默认会读取项目根目录 config.log.toml，首次通过页面保存时自动创建。
+# 命令行 --host/--port/--home 与环境变量优先于文件。
+[server]
+host = "127.0.0.1"
+port = 8788
+
+[sources]
+home = ""                 # 留空使用项目 data/（旧 Hermes 配置沿用原数据目录）
+wxbot_config = ""           # 留空使用项目 config.wxbot.toml
+butler_config = ""          # 留空使用项目 config.butler.toml
+groups_file = ""            # 留空使用 home/cache/butler_groups.json

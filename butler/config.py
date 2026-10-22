@@ -16,6 +16,15 @@ DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config.butler.toml"
 
 @dataclass
 class Config:
+    provider: str = 'hermes'  # Existing files keep their backend; init creates Codex configs.
+    data_dir: str = 'data'
+    config_dir: str = ''
+    codex_home: str = ''
+    codex_plugin: str = ''
+    codex_model: str = ''
+    codex_timeout: int = 600
+    codex_max_workers: int = 2
+    codex_idle_seconds: int = 600
     # server
     host: str = "127.0.0.1"
     port: int = 8770
@@ -56,13 +65,28 @@ class Config:
     def have_token(self) -> bool:
         return bool(self.token)
 
+    def resolve_path(self, value):
+        p = Path(value).expanduser()
+        return (p if p.is_absolute() else Path(self.config_dir or DEFAULT_CONFIG.parent)/p).resolve()
+
+    def data_path(self):
+        return self.resolve_path(self.data_dir)
+
+    def codex_home_path(self):
+        return self.resolve_path(self.codex_home) if self.codex_home else self.data_path()/'codex'
+
+    def plugin_path(self):
+        return self.resolve_path(self.codex_plugin) if self.codex_plugin else Path(__file__).resolve().parents[1]/'plugins'/'butler-wechat'
+
     def hermes_up(self) -> bool:
         return bool(self.hermes_url)
 
     def flow_log_path(self) -> str:
         """流水日志文件路径。显式配置优先；否则 {hermes_root}/cache/wxbot.log（看板默认读这里）；都无则返回空=禁用。"""
         if self.flow_log:
-            return self.flow_log
+            return str(self.resolve_path(self.flow_log)) if self.provider=='codex' else self.flow_log
+        if self.provider == 'codex':
+            return str(self.data_path()/'cache'/'wxbot.log')
         if self.hermes_root:
             return os.path.join(self.hermes_root, "cache", "wxbot.log")
         return ""
@@ -71,28 +95,36 @@ class Config:
         """用户分组字典路径。显式配置优先；否则 {hermes_root}/cache/butler_groups.json
         （log 看板「用户分组」页默认读写同一路径）；都无则返回空=禁用（群发按无人绑定处理）。"""
         if self.groups_file:
-            return self.groups_file
+            return str(self.resolve_path(self.groups_file)) if self.provider=='codex' else self.groups_file
+        if self.provider == 'codex':
+            return str(self.data_path()/'cache'/'butler_groups.json')
         if self.hermes_root:
             return os.path.join(self.hermes_root, "cache", "butler_groups.json")
         return ""
 
     def heartbeat_config_path(self) -> str:
         if self.heartbeat_config_file:
-            return self.heartbeat_config_file
+            return str(self.resolve_path(self.heartbeat_config_file)) if self.provider=='codex' else self.heartbeat_config_file
+        if self.provider == 'codex':
+            return str(self.data_path()/'cache'/'butler_heartbeat.json')
         if self.hermes_root:
             return os.path.join(self.hermes_root, "cache", "butler_heartbeat.json")
         return ""
 
     def heartbeat_state_path(self) -> str:
         if self.heartbeat_state_file:
-            return self.heartbeat_state_file
+            return str(self.resolve_path(self.heartbeat_state_file)) if self.provider=='codex' else self.heartbeat_state_file
+        if self.provider == 'codex':
+            return str(self.data_path()/'cache'/'butler_heartbeat_state.json')
         if self.hermes_root:
             return os.path.join(self.hermes_root, "cache", "butler_heartbeat_state.json")
         return ""
 
     def heartbeat_audit_path(self) -> str:
         if self.heartbeat_audit_file:
-            return self.heartbeat_audit_file
+            return str(self.resolve_path(self.heartbeat_audit_file)) if self.provider=='codex' else self.heartbeat_audit_file
+        if self.provider == 'codex':
+            return str(self.data_path()/'cache'/'butler_heartbeat_audit.jsonl')
         if self.hermes_root:
             return os.path.join(self.hermes_root, "cache", "butler_heartbeat_audit.jsonl")
         return ""
@@ -112,8 +144,19 @@ def load(path: str | os.PathLike | None = None) -> Config:
     lg = raw.get("log") or {}
     gp = raw.get("groups") or {}
     hb = raw.get("heartbeat") or {}
+    agent = raw.get('agent') or {}
+    codex = raw.get('codex') or {}
+    provider = str(agent.get('provider') or 'hermes')
+    if provider not in ('hermes','codex'):
+        raise ValueError('agent.provider must be codex or hermes')
 
     return Config(
+        provider=provider, config_dir=str(p.resolve().parent),
+        data_dir=str(agent.get('data_dir') or 'data'),
+        codex_home=str(codex.get('home') or ''), codex_plugin=str(codex.get('plugin_root') or ''),
+        codex_model=str(codex.get('model') or ''), codex_timeout=max(1,int(codex.get('timeout',600))),
+        codex_max_workers=max(1,min(8,int(codex.get('max_workers',2)))),
+        codex_idle_seconds=max(1,int(codex.get('idle_seconds',600))),
         host=str(srv.get("host") or "127.0.0.1"),
         port=int(srv.get("port") or 8770),
         token=str(srv.get("token") or "").strip(),

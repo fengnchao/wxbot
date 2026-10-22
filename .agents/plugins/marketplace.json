@@ -1,0 +1,9 @@
+{
+  "name": "butler-wechat-plugins",
+  "interface": {"displayName": "Butler WeChat"},
+  "plugins": [{
+    "name": "butler-wechat",
+    "source": {"source": "local", "path": "./plugins/butler-wechat"},
+    "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"}
+  }]
+}

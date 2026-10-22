@@ -3,6 +3,7 @@ import json
 import sqlite3
 import threading
 import urllib.request
+import urllib.error
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 
@@ -114,8 +115,8 @@ def test_config_includes_raw_defaults_fixed_typing_and_dynamic_policies_and_reda
     rows={r['key']:r for section in data['sections'] for r in section['rows']}
     assert rows['wxbot.queue.quiet_seconds']['value']==3
     assert rows['wxbot.queue.quiet_seconds']['origin']=='default'
-    assert rows['wxbot.typing.chunk_size']['value']==5
-    assert rows['wxbot.typing.chunk_interval']['value']==.5
+    assert rows['wxbot.wechat.typing.chunk_size']['value']==5
+    assert rows['wxbot.wechat.typing.chunk_interval']['value']==.5
     assert rows['wxbot.typing.input_method']['value']=='分批剪贴板粘贴'
     assert rows['wxbot.typing.unicode_keyboard']['value'] is False
     assert rows['wxbot.model.api_key']['value']=='已配置（隐藏）'
@@ -200,10 +201,10 @@ def test_monitor_http_endpoints_and_html_routes(tmp_path,monkeypatch):
     thread.start()
     base='http://127.0.0.1:'+str(server.server_port)
     try:
-        for route in ('/api/queue','/api/configuration','/api/flow'):
+        for route in ('/api/queue','/api/configuration','/api/flow','/api/workflow'):
             with urllib.request.urlopen(base+route,timeout=3) as response:
                 data=json.load(response)
-            assert data['read_only'] is True
+            assert data['read_only'] is (route!='/api/configuration')
             assert 'hermes-secret-000' not in json.dumps(data)
         with urllib.request.urlopen(base+'/api/wxbot',timeout=3) as response:
             payload=json.load(response)
@@ -211,6 +212,23 @@ def test_monitor_http_endpoints_and_html_routes(tmp_path,monkeypatch):
         with urllib.request.urlopen(base+'/?tab=queue',timeout=3) as response:
             html=response.read().decode('utf-8')
         assert 'tab-queue' in html and 'tab-configuration' in html
+        for asset,mime in (('dashboard.css','text/css'),('configuration.js','text/javascript'),
+                           ('workflow.css','text/css'),('workflow.js','text/javascript')):
+            with urllib.request.urlopen(base+'/assets/'+asset,timeout=3) as response:
+                assert response.headers['Content-Type'].startswith(mime)
+                assert response.read()
+        for asset in ('../config.butler.toml','%2e%2e/config.butler.toml','not-found.js'):
+            with pytest.raises(urllib.error.HTTPError) as error:
+                urllib.request.urlopen(base+'/assets/'+asset,timeout=3)
+            assert error.value.code==404
+        def bad_workflow(*args,**kwargs):
+            raise ValueError('hermes-secret-000 private-config-path')
+        monkeypatch.setattr(mod,'WorkflowView',bad_workflow)
+        with pytest.raises(urllib.error.HTTPError) as error:
+            urllib.request.urlopen(base+'/api/workflow',timeout=3)
+        assert error.value.code==500
+        wire=error.value.read().decode('utf-8')
+        assert 'hermes-secret-000' not in wire and 'private-config-path' not in wire
     finally:
         server.shutdown()
         server.server_close()

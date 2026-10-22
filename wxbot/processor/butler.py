@@ -71,7 +71,9 @@ class ButlerProcessor(Processor):
         if not isinstance(meta, dict):
             raise ValueError('Butler meta 格式错误')
         if meta.get('reply_complete') is False:
-            raise ValueError('Butler 尚未提供完整回复')
+            error=ValueError('Butler 尚未提供完整回复'+('：'+str(meta['error'])[:1000] if meta.get('error') else ''))
+            error.retry_safe=meta.get('retry_safe') is True
+            raise error
         if request_id is not None and 'msg_id' in meta and meta['msg_id'] != request_id:
             raise ValueError('Butler 返回的请求 ID 不匹配')
         reply = data.get("reply")

@@ -2,16 +2,19 @@
 import time
 
 import uiautomation as auto
-from .clipboard import ClipboardLease
+from ..config import validate_typing_config
+from .clipboard import ClipboardLease,failure_details
 
 
 class TypingSession:
     def __init__(self, chat, win, edit, text, *, clock=time.monotonic):
+        self.chunk_size, self.chunk_interval = validate_typing_config(getattr(chat, 'wcfg', {}))
         self.chat, self.win, self.edit, self.text = chat, win, edit, text
         self.clock = clock
         normalized = text.replace("\r\n", "\n").replace("\r", "\n")
         self.normalized = normalized
-        self.chunks = [normalized[i:i + 5] for i in range(0, len(normalized), 5)]
+        self.chunks = [normalized[i:i + self.chunk_size]
+                       for i in range(0, len(normalized), self.chunk_size)]
         self.index = 0
         self.next_due = clock()
         self.state = "typing"
@@ -35,6 +38,7 @@ class TypingSession:
         if self._clipboard.close():
             self._clipboard = None
             return True
+        self.failure_details.update(getattr(self._clipboard,'restore_failure',{}))
         return False
 
     def _target_or_focus_error(self, prefix):
@@ -66,7 +70,7 @@ class TypingSession:
                 return self.state
             if self._verify_prefix:
                 self.phase='verify_prefix'
-                expected = self.normalized[:self.index * 5]
+                expected = self.normalized[:self.index * self.chunk_size]
                 if self._draft() == expected:
                     if not self.close():
                         self.state,self.error = 'blocked','剪贴板暂时无法恢复，已保留草稿，未按回车'
@@ -83,10 +87,12 @@ class TypingSession:
                 return self.state
             if self.index < len(self.chunks):
                 self.phase='paste_guard'
-                if self._draft() != self.normalized[:self.index * 5]:
+                if self._draft() != self.normalized[:self.index * self.chunk_size]:
                     self.state,self.error='blocked','粘贴前输入内容变化或不可读，已保留草稿，未按回车'
                     return self.state
+                self.phase='clipboard_acquire'
                 self._clipboard = ClipboardLease(self.chunks[self.index])
+                self.phase='paste_guard'
                 if not self.chat._can_send(self.win,self.edit):
                     self.state,self.error='blocked',self._target_or_focus_error('粘贴前')
                     self.close()
@@ -101,11 +107,12 @@ class TypingSession:
                         f'校验时={self._clipboard.sequence_at_check}），未粘贴、未按回车')
                     self.close()
                     return self.state
+                self.phase='paste_key'
                 auto.SendKeys('{Ctrl}v',interval=0.01,waitTime=0.05)
                 self.index += 1
                 self._verify_prefix = True
                 self._verify_deadline = self.clock() + 0.75
-                self.next_due = self.clock() + (0.5 if self.index < len(self.chunks) else 0.05)
+                self.next_due = self.clock() + (self.chunk_interval if self.index < len(self.chunks) else 0.05)
             else:
                 self.phase='before_enter'
                 self.submitted_text = self._draft()
@@ -123,11 +130,13 @@ class TypingSession:
                 self.state = "submitted"
         except Exception as exc:
             self.state = "uncertain" if self.enter_attempted else "blocked"
+            self.failure_details.update(failure_details(exc))
+            cause=self.failure_details.get('clipboard_error')
             self.error = (type(exc).__name__ if self.enter_attempted else
-                          f'分批粘贴失败（{type(exc).__name__}），未按回车，已保留草稿')
+                          f'分批粘贴失败（{type(exc).__name__}）'+(f'：{cause}' if cause else '')+'，未按回车，已保留草稿')
             self.close()
         finally:
             if self.state in {'blocked','uncertain'}:
                 self.failure_details.update(phase=self.phase,enter_attempted=self.enter_attempted,
-                    characters_entered=min(self.index*5,len(self.normalized)))
+                    characters_entered=min(self.index*self.chunk_size,len(self.normalized)))
         return self.state

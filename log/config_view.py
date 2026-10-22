@@ -1,6 +1,7 @@
 """Configuration inventory for the dashboard, with server-side secret removal."""
 from copy import deepcopy
 import json
+import hashlib
 import re
 import time
 import tomllib
@@ -9,22 +10,28 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit, unquote
 
 from common.flow_trace import queue_trace_path,butler_trace_path
 from wxbot.queue_store import FAILURE_TIMEOUT_SECONDS
+from wxbot.model_recovery import MODEL_MAX_ATTEMPTS,MODEL_RETRY_DELAYS
+from log.config_schema import row_metadata
+from log.settings import DEFAULTS as LOG_DEFAULTS,config_path
 
 
 WX_DEFAULTS = {
     'bot': {'bound_users': [], 'bound_groups': [], 'mention_names': [], 'poll_interval':1.5,
             'reply_delay_min':.8, 'reply_delay_max':2.5, 'command_prefix':'/'},
     'queue': {'database':'cache/wxbot_queue.sqlite3', 'quiet_seconds':3., 'max_wait_seconds':10.,
-              'confirm_timeout':5., 'max_model_requests':2},
+              'confirm_timeout':5., 'max_model_requests':2,'failure_discard_seconds':180},
     'butler': {'url':'http://127.0.0.1:8770', 'token':'', 'timeout':660},
     'outbound': {'enabled':True, 'host':'127.0.0.1', 'port':8765, 'token':''},
     'wechat': {'mode':'main', 'main_window':{'window_class':'mmui::MainWindow','chat_tab_name':'微信',
                 'session_list_id':'session_list','search_depth':32,'listen_all':True,
                 'max_scan_pages':20,'switch_timeout':3.},
                'group_sender':{'avatar_size':48,'avatar_left_offset':4,'avatar_top_offset':0,'member_names':{}},
-               'sender_detect':{'strip_width':80,'diff_threshold':40,'min_pixels':20}},
+               'sender_detect':{'strip_width':80,'diff_threshold':40,'min_pixels':20},
+               'typing':{'chunk_size':5,'chunk_interval':.5}},
 }
 BT_DEFAULTS = {
+    'agent':{'provider':'hermes','data_dir':'data'},
+    'codex':{'home':'','plugin_root':'','model':'','timeout':600,'max_workers':2,'idle_seconds':600},
     'server':{'host':'127.0.0.1','port':8770,'token':''},
     'hermes':{'url':'http://127.0.0.1:8642','api_key':'','model':'hermes-agent','timeout':600,
               'root':'','send_identity':True,'profile_in_path':False},
@@ -59,12 +66,25 @@ def leaves(data, prefix=''):
             yield name,value
 
 
+def paths(data,prefix=()):
+    for key,value in data.items():
+        current=(*prefix,key)
+        if isinstance(value,dict) and value:yield from paths(value,current)
+        else:yield current,value
+
+
+def source_version(path,body):
+    return hashlib.sha256(str(Path(path).resolve()).encode('utf-8')+b'\0'+body).hexdigest()
+
+
 class ConfigView:
-    def __init__(self, wxbot_path, butler_path, home, *, repo_root=None, groups_override=None, log_runtime=None):
+    def __init__(self, wxbot_path, butler_path, home, *, repo_root=None, groups_override=None, log_runtime=None,
+                 log_config_path=None):
         self.wxbot_path, self.butler_path = Path(wxbot_path), Path(butler_path)
         self.home = Path(home)
         self.root = Path(repo_root) if repo_root else Path(__file__).resolve().parents[1]
         self.groups_override, self.log_runtime = groups_override, log_runtime or {}
+        self.log_config_path=Path(log_config_path) if log_config_path else config_path()
         self._secrets, self._raw, self._sources = set(), {}, []
 
     def _load(self, name, title, path, *, kind='toml'):
@@ -74,14 +94,16 @@ class ConfigView:
                 raise ValueError('无法确定配置路径')
             path = Path(path)
             source['path'] = str(path.resolve())
-            with path.open('rb') as fh:
-                data = tomllib.load(fh) if kind=='toml' else json.load(fh)
+            body=path.read_bytes()
+            source['version']=source_version(path,body)
+            data = tomllib.loads(body.decode('utf-8-sig')) if kind=='toml' else json.loads(body.decode('utf-8-sig'))
             if not isinstance(data,dict):
                 raise ValueError('配置必须是对象')
             source['modified_at'] = path.stat().st_mtime
             self._collect(data)
         except FileNotFoundError:
             source.update(status='missing',error='文件不存在')
+            source['version']=source_version(path,b'')
             data = {}
         except Exception as exc:
             source.update(status='error',error='读取失败（'+type(exc).__name__+'）')
@@ -168,25 +190,34 @@ class ConfigView:
             raw_keys = {key for key,value in leaves(raw)}
             for group,values in data.items():
                 rows=[]
-                for key,value in leaves({group:values}):
+                default_keys={key for key,value in leaves(merge(WX_DEFAULTS,{'model':model_defaults}) if source=='wxbot' else BT_DEFAULTS)}
+                for path,value in paths({group:values}):
+                    key='.'.join(path)
                     rows.append({'key':source+'.'+key,'value':self.sanitize(value,key),
                                  'origin':'file' if key in raw_keys else 'default',
-                                 'sensitive':sensitive(key)})
+                                 'sensitive':sensitive(key),**row_metadata(source,path,value,default_available=key in default_keys)})
+                    if sensitive(key):
+                        rows[-1]['editor']='secret'
+                        if not isinstance(value,str):rows[-1]['description']+=' 新值请使用JSON格式；清空会移除此字段。'
+                    elif isinstance(value,str) and rows[-1]['value']!=value:
+                        rows[-1]['description']+=' 此值包含隐藏内容；修改时请填写完整的新值，不能保存星号占位。'
                 sections.append({'id':source+'.'+group,'title':('wxbot' if source=='wxbot' else 'Butler')+' · '+group,
-                                 'source':str(self.wxbot_path if source=='wxbot' else self.butler_path),'rows':rows})
+                                 'source_id':source,'source':str(self.wxbot_path if source=='wxbot' else self.butler_path),'rows':rows})
         sections.append({'id':'wxbot.typing','title':'微信输入与分句（代码固定规则）',
                          'source':str(self.root/'wxbot'/'wechat'/'typing.py'),
                          'rows':[{'key':'wxbot.typing.'+key,'value':value,'origin':'code','sensitive':False} for key,value in
-                                 (('chunk_size',5),('chunk_interval',.5),('input_method','分批剪贴板粘贴'),
+                                 (('input_method','分批剪贴板粘贴'),
                                   ('unicode_keyboard',False),('clipboard_restore','恢复原格式；保留用户期间新复制的内容'),
                                   ('verify_input',True),('split_reply_at','。？！!? / 代码区外换行'),
                                   ('reply_parts_source','Butler 完整生成后一次返回，wxbot 按用户逐句轮转'))]})
         sections.append({'id':'wxbot.failure_policy','title':'发送失败与人工核对（代码固定规则）',
                          'source':str(self.root/'wxbot'/'queue_store.py'),
                          'rows':[{'key':'wxbot.failure_policy.'+key,'value':value,'origin':'code','sensitive':False}
-                                 for key,value in (('discard_after_seconds',FAILURE_TIMEOUT_SECONDS),
-                                     ('starts_at','首次发件失败；重试/重启不重置'),
+                                 for key,value in (('starts_at','首次发件失败；重试/重启不重置'),
                                      ('states',['blocked','uncertain']),
+                                     ('model_max_attempts',MODEL_MAX_ATTEMPTS),
+                                     ('model_retry_delays_seconds',list(MODEL_RETRY_DELAYS)),
+                                     ('model_unknown_result','不自动重放；失败等待达到 queue.failure_discard_seconds 后结束旧批次并放行后续消息'),
                                      ('manual_actions','收发队列 → 人工核对：重试、确认已发、立即丢弃'))]})
         hermes = bt.get('hermes') or {}
         def resolved_path(value, fallback):
@@ -194,6 +225,9 @@ class ConfigView:
                 return fallback
             return Path(value) if isinstance(value,str) else None
         home = resolved_path(hermes.get('root'),self.home) if isinstance(hermes,dict) else None
+        if (bt.get('agent') or {}).get('provider')=='codex':
+            from butler.config import load as load_butler
+            home=load_butler(self.butler_path).data_path()
         heartbeat = bt.get('heartbeat') or {}
         groups = bt.get('groups') or {}
         if not isinstance(heartbeat,dict): heartbeat={}
@@ -220,9 +254,28 @@ class ConfigView:
                 dynamic_sources.append((name,title,path,data))
                 warnings.append(title+'与 Butler 来源不同，已分别列出，请核对服务的 home / 配置路径。')
         for name,title,path,data in dynamic_sources:
-            sections.append({'id':name,'title':title,'source':str(path) if path else '路径无效，请检查 Butler 配置','rows':[
-                {'key':name+'.'+key,'value':self.sanitize(value,key),'origin':'file','sensitive':sensitive(key)}
-                for key,value in leaves(data)]})
+            if not data:data={'users':{}} if name in {'policies','log_policies'} else {'groups':{}}
+            rows=[]
+            for key,value in paths(data):
+                joined='.'.join(key)
+                meta=row_metadata(name,key,value)
+                meta['editable']=key[0] not in {'version','updated_at'}
+                rows.append({'key':name+'.'+joined,'value':self.sanitize(value,joined),'origin':'file',
+                             'sensitive':sensitive(joined),**meta})
+                if sensitive(joined):rows[-1]['editor']='secret'
+            sections.append({'id':name,'title':title,'source_id':name,
+                             'source':str(path) if path else '路径无效，请检查 Butler 配置','rows':rows})
+        log_config=self._load('log_config','log 启动配置',self.log_config_path)
+        log_rows=[]
+        log_default_paths={p for p,v in paths(LOG_DEFAULTS)}
+        for key,value in paths(merge(LOG_DEFAULTS,log_config)):
+            joined='.'.join(key)
+            row={'key':'log_config.'+joined,'value':self.sanitize(value,joined),
+                 'origin':'file' if any(p==key for p,v in paths(log_config)) else 'default','sensitive':sensitive(joined),
+                 **row_metadata('log_config',key,value,default_available=key in log_default_paths)}
+            if row['sensitive']:row['editor']='secret'
+            log_rows.append(row)
+        sections.append({'id':'log_config','title':'log · 启动配置','source':str(self.log_config_path),'source_id':'log_config','rows':log_rows})
         sections.append({'id':'log','title':'log 服务与配置来源','source':'log 进程参数 / 环境变量',
                          'rows':[{'key':'log.'+key,'value':value,'origin':'runtime','sensitive':False} for key,value in
                                  {'home':str(self.home),'wxbot_config':str(self.wxbot_path),'butler_config':str(self.butler_path),
@@ -237,9 +290,27 @@ class ConfigView:
                              'source':str(self.root/'common'/'flow_trace.py'),'rows':trace_rows})
         except Exception:
             warnings.append('流转记录路径无法由当前配置推导，请检查 wxbot / Butler 配置。')
+        for section in sections:
+            source=next((s for s in self._sources if s['id']==section.get('source_id')),None)
+            for row in section['rows']:
+                row.setdefault('editable',False)
+                if source and source['status']=='error':row['editable']=False
         # Run the final whole payload through the scrubber: a secret may also occur in a path or a harmless field.
-        return self.scrub({'read_only':True,'runtime_verified':False,'at':time.time(),'sources':self._sources,'sections':sections,'warnings':warnings,
-                              'note':'展示文件中的配置、缺省值和代码规则；未核对运行中 wxbot/Butler 的已加载配置。修改文件后需按对应服务的生效方式处理。'})
+        payload={'read_only':False,'runtime_verified':False,'at':time.time(),'sources':self._sources,'sections':sections,'warnings':warnings,
+                 'note':'按来源文件保存修改；保存不等于运行服务已加载。页面逐项标明生效方式，不自动重启任何服务。密钥原值不会回显。'}
+        self._catalog=deepcopy(payload)  # Writer authorization uses server metadata, never scrubbed display strings.
+        safe=self.scrub(payload)
+        # Schema identifiers are protocol structure. A key coinciding with "timeout" must not rename a field.
+        for original,output in zip(payload['sources'],safe['sources']):
+            for key in ('id','status','version'):
+                if key in original:output[key]=original[key]
+        for original,output in zip(sections,safe['sections']):
+            for key in ('id','source_id'):
+                if key in original:output[key]=original[key]
+            for row,shown in zip(original['rows'],output['rows']):
+                for key in ('key','path','editor','origin'):
+                    if key in row:shown[key]=deepcopy(row[key])
+        return safe
 
     def queue_options(self):
         if 'wxbot' not in self._raw:
@@ -253,6 +324,7 @@ class ConfigView:
         name = str(queue.get('database','cache/wxbot_queue.sqlite3'))
         path = name if name==':memory:' else str(Path(name) if Path(name).is_absolute() else self.root/name)
         return {'path':path,'quiet':float(queue.get('quiet_seconds',3)),
+                'failure_timeout_seconds':queue.get('failure_discard_seconds',FAILURE_TIMEOUT_SECONDS),
                 'max_wait':float(queue.get('max_wait_seconds',10)),'prefix':bot.get('command_prefix','/')}
 
     def flow_options(self):
@@ -261,6 +333,9 @@ class ConfigView:
         log = bt.get('log') or {}
         hermes = bt.get('hermes') or {}
         flow_file = log.get('flow_file') if isinstance(log,dict) else None
+        if (bt.get('agent') or {}).get('provider')=='codex':
+            from butler.config import load as load_butler
+            flow_file=load_butler(self.butler_path).flow_log_path()
         root = hermes.get('root') if isinstance(hermes,dict) else None
         if not flow_file and isinstance(root,str) and root:
             flow_file = str(Path(root)/'cache'/'wxbot.log')

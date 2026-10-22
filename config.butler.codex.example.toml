@@ -1,0 +1,42 @@
+# Fresh portable install. Run python -m butler init to generate local tokens.
+[agent]
+provider = "codex"
+data_dir = "data"
+
+[server]
+host = "127.0.0.1"
+port = 8770
+token = ""
+
+[codex]
+home = ""
+plugin_root = ""
+model = ""                 # Runtime/account default; may be selected in log.
+timeout = 600
+max_workers = 2
+idle_seconds = 600
+
+[wxbot]
+url = "http://127.0.0.1:8765"
+token = ""
+timeout = 120
+
+[dispatch]
+actions_enabled = false      # Codex uses identity-bound tools, not text action markers.
+script_dir = ""
+respond_after_action = false
+
+[heartbeat]
+min_interval_minutes = 180
+max_interval_minutes = 360
+config_file = ""
+state_file = ""
+audit_file = ""
+
+[groups]
+file = ""
+
+[log]
+flow_file = ""
+
+# No contacts, role bindings or heartbeat subscriptions are shipped.

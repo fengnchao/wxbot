@@ -8,6 +8,11 @@
 uiautomation>=2.0.18   # Windows 控件自动化（读写微信窗口）
 requests>=2.31         # 调用大模型 HTTP 接口
 pillow>=10.0           # 截图判断消息发送方
+tomlkit>=0.13,<1       # log 配置编辑：保留 TOML 注释和未修改格式
+openai-codex==0.163.0
+openai-codex-cli-bin==0.163.0
+croniter==6.2.4
+PyYAML==6.0.3
 
 # 测试
 pytest>=8.0

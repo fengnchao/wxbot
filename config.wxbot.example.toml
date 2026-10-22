@@ -17,8 +17,8 @@ command_prefix = "/"
 
 # ===== 主窗口模式收发队列（省略此段也使用以下默认值）=====
 [queue]
-# 发件 blocked/uncertain 从首次失败起180秒自动丢弃该句，保留原文/日志；重试/重启不重置。
-# 此为固定规则，可在 log 的收发队列页查看倒计时及人工核对按钮。
+# 发件 blocked/uncertain 从首次失败起计时，保留原文/日志；重试/重启不重置。
+failure_discard_seconds = 180 # 1–86400秒；log 收发队列页可查看倒计时与人工核对按钮
 max_model_requests = 2       # 同时等待模型的请求数；界面收发仍由主线程逐项执行
 database = "cache/wxbot_queue.sqlite3"  # 相对项目根目录；保存消息、快照、批次与回复
 quiet_seconds = 3.0                    # 同一用户最后一条消息后安静多久再合并处理
@@ -66,6 +66,10 @@ token = ""                        # 必须 = config.butler.toml 的 [wxbot].toke
 mode = "main"  # main=主微信窗口自动选择会话；independent=原来的独立窗口模式
 # 独立聊天窗口的类名
 window_class = "mmui::ChatSingleWindow"
+
+[wechat.typing]
+chunk_size = 5              # 每批粘贴字数，1–100
+chunk_interval = 0.5        # 批间隔，0.05–10秒；完整校验后只回车一次
 
 [wechat.main_window]
 window_class = "mmui::MainWindow"

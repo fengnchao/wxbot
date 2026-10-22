@@ -21,7 +21,7 @@ from .flowlog import FlowLog
 from .groups import GroupStore
 from .hermes import HermesClient, HermesError
 from .skill_policy import SkillPolicyStore
-from .pending import PendingQueue
+from .pending import PendingQueue, EmptyPendingQueue
 from .push import push_to_wxbot
 from .reply import split_reply
 from .concurrency import RuntimeLocks
@@ -37,7 +37,7 @@ class Result:
     def as_dict(self) -> dict:
         return {"reply": self.reply, "actions": [a.as_dict() for a in self.actions],
                 "reply_parts": split_reply(self.reply),
-                "meta": {**self.meta, "reply_complete": True}}
+                "meta": {"reply_complete": True, **self.meta}}
 
 
 class Butler:
@@ -48,9 +48,39 @@ class Butler:
         self.hermes = HermesClient(cfg, self.log, locks=self.runtime_locks)
         self.skill_policies = SkillPolicyStore(cfg.heartbeat_config_path(), self.log)
         self.pending = PendingQueue(cfg.hermes_root, self.log, locks=self.runtime_locks)
+        self.store = self.tools = None
+        if cfg.provider == 'codex':
+            from .plugin import validate_plugin
+            self.plugin_info=validate_plugin(cfg.plugin_path())
+            from .business import BusinessStore
+            from .catalogue import SkillCatalogue
+            from .tools import ToolService
+            from .backends import create_backend
+            self.store = BusinessStore(cfg.data_path()/'business.sqlite3')
+            self.catalogue = SkillCatalogue(cfg.plugin_path()/'skills')
+            self.tools = ToolService(self.store,self.catalogue,policy_loader=self.policy_for_contact,
+                event_sink=lambda *args,**kw:self.trace.emit(*args,**kw))
+            self.hermes = create_backend(cfg,self.log,locks=self.runtime_locks,store=self.store,tools=self.tools)
+            self.pending = EmptyPendingQueue()
         self.flow = FlowLog(cfg.flow_log_path(), self.log)
         self.trace = FlowTrace(butler_trace_path(cfg.flow_log_path()), self.log)
         self.groups = GroupStore(cfg.group_file_path(), self.log)
+
+    @property
+    def backend(self):
+        return self.hermes  # Preserve the public legacy alias used by integrations.
+
+    def policy_for_contact(self,name):
+        policy=self.skill_policies.for_contact(name)
+        if self.cfg.provider=='codex':
+            from .backends.codex import DEFAULT_POLICY
+            return self.catalogue.validate(policy or DEFAULT_POLICY)
+        return policy
+
+    def heartbeat_contact(self,name):
+        contact=self.contact_of(name)
+        known=self.store.last_identity(name) if self.store else None
+        return replace(contact,channel_type=known['channel_type']) if known else contact
 
     # ---------- 身份 ----------
     def contact_of(self, name: str) -> Contact:
@@ -88,7 +118,7 @@ class Butler:
         contact_name = c.name
         # Policies are keyed by WeChat window title. Apply a group role only when that
         # group window has an explicit policy; never infer it from an individual member.
-        policy = self.skill_policies.for_contact(c.name)
+        policy = self.policy_for_contact(c.name)
         self.flow.received(c.name, text)          # 流水：收到（在看板里与后面的回复配成一轮）
 
         # 1. 补发：先认领（这样模型自己再查队列看到的是空的，不会说两遍）
@@ -117,6 +147,9 @@ class Butler:
         except HermesError as e:
             self.log("[%s] %s", contact_name, e)
             self.flow.api_error(c.name, str(e))
+            if self.cfg.provider=='codex':
+                return Result(reply=None,meta={'error':str(e),'status':e.status,'reply_complete':False,
+                                              'retry_safe':getattr(e,'retry_safe',False) is True})
             if e.status in (401, 403):
                 reply = "（配置错误：Hermes API Server 拒绝了这把密钥）"
             else:
@@ -129,7 +162,7 @@ class Butler:
         # 4. 拿结果 → 剥行动标记 → 判断是否调用其他 skill
         clean, acts = router.parse_actions(raw)
         results = []
-        if acts and self.cfg.actions_enabled:
+        if acts and self.cfg.actions_enabled and self.cfg.provider!='codex':
             ctx = skills.Ctx(cfg=self.cfg, contact=c, hermes=self.hermes, log=self.log,
                              skill_policy=policy, runtime_locks=self.runtime_locks)
             for a in acts:
@@ -195,7 +228,7 @@ class Butler:
     def reset(self, contact_name: str, *, channel_type: str = 'dm') -> Result:
         c = replace(self.contact_of(contact_name), channel_type=channel_type)
         with self.runtime_locks.session(c):
-            policy = self.skill_policies.for_contact(c.name)
+            policy = self.policy_for_contact(c.name)
             self.hermes.reset(c, skill_policy=policy)
         return Result("好，这段翻篇了，重新开始", meta={"reset": True})
 

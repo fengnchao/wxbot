@@ -55,10 +55,15 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 if os.path.dirname(HERE) not in sys.path:
     sys.path.insert(0, os.path.dirname(HERE))
 from log.config_view import ConfigView
+from log.config_editor import ConfigEditor,ConfigConflict,config_lock
+from log.settings import load_settings,config_path as log_config_path
 from log.queue_view import QueueView
 from log.queue_actions import QueueActions
 from log.flow_view import FlowView
-HERMES_HOME = os.environ.get("HERMES_HOME", r"D:\ai\hermes")
+from log.workflow_view import WorkflowView
+from common import news_config
+_LOG_SETTINGS=load_settings()
+HERMES_HOME = os.environ.get("HERMES_HOME") or _LOG_SETTINGS['sources']['home']
 EXPORT_DIR = os.path.join(HERMES_HOME, "logs", "wechat-inbox")
 
 
@@ -70,11 +75,11 @@ def _default_wxbot_config():
         cand = os.path.join(repo, name)
         if os.path.exists(cand):
             return cand
-    return r"D:\ai\wxbot\config.toml"
+    return os.path.join(repo,'config.wxbot.toml')
 
 
 def wxbot_config_path():
-    return os.environ.get("WXBOT_CONFIG") or _default_wxbot_config()
+    return os.environ.get("WXBOT_CONFIG") or _LOG_SETTINGS['sources']['wxbot_config'] or _default_wxbot_config()
 
 
 WXBOT_CHANNEL = os.path.join(HERMES_HOME, "scripts", "wxbot_channel.json")
@@ -86,11 +91,13 @@ def butler_config_path():
     configured = os.environ.get("BUTLER_CONFIG")
     if configured:
         return configured
+    if _LOG_SETTINGS['sources']['butler_config']:
+        return _LOG_SETTINGS['sources']['butler_config']
     repo = os.path.dirname(HERE)
     candidate = os.path.join(repo, "config.butler.toml")
     if os.path.exists(candidate):
         return candidate
-    return r"D:\ai\wxbot\config.butler.toml"
+    return candidate
 
 
 def _load_butler_config():
@@ -229,6 +236,20 @@ def load_heartbeat_config(path):
     return users
 
 
+def validate_policy_skills(users,changed,config):
+    contacts={c.get('name'):c for c in config.get('contacts',[]) if isinstance(c,dict)}
+    for name in changed:
+        contact=contacts.get(name)
+        if contact is None:raise ValueError('联系人不在Butler配置中')
+        try:skills=fetch_hermes_skills(contact,config)
+        except Exception as exc:raise RuntimeError('Hermes技能目录验证失败（'+type(exc).__name__+'）') from None
+        roles={s['name'] for s in skills if is_butler_role_skill(s)}
+        tools={s['name'] for s in skills if not is_butler_role_skill(s)}
+        policy=users[name]
+        if policy['role_skill'] not in roles:raise ValueError('角色Skill不存在或缺少butler-role标签')
+        if not set(policy['allowed_skills'])<=tools:raise ValueError('工具白名单包含不存在的技能或角色技能')
+
+
 def save_heartbeat_config(path, users):
     payload = {"version": 1, "updated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
                "users": users}
@@ -242,6 +263,11 @@ def save_heartbeat_config(path, users):
 
 
 def fetch_hermes_skills(contact, config):
+    if (config.get('agent') or {}).get('provider')=='codex':
+        payload=fetch_butler_data(config,'/v1/skills')
+        rows=payload.get('data')
+        if not isinstance(rows,list):raise RuntimeError('Butler 技能目录格式无效')
+        return rows
     hermes = config.get("hermes") or {}
     base = str(hermes.get("url") or "http://127.0.0.1:8642").rstrip("/")
     profile = str(contact.get("profile") or "default")
@@ -277,6 +303,17 @@ def fetch_hermes_skills(contact, config):
         skills.append({"name": item["name"], "description": str(item.get("description") or ""),
                        "category": str(item.get("category") or ""), "tags": tags})
     return skills
+
+
+def fetch_butler_data(config,path):
+    server=config.get('server') or {}
+    request=Request(f"http://127.0.0.1:{int(server.get('port') or 8770)}"+path,
+        headers={'Authorization':'Bearer '+str(server.get('token') or ''),'Accept':'application/json'})
+    try:
+        with urlopen(request,timeout=15) as response:
+            return json.loads(response.read().decode('utf-8'))
+    except Exception as exc:
+        raise RuntimeError('Butler 数据请求失败（'+type(exc).__name__+'）') from None
 
 
 def is_butler_role_skill(skill):
@@ -805,7 +842,7 @@ def _as_pos_int(v):
 def group_file_path(home):
     """分组字典文件：env BUTLER_GROUP_FILE 优先，默认 {HERMES_HOME}/cache/butler_groups.json
     （与 butler 侧 Config.group_file_path 的默认一致）。"""
-    return os.environ.get("BUTLER_GROUP_FILE") or os.path.join(home, "cache", "butler_groups.json")
+    return os.environ.get("BUTLER_GROUP_FILE") or _LOG_SETTINGS['sources']['groups_file'] or os.path.join(home, "cache", "butler_groups.json")
 
 
 def load_groups_file(path):
@@ -879,6 +916,7 @@ def build_groups_payload(home):
     return {
         "ok": True, "file": path, "exists": os.path.exists(path),
         "updated_at": updated, "message_types": types,
+        "news": news_config.payload(path),
         "contacts": [{"name": c["name"], "label": c.get("label") or "",
                       "profile": c.get("profile") or ""} for c in contacts],
     }
@@ -1126,17 +1164,17 @@ def attribute_task(ts, execs, names, window=90):
             "source": "cron", "status": e["status"]}
 
 
-def read_message_flow(home, *, contact='', limit=50, offset=0):
+def read_message_flow(home, *, contact='', limit=50, offset=0, order='desc'):
     view = ConfigView(wxbot_config_path(),butler_config_path(),home)
     view.read()
     try:
-        return view.scrub(FlowView(**view.flow_options()).read(contact=contact,limit=limit,offset=offset))
+        return view.scrub(FlowView(**view.flow_options()).read(contact=contact,limit=limit,offset=offset,order=order))
     except Exception as exc:
         return {'read_only':True,'status':'error','flows':[],'contacts':[],
                 'error':'无法读取流转配置（'+type(exc).__name__+'）'}
 
 
-def collect_wxbot(home, directory, *, flow_contact='', flow_offset=0):
+def collect_wxbot(home, directory, *, flow_contact='', flow_offset=0, flow_order='desc'):
     """组装 wxbot 通道流水（收到 / 回复 / 外发 + 这一轮 agent 耗时 + 任务归属）。"""
     raw_events, log_path = parse_wxbot_log(home)
     events = merge_outbound(raw_events)
@@ -1274,7 +1312,7 @@ def collect_wxbot(home, directory, *, flow_contact='', flow_offset=0):
         "execs": len(execs),
         "jobs_known": len(names),
     }
-    flow = read_message_flow(home,contact=flow_contact,offset=flow_offset)
+    flow = read_message_flow(home,contact=flow_contact,offset=flow_offset,order=flow_order)
     known = {c['uid']:c for c in contacts}
     for item in flow.get('contacts',[]):
         uid = item['contact']
@@ -1336,6 +1374,24 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             return {}
 
+    def _confirmed_origin(self,header):
+        host=self.headers.get('Host','').lower()
+        try:
+            target=urlparse('//'+host)
+            local={'localhost','127.0.0.1','::1',self.connection.getsockname()[0].lower()}
+            port=target.port if target.port is not None else 80
+            origin=self.headers.get('Origin')
+            valid_origin=(not origin or (urlparse(origin).scheme in {'http','https'} and urlparse(origin).netloc.lower()==host))
+            return (target.hostname in local and port==self.server.server_port and valid_origin and
+                    self.headers.get(header)=='1' and self.headers.get('Content-Type','').split(';')[0].strip().lower()=='application/json')
+        except ValueError:return False
+
+    def _config_view(self):
+        return ConfigView(wxbot_config_path(),butler_config_path(),self.home,
+            groups_override=group_file_path(self.home),log_config_path=log_config_path(),
+            log_runtime={'host':self.server.server_address[0],'port':self.server.server_address[1],
+                         'overrides':{k:os.environ[k] for k in ('HERMES_HOME','WXBOT_CONFIG','BUTLER_CONFIG','BUTLER_GROUP_FILE') if os.environ.get(k)}})
+
     def do_GET(self):
         u = urlparse(self.path)
         qs = parse_qs(u.query)
@@ -1360,15 +1416,40 @@ class Handler(BaseHTTPRequestHandler):
                     self._send(200, fh.read(), "text/html; charset=utf-8")
                 return
 
+            if p.startswith('/assets/'):
+                name=p.removeprefix('/assets/')
+                allowed={'dashboard.css','common.js','messages.js','jobs.js','groups.js',
+                         'heartbeat.js','queue.js','configuration.js','runtime.js','workflow.js','workflow.css','app.js'}
+                if name not in allowed:
+                    self._send(404,'Not found','text/plain; charset=utf-8')
+                    return
+                with open(os.path.join(HERE,'assets',name),encoding='utf-8') as fh:
+                    self._send(200,fh.read(),('text/css' if name.endswith('.css') else 'text/javascript')+'; charset=utf-8')
+                return
+
+            if p == '/api/workflow':
+                try:
+                    view = self._config_view()
+                    view.read()
+                    config = _load_butler_config()
+                    payload = WorkflowView(**view.flow_options(), contacts=config.get('contacts', []),
+                                           backend=(config.get('agent') or {}).get('provider','hermes')).read()
+                    self._json(view.scrub(payload))
+                except Exception as exc:
+                    self._json({'status':'error','error':'工作流配置不可读取（'+type(exc).__name__+'）'},500)
+                return
             if p == '/api/flow':
-                self._json(read_message_flow(self.home,contact=one('contact'),limit=num('limit',50),offset=num('offset',0)))
+                self._json(read_message_flow(self.home,contact=one('contact'),limit=num('limit',50),offset=num('offset',0),order=one('order','desc')))
+                return
+            if p == '/api/runtime':
+                config=_load_butler_config()
+                payload=fetch_butler_data(config,'/v1/runtime')
+                view=self._config_view();view.read()
+                self._json(view.scrub(payload))
                 return
 
             if p in ("/api/queue", "/api/configuration"):
-                view = ConfigView(wxbot_config_path(), butler_config_path(), self.home,
-                                  groups_override=group_file_path(self.home),
-                                  log_runtime={'host': self.server.server_address[0],
-                                               'port': self.server.server_address[1]})
+                view = self._config_view()
                 configuration = view.read()
                 if p == '/api/configuration':
                     self._json(configuration)
@@ -1376,7 +1457,8 @@ class Handler(BaseHTTPRequestHandler):
                     try:
                         payload = QueueView(**view.queue_options()).read(
                             contact=one('contact'), state=one('state','all'),
-                            limit=num('limit',50), offset=num('offset',0))
+                            limit=num('limit',50), offset=num('offset',0),scope=one('scope'),order=one('order'),
+                            offsets={t:num(t+'_offset',num('offset',0)) for t in ('inbox','batches','outbox')})
                         self._json(view.scrub(payload))
                     except Exception as exc:
                         self._json({'read_only':True,'status':'error',
@@ -1391,6 +1473,11 @@ class Handler(BaseHTTPRequestHandler):
                 return
 
             if p == "/api/jobs":
+                config=_load_butler_config()
+                if (config.get('agent') or {}).get('provider')=='codex':
+                    from log.runtime_view import reminder_jobs
+                    self._json(reminder_jobs(fetch_butler_data(config,'/v1/runtime')))
+                    return
                 uid_filter = one("uid", "all")
                 flt = (uid_filter or "all").split("@")[0].lower()
                 jobs = collect_jobs(self.home)
@@ -1423,7 +1510,7 @@ class Handler(BaseHTTPRequestHandler):
                             nm = disp
                     for x in js:
                         x["ui_state"] = jobs_ui_state(x)
-                    js.sort(key=lambda x: (x["ui_state"] != "active", x.get("name") or ""))
+                    js.sort(key=lambda x: (x["ui_state"] != "active", _iso_to_epoch(x.get('next_run_at')) or float('inf'),x.get('job_id') or ''))
                     users_out.append({
                         "uid": "global" if key == "global" else ("" if key == "(no-owner)" else key),
                         "uid_display": "" if key in ("(no-owner)", "global") else (disp or key),
@@ -1449,7 +1536,7 @@ class Handler(BaseHTTPRequestHandler):
 
             if p == "/api/wxbot":
                 self._json(collect_wxbot(self.home, directory,
-                                        flow_contact=one('flow_contact'),flow_offset=num('flow_offset',0)))
+                                        flow_contact=one('flow_contact'),flow_offset=num('flow_offset',0),flow_order=one('flow_order','desc')))
                 return
 
             if p == "/api/groups":
@@ -1508,22 +1595,40 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         p = u.path.rstrip("/") or "/"
         try:
-            if p == '/api/queue-action':
-                # A custom header + JSON prevents ordinary cross-site forms from issuing actions.
-                origin=self.headers.get('Origin')
-                host=self.headers.get('Host','').lower()
+            if p == '/api/news-config':
+                if not self._confirmed_origin('X-Wxbot-Config-Action'):
+                    self._json({'ok': False, 'error': '新闻设置仅接受当前页面的保存请求'}, 403)
+                    return
+                body = self._body()
+                path = group_file_path(self.home)
                 try:
-                    target=urlparse('//'+host)
-                    # Do not trust matching Origin/Host alone: reject DNS rebinding domains.
-                    local_addresses={'localhost','127.0.0.1','::1',self.connection.getsockname()[0].lower()}
-                    requested_port=target.port if target.port is not None else 80
-                    valid_host=target.hostname in local_addresses and requested_port==self.server.server_port
-                except ValueError:
-                    valid_host=False
-                content_type=self.headers.get('Content-Type','').split(';')[0].strip().lower()
-                if (not valid_host or self.headers.get('X-Wxbot-Queue-Action')!='1' or content_type!='application/json' or
-                        (origin and (urlparse(origin).scheme not in {'http','https'} or
-                                     urlparse(origin).netloc.lower()!=host))):
+                    if not isinstance(body, dict):
+                        raise ValueError('新闻设置格式无效')
+                    with config_lock(news_config.settings_path(path)):
+                        news_config.save_settings(path, body.get('settings'), body.get('version'))
+                    self._json({'ok': True, 'news': news_config.payload(path)})
+                except news_config.NewsConflict as exc:
+                    self._json({'ok': False, 'error': str(exc)}, 409)
+                except ValueError as exc:
+                    self._json({'ok': False, 'error': str(exc)}, 400)
+                except OSError as exc:
+                    self._json({'ok': False, 'error': '新闻设置保存失败（' + type(exc).__name__ + '）'}, 503)
+                return
+            if p == '/api/configuration':
+                if not self._confirmed_origin('X-Wxbot-Config-Action'):
+                    self._json({'ok':False,'error':'配置修改只接受当前页面的确认请求'},403)
+                    return
+                view=self._config_view()
+                try:
+                    result=ConfigEditor(view,policy_validator=validate_policy_skills).save(self._body())
+                    self._json(view.scrub(result))
+                except ConfigConflict as exc:self._json({'ok':False,'error':view.scrub(str(exc))},409)
+                except ValueError as exc:self._json({'ok':False,'error':view.scrub(str(exc))},400)
+                except (OSError,RuntimeError) as exc:self._json({'ok':False,'error':'配置保存失败（'+type(exc).__name__+'）'},503)
+                except Exception as exc:self._json({'ok':False,'error':'配置保存失败（'+type(exc).__name__+'）'},500)
+                return
+            if p == '/api/queue-action':
+                if not self._confirmed_origin('X-Wxbot-Queue-Action'):
                     self._json({'ok':False,'error':'队列操作仅接受当前页面发出的确认请求'},403)
                     return
                 try:
@@ -1566,15 +1671,14 @@ class Handler(BaseHTTPRequestHandler):
                                 "error": "user 为空或过长（微信窗口标题，≤64 字符）"}, 400)
                     return
                 path = group_file_path(self.home)
-                groups, _ = load_groups_file(path)
-                users = list(groups.get(str(mt), []))
-                if action == "bind":
-                    if user not in users:
-                        users.append(user)
-                else:
-                    users = [x for x in users if x != user]
-                groups[str(mt)] = users
-                save_groups_file(path, groups)
+                with config_lock(path):
+                    groups, _ = load_groups_file(path)
+                    users = list(groups.get(str(mt), []))
+                    if action == "bind":
+                        if user not in users:users.append(user)
+                    else:users = [x for x in users if x != user]
+                    groups[str(mt)] = users
+                    save_groups_file(path, groups)
                 self._json(build_groups_payload(self.home))
                 return
             if p == "/api/heartbeat-config":
@@ -1616,7 +1720,7 @@ class Handler(BaseHTTPRequestHandler):
                     self._json({"ok": False, "error": "技能已不在 Hermes 可用目录中，请刷新后重试"}, 400)
                     return
                 path = heartbeat_config_path(self.home, config)
-                with _HEARTBEAT_CONFIG_LOCK:
+                with _HEARTBEAT_CONFIG_LOCK,config_lock(path):
                     users = load_heartbeat_config(path)
                     valid_contacts = {item["name"] for item in contacts}
                     users = {name: value for name, value in users.items() if name in valid_contacts}
@@ -1635,9 +1739,10 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     ap = argparse.ArgumentParser(description="微信管家日志（wxbot 通道流水 + 定时任务 + 用户分组）")
-    ap.add_argument("--host", default="127.0.0.1")
-    ap.add_argument("--port", type=int, default=8788)
+    ap.add_argument("--host", default=_LOG_SETTINGS['server']['host'])
+    ap.add_argument("--port", type=int, default=_LOG_SETTINGS['server']['port'])
     ap.add_argument("--home", default=HERMES_HOME)
+    ap.add_argument("--open",action='store_true',help='启动后打开浏览器')
     args = ap.parse_args()
 
     Handler.home = args.home
@@ -1646,7 +1751,13 @@ def main():
         print(f"  - {pr:<42} {path}")
     print(f"[wechat-inbox] 页面: http://{args.host}:{args.port}/   (Ctrl+C 退出)")
     try:
-        ThreadingHTTPServer((args.host, args.port), Handler).serve_forever()
+        server=ThreadingHTTPServer((args.host,args.port),Handler)
+        if args.open:
+            import webbrowser
+            host='127.0.0.1' if args.host=='0.0.0.0' else args.host
+            webbrowser.open(f'http://{host}:{server.server_port}/')
+        try:server.serve_forever()
+        finally:server.server_close()
     except KeyboardInterrupt:
         print("\n[wechat-inbox] 已停止")
 

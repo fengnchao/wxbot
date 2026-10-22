@@ -29,6 +29,7 @@ class ModelWorker:
             if self._stop.is_set():
                 return False
             now = self.clock()
+            self._recover(now)
             count = self.store.prepare(quiet=self.quiet, max_wait=self.max_wait, prefix=self.prefix, now=now)
             if count:
                 log.info("[队列] %d 个合并批次就绪，等待提交", count)
@@ -55,10 +56,25 @@ class ModelWorker:
             except Exception as exc:
                 record('wxbot_result','error',error_type=type(exc).__name__,
                        elapsed_ms=round((time.monotonic()-started)*1000))
-                self.store.fail_batch(batch.id, f"{type(exc).__name__}: {exc}")
-                log.error("[队列][%s][%s] 处理结果不确定，已保留任务，不自动重跑: %s",
-                          batch.contact, batch.id, type(exc).__name__)
+                safe=getattr(exc,'retry_safe',False) is True
+                self.store.fail_batch(batch.id,f"{type(exc).__name__}: {exc}",now=self.clock(),retry_safe=safe)
+                log.error("[队列][%s][%s] 模型失败；%s；最长阻塞%g秒：%s",
+                          batch.contact,batch.id,'尚未提交，稍后自动重试' if safe else '结果未知，不重放本条',
+                          self.store.failure_timeout_seconds,str(exc))
         return True
+
+    def _recover(self,now):
+        for event in self.store.recover_model_failures(now=now):
+            log.warning('[队列][%s][%s] %s：%s',event['contact'],event['id'],
+                        '模型自动重试' if event['action']=='model_retry' else '模型失败已结束',event['reason'])
+
+    def _maintain(self):
+        # Expiry must keep running when every model worker is in network I/O.
+        # Never time out/replay a currently running request here.
+        while not self._stop.is_set():
+            try:self._recover(self.clock())
+            except Exception as exc:log.error('[队列] 失败任务清理异常: %s',type(exc).__name__)
+            self._stop.wait(.2)
 
     def _run(self):
         while not self._stop.is_set():
@@ -73,6 +89,7 @@ class ModelWorker:
         if not self._threads and not self._stop.is_set():
             self._threads = [threading.Thread(target=self._run, name=f"wxbot-model-{n}", daemon=True)
                              for n in range(self.max_concurrency)]
+            self._threads.append(threading.Thread(target=self._maintain,name='wxbot-model-maintenance',daemon=True))
             for thread in self._threads:
                 thread.start()
 

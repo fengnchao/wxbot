@@ -77,7 +77,7 @@ class DeliveryPump:
             row=self.store.get_delivery(delivery.id)
             log.error('[发送失败][%s][%s] 状态=%s 原因=%s 详情=%s 自动丢弃截止=%s',
                       delivery.contact,delivery.id,state,error,json.dumps(details,ensure_ascii=False),
-                      row['failed_at']+FAILURE_TIMEOUT_SECONDS)
+                      row['failed_at']+getattr(self.store,'failure_timeout_seconds',FAILURE_TIMEOUT_SECONDS))
         waiter = self._waiters.pop(delivery.id, None)
         if waiter is not None:
             waiter.finish(state == "sent", "sent" if state == "sent" else error or state)
@@ -95,7 +95,8 @@ class DeliveryPump:
         self._next_expiry=self.monotonic()+1
         for row in self.store.expire_failed_deliveries(now=self.clock()):
             log.warning('[发送超时丢弃][%s][%s] 首次失败=%s 等待上限=%s秒 原因=%s；后续队列已释放',
-                        row['contact'],row['id'],row['failed_at'],FAILURE_TIMEOUT_SECONDS,row['error'])
+                        row['contact'],row['id'],row['failed_at'],
+                        getattr(self.store,'failure_timeout_seconds',FAILURE_TIMEOUT_SECONDS),row['error'])
             waiter=self._waiters.pop(row['id'],None)
             if waiter is not None:waiter.finish(False,row['error'])
 
@@ -124,8 +125,9 @@ class DeliveryPump:
             active = ActiveDelivery(delivery, chat, typing, baseline)
             typing.before_enter = lambda: self._prepare_enter(active)
             self.active = active
-            log.info("[队列][%s][%s][%d/%d] 开始分批粘贴（每5字/0.5秒）", delivery.contact, delivery.id,
-                     delivery.part_seq, delivery.part_count)
+            log.info("[队列][%s][%s][%d/%d] 开始分批粘贴（每%d字/%g秒）", delivery.contact, delivery.id,
+                     delivery.part_seq, delivery.part_count,
+                     getattr(typing,'chunk_size',5),getattr(typing,'chunk_interval',.5))
         except Exception as exc:
             self._finish(delivery, "blocked", f"发送准备失败: {type(exc).__name__}",self._diagnostics(chat,'prepare'))
 
@@ -172,6 +174,13 @@ class DeliveryPump:
                 current = active.chat.read_from_window(active.typing.win, strict_sender=True)
                 text = getattr(active.typing, "submitted_text", None) or active.delivery.text
                 if reply_is_visible(active.baseline, current, text):
+                    # Persist the same snapshot that proved the bubble is ours.
+                    # Capture concurrent incoming messages before advancing the
+                    # anchor; assigning the snapshot alone would lose them.
+                    if self.capture_messages is not None:
+                        self.capture_messages(active.delivery.contact, active.chat, current)
+                        log.info('[收件防回流][%s][%s] 已同步发送确认快照；自己的气泡不入收件队列',
+                                 active.delivery.contact, active.delivery.id)
                     active.chat.remember_sent(active.delivery.text)
                     self._finish(active.delivery, "sent")
                     return

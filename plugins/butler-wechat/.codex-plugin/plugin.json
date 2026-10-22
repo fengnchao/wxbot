@@ -1,0 +1,8 @@
+{
+  "name": "butler-wechat",
+  "version": "1.0.0",
+  "description": "Portable WeChat Butler: role skills, private memory and reminders. Requires the local Butler/wxbot application.",
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "extensions": {"com.openai": {"onboardingSkill": "./skills/setup/SKILL.md"}}
+}

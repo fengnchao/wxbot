@@ -14,7 +14,7 @@ wxbot 只负责把消息从微信拿出来/发回去；管家负责"投递给 He
 
 ```
                 ① 用户消息
-   微信客户端  ──────────────►  wxbot（D:\ai\wxbot）
+   微信客户端  ──────────────►  wxbot（项目目录）
    （UI 自动化）                      │  自己的内部逻辑：读窗口 / 判发送方 / /命令
                                      │
                                      │  ② POST http://127.0.0.1:8770/v1/handle
@@ -188,6 +188,6 @@ cd D:\bot && python -m pytest
 
 - `skills.py` 目前只落地了 `reminder.*`；`wechat-learn` / `wechat-quiz` 先以"再问一次 Hermes"
   的形式登记在册（决策在代码里，执行暂借 Hermes 的 skill）。
-- 现在 skill 脚本仍从 `[scripts] dir`（默认 `D:/ai/hermes/scripts`）调用；等接口稳了再把
+- 旧后端的 skill 脚本从已配置的 Hermes scripts 目录调用；等接口稳了再把
   `butler_*.py` 整体搬进本项目 `scripts/`，Hermes 侧只留它自己的东西。
 - 行动标记那段提示词还需要写进各 Profile 的 SOUL / wechat-butler skill（否则模型不会发标记）。

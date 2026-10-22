@@ -11,7 +11,7 @@ import uuid
 
 _current = ContextVar('message_flow', default=None)
 _write_lock = threading.Lock()
-EVENT_FIELDS = {'elapsed_ms', 'http_status', 'error_type', 'error_code', 'profile', 'session_id',
+EVENT_FIELDS = {'backend', 'elapsed_ms', 'http_status', 'error_type', 'error_code', 'profile', 'session_id',
            'tool', 'tool_call_id', 'characters', 'part_count', 'progress_available', 'attempt'}
 
 
@@ -62,6 +62,11 @@ class FlowTrace:
 
 def tracing():
     return _current.get() is not None
+
+
+def current_request_id():
+    bound=_current.get()
+    return bound[2] if bound else None
 
 
 def record(stage, status, **fields):

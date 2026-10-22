@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "butler": {
+      "url": "http://127.0.0.1:8770/mcp",
+      "bearer_token_env_var": "BUTLER_TOOL_CAPABILITY"
+    }
+  }
+}

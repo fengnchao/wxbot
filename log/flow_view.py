@@ -51,7 +51,7 @@ class FlowView:
         self.queue = QueueView(**queue_options)
         self.trace_paths = [Path(p) for p in trace_paths if p]
 
-    def read(self, *, contact='', limit=50, offset=0, now=None):
+    def read(self, *, contact='', limit=50, offset=0, now=None, order='desc'):
         limit,offset=max(1,min(100,int(limit))),max(0,int(offset))
         now=time.time() if now is None else now
         result={'read_only':True,'status':'ok','at':now,'flows':[],'contacts':[],'sources':[],
@@ -79,7 +79,8 @@ class FlowView:
                        " UNION ALL SELECT 'batch' kind,id,contact,created_at at FROM batches WHERE 1=1"+where)
             args=[contact,contact] if contact else []
             result['total']=db.execute('SELECT COUNT(*) FROM ('+selection+')',args).fetchone()[0]
-            rows=db.execute(selection+' ORDER BY at DESC,id DESC LIMIT ? OFFSET ?',[*args,limit,offset]).fetchall()
+            direction='ASC' if order=='asc' else 'DESC'
+            rows=db.execute(selection+f' ORDER BY at {direction},id {direction} LIMIT ? OFFSET ?',[*args,limit,offset]).fetchall()
             for row in rows:
                 result['flows'].append(self._flow(db,row,reasons[row['contact']],traces))
             result['has_more']=offset+len(rows)<result['total']
@@ -116,6 +117,10 @@ class FlowView:
                 add('wechat_delivery',d['state'],d['finished_at'] or d['submitted_at'] or d['created_at'],
                     detail=d['error'],delivery_id=d['id'],part_seq=d['part_seq'] if 'part_seq' in d.keys() else 1,
                     part_count=len(deliveries))
+            if item['state']=='done' and not item['reply_complete'] and item['error'] and not deliveries:
+                flow['state']='model_failed'
+                flow['reason']={'code':'model_failed','message':'模型失败批次已结束，后续消息可以继续处理',
+                                'record_id':row['id'],'error':item['error']}
         else:
             status=reason['code'] if reason['code'] in ('blocked','uncertain') else 'waiting'
             add('wxbot_merge',status,None,detail=reason['message'],blocker_id=reason.get('record_id',''))

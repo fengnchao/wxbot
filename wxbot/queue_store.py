@@ -9,11 +9,15 @@ import threading
 import time
 import uuid
 
+from .config import validate_failure_timeout
+
 FAILURE_TIMEOUT_SECONDS = 180
 _UNSET = object()
 FAILURE_DETAIL_FIELDS = {'phase','expected_contact','actual_contact','expected_group','actual_group',
     'expected_hwnd','foreground_hwnd','input_focused','target_matches','characters_entered',
-    'enter_attempted','clipboard_write','clipboard_committed','clipboard_checked'}
+    'enter_attempted','clipboard_write','clipboard_committed','clipboard_checked',
+    'clipboard_operation','clipboard_format','clipboard_error','os_error_code','exception_type',
+    'retry_safe','attempt','max_attempts','retry_at','error_code'}
 
 
 def queue_database(cfg):
@@ -52,10 +56,11 @@ class Delivery:
 
 
 class QueueStore:
-    def __init__(self, path, *, access="runtime"):
+    def __init__(self, path, *, access="runtime", failure_timeout_seconds=FAILURE_TIMEOUT_SECONDS):
         from . import queue_schema
         if access not in {"runtime", "readonly", "admin"}:
             raise ValueError("无效队列访问模式")
+        self.failure_timeout_seconds = validate_failure_timeout(failure_timeout_seconds)
         self.path, self.access = str(path), access
         self._lock = threading.RLock()
         self._owner_file = self._db = None
@@ -211,10 +216,11 @@ class QueueStore:
 
     def claim_batch(self, *, now):
         with self._transaction() as db:
+            self._recover_model_failures(db,now)
             row = db.execute("SELECT * FROM batches WHERE state='ready' ORDER BY seq LIMIT 1").fetchone()
             if row is None:
                 return None
-            db.execute("""UPDATE batches SET state='processing',started_at=?,attempts=attempts+1
+            db.execute("""UPDATE batches SET state='processing',started_at=?,finished_at=NULL,attempts=attempts+1
                 WHERE id=?""", (now, row["id"]))
             return Batch(row["id"], row["contact"], row["text"], row["context"])
 
@@ -247,7 +253,7 @@ class QueueStore:
                 raise ValueError("批次不处于处理中，不能重复保存模型结果")
             for n, part in enumerate(parts, 1):
                 self._insert_delivery(db, row["contact"], part, now, now + delay, batch_id, n)
-            db.execute("""UPDATE batches SET reply_text=?,reply_complete=1,part_count=? WHERE id=?""",
+            db.execute("""UPDATE batches SET reply_text=?,reply_complete=1,part_count=?,error='',finished_at=NULL WHERE id=?""",
                        (reply_text if reply_text is not None else ''.join(parts), len(parts), batch_id))
             self._recompute_batch(db, batch_id, now)
 
@@ -270,10 +276,39 @@ class QueueStore:
         db.execute("""INSERT INTO delivery_turns VALUES(?,?) ON CONFLICT(contact)
             DO UPDATE SET last_turn=excluded.last_turn""", (contact,next_turn))
 
-    def fail_batch(self, batch_id, error):
+    def fail_batch(self, batch_id, error, *, now=None, retry_safe=False):
+        now=time.time() if now is None else now
         with self._transaction() as db:
-            db.execute("UPDATE batches SET state='uncertain',error=?,finished_at=? WHERE id=?",
-                       (error,time.time(),batch_id))
+            row=db.execute("SELECT * FROM batches WHERE id=? AND state='processing'",(batch_id,)).fetchone()
+            if row is None:return
+            db.execute("UPDATE batches SET state='uncertain',error=?,finished_at=? WHERE id=?",(error,now,batch_id))
+            self._event(db,row,'model_retryable' if retry_safe else 'model_uncertain',now,'uncertain',error,
+                        {'retry_safe':retry_safe,'attempt':row['attempts']},kind='batches')
+
+    def recover_model_failures(self, *, now):
+        with self._transaction() as db:
+            return self._recover_model_failures(db,now)
+
+    def _recover_model_failures(self,db,now):
+        from .model_recovery import model_failure_info,MODEL_MAX_ATTEMPTS
+        recovered=[]
+        rows=db.execute("SELECT * FROM batches WHERE (state IN ('blocked','uncertain') OR (state='ready' AND error!='')) AND reply_complete=0 "
+                        "AND NOT EXISTS(SELECT 1 FROM outbox WHERE batch_id=batches.id) ORDER BY seq").fetchall()
+        for row in rows:
+            info=model_failure_info(db,row,now,self.failure_timeout_seconds)
+            if info['auto_action']=='retry' and row['state']!='ready':
+                db.execute("UPDATE batches SET state='ready',started_at=NULL WHERE id=?",(row['id'],))
+                action='model_retry';reason=f"尚未提交模型，自动重试；已尝试 {row['attempts']}/{MODEL_MAX_ATTEMPTS} 次；原失败原因："+row['error']
+            elif info['auto_action']=='abandon':
+                cause=f'模型失败满{self.failure_timeout_seconds:g}秒' if now>=info['discard_at'] else f'模型请求已失败{MODEL_MAX_ATTEMPTS}次'
+                reason=cause+'，结束失败批次并放行后续消息；原失败原因：'+row['error']
+                db.execute("UPDATE batches SET state='done',finished_at=?,error=? WHERE id=?",(now,reason,row['id']))
+                action='model_abandoned'
+            else:continue
+            self._event(db,row,action,now,'ready' if action=='model_retry' else 'done',reason,
+                        {'retry_safe':info['retry_safe'],'attempt':row['attempts'],'max_attempts':MODEL_MAX_ATTEMPTS},kind='batches')
+            recovered.append({'id':row['id'],'contact':row['contact'],'action':action,'reason':reason})
+        return recovered
 
     def enqueue_delivery(self, contact, text, *, now):
         with self._transaction() as db:
@@ -366,10 +401,10 @@ class QueueStore:
         with self._transaction() as db:
             rows=db.execute("""SELECT * FROM outbox WHERE state IN ('blocked','uncertain')
                 AND failed_at IS NOT NULL AND failed_at<=? ORDER BY seq""",
-                (now-FAILURE_TIMEOUT_SECONDS,)).fetchall()
+                (now-self.failure_timeout_seconds,)).fetchall()
             expired=[]
             for row in rows:
-                reason='发送失败满180秒，自动丢弃；原失败原因：'+(row['error'] or '未记录')
+                reason=f'发送失败满{self.failure_timeout_seconds:g}秒，自动丢弃；原失败原因：'+(row['error'] or '未记录')
                 db.execute("UPDATE outbox SET state='skipped',resolution='timeout',finished_at=?,error=? WHERE id=?",
                            (now,reason,row['id']))
                 self._event(db,row,'timeout_discard',now,'skipped',reason)
@@ -381,8 +416,12 @@ class QueueStore:
     def recover(self, *, now=None):
         now=time.time() if now is None else now
         with self._transaction() as db:
+            interrupted_models=db.execute("SELECT * FROM batches WHERE state='processing'").fetchall()
             models = db.execute("""UPDATE batches SET state='uncertain',error='进程中断，模型结果未知',finished_at=?
                 WHERE state='processing'""",(now,)).rowcount
+            for row in interrupted_models:
+                self._event(db,row,'model_uncertain',now,'uncertain','进程中断，模型结果未知',
+                            {'retry_safe':False,'attempt':row['attempts']},kind='batches')
             interrupted=db.execute("SELECT * FROM outbox WHERE state IN ('sending','confirming')").fetchall()
             deliveries = db.execute("""UPDATE outbox SET state='uncertain',error='进程中断，发送结果需核对',
                 failed_at=COALESCE(failed_at,?),finished_at=?
