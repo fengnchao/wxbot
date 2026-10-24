@@ -34,9 +34,9 @@ class Result:
     actions: list = field(default_factory=list)
     meta: dict = field(default_factory=dict)
 
-    def as_dict(self) -> dict:
+    def as_dict(self, *, reply_chunk_chars=500) -> dict:
         return {"reply": self.reply, "actions": [a.as_dict() for a in self.actions],
-                "reply_parts": split_reply(self.reply),
+                "reply_parts": split_reply(self.reply, reply_chunk_chars),
                 "meta": {"reply_complete": True, **self.meta}}
 
 
@@ -91,15 +91,22 @@ class Butler:
             return Contact(name=name, profile="default", uid=name)
         return c
 
+    def _contact(self, name: str, channel_type: str, member_key: str = "") -> Contact:
+        """按成员区分群会话：member_key 追加到 uid，使每个成员拥有独立 session 与记忆。"""
+        c = replace(self.contact_of(name),
+                    channel_type="group" if channel_type == "group" else "dm")
+        if c.channel_type == "group" and member_key:
+            c = replace(c, uid=f"{c.uid}::{member_key}")
+        return c
+
     # ---------- 主流程 ----------
     def handle(self, contact_name: str, text: str, msg_id: str | None = None,
-               channel_type: str = "dm") -> Result:
+               channel_type: str = "dm", member_key: str = "", member_name: str = "") -> Result:
         started = time.monotonic()
         with self.trace.bind(contact_name, msg_id or uuid.uuid4().hex):
             record('butler_received','ok',characters=len(text))
             try:
-                c = replace(self.contact_of(contact_name),
-                            channel_type="group" if channel_type == "group" else "dm")
+                c = self._contact(contact_name, channel_type, member_key)
                 record('butler_session','waiting')
                 with self.runtime_locks.session(c):
                     record('butler_session','ok')
@@ -225,8 +232,8 @@ class Butler:
             "type": 2, "messageType": message_type,
             "targets": list(users), "results": results})
 
-    def reset(self, contact_name: str, *, channel_type: str = 'dm') -> Result:
-        c = replace(self.contact_of(contact_name), channel_type=channel_type)
+    def reset(self, contact_name: str, *, channel_type: str = 'dm', member_key: str = "") -> Result:
+        c = self._contact(contact_name, channel_type, member_key)
         with self.runtime_locks.session(c):
             policy = self.policy_for_contact(c.name)
             self.hermes.reset(c, skill_policy=policy)

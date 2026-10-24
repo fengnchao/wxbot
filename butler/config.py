@@ -16,6 +16,7 @@ DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config.butler.toml"
 
 @dataclass
 class Config:
+    reply_chunk_chars: int = 500
     provider: str = 'hermes'  # Existing files keep their backend; init creates Codex configs.
     data_dir: str = 'data'
     config_dir: str = ''
@@ -150,7 +151,10 @@ def load(path: str | os.PathLike | None = None) -> Config:
     if provider not in ('hermes','codex'):
         raise ValueError('agent.provider must be codex or hermes')
 
+    from .reply import validate_chunk_chars
+    chunk_chars = validate_chunk_chars((raw.get('reply') or {}).get('chunk_chars', 500))
     return Config(
+        reply_chunk_chars=chunk_chars,
         provider=provider, config_dir=str(p.resolve().parent),
         data_dir=str(agent.get('data_dir') or 'data'),
         codex_home=str(codex.get('home') or ''), codex_plugin=str(codex.get('plugin_root') or ''),

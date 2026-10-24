@@ -34,15 +34,19 @@ class ButlerProcessor(Processor):
     def handle(self, contact: str, text: str) -> str | None:
         return self.handle_reply(contact, text).text
 
-    def handle_reply(self, contact: str, text: str, *, request_id=None) -> Reply:
+    def handle_reply(self, contact: str, text: str, *, request_id=None, member_key="", member_name="") -> Reply:
         started = time.monotonic()
         record('wxbot_butler','started')
         try:
-            channel_type = "group" if text.startswith("[群聊发言人：") else "dm"
+            channel_type = "group" if member_key else "dm"
+            body = {"contact": contact, "text": text, "channel_type": channel_type}
+            if member_key:
+                body["member_key"] = member_key
+                body["member_name"] = member_name
+            if request_id is not None:
+                body["msg_id"] = request_id
             resp = requests.post(self.url + "/v1/handle", headers=self._headers(),
-                                 json={"contact": contact, "text": text,
-                                       "channel_type": channel_type,
-                                       **({'msg_id': request_id} if request_id is not None else {})}, timeout=self.timeout)
+                                 json=body, timeout=self.timeout)
             resp.raise_for_status()
             data = resp.json()
         except Exception as e:
@@ -89,10 +93,13 @@ class ButlerProcessor(Processor):
             log.warning('Butler 分句无效，保留完整正文作为单条回复')
         return fallback
 
-    def reset(self, contact: str, *, channel_type='dm') -> None:
+    def reset(self, contact: str, *, channel_type='dm', member_key="") -> None:
         try:
+            body = {"contact": contact, "channel_type": channel_type}
+            if member_key:
+                body["member_key"] = member_key
             response = requests.post(self.url + "/v1/reset", headers=self._headers(),
-                                     json={"contact": contact, "channel_type": channel_type}, timeout=self.timeout)
+                                     json=body, timeout=self.timeout)
             response.raise_for_status()
         except Exception as e:
             log.error("butler reset 失败: %s", e)

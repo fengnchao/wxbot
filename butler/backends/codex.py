@@ -197,12 +197,19 @@ class CodexBackend:
             if not account.account:
                 raise HermesError('Codex 未登录；请运行 python -m butler login')
             instructions=(
-                'You are a WeChat conversational companion. Answer naturally and briefly in the user\'s language. '
+                'You are a WeChat conversational companion. Answer naturally in the user\'s language, '
+                'like a real person, with length matched to the situation. '
+                'Greetings, acknowledgements and simple questions: very short, a few words to one short sentence. '
+                'Concrete questions: two or three sentences. '
+                'Requests that need explanation or analysis: expand as appropriate. '
                 'The supplied role skill is mandatory and overrides conflicting personas in history. '
                 'Do not offer persona changes or deployment tutorials unless asked. '
                 'Use only the supplied skills and Butler tools. Tool identity is server-owned. '
-                'Never claim an action succeeded without its tool result. Do not output action markers. '
-                'Return only the user-facing final answer; tool progress is logged separately.')
+                'Never claim an action succeeded without its tool result. '
+                'When a tool succeeds, confirm it in plain human words; never echo technical details to the user, '
+                'such as task or reminder ids, "创建成功", or "操作完成". Tool results, including ids, are for your '
+                'internal judgment only (for example, cancelling a reminder later). '
+                'Do not output action markers. Return only the user-facing final answer; tool progress is logged separately.')
             kwargs={'cwd':str(workspace),'config':options,'approval_mode':ApprovalMode.deny_all,
                     'base_instructions':instructions,'developer_instructions':
                     'Mandatory role: '+policy['role_skill']+'. Read its required references using Butler skill_read.\n'

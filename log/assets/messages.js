@@ -102,10 +102,12 @@ const FLOW_STAGE_LABELS={wxbot_received:'wxbot 确认收件入库',wxbot_inbox:'
   butler_session:'Butler 会话锁',hermes_request:'Butler 请求 模型运行时',hermes_generating:'模型运行时 生成回复',
   hermes_tool:'模型运行时 工具执行',hermes_status:'模型运行时 过程事件',hermes_approval:'模型运行时 等待审批',
   hermes_result:'模型运行时 完整结果',butler_action:'Butler 行动执行',butler_result:'Butler 结果就绪',
-  wxbot_result:'wxbot 完整回复入发件箱',wxbot_outbox:'回复分句入队',wechat_submitted:'微信已按回车',wechat_delivery:'微信分句发送'};
+  wxbot_result:'wxbot 完整回复入发件箱',wxbot_outbox:'回复分句入队',wechat_submitted:'微信已按回车',wechat_delivery:'微信分句发送',
+  wxbot_reply_mode:'群回复方式决策'};
 const FLOW_STATUS_LABELS={ok:'完成',started:'已开始，等待确认',accepted:'接口已接受',waiting:'等待中',
   running:'执行中',completed:'执行结束',failed:'失败',error:'失败',blocked:'已阻塞',uncertain:'结果不确定',
-  unconfirmed:'未记录 / 未确认',not_started:'未提交',pending:'待发送',sending:'键入中',confirming:'发送确认中',sent:'已确认发送',skipped:'已跳过 / 丢弃'};
+  unconfirmed:'未记录 / 未确认',not_started:'未提交',pending:'待发送',sending:'键入中',confirming:'发送确认中',sent:'已确认发送',skipped:'已跳过 / 丢弃',
+  text:'文字回复',emoji:'表情图',none:'静默（不回复）'};
 function groupFlowEvents(events){
   const groups=new Map();
   const pending=new Map();let occurrence=0;

@@ -93,6 +93,24 @@ def test_zero_sequence_with_existing_formats_is_rejected_without_overwriting():
     assert api.data==before and api.disposed
 
 
+def test_clipboard_backup_failure_degrades_to_direct_overwrite():
+    from wxbot.wechat.clipboard import ClipboardLease
+
+    class FailingSnapshot(FakeClipboard):
+        def snapshot(self):
+            raise OSError('backup failed: custom format unreadable')
+
+    api = FailingSnapshot()
+    lease = ClipboardLease('你好', api=api)
+    # 备份失败 → 降级为直接覆盖，消息仍写入
+    assert lease.degraded is True and lease.saved is None
+    assert api.data == {13: '你好'}
+    assert lease.is_current()
+    assert lease.close()
+    # 降级后不恢复原剪贴板，保留写入的正文
+    assert api.data == {13: '你好'} and api.disposed
+
+
 def test_unreadable_sequence_after_write_is_blocked_and_original_restored():
     from wxbot.wechat.clipboard import ClipboardLease
     api=FakeClipboard();api.data={}

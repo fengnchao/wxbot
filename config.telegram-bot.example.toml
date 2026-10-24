@@ -1,0 +1,9 @@
+# Copy to config.telegram-bot.toml; fill credentials locally, never commit them.
+[telegram_bot]
+token = ""
+# Numeric Telegram USER ids, not bot id or username. Empty means reject everyone.
+allowed_user_ids = []
+butler_config = "config.butler.toml"
+state_dir = "data/telegram-bot"
+# Optional local HTTP proxy; used only for Telegram, never for local Butler.
+proxy_url = ""

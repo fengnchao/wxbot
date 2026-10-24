@@ -15,7 +15,7 @@ class OllamaProcessor(Processor):
         self.system_prompt = mcfg.get("system_prompt", "")
         self.histories: dict[str, list[dict]] = {}
 
-    def reset(self, contact: str, *, channel_type='dm') -> None:
+    def reset(self, contact: str, *, channel_type='dm', member_key="") -> None:
         self.histories.pop(contact, None)
 
     def handle(self, contact: str, text: str) -> str | None:

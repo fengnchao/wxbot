@@ -14,7 +14,7 @@ def test_bounded_parallel_waits_and_stop_does_not_claim_more():
     release=Event()
     ids=[]
     class Router:
-        def handle_reply(self, contact, text, *, context='',request_id=None):
+        def handle_reply(self, contact, text, *, context='',request_id=None, member_key="", member_name=""):
             ids.append(request_id)
             entered[contact].set()
             assert release.wait(3)

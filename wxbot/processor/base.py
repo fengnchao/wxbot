@@ -6,10 +6,10 @@ class Processor:
     def handle(self, contact: str, text: str) -> str | None:
         raise NotImplementedError
 
-    def handle_reply(self, contact: str, text: str, *, request_id=None) -> Reply:
+    def handle_reply(self, contact: str, text: str, *, request_id=None, member_key="", member_name="") -> Reply:
         return Reply.from_text(self.handle(contact, text))
 
-    def reset(self, contact: str, *, channel_type='dm') -> None:
+    def reset(self, contact: str, *, channel_type='dm', member_key="") -> None:
         pass
 
 

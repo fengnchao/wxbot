@@ -33,7 +33,7 @@ def test_safe_model_failure_retries_same_request_then_succeeds():
 
 
 def test_unknown_result_expires_without_replaying_and_releases_later_group_message():
-    store=QueueStore(':memory:')
+    store=QueueStore(':memory:', failure_timeout_seconds=180)
     first=claimed(store)
     store.fail_batch(first.id,'old unknown result',now=2,retry_safe=False)
     store.capture('group',[],[Incoming('new question')],now=3)
@@ -89,14 +89,14 @@ def test_incomplete_reply_preserves_trusted_retry_flag_and_error():
 def test_dashboard_explains_recovery_and_preserves_failure_history(tmp_path):
     from log.queue_view import QueueView
     from log.flow_view import FlowView
-    path=tmp_path/'q.db';store=QueueStore(path);first=claimed(store)
+    path=tmp_path/'q.db';store=QueueStore(path,failure_timeout_seconds=180);first=claimed(store)
     store.fail_batch(first.id,'startup failed',now=2,retry_safe=True)
-    data=QueueView(path).read(now=3)
+    data=QueueView(path,failure_timeout_seconds=180).read(now=3)
     reason=data['contacts'][0]['reason']
     assert reason['retry_at']==7 and reason['discard_at']==182
     assert data['batches'][0]['retry_safe'] is True
     store.recover_model_failures(now=183)
-    history=QueueView(path).read(scope='history',now=184)
+    history=QueueView(path,failure_timeout_seconds=180).read(scope='history',now=184)
     assert history['batches'][0]['display_state']=='model_failed'
     flow=FlowView({'path':path},[]).read(now=184)['flows'][0]
     assert flow['state']=='model_failed' and 'startup failed' in flow['reason']['error']

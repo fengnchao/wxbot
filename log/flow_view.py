@@ -11,7 +11,7 @@ from .queue_view import QueueView
 
 STAGES = {'wxbot_model','wxbot_butler','butler_received','butler_session','hermes_request',
           'hermes_tool','hermes_status','hermes_approval','hermes_generating','hermes_result',
-          'butler_action','butler_result','wxbot_result'}
+          'butler_action','butler_result','wxbot_result','wxbot_reply_mode'}
 MILESTONES = ('wxbot_butler','butler_received','hermes_request','hermes_result','wxbot_result','wechat_delivery')
 
 

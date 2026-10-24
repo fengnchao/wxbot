@@ -195,13 +195,21 @@ class ClipboardLease:
         self.api=api if api is not None else WindowsClipboard()
         self.saved,self.seq,self.closed=None,None,False
         self.restore_failure={}
+        self.degraded=False   # 备份失败时降级为直接覆盖剪贴板，发送后无法恢复
         self.sequence_at_write,self.sequence_after_close,self.sequence_at_check=None,None,None
         try:
             with self.api.open():
                 initial_sequence=self.api.sequence()
-                self.saved=self.api.snapshot()
-                # A new, empty Windows clipboard can legitimately begin at zero.
-                # Existing formats with an unreadable generation remain unsafe.
+                try:
+                    self.saved=self.api.snapshot()
+                except Exception as backup_exc:
+                    # 备份失败：降级为不备份、直接覆盖剪贴板，保证消息仍能发出；
+                    # 代价是原剪贴板内容无法恢复。
+                    self.saved=None
+                    self.degraded=True
+                    self.restore_failure={'clipboard_error':'剪贴板备份失败，已降级为直接覆盖发送',
+                                          'exception_type':type(backup_exc).__name__}
+                # 序号核对失败（序号为 0 但已有内容）仍是安全风险，不降级、直接拒绝。
                 if initial_sequence==0 and self.saved:
                     raise _clipboard_error('无法核对已有剪贴板内容的序号','initial_sequence')
                 try:

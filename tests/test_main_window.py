@@ -101,18 +101,19 @@ class Router:
         self.calls = []
         self.on_handle = lambda: None
 
-    def handle(self, contact, text, *, context=""):
+    def handle(self, contact, text, *, context="", member_key="", member_name=""):
         self.calls.append((contact, text, context))
         self.on_handle()
         return "回复：" + text
 
-    def handle_reply(self, contact, text, *, context='', request_id=None):
+    def handle_reply(self, contact, text, *, context='', request_id=None, member_key="", member_name=""):
         return Reply.from_text(self.handle(contact,text,context=context))
 
 
 def cfg():
     return {"bot": {"bound_users": ["101"], "bound_groups": ["鸭王集训营"],
-                    "mention_names": ["Bot"], "reply_delay_min": 0, "reply_delay_max": 0},
+                    "mention_names": ["Bot"], "reply_delay_min": 0, "reply_delay_max": 0,
+                    "group_reply_chance": 0},
             "wechat": {"mode": "main"},
             "queue": {"database": ":memory:", "quiet_seconds": 0, "max_wait_seconds": 10}}
 
@@ -138,7 +139,7 @@ def test_first_unread_only_processes_unread_tail():
     assert [call[1] for call in router.calls] == ["第一条\n第二条"]
 
 
-def test_user_examples_private_and_mentioned_group_only():
+def test_group_messages_all_enter_context_and_mention_is_stripped():
     private = Chat("101", [Message("other", "123")])
     group = Chat("鸭王集训营", [Message("other", "12")], True)
     mentioned = Chat("Bott", [Message("other", "普通消息"), Message("other", "@别人 hi"),
@@ -149,9 +150,17 @@ def test_user_examples_private_and_mentioned_group_only():
     inbox = MainInbox(cfg(), router, desktop=desktop)
     inbox.poll(allow_switch=True)
     inbox.poll(allow_switch=True)
+    inbox.poll(allow_switch=True)
     process(inbox)
-    assert [(c, t) for c, t, _ in router.calls] == [("101", "123"), ("Bott", "你好")]
-    assert "member_id=abc" in router.calls[-1][2]
+    pairs = [(c, t) for c, t, _ in router.calls]
+    # 私聊进模型
+    assert ("101", "123") in pairs
+    # 非 @群消息也进模型（进上下文），不再被跳过
+    assert ("鸭王集训营", "12") in pairs
+    assert ("Bott", "普通消息") in pairs
+    # @Bot 前缀被去掉，并保留 member_id 上下文
+    assert ("Bott", "你好") in pairs
+    assert any("member_id=abc" in ctx for _, _, ctx in router.calls)
     assert group.sent == []
 
 
@@ -310,7 +319,7 @@ def test_typing_poll_records_other_badges_without_switching_away_from_partial_dr
     inbox.poll(allow_switch=True)
     a.messages.append(Message("other", "打字期间的补充"))
     desktop.pending = [Session("B", 1)]
-    inbox.delivery.active = SimpleNamespace(typing=SimpleNamespace(win=object()))
+    inbox.delivery.active = SimpleNamespace(typing=SimpleNamespace(win=object(), enter_attempted=False))
     inbox.poll(allow_switch=False)
     assert [row["text"] for row in inbox.store.records("inbox")] == ["打字期间的补充"]
     assert inbox.store.pending_sessions()[0]["contact"] == "B"

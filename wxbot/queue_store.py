@@ -10,14 +10,17 @@ import time
 import uuid
 
 from .config import validate_failure_timeout
+from .delivery_policy import DeliveryPolicy
 
 FAILURE_TIMEOUT_SECONDS = 180
+RETRY_DELAY_SECONDS = 20
+MAX_DELIVERY_RETRIES = 2
 _UNSET = object()
 FAILURE_DETAIL_FIELDS = {'phase','expected_contact','actual_contact','expected_group','actual_group',
     'expected_hwnd','foreground_hwnd','input_focused','target_matches','characters_entered',
     'enter_attempted','clipboard_write','clipboard_committed','clipboard_checked',
     'clipboard_operation','clipboard_format','clipboard_error','os_error_code','exception_type',
-    'retry_safe','attempt','max_attempts','retry_at','error_code'}
+    'manual_required','retry_safe','attempt','max_attempts','retry_at','error_code'}
 
 
 def queue_database(cfg):
@@ -34,6 +37,8 @@ class Incoming:
     text: str
     member_key: str = ""
     context: str = ""
+    member_name: str = ""
+    reply_mode: str = "text"   # text=文字回复 / emoji=表情图 / none=静默（已进上下文不回复）
 
 
 @dataclass(frozen=True)
@@ -42,6 +47,21 @@ class Batch:
     contact: str
     text: str
     context: str
+    member_key: str = ""
+    member_name: str = ""
+    reply_mode: str = "text"
+
+
+REPLY_MODE_PRIORITY = ("text", "emoji", "none")
+
+
+def merge_reply_mode(rows):
+    """合并批次时取优先级最高的回复方式：文字 > 表情 > 静默。"""
+    modes = {row["reply_mode"] for row in rows}
+    for mode in REPLY_MODE_PRIORITY:
+        if mode in modes:
+            return mode
+    return "text"
 
 
 @dataclass(frozen=True)
@@ -53,14 +73,21 @@ class Delivery:
     group_mode: bool | None = None
     part_seq: int = 1
     part_count: int = 1
+    kind: str = "text"
 
 
-class QueueStore:
-    def __init__(self, path, *, access="runtime", failure_timeout_seconds=FAILURE_TIMEOUT_SECONDS):
+class QueueStore(DeliveryPolicy):
+    def __init__(self, path, *, access="runtime", failure_timeout_seconds=FAILURE_TIMEOUT_SECONDS,
+                 retry_delay_seconds=RETRY_DELAY_SECONDS, max_delivery_retries=MAX_DELIVERY_RETRIES, restart_chat_policy='discard'):
         from . import queue_schema
         if access not in {"runtime", "readonly", "admin"}:
             raise ValueError("无效队列访问模式")
+        if restart_chat_policy not in {'discard', 'resume'}:
+            raise ValueError('无效的聊天重启恢复策略')
+        self.restart_chat_policy = restart_chat_policy
         self.failure_timeout_seconds = validate_failure_timeout(failure_timeout_seconds)
+        self.retry_delay_seconds = float(retry_delay_seconds)
+        self.max_delivery_retries = int(max_delivery_retries)
         self.path, self.access = str(path), access
         self._lock = threading.RLock()
         self._owner_file = self._db = None
@@ -128,6 +155,19 @@ class QueueStore:
                 self._owner_file.close()
                 self._owner_file = None
 
+    def group_member_name(self, contact, member_key):
+        with self._lock:
+            row = self._db.execute(
+                "SELECT name FROM group_member_names WHERE contact=? AND member_key=?",
+                (contact, member_key)).fetchone()
+            return row[0] if row else ""
+
+    def remember_group_member(self, contact, member_key, name, *, now):
+        with self._transaction() as db:
+            db.execute("""INSERT INTO group_member_names VALUES(?,?,?,?)
+                ON CONFLICT(contact,member_key) DO UPDATE SET name=excluded.name,updated_at=excluded.updated_at""",
+                (contact, member_key, name, now))
+
     def remember_session(self, contact, unread_count, mentioned, *, now):
         with self._transaction() as db:
             db.execute("""INSERT INTO pending_sessions VALUES(?,?,?,?)
@@ -155,8 +195,9 @@ class QueueStore:
             received_at = min(now, pending[0]) if pending else now
             for message in messages:
                 cursor = db.execute("""INSERT INTO inbox
-                    (contact,text,member_key,context,group_mode,received_at) VALUES(?,?,?,?,?,?)""",
-                    (contact, message.text, message.member_key, message.context, int(group_mode), received_at))
+                    (contact,text,member_key,member_name,reply_mode,context,group_mode,received_at) VALUES(?,?,?,?,?,?,?,?)""",
+                    (contact, message.text, message.member_key, message.member_name,
+                     message.reply_mode, message.context, int(group_mode), received_at))
                 ids.append(cursor.lastrowid)
             db.execute("""INSERT INTO observations VALUES(?,?,?,?)
                 ON CONFLICT(contact) DO UPDATE SET snapshot=excluded.snapshot,
@@ -194,7 +235,7 @@ class QueueStore:
                 busy = db.execute("SELECT 1 FROM batches WHERE contact=? AND state!='done' LIMIT 1",
                                   (contact,)).fetchone()
                 outgoing = db.execute("""SELECT 1 FROM outbox WHERE contact=?
-                    AND state NOT IN ('sent','skipped') LIMIT 1""", (contact,)).fetchone()
+                    AND detached=0 AND state NOT IN ('sent','skipped') LIMIT 1""", (contact,)).fetchone()
                 unread = db.execute("SELECT 1 FROM pending_sessions WHERE contact=?", (contact,)).fetchone()
                 if busy or outgoing or unread:
                     continue
@@ -206,10 +247,12 @@ class QueueStore:
             for _, _, selected in sorted(candidates, key=lambda item: item[:2]):
                 batch_id = uuid.uuid4().hex
                 first = selected[0]
-                db.execute("""INSERT INTO batches(id,contact,text,context,state,created_at)
-                    VALUES(?,?,?,?,'ready',?)""",
+                reply_mode = merge_reply_mode(selected)
+                db.execute("""INSERT INTO batches(id,contact,text,context,member_key,member_name,reply_mode,state,created_at)
+                    VALUES(?,?,?,?,?,?,?,'ready',?)""",
                     (batch_id, first["contact"], "\n".join(row["text"] for row in selected),
-                     first["context"], now))
+                     first["context"], first["member_key"] or "", first["member_name"] or "",
+                     reply_mode, now))
                 db.executemany("UPDATE inbox SET batch_id=? WHERE id=?",
                                [(batch_id, row["id"]) for row in selected])
         return len(candidates)
@@ -222,14 +265,15 @@ class QueueStore:
                 return None
             db.execute("""UPDATE batches SET state='processing',started_at=?,finished_at=NULL,attempts=attempts+1
                 WHERE id=?""", (now, row["id"]))
-            return Batch(row["id"], row["contact"], row["text"], row["context"])
+            return Batch(row["id"], row["contact"], row["text"], row["context"],
+                         row["member_key"] or "", row["member_name"] or "", row["reply_mode"] or "text")
 
     @staticmethod
-    def _insert_delivery(db, contact, text, now, not_before, batch_id=None, part_seq=1):
+    def _insert_delivery(db, contact, text, now, not_before, batch_id=None, part_seq=1, kind="text"):
         delivery_id = f"{batch_id}:{part_seq}" if batch_id else uuid.uuid4().hex
-        db.execute("""INSERT INTO outbox(id,contact,text,batch_id,state,created_at,not_before,part_seq)
-            VALUES(?,?,?,?,'pending',?,?,?)""",
-                   (delivery_id, contact, text, batch_id, now, not_before, part_seq))
+        db.execute("""INSERT INTO outbox(id,contact,text,batch_id,state,created_at,not_before,part_seq,kind)
+            VALUES(?,?,?,?,'pending',?,?,?,?)""",
+                   (delivery_id, contact, text, batch_id, now, not_before, part_seq, kind))
         return delivery_id
 
     def release_unsubmitted_batch(self, batch_id):
@@ -251,8 +295,17 @@ class QueueStore:
                              (batch_id,)).fetchone()
             if row is None:
                 raise ValueError("批次不处于处理中，不能重复保存模型结果")
+            member_name = (row["member_name"] or "").strip()
+            member_key = row["member_key"] or ""
+            if member_name == f"成员-{member_key[:8]}":
+                member_name = ""
+            if member_key and not member_name:
+                mapped = db.execute("SELECT name FROM group_member_names WHERE contact=? AND member_key=?",
+                                    (row["contact"], member_key)).fetchone()
+                member_name = mapped[0] if mapped else ""
             for n, part in enumerate(parts, 1):
-                self._insert_delivery(db, row["contact"], part, now, now + delay, batch_id, n)
+                text = f"@{member_name} {part}" if n == 1 and member_name else part
+                self._insert_delivery(db, row["contact"], text, now, now + delay, batch_id, n)
             db.execute("""UPDATE batches SET reply_text=?,reply_complete=1,part_count=?,error='',finished_at=NULL WHERE id=?""",
                        (reply_text if reply_text is not None else ''.join(parts), len(parts), batch_id))
             self._recompute_batch(db, batch_id, now)
@@ -264,7 +317,7 @@ class QueueStore:
         batch = db.execute('SELECT reply_complete FROM batches WHERE id=?', (batch_id,)).fetchone()
         if batch is None or not batch[0]:
             return  # Unknown model result must remain uncertain/processing.
-        states = {r[0] for r in db.execute('SELECT state FROM outbox WHERE batch_id=?', (batch_id,))}
+        states = {r[0] for r in db.execute('SELECT state FROM outbox WHERE batch_id=? AND detached=0', (batch_id,))}
         state = ('done' if states <= {'sent','skipped'} else 'uncertain' if 'uncertain' in states
                  else 'blocked' if 'blocked' in states else 'waiting_delivery')
         db.execute("""UPDATE batches SET state=?,finished_at=CASE WHEN ?='done'
@@ -314,13 +367,18 @@ class QueueStore:
         with self._transaction() as db:
             return self._insert_delivery(db, contact, text, now, now)
 
+    def enqueue_sticker(self, contact, *, now):
+        with self._transaction() as db:
+            return self._insert_delivery(db, contact, "", now, now, kind="emoji")
+
     _DELIVERY_CANDIDATE = """SELECT o.*,
         COALESCE(b.part_count,1) AS part_count FROM outbox o
         LEFT JOIN batches b ON b.id=o.batch_id
         LEFT JOIN delivery_turns t ON t.contact=o.contact
-        WHERE o.state='pending' AND o.not_before<=?
+        WHERE o.state='pending' AND o.detached=0 AND o.not_before<=?
+        AND NOT EXISTS(SELECT 1 FROM outbox hold WHERE hold.contact=o.contact AND hold.manual_required=1)
         AND NOT EXISTS(SELECT 1 FROM outbox older WHERE older.contact=o.contact
-            AND older.seq<o.seq AND older.state NOT IN ('sent','skipped'))
+            AND older.seq<o.seq AND older.detached=0 AND older.state NOT IN ('sent','skipped'))
         ORDER BY COALESCE(t.last_turn,0),o.seq LIMIT 1"""
 
     def has_ready_delivery(self, *, now):
@@ -329,16 +387,18 @@ class QueueStore:
 
     def claim_delivery(self, *, now):
         with self._transaction() as db:
+            self._expire_replies(db, now)
             row = db.execute(self._DELIVERY_CANDIDATE, (now,)).fetchone()
             if row is None:
                 return None
             db.execute("UPDATE outbox SET state='sending' WHERE id=?", (row["id"],))
-            kind = (db.execute("SELECT group_mode FROM inbox WHERE batch_id=? LIMIT 1", (row["batch_id"],)).fetchone()
-                    if row["batch_id"] else None)
-            if kind is None:
-                kind = db.execute("SELECT group_mode FROM observations WHERE contact=?", (row["contact"],)).fetchone()
+            group_kind = (db.execute("SELECT group_mode FROM inbox WHERE batch_id=? LIMIT 1", (row["batch_id"],)).fetchone()
+                        if row["batch_id"] else None)
+            if group_kind is None:
+                group_kind = db.execute("SELECT group_mode FROM observations WHERE contact=?", (row["contact"],)).fetchone()
             return Delivery(row["id"], row["contact"], row["text"], row["batch_id"],
-                            bool(kind[0]) if kind is not None else None, row['part_seq'], row['part_count'])
+                            bool(group_kind[0]) if group_kind is not None else None, row['part_seq'], row['part_count'],
+                            row["kind"] or "text")
 
     def save_baseline(self, delivery_id, snapshot, *, submitted_text=None):
         with self._transaction() as db:
@@ -392,17 +452,52 @@ class QueueStore:
                 resolution=? WHERE id=?""",
                 (state,now,error,failure,now,'sent' if state=='sent' else '',delivery_id))
             if failure:
+                if row['batch_id']:
+                    db.execute('UPDATE batches SET first_delivery_failure=COALESCE(first_delivery_failure,?) WHERE id=?',
+                               (now,row['batch_id']))
+                    db.execute('''UPDATE outbox SET failed_at=(SELECT first_delivery_failure FROM batches WHERE id=?)
+                        WHERE batch_id=? AND state NOT IN ('sent','skipped')''', (row['batch_id'],row['batch_id']))
+                if (details or {}).get('manual_required'):
+                    db.execute('UPDATE outbox SET manual_required=1 WHERE id=?',(delivery_id,))
                 self._event(db,row,'failed',now,state,error,details)
+                if state == 'uncertain':
+                    db.execute("UPDATE outbox SET detached=1,resolution='review' WHERE id=?", (delivery_id,))
+                    if row['batch_id']:
+                        self._end_reply(db,row['batch_id'],now,'发送结果待核对，停止本轮续发并放行后续消息','review')
+                    self._advance_turn(db,row['contact'])
+            if state == 'sent':
+                db.execute('UPDATE outbox SET draft_text=NULL,manual_required=0 WHERE id=?',(delivery_id,))
             if state in {'sent','skipped'}:
                 self._advance_turn(db, row['contact'])
             self._recompute_batch(db, row['batch_id'], now)
 
+    def retry_failed_deliveries(self, *, now):
+        """blocked 发件过了重试延迟且未超重试上限 → 自动重新入队（救回瞬态失败）。
+
+        uncertain 不自动重试：它已回车但未确认气泡，可能已经发出，重试会重复发送。
+        """
+        with self._transaction() as db:
+            rows = db.execute("""SELECT * FROM outbox WHERE state='blocked'
+                AND detached=0 AND manual_required=0
+                AND failed_at IS NOT NULL AND failed_at<=? AND failed_at>? AND retries<?
+                ORDER BY seq""",
+                (now - self.retry_delay_seconds, now - self.failure_timeout_seconds, self.max_delivery_retries)).fetchall()
+            retried = []
+            for row in rows:
+                db.execute("""UPDATE outbox SET state='pending',error='',resolution='',baseline=NULL,
+                    submitted_at=NULL,submitted_text=NULL,finished_at=NULL,retries=retries+1
+                    WHERE id=?""", (row["id"],))
+                reason = f'自动重试（第 {row["retries"] + 1}/{self.max_delivery_retries} 次）；原失败原因：' + (row['error'] or '未记录')
+                self._event(db, row, 'auto_retry', now, 'pending', reason)
+                retried.append({**dict(row), 'state': 'pending', 'retries': row['retries'] + 1})
+            return retried
+
     def expire_failed_deliveries(self, *, now):
         with self._transaction() as db:
-            rows=db.execute("""SELECT * FROM outbox WHERE state IN ('blocked','uncertain')
+            expired=self._expire_replies(db,now)
+            rows=db.execute("""SELECT * FROM outbox WHERE batch_id IS NULL AND detached=0 AND state IN ('blocked','uncertain')
                 AND failed_at IS NOT NULL AND failed_at<=? ORDER BY seq""",
                 (now-self.failure_timeout_seconds,)).fetchall()
-            expired=[]
             for row in rows:
                 reason=f'发送失败满{self.failure_timeout_seconds:g}秒，自动丢弃；原失败原因：'+(row['error'] or '未记录')
                 db.execute("UPDATE outbox SET state='skipped',resolution='timeout',finished_at=?,error=? WHERE id=?",
@@ -428,6 +523,13 @@ class QueueStore:
                 WHERE state IN ('sending','confirming')""",(now,now)).rowcount
             for row in interrupted:
                 self._event(db,row,'failed',now,'uncertain','进程中断，发送结果需核对',{'phase':'recovery'})
+            if self.restart_chat_policy == 'discard':
+                for batch in db.execute("SELECT id FROM batches WHERE reply_complete=1 AND EXISTS(SELECT 1 FROM outbox WHERE batch_id=batches.id AND detached=0 AND state NOT IN ('sent','skipped'))").fetchall():
+                    self._end_reply(db,batch['id'],now,'重启停止续发旧聊天回复','restart_discard')
+            for row in db.execute("SELECT * FROM outbox WHERE state='uncertain' AND detached=0").fetchall():
+                db.execute("UPDATE outbox SET detached=1,resolution='review' WHERE id=?",(row['id'],))
+                if row['batch_id']:
+                    self._end_reply(db,row['batch_id'],now,'发送结果待核对，停止本轮续发','review')
             for row in db.execute("SELECT id FROM batches WHERE reply_complete=1").fetchall():
                 self._recompute_batch(db, row[0])
             return {"models_uncertain": models, "deliveries_uncertain": deliveries}
@@ -495,13 +597,20 @@ class QueueStore:
         with self._transaction() as db:
             table = "outbox" if delivery else "batches"
             row = db.execute(f"SELECT * FROM {table} WHERE id=?", (record_id,)).fetchone()
-            if row is None or row["state"] not in {"blocked", "uncertain"}:
+            if row is None or (row["state"] not in {"blocked", "uncertain"} and not (delivery and row["state"]=="skipped" and row["manual_required"])):
                 raise ValueError("只允许显式重试 blocked/uncertain 任务")
             self._check_action(row,contact,expected_state,expected_finished_at,expected_attempts)
             if not delivery and db.execute("SELECT 1 FROM outbox WHERE batch_id=?", (record_id,)).fetchone():
                 raise ValueError("模型已有回复，请处理对应发件任务，不能重跑模型")
             if delivery:
-                db.execute("""UPDATE outbox SET state='pending',error='',resolution='',baseline=NULL,
+                if db.execute("SELECT 1 FROM outbox WHERE contact=? AND state IN ('sending','confirming')",(row['contact'],)).fetchone():
+                    raise ValueError('该会话正在发送，请等待发送结束后重试')
+                db.execute('UPDATE outbox SET manual_required=0 WHERE contact=?',(row['contact'],))
+                if row['detached'] or row['state']=='skipped':
+                    db.execute('UPDATE outbox SET failed_at=NULL,retries=0 WHERE id=?',(record_id,))
+                    if row['batch_id']:
+                        db.execute("UPDATE batches SET first_delivery_failure=NULL,delivery_resolution='',error='' WHERE id=?",(row['batch_id'],))
+                db.execute("""UPDATE outbox SET detached=0,state='pending',error='',resolution='',baseline=NULL,
                     submitted_at=NULL,submitted_text=NULL,finished_at=NULL WHERE id=?""", (record_id,))
                 self._recompute_batch(db, row["batch_id"])
             else:
@@ -519,11 +628,12 @@ class QueueStore:
         with self._transaction() as db:
             table = "outbox" if delivery else "batches"
             row = db.execute(f"SELECT * FROM {table} WHERE id=?", (record_id,)).fetchone()
-            if row is None or row["state"] not in {"blocked", "uncertain"}:
+            if row is None or (row["state"] not in {"blocked", "uncertain"} and not (delivery and row["state"]=="skipped" and row["manual_required"])):
                 raise ValueError("只允许人工处理 blocked/uncertain 任务")
             self._check_action(row,contact,expected_state,expected_finished_at,expected_attempts)
             if delivery:
-                db.execute("UPDATE outbox SET state=?,finished_at=?,error=?,resolution=? WHERE id=?",
+                db.execute('UPDATE outbox SET manual_required=0 WHERE contact=?',(row['contact'],))
+                db.execute("UPDATE outbox SET detached=0,state=?,finished_at=?,error=?,resolution=? WHERE id=?",
                            ("sent" if sent else "skipped", now, "人工核对结束",
                             'manual_sent' if sent else 'manual_skip',record_id))
                 self._advance_turn(db, row["contact"])

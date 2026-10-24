@@ -16,7 +16,7 @@ from wxbot.queue_store import Incoming, QueueStore
 
 def test_queue_explains_previous_block_and_reads_without_changing_running_tasks(tmp_path):
     path=tmp_path/'queue.db'
-    store=QueueStore(path)
+    store=QueueStore(path, failure_timeout_seconds=180)
     store.capture('A',[],[Incoming('old')],now=0)
     store.prepare(quiet=0,max_wait=10,prefix='/',now=0)
     batch=store.claim_batch(now=0)
@@ -26,7 +26,7 @@ def test_queue_explains_previous_block_and_reads_without_changing_running_tasks(
     store.capture('A',[],[Incoming('new')],now=3)
     store.capture('B',[],[Incoming('B question')],now=3)
     before=[store.records(t) for t in ('inbox','batches','outbox')]
-    data=QueueView(path).read(now=20)
+    data=QueueView(path, failure_timeout_seconds=180).read(now=20)
     a=next(u for u in data['contacts'] if u['contact']=='A')
     assert a['reason']['code']=='blocked'
     assert a['reason']['record_id']==d.id and a['reason']['error']=='输入校验失败'
@@ -74,7 +74,7 @@ def test_queue_legacy_is_readonly_and_failed_query_does_not_create_files(tmp_pat
 
 
 def test_legacy_zero_failure_time_is_not_replaced_by_submission_time():
-    deadline=QueueView._deadline({'finished_at':0,'submitted_at':5,'created_at':1},20)
+    deadline=QueueView._deadline({'finished_at':0,'submitted_at':5,'created_at':1},20,failure_timeout_seconds=180)
     assert deadline['discard_at']==180
 
 
@@ -116,7 +116,7 @@ def test_config_includes_raw_defaults_fixed_typing_and_dynamic_policies_and_reda
     assert rows['wxbot.queue.quiet_seconds']['value']==3
     assert rows['wxbot.queue.quiet_seconds']['origin']=='default'
     assert rows['wxbot.wechat.typing.chunk_size']['value']==5
-    assert rows['wxbot.wechat.typing.chunk_interval']['value']==.5
+    assert rows['wxbot.wechat.typing.chunk_interval']['value']==.25
     assert rows['wxbot.typing.input_method']['value']=='分批剪贴板粘贴'
     assert rows['wxbot.typing.unicode_keyboard']['value'] is False
     assert rows['wxbot.model.api_key']['value']=='已配置（隐藏）'

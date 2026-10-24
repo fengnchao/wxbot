@@ -125,6 +125,8 @@ def validate_document(source,data,view,changes,policy_validator=None):
         if q['max_wait_seconds']<=0 or q['confirm_timeout']<=0:raise ValueError('合并及发送确认等待必须大于0')
     elif source=='butler':
         cfg=merge(BT_DEFAULTS,data)
+        from butler.reply import validate_chunk_chars
+        validate_chunk_chars(cfg['reply']['chunk_chars'])
         hb=cfg['heartbeat']
         if hb['max_interval_minutes']<hb['min_interval_minutes']:raise ValueError('心跳最长间隔不得小于最短间隔')
         contacts=cfg['contacts']

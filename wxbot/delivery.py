@@ -6,7 +6,7 @@ import time
 from .log import log
 from .state import overlap_end
 from .wechat.chat_window import Message
-from .queue_store import FAILURE_TIMEOUT_SECONDS
+from .queue_store import FAILURE_TIMEOUT_SECONDS, MAX_DELIVERY_RETRIES
 
 
 def reply_is_visible(before, current, text):
@@ -77,7 +77,7 @@ class DeliveryPump:
             row=self.store.get_delivery(delivery.id)
             log.error('[发送失败][%s][%s] 状态=%s 原因=%s 详情=%s 自动丢弃截止=%s',
                       delivery.contact,delivery.id,state,error,json.dumps(details,ensure_ascii=False),
-                      row['failed_at']+getattr(self.store,'failure_timeout_seconds',FAILURE_TIMEOUT_SECONDS))
+                      '不自动重发，已退出阻塞，等待人工核对' if row.get('detached') else row['failed_at']+getattr(self.store,'failure_timeout_seconds',FAILURE_TIMEOUT_SECONDS))
         waiter = self._waiters.pop(delivery.id, None)
         if waiter is not None:
             waiter.finish(state == "sent", "sent" if state == "sent" else error or state)
@@ -93,6 +93,10 @@ class DeliveryPump:
         if self.monotonic()<self._next_expiry:
             return
         self._next_expiry=self.monotonic()+1
+        for row in self.store.retry_failed_deliveries(now=self.clock()):
+            log.warning('[发送自动重试][%s][%s] 第%s/%s次 原失败原因=%s；已重新入队',
+                        row['contact'],row['id'],row['retries'],
+                        getattr(self.store,'max_delivery_retries',MAX_DELIVERY_RETRIES),row['error'])
         for row in self.store.expire_failed_deliveries(now=self.clock()):
             log.warning('[发送超时丢弃][%s][%s] 首次失败=%s 等待上限=%s秒 原因=%s；后续队列已释放',
                         row['contact'],row['id'],row['failed_at'],
@@ -108,6 +112,9 @@ class DeliveryPump:
     def _start(self, delivery):
         chat=None
         try:
+            if delivery.kind == "emoji":
+                self._start_emoji(delivery)
+                return
             self.discover()  # 点击前持久化未读数量。
             chat = self.get_chat(delivery.contact)
             if delivery.group_mode is not None:
@@ -117,12 +124,20 @@ class DeliveryPump:
                 return
             baseline = chat.read_messages()
             self.store.save_baseline(delivery.id, [asdict(m) for m in baseline])
+            draft = self.store.owned_draft(delivery.contact)
+            if draft is not None and hasattr(chat, 'clear_owned_draft'):
+                if not chat.clear_owned_draft(draft):
+                    self._finish(delivery, 'blocked', '草稿与已核验的机器人输入不匹配，请人工清理后重试',
+                                 {'phase':'draft_cleanup','manual_required':getattr(chat,'draft_conflict',False)})
+                    return
+                self.store.forget_draft(delivery.contact)
             typing = chat.start_send(delivery.text, clock=self.monotonic)
             if typing is None:
                 self._finish(delivery, "blocked", "输入框有草稿或无法读取、对象无法确认或窗口不可用",
-                             self._diagnostics(chat,'prepare_input'))
+                             {**self._diagnostics(chat,'prepare_input'), 'manual_required':getattr(chat,'draft_conflict',False)})
                 return
             active = ActiveDelivery(delivery, chat, typing, baseline)
+            typing.on_verified_draft = lambda text: self.store.save_draft(delivery.id, text)
             typing.before_enter = lambda: self._prepare_enter(active)
             self.active = active
             log.info("[队列][%s][%s][%d/%d] 开始分批粘贴（每%d字/%g秒）", delivery.contact, delivery.id,
@@ -130,6 +145,30 @@ class DeliveryPump:
                      getattr(typing,'chunk_size',5),getattr(typing,'chunk_interval',.5))
         except Exception as exc:
             self._finish(delivery, "blocked", f"发送准备失败: {type(exc).__name__}",self._diagnostics(chat,'prepare'))
+
+    def _start_emoji(self, delivery):
+        chat = None
+        try:
+            self.discover()
+            chat = self.get_chat(delivery.contact)
+            if delivery.group_mode is not None:
+                chat.expected_group = delivery.group_mode
+            if not self.capture_target(delivery.contact):
+                self._finish(delivery, "blocked", "目标会话尚不可用，未发送表情",
+                             self._diagnostics(chat, 'prepare_target'))
+                return
+            status = chat.send_sticker(clock=self.monotonic, timeout=self.timeout)
+            if status == "sent":
+                self._finish(delivery, "sent")
+            elif status == "uncertain":
+                self._finish(delivery, "uncertain", "表情已点击但未确认发送，不自动重发",
+                             self._diagnostics(chat, 'sticker'))
+            else:
+                self._finish(delivery, "blocked", "表情发送失败或控件未校准",
+                             self._diagnostics(chat, 'sticker'))
+        except Exception as exc:
+            self._finish(delivery, "blocked", f"表情发送失败: {type(exc).__name__}",
+                         self._diagnostics(chat, 'sticker'))
 
     def _prepare_enter(self, active):
         if not active.chat.target_is_current(active.typing.win):
@@ -158,6 +197,13 @@ class DeliveryPump:
                 self.start_next()
             return
         active = self.active
+        row = self.store.get_delivery(active.delivery.id)
+        if (active.delivery.batch_id and row['failed_at'] is not None
+                and self.clock() >= row['failed_at'] + self.store.failure_timeout_seconds
+                and not active.typing.enter_attempted):
+            self._finish(active.delivery, 'blocked', '整轮失败等待期限已到，停止输入，未按回车')
+            self.store.expire_failed_deliveries(now=self.clock())
+            return
         state = active.typing.step()
         if state == "typing":
             return
@@ -193,7 +239,7 @@ class DeliveryPump:
         """重启后只核对已知不确定发件；不再输入，也不再按回车。"""
         self.expire_failures()
         for row in self.store.records("outbox"):
-            if row["state"] != "uncertain" or row["baseline"] is None:
+            if row["state"] != "uncertain" or row["baseline"] is None or (row.get('detached') and row['batch_id']):
                 continue
             try:
                 self.discover()

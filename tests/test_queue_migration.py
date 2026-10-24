@@ -100,14 +100,14 @@ def test_fair_parts_restart_and_parent_completion(tmp_path):
             assert store.get_batch(a.id)['state'] == 'waiting_delivery'
         if i == 1:
             store.close()
-            store=QueueStore(path)
+            store=QueueStore(path,restart_chat_policy='resume')
             store.recover()
     assert order == ['a1','b1','a2','b2','a3']
     assert store.get_batch(a.id)['state'] == store.get_batch(b.id)['state'] == 'done'
     store.close()
 
 
-def test_late_user_and_manual_resolve_keep_remaining_parts():
+def test_late_user_and_manual_resolve_do_not_resume_abandoned_parts():
     s=QueueStore(':memory:')
     a=batch(s,'A',['a1','a2','a3'])
     first=s.claim_delivery(now=0)
@@ -120,8 +120,9 @@ def test_late_user_and_manual_resolve_keep_remaining_parts():
     s.finish_delivery(second.id,'uncertain',now=3)
     assert not s.has_ready_delivery(now=4)
     s.resolve(second.id, delivery=True,sent=True,now=4)
-    assert s.get_batch(a.id)['state'] == 'waiting_delivery'
-    assert s.claim_delivery(now=4).text == 'a3'
+    assert s.get_batch(a.id)['state'] == 'done'
+    assert s.claim_delivery(now=4) is None
+    assert s.records('outbox')[2]['state']=='skipped'
 
 
 def test_empty_legacy_preserves_deleted_sequence_high_watermark(tmp_path):

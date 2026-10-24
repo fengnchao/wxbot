@@ -15,7 +15,7 @@ let state = { tab:'wxbot', jobUid:'all', jobShowDone:false, jobs:null,jRequest:0
               gNewsDraft:null,gNewsVersion:'',gNewsBusy:false,gNewsMessage:'',gNewsError:'',
               hdata:null, hstatus:null, hStatusError:'', hContact:'', hSkills:[], hSkillsContact:'', hRequest:0, hDraft:null, hError:'', hSaved:'',
               hTriggering:false, hTriggerMessage:'',hDrafts:new Map(),
-              qdata:null,qContact:'',qState:'all',qScope:'active',qOffsets:{inbox:0,batches:0,outbox:0},qOffset:0,qRequest:0,qError:'',qBusy:false,qMessage:'',qActionFailed:false,
+              qdata:null,qContact:'',qState:'all',qScope:'all',qOffsets:{inbox:0,batches:0,outbox:0,rounds:0,telegram:0},qOffset:0,qRequest:0,qError:'',qBusy:false,qMessage:'',qActionFailed:false,
               cdata:null,cSection:'basic',cSearch:'',cRequest:0,cError:'',viewSearch:{},runtime:null,rRequest:0,
               cDrafts:new Map(),cMessages:new Map(),cBusy:new Set(),cRefreshNeeded:false };
 

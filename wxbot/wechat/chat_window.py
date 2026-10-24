@@ -183,6 +183,10 @@ class ChatWindow:
     def read_messages(self, *, strict_sender=False) -> list[Message]:
         return [message for message, is_text in self._read_entries(strict_sender=strict_sender) if is_text]
 
+    def read_all_messages(self, *, strict_sender=False) -> list[Message]:
+        """读全部条目（含表情/图片等非文字消息），用于表情发送后的自确认。"""
+        return [message for message, is_text in self._read_entries(strict_sender=strict_sender)]
+
     def read_from_window(self, root, *, strict_sender=False) -> list[Message]:
         """只读当前面板，不选择会话；用于离开会话前的最后一次收件。"""
         lst = self._find(root, self.wcfg["message_list"])
@@ -232,9 +236,35 @@ class ChatWindow:
     def remember_sent(self, text):
         self._sent.append(text)
 
+    def clear_owned_draft(self, expected):
+        """Clear only a persisted, verified bot prefix in the checked target window."""
+        self.draft_conflict = False
+        win = self._window()
+        if win is None:
+            return False
+        win.SetActive()
+        edit = self._find(win, self.wcfg['input'])
+        if edit is None:
+            return False
+        edit.Click(simulateMove=False)
+        current = self._input_text(edit)
+        if current == '':
+            return True
+        if current is not None and current != expected:
+            self.draft_conflict = True
+            return False
+        if not expected or current is None or not self._can_send(win, edit):
+            return False
+        auto.SendKeys('{Ctrl}a', waitTime=0.05)
+        if not self._can_send(win, edit) or self._input_text(edit) != expected:
+            return False
+        auto.SendKeys('{Back}', waitTime=0.05)
+        return self._can_send(win, edit) and self._input_text(edit) == ''
+
     def start_send(self, text: str, *, clock=time.monotonic):
         from .typing import TypingSession
 
+        self.draft_conflict = False
         win = self._window()
         if win is None:
             log.warning("[%s] 窗口不存在，无法发送", self.title)
@@ -254,6 +284,7 @@ class ChatWindow:
             log.warning("[%s] 无法确认输入框是否为空，停止发送并保留输入内容", self.title)
             return None
         if input_before:
+            self.draft_conflict = True
             log.warning("[%s] 输入框已有未发送内容，放弃发送以免拼接消息", self.title)
             return None
         return TypingSession(self, win, edit, text, clock=clock)
@@ -275,3 +306,8 @@ class ChatWindow:
             return True
         log.warning("[%s] 输入/发送停止，状态=%s: %s", self.title, task.state, task.error)
         return False
+
+    def send_sticker(self, *, clock=time.monotonic, timeout=5.0) -> str:
+        """从微信表情面板随机发一张表情/贴图；返回 'sent' | 'blocked' | 'uncertain'。"""
+        from .emoji import EmojiPanel
+        return EmojiPanel(self).send(clock=clock, timeout=timeout)

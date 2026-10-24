@@ -37,3 +37,22 @@ def find(root: auto.Control, spec: dict, max_depth: int = 15) -> auto.Control | 
             except Exception:
                 continue
     return None
+
+
+def find_all(root: auto.Control, spec: dict, max_depth: int = 15, limit: int = 200) -> list:
+    """广度优先收集所有满足条件的后代控件（用于表情面板条目等）。"""
+    found = []
+    queue = deque([(root, 0)])
+    while queue:
+        ctrl, depth = queue.popleft()
+        if depth > 0 and matches(ctrl, spec):
+            found.append(ctrl)
+            if len(found) >= limit:
+                break
+        if depth < max_depth:
+            try:
+                for child in ctrl.GetChildren():
+                    queue.append((child, depth + 1))
+            except Exception:
+                continue
+    return found

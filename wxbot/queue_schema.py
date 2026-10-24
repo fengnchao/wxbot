@@ -1,5 +1,5 @@
 """Queue schema creation and atomic legacy migration. No service/UI access."""
-VERSION = 3
+VERSION = 8
 
 OUTBOX_SQL = """CREATE TABLE outbox (
     seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE,
@@ -9,9 +9,14 @@ OUTBOX_SQL = """CREATE TABLE outbox (
     baseline TEXT, submitted_at REAL, finished_at REAL,
     error TEXT NOT NULL DEFAULT '', submitted_text TEXT,
     part_seq INTEGER NOT NULL DEFAULT 1, failed_at REAL,
-    resolution TEXT NOT NULL DEFAULT '', UNIQUE(batch_id,part_seq))"""
+    resolution TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL DEFAULT 'text',
+    retries INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(batch_id,part_seq))"""
 
 _TABLES = (
+    """CREATE TABLE IF NOT EXISTS group_member_names (
+        contact TEXT NOT NULL, member_key TEXT NOT NULL, name TEXT NOT NULL,
+        updated_at REAL NOT NULL, PRIMARY KEY(contact, member_key))""",
     """CREATE TABLE IF NOT EXISTS observations (
         contact TEXT PRIMARY KEY, snapshot TEXT NOT NULL,
         group_mode INTEGER NOT NULL, updated_at REAL NOT NULL)""",
@@ -21,13 +26,16 @@ _TABLES = (
     """CREATE TABLE IF NOT EXISTS batches (
         seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE,
         contact TEXT NOT NULL, text TEXT NOT NULL, context TEXT NOT NULL,
+        member_key TEXT NOT NULL DEFAULT '', member_name TEXT NOT NULL DEFAULT '',
+        reply_mode TEXT NOT NULL DEFAULT 'text',
         state TEXT NOT NULL, created_at REAL NOT NULL, started_at REAL,
         finished_at REAL, attempts INTEGER NOT NULL DEFAULT 0, error TEXT NOT NULL DEFAULT '',
         reply_text TEXT, reply_complete INTEGER NOT NULL DEFAULT 0, part_count INTEGER NOT NULL DEFAULT 0)""",
     """CREATE TABLE IF NOT EXISTS inbox (
         id INTEGER PRIMARY KEY AUTOINCREMENT, contact TEXT NOT NULL,
-        text TEXT NOT NULL, member_key TEXT NOT NULL, context TEXT NOT NULL,
-        group_mode INTEGER NOT NULL, received_at REAL NOT NULL,
+        text TEXT NOT NULL, member_key TEXT NOT NULL, member_name TEXT NOT NULL DEFAULT '',
+        reply_mode TEXT NOT NULL DEFAULT 'text',
+        context TEXT NOT NULL, group_mode INTEGER NOT NULL, received_at REAL NOT NULL,
         batch_id TEXT REFERENCES batches(id))""",
     """CREATE TABLE IF NOT EXISTS delivery_turns (contact TEXT PRIMARY KEY, last_turn INTEGER NOT NULL)""",
     """CREATE TABLE IF NOT EXISTS delivery_events (
@@ -44,9 +52,10 @@ def columns(db, table):
 
 def is_latest(db):
     return (db.execute('PRAGMA user_version').fetchone()[0] == VERSION and
-            {'part_seq', 'submitted_text', 'failed_at', 'resolution'} <= columns(db, 'outbox') and
-            bool(columns(db, 'delivery_events')) and
-            {'reply_text', 'reply_complete', 'part_count'} <= columns(db, 'batches'))
+            {'part_seq', 'submitted_text', 'failed_at', 'resolution', 'kind', 'retries', 'detached', 'draft_text', 'manual_required'} <= columns(db, 'outbox') and
+            bool(columns(db, 'delivery_events')) and bool(columns(db, 'group_member_names')) and
+            {'reply_text', 'reply_complete', 'part_count', 'member_key', 'member_name', 'reply_mode', 'first_delivery_failure', 'delivery_resolution'} <= columns(db, 'batches') and
+            {'member_name', 'reply_mode'} <= columns(db, 'inbox'))
 
 
 def initialize(db):
@@ -74,16 +83,31 @@ def initialize(db):
         elif 'submitted_text' not in existing:
             db.execute('ALTER TABLE outbox ADD COLUMN submitted_text TEXT')
         existing = columns(db, 'outbox')
-        for name,declaration in (('failed_at','REAL'),('resolution',"TEXT NOT NULL DEFAULT ''")):
+        for name,declaration in (('failed_at','REAL'),('resolution',"TEXT NOT NULL DEFAULT ''"),
+                                 ('kind',"TEXT NOT NULL DEFAULT 'text'"),
+                                 ('retries',"INTEGER NOT NULL DEFAULT 0"),
+                                 ('detached','INTEGER NOT NULL DEFAULT 0'),
+                                 ('manual_required','INTEGER NOT NULL DEFAULT 0'),
+                                 ('draft_text','TEXT')):
             if name not in existing:
                 db.execute(f'ALTER TABLE outbox ADD COLUMN {name} {declaration}')
         db.execute("""UPDATE outbox SET failed_at=COALESCE(finished_at,submitted_at,created_at)
             WHERE failed_at IS NULL AND state IN ('blocked','uncertain')""")
         batch_cols = columns(db, 'batches')
         for name, declaration in (('reply_text','TEXT'), ('reply_complete','INTEGER NOT NULL DEFAULT 0'),
-                                  ('part_count','INTEGER NOT NULL DEFAULT 0')):
+                                  ('part_count','INTEGER NOT NULL DEFAULT 0'),
+                                  ('member_key',"TEXT NOT NULL DEFAULT ''"),
+                                  ('member_name',"TEXT NOT NULL DEFAULT ''"),
+                                  ('reply_mode',"TEXT NOT NULL DEFAULT 'text'"),
+                                  ('first_delivery_failure','REAL'),
+                                  ('delivery_resolution',"TEXT NOT NULL DEFAULT ''")):
             if name not in batch_cols:
                 db.execute(f'ALTER TABLE batches ADD COLUMN {name} {declaration}')
+        inbox_cols = columns(db, 'inbox')
+        for name, declaration in (('member_name',"TEXT NOT NULL DEFAULT ''"),
+                                  ('reply_mode',"TEXT NOT NULL DEFAULT 'text'")):
+            if name not in inbox_cols:
+                db.execute(f'ALTER TABLE inbox ADD COLUMN {name} {declaration}')
         if 'reply_complete' not in batch_cols:
             db.execute("""UPDATE batches SET
                 reply_text=(SELECT text FROM outbox WHERE batch_id=batches.id),
@@ -95,6 +119,8 @@ def initialize(db):
                     'CREATE INDEX IF NOT EXISTS outbox_state ON outbox(state,seq)',
                     'CREATE INDEX IF NOT EXISTS delivery_events_contact ON delivery_events(contact,seq)'):
             db.execute(sql)
+        db.execute('''UPDATE batches SET first_delivery_failure=(SELECT MIN(failed_at) FROM outbox WHERE batch_id=batches.id)
+            WHERE first_delivery_failure IS NULL''')
         db.execute(f'PRAGMA user_version={VERSION}')
         db.commit()
     except BaseException:

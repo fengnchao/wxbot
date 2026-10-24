@@ -22,6 +22,7 @@ class TypingSession:
         self.enter_attempted = False
         self.submitted_text = None
         self.before_enter = None
+        self.on_verified_draft = None
         self._verify_prefix = False
         self._verify_deadline = 0
         self._clipboard = None
@@ -72,6 +73,8 @@ class TypingSession:
                 self.phase='verify_prefix'
                 expected = self.normalized[:self.index * self.chunk_size]
                 if self._draft() == expected:
+                    if self.on_verified_draft is not None:
+                        self.on_verified_draft(expected)
                     if not self.close():
                         self.state,self.error = 'blocked','剪贴板暂时无法恢复，已保留草稿，未按回车'
                         return self.state

@@ -8,7 +8,7 @@ from wxbot.queue_store import QueueStore, Incoming
 
 
 def view(path, trace=None):
-    return WorkflowView({'path': path}, [trace] if trace else [],
+    return WorkflowView({'path': path, 'failure_timeout_seconds': 180}, [trace] if trace else [],
                         contacts=[{'name': '群', 'uid': 'group-uid', 'channel_type': 'group'}], backend='codex')
 
 

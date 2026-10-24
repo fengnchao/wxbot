@@ -34,37 +34,48 @@ def _protected_ranges(text):
     return ranges
 
 
-def split_reply(text: str | None) -> list[str]:
+def validate_chunk_chars(value):
+    if type(value) is not int or not 100 <= value <= 2000:
+        raise ValueError('reply.chunk_chars 必须是 100–2000 的整数')
+    return value
+
+
+def split_reply(text: str | None, chunk_chars: int = 500) -> list[str]:
+    """Preserve prose verbatim; protect URLs/code even if a token exceeds the soft limit."""
+    limit = validate_chunk_chars(chunk_chars)
     if not text or not text.strip():
         return []
     protected = _protected_ranges(text)
-    result, start, i = [], 0, 0
+    units, i = [], 0
     while i < len(text):
-        if i in protected:
-            i = protected[i]
-            continue
-        ch = text[i]
-        if ch in _TERMINALS or ch in '\r\n':
-            i += 1
-            while i < len(text) and text[i] in _TERMINALS | _CLOSERS:
-                i += 1
-            part = text[start:i].strip()
-            if part:
-                result.append(part)
-            start = i
+        end = protected.get(i, i + 1)
+        units.append((i, end))
+        i = end
+    parts, start, cursor = [], 0, 0
+    while cursor < len(units):
+        end_cursor = cursor
+        while end_cursor < len(units) and units[end_cursor][1] - start <= limit:
+            end_cursor += 1
+        if end_cursor == len(units):
+            parts.append(text[start:])
+            break
+        if end_cursor == cursor:
+            end_cursor += 1  # An indivisible URL/code span.
+        end = units[end_cursor - 1][1]
+        if end - start <= limit:
+            # Prefer a boundary in the latter half, avoiding tiny bubbles.
+            boundaries = [(n + 1, b) for n, (a, b) in enumerate(units[cursor:end_cursor], cursor)
+                          if b - a == 1 and b - start >= limit // 2
+                          and text[a] in _TERMINALS | frozenset('\r\n')]
+            paragraphs = [pair for pair in boundaries if text[pair[1]-1] in '\r\n']
+            if paragraphs or boundaries:
+                end_cursor, end = (paragraphs or boundaries)[-1]
+        part = text[start:end]
+        if not part.strip() and parts:
+            parts[-1] += part
         else:
-            i += 1
-    tail = text[start:].strip()
-    if tail:
-        result.append(tail)
-    joined, prefix = [], ''
-    for part in result:
-        if all(ch in _TERMINALS | _CLOSERS for ch in part):
-            if joined:
-                joined[-1] += part
-            else:
-                prefix += part
-        else:
-            joined.append(prefix + part)
-            prefix = ''
-    return joined or ([prefix] if prefix else [])
+            parts.append(part)
+        start, cursor = end, end_cursor
+    if parts and not parts[-1].strip() and len(parts) > 1:
+        parts[-2] += parts.pop()
+    return parts

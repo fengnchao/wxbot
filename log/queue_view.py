@@ -23,7 +23,7 @@ class QueueView:
              offsets=None, scope='', order=''):
         limit, offset = max(1, min(200, int(limit))), max(0, int(offset))
         offsets=offsets or {}
-        scope=scope if scope in ('active','issues','history') else ''
+        scope=scope if scope in ('all','active','issues','history') else ''
         result = {'read_only': True, 'database': self.path, 'at': time.time() if now is None else now,
                   'status': 'ok', 'contacts': [], 'counts': {}, 'pages': {},
                   'inbox': [], 'batches': [], 'outbox': [], 'events':[], 'error': '',
@@ -58,7 +58,8 @@ class QueueView:
             for table in ('inbox', 'batches', 'outbox'):
                 terms, args = [], []
                 if table == 'inbox':
-                    terms.append('batch_id IS NULL')
+                    if scope!='all':terms.append('batch_id IS NULL')
+                    elif state in ('active','unbatched'):terms.append('batch_id IS NULL')
                     if state not in ('all', 'active', 'unbatched'):
                         terms.append('0')
                 elif state == 'active':
@@ -69,7 +70,7 @@ class QueueView:
                 if contact:
                     terms.append('contact=?')
                     args.append(contact)
-                if scope:
+                if scope and scope!='all':
                     if table=='inbox':
                         if scope!='active':terms.append('0')
                     elif scope=='issues':terms.append("state IN ('blocked','uncertain')")
@@ -78,18 +79,22 @@ class QueueView:
                 where = ' WHERE '+' AND '.join(terms) if terms else ''
                 total = db.execute(f'SELECT COUNT(*) FROM {table}'+where, args).fetchone()[0]
                 stable = 'id' if table == 'inbox' else 'seq'
-                direction='DESC' if order=='desc' or (not order and scope=='history') else 'ASC'
+                direction='DESC' if order=='desc' or (not order and scope in ('all','history')) else 'ASC'
                 sorting=f'{stable} {direction}'
                 if scope=='issues':
                     columns={r[1] for r in db.execute(f'PRAGMA table_info({table})')}
                     failure='COALESCE(failed_at,created_at)' if 'failed_at' in columns else 'COALESCE(finished_at,created_at)'
                     if table!='inbox':sorting=f'{failure} ASC,{stable} ASC'
                 page_offset=max(0,int(offsets.get(table,offset)))
+                page_offset=min(page_offset,((max(total,1)-1)//limit)*limit)
                 rows = db.execute(f'SELECT * FROM {table}'+where+f' ORDER BY {sorting} LIMIT ? OFFSET ?',
                                   [*args, limit, page_offset]).fetchall()
                 result[table] = [self._row(db, table, row,now=result['at'],failure_timeout_seconds=self.failure_timeout_seconds) for row in rows]
                 result['pages'][table] = {'total': total, 'offset': page_offset, 'limit': limit,
                                           'has_more': page_offset+len(rows) < total}
+            from .reply_rounds import read_rounds
+            result['rounds'],result['pages']['rounds']=read_rounds(db,self._row,contact=contact,state=state,
+                scope=scope,limit=limit,offset=max(0,int(offsets.get('rounds',0))),now=result['at'],timeout=self.failure_timeout_seconds)
             if db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='delivery_events'").fetchone():
                 where=' WHERE contact=?' if contact else ''
                 args=[contact] if contact else []
@@ -111,8 +116,11 @@ class QueueView:
         return result
 
     def _reason(self, db, name, now):
-        outgoing = db.execute("SELECT * FROM outbox WHERE contact=? AND state NOT IN ('sent','skipped') ORDER BY seq LIMIT 1", (name,)).fetchone()
-        problem = db.execute("SELECT * FROM outbox WHERE contact=? AND state IN ('blocked','uncertain') ORDER BY seq LIMIT 1", (name,)).fetchone()
+        modern='detached' in {r[1] for r in db.execute('PRAGMA table_info(outbox)')}
+        active=' AND detached=0' if modern else ''
+        hold=db.execute('SELECT * FROM outbox WHERE contact=? AND manual_required=1 ORDER BY seq LIMIT 1',(name,)).fetchone() if modern else None
+        outgoing = db.execute("SELECT * FROM outbox WHERE contact=? AND state NOT IN ('sent','skipped')"+active+" ORDER BY seq LIMIT 1", (name,)).fetchone()
+        problem = db.execute("SELECT * FROM outbox WHERE contact=? AND state IN ('blocked','uncertain')"+active+" ORDER BY seq LIMIT 1", (name,)).fetchone()
         batch = db.execute("SELECT * FROM batches WHERE contact=? AND state!='done' ORDER BY seq LIMIT 1", (name,)).fetchone()
         def reason(code, message, kind='', row=None, **extra):
             data = {'code': code, 'message': message, 'record_kind': kind,
@@ -125,8 +133,10 @@ class QueueView:
                 data['actions']=self._actions(db,kind,row)
                 if kind=='outbox':data.update(self._deadline(row,now,self.failure_timeout_seconds))
             return data
+        if hold:
+            return reason('blocked','输入框需要人工清理；清理后点击重试或丢弃解除此会话暂停','outbox',hold)
         if problem:
-            return reason(problem['state'], '旧回复存在异常分句，后续消息暂停提交', 'outbox', problem)
+            return reason(problem['state'], '本轮回复发送失败，等待重试或整轮超时结束', 'outbox', problem)
         if batch and batch['state'] in ('blocked','uncertain'):
             if db.execute('SELECT 1 FROM outbox WHERE batch_id=? LIMIT 1', (batch['id'],)).fetchone():
                 return reason('state_mismatch', '批次状态与分句状态不一致，请核对运行中的 wxbot 版本及日志')
@@ -160,14 +170,15 @@ class QueueView:
     def _row(db, table, row, *, now=None,failure_timeout_seconds=FAILURE_TIMEOUT_SECONDS):
         # No message/confirmation snapshots in the API; bounded message preview only.
         keys = ('id','contact','state','created_at','received_at','started_at','submitted_at','finished_at',
-                'not_before','attempts','batch_id','member_key','error','part_seq','reply_complete','failed_at','resolution')
+                'not_before','attempts','batch_id','member_key','error','part_seq','reply_complete','failed_at','resolution','detached','manual_required','first_delivery_failure','delivery_resolution')
         result = {key: row[key] for key in keys if key in row.keys()}
         text = row['text'] or ''
         result.update(characters=len(text), preview=text[:240])
         if table == 'inbox':
-            result['state'] = 'unbatched'
+            result['state'] = 'batched' if row['batch_id'] else 'unbatched'
         elif table == 'batches':
             result['part_count'] = db.execute('SELECT COUNT(*) FROM outbox WHERE batch_id=?', (row['id'],)).fetchone()[0]
+            result['sent_parts'] = db.execute("SELECT COUNT(*) FROM outbox WHERE batch_id=? AND state='sent'",(row['id'],)).fetchone()[0]
             result['completed_parts'] = db.execute("SELECT COUNT(*) FROM outbox WHERE batch_id=? AND state IN ('sent','skipped')", (row['id'],)).fetchone()[0]
             complete=row['reply_complete'] if 'reply_complete' in row.keys() else False
             if not complete and not result['part_count']:
@@ -177,13 +188,18 @@ class QueueView:
         elif table == 'outbox':
             result['part_seq'] = row['part_seq'] if 'part_seq' in row.keys() else 1
             result['part_count'] = db.execute('SELECT COUNT(*) FROM outbox WHERE batch_id=?', (row['batch_id'],)).fetchone()[0] if row['batch_id'] else 1
-            if row['state'] in ('blocked','uncertain'):
+            if 'failed_at' in row.keys() and row['state'] not in TERMINAL:
                 result.update(QueueView._deadline(row,time.time() if now is None else now,failure_timeout_seconds))
+        if result.get('detached') and row['state']=='uncertain':result['display_state']='review'
+        elif result.get('resolution')=='restart_discard':result['display_state']='restart_discard'
+        elif result.get('resolution')=='timeout':result['display_state']='timeout_discard'
+        if result.get('manual_required'):result['display_state']='draft_hold'
         result['actions']=QueueView._actions(db,table,row) if table!='inbox' else []
         return result
 
     @staticmethod
     def _deadline(row,now,failure_timeout_seconds=FAILURE_TIMEOUT_SECONDS):
+        if ('detached' in row.keys() and row['detached']) or ('state' in row.keys() and row['state'] in TERMINAL):return {}
         failed=(row['failed_at'] if 'failed_at' in row.keys() else
                 next((row[k] for k in ('finished_at','submitted_at','created_at') if row[k] is not None),None))
         if failed is None:return {}
@@ -192,7 +208,8 @@ class QueueView:
 
     @staticmethod
     def _actions(db,kind,row):
-        if row['state'] not in ('blocked','uncertain') or not is_latest(db):return []
+        if not is_latest(db):return []
+        if row['state'] not in ('blocked','uncertain') and not (kind=='outbox' and row['manual_required']):return []
         if kind=='outbox':return ['retry','sent','skip']
         if kind=='batches' and not db.execute('SELECT 1 FROM outbox WHERE batch_id=?',(row['id'],)).fetchone():
             return ['retry','skip']

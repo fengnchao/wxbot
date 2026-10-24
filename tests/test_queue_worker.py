@@ -11,7 +11,7 @@ def test_model_wait_does_not_hold_store_or_block_other_users_capture():
     started, release, b_called = threading.Event(), threading.Event(), threading.Event()
     calls = []
     class Router:
-        def handle_reply(self, contact, text, *, context="", request_id=None):
+        def handle_reply(self, contact, text, *, context="", request_id=None, member_key="", member_name=""):
             calls.append(contact)
             if contact == "A":
                 started.set()

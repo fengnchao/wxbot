@@ -114,7 +114,7 @@ def test_queue_rejects_invalid_timeout_before_creating_database(tmp_path, value)
     assert not path.parent.exists()
 
 
-@pytest.mark.parametrize('state', ['blocked', 'uncertain'])
+@pytest.mark.parametrize('state', ['blocked'])
 def test_configured_failure_timeout_releases_next_task_and_preserves_audit(state):
     from test_delivery_failure_policy import failed
     store = QueueStore(':memory:', failure_timeout_seconds=7.5)
@@ -196,7 +196,7 @@ def test_delivery_logs_deadline_and_expiry_using_store_timeout(caplog):
 
 def test_delivery_supports_legacy_store_without_timeout_attribute(caplog):
     from test_delivery_queue import Chat, pump
-    store = QueueStore(':memory:')
+    store = QueueStore(':memory:', failure_timeout_seconds=180)
     class LegacyStore:
         def __getattr__(self, name):
             if name == 'failure_timeout_seconds':

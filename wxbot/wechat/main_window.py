@@ -1,5 +1,5 @@
 """微信主窗口：功能栏、会话列表，以及右侧当前聊天面板。"""
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import re
 import time
 
@@ -22,6 +22,22 @@ class Session:
     contact: str
     unread_count: int = 0
     mentioned: bool = False
+    preview: str = field(default="", compare=False)
+
+
+def preview_sender(preview: str, text: str) -> str | None:
+    """Only associate a nickname when the complete preview body matches the message."""
+    normalize = lambda value: " ".join(value.split())
+    body = normalize(text)
+    if not body:
+        return None
+    for separator in re.finditer(r"[:：]", preview):
+        if normalize(preview[separator.end():]) != body:
+            continue
+        name = preview[:separator.start()].strip()
+        if name and name not in {"我", "你"} and not name.startswith("[") and "\n" not in name:
+            return name
+    return None
 
 
 def parse_header(title: str, count_text: str = "") -> Conversation:
@@ -47,6 +63,7 @@ def parse_session(automation_id: str, name: str) -> Session | None:
     lines = name.splitlines()
     unread = 0
     mentioned = False
+    preview = ""
     for index, line in enumerate(lines[1:], start=1):
         line = line.strip()
         if line in {"已置顶", "置顶", "消息免打扰", "免打扰"}:
@@ -61,8 +78,9 @@ def parse_session(automation_id: str, name: str) -> Session | None:
         if line in {"[有人@我]", "[有人@所有人]"}:
             mentioned = True
             continue
+        preview = "\n".join(lines[index:-1]).strip()
         break
-    return Session(title, unread, mentioned)
+    return Session(title, unread, mentioned, preview)
 
 
 class MainWindow:

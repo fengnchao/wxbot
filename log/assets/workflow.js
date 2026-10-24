@@ -7,6 +7,8 @@ const WF_STATUS = {unbatched:'等待合并',ready:'等待提交',processing:'处
   blocked:'已阻断',uncertain:'结果不确定',waiting_blocker:'等待旧任务释放',discarded:'已丢弃',
   model_failed:'模型失败已结束',no_reply:'本轮无需回复'};
 const WF_COLORS = ['#72b4ff','#bb9aff','#51d4b1','#f0bc76','#f18db0'];
+Object.assign(WF_STATUS,{received:'Butler 已收件，等待新闻调度',rejected:'已拒绝',not_submitted:'新闻未提交',cancelled:'已取消',skipped:'已跳过'});
+Object.assign(FLOW_STAGE_LABELS,{telegram_received:'Telegram 机器人收件',telegram_butler:'Butler 确认收件',telegram_news:'新闻投递回执'});
 function workflowColor(m){let h=0;for(const c of m.uid+'|'+m.members.join('|'))h=(h*31+c.charCodeAt(0))>>>0;return WF_COLORS[h%WF_COLORS.length];}
 function workflowMatches(m){return matchesQuery(m.contact,m.uid,m.label,m.members.join(' '),m.request_id,m.id,m.inbox_ids.join(' '),m.preview,m.reply_preview,m.error);}
 function workflowSignature(data){return JSON.stringify(data.messages.map(m=>[m.id,m.stage,m.status,m.scope,m.preview,m.reply_preview,m.error,m.uid,m.members,m.attempts,m.part_count,m.sent_parts,m.retry_at,m.discard_at,m.reason,m.events.map(e=>e.key)]))+JSON.stringify(data.counts)+JSON.stringify(data.sources);}
@@ -126,8 +128,11 @@ function workflowTrace(m){
     <button id="wf-diagnose">在收发队列中查看 / 处理</button></div>`;
 }
 // Backend stages remain precise; multiple stages share one physical service node.
-function workflowService(stage){return ['wxbot','inbox','butler','model','butler','outbox','wxbot','wxbot'][stage]||'butler';}
+function workflowService(stage){return ['wxbot','inbox','butler','model','butler','outbox','wxbot','wxbot','telegram','butler'][stage]||'butler';}
 function workflowEventEdge(e){
+  if(e.stage==='telegram_butler')return 'telegram';
+  if(e.stage==='telegram_news'&&e.status==='sending')return 'enqueue';
+  if(e.stage==='telegram_news'&&e.status==='sent')return 'send';
   if(e.stage==='wxbot_inbox')return 'receive';
   if(['wxbot_butler','butler_received'].includes(e.stage))return 'dispatch';
   if(e.stage==='hermes_request')return 'request';
@@ -139,7 +144,7 @@ function workflowEventEdge(e){
 function workflowSummaryRow(m,variant){
   const tool=m.events.findLast(e=>e.stage==='hermes_tool');
   const text=m.stage>=5&&m.reply_preview?m.reply_preview:m.preview;
-  const status=m.scope==='issues'||m.terminal?(WF_STATUS[m.status]||m.status):({2:'接收 / 调度',4:'完整结果就绪'}[m.stage]||WF_STATUS[m.status]||m.status);
+  const status=m.scope==='issues'||m.terminal?(WF_STATUS[m.status]||m.status):({2:'接收 / 调度',4:'完整结果就绪',9:'新闻投递'}[m.stage]||WF_STATUS[m.status]||m.status);
   return `<button class="wf-summary-row ${workflow.selected===m.id?'selected':''} ${m.scope==='issues'?'issue':''}" data-wf-select="${esc(m.id)}" data-focus-key="wf-node-${esc(m.id)}" style="--identity:${workflowColor(m)}" aria-label="查看 ${esc(m.contact)} 消息 ${esc(m.id)}">
     <span class="wf-row-text"><strong>${esc(m.contact)}</strong><span class="wf-row-content"> · ${esc(text)}</span></span>
     <span class="wf-row-sub"><span class="wf-row-uid">UID ${esc(m.uid)}${m.group?' / 成员 '+esc(m.members.join(', ')||'未记录'):''}</span><span>${esc(status)}${m.part_count?' · '+m.sent_parts+'/'+m.part_count+' 句':''}</span></span>
@@ -153,7 +158,7 @@ function workflowDiagram(data,visible,selected,recent){
   const model=data?.backend==='hermes'?'Hermes':data?.backend==='codex'?'Codex':'模型';
   function node(id,title,subtitle,icon){
     const messages=present.filter(m=>workflowService(m.stage)===id).sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id));
-    const cap=['butler','wxbot'].includes(id)?2:8;
+    const cap=['butler','wxbot','telegram'].includes(id)?2:8;
     const shown=workflow.expanded.has(id)?messages:messages.slice(0,cap);
     return `<div id="wf-node-${id}" data-service="${id}" class="wf-node wf-service-${id} ${trail.has(id)?'traced':''} ${selected&&workflowService(selected.stage)===id?'current':''}">
       <div class="wf-node-label"><span class="wf-service-icon">${icon}</span><div><h3>${esc(title)}</h3><p>${esc(subtitle)}</p></div><span class="wf-service-count">${messages.length} <small>${id==='model'?'条请求':'条'}</small></span></div>
@@ -165,7 +170,9 @@ function workflowDiagram(data,visible,selected,recent){
   }
   return `<div class="wf-diagram">${node('model',model,'模型执行区 · 多用户请求与工具进度','✦')}
     ${wires('model',[['request','M420 72 V2','↑ 请求模型'],['result','M580 0 V70','↓ 完整回复']])}
-    <div class="wf-hub-row">${node('butler','Butler','身份 · 角色 · 权限 · 调度','B')}</div>
+    <div class="wf-hub-row wf-entry-row"><div class="wf-telegram-entry">${node('telegram','Telegram','机器人收件 · 累计 '+(data?.counts?.telegram||0)+' 条','T')}</div>
+      <svg class="wf-telegram-wire" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true"><defs><marker id="wf-tg-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="context-stroke"/></marker></defs><g id="wf-edge-telegram" class="wf-wire ${edges.has('telegram')?'traced':''}" style="--trace-color:${selected?workflowColor(selected):'#69bafa'}"><path class="wf-wire-line" d="M245 50 H278" marker-end="url(#wf-tg-arrow)"/><path class="wf-packet" d="M245 50 H278" pathLength="100"/></g></svg>
+      ${node('butler','Butler','身份 · 角色 · 权限 · 调度','B')}</div>
     ${wires('queues',[['dispatch','M240 72 V38 H420 V2','↑ 提交收件'],['enqueue','M580 0 V38 H760 V70','↓ 回复入队']])}
     <div class="wf-queue-pair">${node('inbox','收件队列','wxbot · 合并连续消息 / 等待提交','收')}${node('outbox','发件队列','wxbot · 按会话顺序发送','发')}</div>
     ${wires('wechat',[['receive','M420 72 V38 H240 V2','↑ 收到消息'],['send','M760 0 V38 H580 V70','↓ 发送回复']])}
@@ -185,12 +192,12 @@ function renderWorkflow(force=false){
     .sort((a,b)=>workflow.scope==='active'?a.at-b.at||a.id.localeCompare(b.id):b.updated_at-a.updated_at||b.id.localeCompare(a.id));
   const events=visible.flatMap(m=>m.events.map(e=>({m,e}))).sort((a,b)=>b.e.ts-a.e.ts).slice(0,6);
   const warnSources=(data?.sources||[]).filter(s=>s.status!=='ok'||s.truncated);
-  const scrolls=['.wf-feed','.wf-inspect',...['model','inbox','outbox','butler','wxbot'].map(id=>'#wf-node-'+id+' .wf-node-messages')].map(selector=>[selector,$(selector)?.scrollTop||0]);
+  const scrolls=['.wf-feed','.wf-inspect',...['model','inbox','outbox','butler','wxbot','telegram'].map(id=>'#wf-node-'+id+' .wf-node-messages')].map(selector=>[selector,$(selector)?.scrollTop||0]);
   $('#pane').innerHTML=`<div class="wf-shell ${workflow.paused?'animation-paused':''} ${workflow.error?'disconnected':''}">
     <div class="wf-top"><div><span id="wf-live" class="wf-live">正在连接</span><span id="wf-updated" class="wf-note"></span></div><button id="wf-animation" aria-pressed="${workflow.paused}">${workflow.paused?'恢复动画':'暂停动画'}</button></div>
     <div class="wf-stats">${[['待处理轮次',count.active],['待合并收件',count.inbox],['等待模型',count.model],['待发送分句',count.outbox],['异常任务',count.issues]].map(([label,value],i)=>`<div class="${i===4&&value?'attention':''}"><span>${label}</span><strong>${value??'—'}</strong><small>${i===4?'当前需要关注':i===2?'已领取，等待完整结果':'全部会话'}</small></div>`).join('')}</div>
     ${workflow.error?`<div class="wf-alert" role="status">${esc(workflow.error)}${data?' · 下方保留最近快照，状态及倒计时已暂停。':''}</div>`:''}
-    ${warnSources.length?`<div class="wf-note wf-source-note">${warnSources.map(s=>esc(s.name)+(s.status==='missing'?' 过程日志尚未创建':s.status!=='ok'?' 过程日志暂不可读取':' 仅载入最近 4 MB 过程事件')).join('；')}。队列中已确认的阶段仍会显示。</div>`:''}
+    ${warnSources.length?`<div class="wf-note wf-source-note">${warnSources.map(s=>esc(s.name)+'：'+esc(s.error||(s.status==='missing'?'数据尚未创建':s.status!=='ok'?'数据暂不可读取':s.name==='Telegram'?'仅载入部分消息，更多见收发队列':'仅载入最近 4 MB 过程事件'))).join('；')}。队列中已确认的阶段仍会显示。</div>`:''}
     ${data?.active_more?'<div class="wf-alert">当前展示最早的 500 条待处理记录。更多记录请在收发队列分页查看。</div>':''}
     <div class="wf-layout"><div class="wf-canvas"><div class="wf-section-heading"><h2>消息工作流</h2><span>进线与出线分开 · 服务节点共用</span></div>${diagram}<div class="wf-legend"><i></i> 新事件传输 <em></em> 所选消息经过的路径 <span>同一用户保持同一颜色</span></div></div>
     <div class="wf-sidebar"><div class="wf-section-heading"><h2>实时消息</h2><span>${visible.length} 条已载入</span></div>

@@ -61,6 +61,7 @@ from log.queue_view import QueueView
 from log.queue_actions import QueueActions
 from log.flow_view import FlowView
 from log.workflow_view import WorkflowView
+from log.telegram_view import TelegramView, ISSUES as TELEGRAM_ISSUES, TERMINAL as TELEGRAM_TERMINAL
 from common import news_config
 _LOG_SETTINGS=load_settings()
 HERMES_HOME = os.environ.get("HERMES_HOME") or _LOG_SETTINGS['sources']['home']
@@ -1434,6 +1435,18 @@ class Handler(BaseHTTPRequestHandler):
                     config = _load_butler_config()
                     payload = WorkflowView(**view.flow_options(), contacts=config.get('contacts', []),
                                            backend=(config.get('agent') or {}).get('provider','hermes')).read()
+                    telegram = TelegramView(view.root/'config.telegram-bot.toml', view.butler_path).workflow()
+                    payload['sources'].append(telegram['source'])
+                    payload['nodes'].append(dict(id=8,key='telegram',label='Telegram',description='机器人收件与新闻提交'))
+                    payload['nodes'].append(dict(id=9,key='news',label='Butler · 新闻投递',description='按新闻分组逐人投递'))
+                    payload['messages'].extend(telegram['messages'])
+                    counts=telegram['counts']
+                    payload['counts']['telegram']=sum(counts.values())
+                    payload['counts']['active']=payload['counts'].get('active',0)+sum(v for k,v in counts.items() if k not in TELEGRAM_TERMINAL)
+                    payload['counts']['issues']=payload['counts'].get('issues',0)+sum(v for k,v in counts.items() if k in TELEGRAM_ISSUES)
+                    if payload['status']!='ok':
+                        payload['sources'].append(dict(name='wxbot 队列',status=payload['status'],error=payload['error'],truncated=False))
+                        if telegram['messages']:payload['status']='ok'
                     self._json(view.scrub(payload))
                 except Exception as exc:
                     self._json({'status':'error','error':'工作流配置不可读取（'+type(exc).__name__+'）'},500)
@@ -1458,7 +1471,10 @@ class Handler(BaseHTTPRequestHandler):
                         payload = QueueView(**view.queue_options()).read(
                             contact=one('contact'), state=one('state','all'),
                             limit=num('limit',50), offset=num('offset',0),scope=one('scope'),order=one('order'),
-                            offsets={t:num(t+'_offset',num('offset',0)) for t in ('inbox','batches','outbox')})
+                            offsets={t:num(t+'_offset',num('offset',0)) for t in ('inbox','batches','outbox','rounds')})
+                        payload['telegram']=TelegramView(view.root/'config.telegram-bot.toml',view.butler_path).read(
+                            scope=one('scope','all'),state=one('state','all'),contact=one('contact'),
+                            limit=num('limit',50),offset=num('telegram_offset',0))
                         self._json(view.scrub(payload))
                     except Exception as exc:
                         self._json({'read_only':True,'status':'error',

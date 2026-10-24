@@ -3,6 +3,7 @@ config.butler.toml
 config.wxbot.toml
 config.log.toml
 config.telegram.toml
+config.telegram-bot.toml
 *.session
 *.session-*
 *.session.relay.lock

@@ -50,6 +50,7 @@ cd butler-wxbot
 - [微信 UI 与队列说明](README.wxbot.md)
 - [综合新闻订阅、每日投递与状态记录](docs/NEWS_DELIVERY.md)
 - [Telegram 联合早报文字转发到新闻分组](docs/TELEGRAM_NEWS.md)
+- [Telegram 机器人收件到 Butler](docs/TELEGRAM_BOT.md)
 - [原 Butler/Hermes 接口说明](butler/README.md)：仅用于旧后端兼容。
 
 ```powershell

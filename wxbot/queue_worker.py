@@ -45,14 +45,32 @@ class ModelWorker:
         with self.trace.bind(batch.contact,batch.id) if self.trace else nullcontext():
             started = time.monotonic()
             record('wxbot_model','started')
+            record('wxbot_reply_mode', batch.reply_mode or 'text')
             try:
-                reply = self.router.handle_reply(batch.contact, batch.text, context=batch.context, request_id=batch.id)
-                self.store.finish_batch_parts(batch.id, reply.parts, reply_text=reply.text, now=self.clock(),
-                                              delay=random.uniform(self.delay_min, self.delay_max))
-                record('wxbot_result','ok',part_count=len(reply.parts),characters=len(reply.text or ''),
-                       elapsed_ms=round((time.monotonic()-started)*1000))
-                log.info("[队列][%s][%s] %s", batch.contact, batch.id,
-                         f"完整回复已入发件箱，共 {len(reply.parts)} 句" if reply.parts else "本批次无需回复")
+                # 所有批次都调用模型：群消息即使静默/发图也已进入该成员的会话上下文。
+                reply = self.router.handle_reply(batch.contact, batch.text, context=batch.context, request_id=batch.id,
+                                                 member_key=batch.member_key, member_name=batch.member_name)
+                mode = batch.reply_mode or 'text'
+                if mode == 'emoji':
+                    # 丢弃模型文字，改为发一张表情图。
+                    self.store.finish_batch_parts(batch.id, (), now=self.clock())
+                    self.store.enqueue_sticker(batch.contact, now=self.clock())
+                    record('wxbot_result','ok',part_count=0,characters=0,
+                           elapsed_ms=round((time.monotonic()-started)*1000))
+                    log.info("[队列][%s][%s] 本批次回复方式=表情图，已入表情发送队列", batch.contact, batch.id)
+                elif mode == 'none':
+                    # 已进上下文，但不发送任何回复。
+                    self.store.finish_batch_parts(batch.id, (), now=self.clock())
+                    record('wxbot_result','ok',part_count=0,characters=0,
+                           elapsed_ms=round((time.monotonic()-started)*1000))
+                    log.info("[队列][%s][%s] 本批次静默（已进上下文，不回复）", batch.contact, batch.id)
+                else:
+                    self.store.finish_batch_parts(batch.id, reply.parts, reply_text=reply.text, now=self.clock(),
+                                                  delay=random.uniform(self.delay_min, self.delay_max))
+                    record('wxbot_result','ok',part_count=len(reply.parts),characters=len(reply.text or ''),
+                           elapsed_ms=round((time.monotonic()-started)*1000))
+                    log.info("[队列][%s][%s] %s", batch.contact, batch.id,
+                             f"完整回复已入发件箱，共 {len(reply.parts)} 句" if reply.parts else "本批次无需回复")
             except Exception as exc:
                 record('wxbot_result','error',error_type=type(exc).__name__,
                        elapsed_ms=round((time.monotonic()-started)*1000))

@@ -19,7 +19,7 @@ from butler.reply import split_reply
     ('！？', ['！？']),  # An intentionally punctuation-only whole reply is preserved.
 ])
 def test_split(text, expected):
-    assert split_reply(text) == expected
+    assert split_reply(text) == ([text] if text and text.strip() else [])
 
 
 @pytest.mark.parametrize('text,reply', [('在吗', '你好。再见！'), ('', 'unused'), ('在吗', '[SILENT]'), ('/new', 'unused')])

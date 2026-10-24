@@ -31,7 +31,9 @@ LABELS={
  'max_wait_seconds':('最长合并等待（秒）','连续发言时单批允许等待的最长时间。'),
  'confirm_timeout':('发送确认等待（秒）','回车后等待新增自己消息气泡的时间。'),
  'max_model_requests':('模型并发数','同时等待 Butler/模型回复的请求数，微信界面仍串行收发。'),
- 'failure_discard_seconds':('失败丢弃等待（秒）','从首次发送失败起计时，到期丢弃该句并保留记录。修改后现有失败任务也使用新期限。'),
+ 'failure_discard_seconds':('失败丢弃等待（秒）','从首次发送失败起计时，到期结束整轮剩余分块并保留记录。修改后现有失败任务也使用新期限。'),
+ 'chunk_chars':('长回复分块字数','普通聊天默认整条发送，超过此长度才分块；链接、代码不会截断，范围100–2000。'),
+ 'restart_chat_policy':('聊天重启恢复策略','discard=停止旧聊天回复续发；resume=恢复尚未开始的回复；结果不确定的不自动重发。新闻和提醒不受此项影响。'),
  'chunk_size':('每批粘贴字数','每次输入到微信输入框的字符数。'),
  'chunk_interval':('分批粘贴间隔（秒）','两批正文输入之间的等待时间。'),
  'enabled':('启用','开启或关闭此功能。'),
@@ -95,6 +97,7 @@ def row_metadata(source,path,value,*,default_available=False):
             '保存后需自行重启 '+{'wxbot':'wxbot','butler':'Butler','log_config':'log'}.get(source,source))
     choices={('butler','agent','provider'):['codex','hermes'],
              ('wxbot','model','backend'):['butler','hermes','openai','ollama','echo'],
+             ('wxbot','queue','restart_chat_policy'):['discard','resume'],
              ('wxbot','wechat','mode'):['main','independent']}.get((source,*path))
     widget='contacts' if source=='butler' and tuple(path)==('contacts',) else (
         'string-list' if isinstance(value,list) and all(isinstance(v,str) for v in value) else editor)

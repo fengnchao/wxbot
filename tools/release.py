@@ -8,10 +8,10 @@ import zipfile
 ROOT=Path(__file__).resolve().parents[1]
 VERSION='1.0.0'
 ROOT_FILES={'README.md','AGENTS.md','pyproject.toml','requirements.txt','uv.lock','.gitignore',
-            'config.butler.codex.example.toml','config.wxbot.example.toml','config.log.example.toml','config.telegram.example.toml'}
+            'config.butler.codex.example.toml','config.wxbot.example.toml','config.log.example.toml','config.telegram.example.toml','config.telegram-bot.example.toml'}
 SOURCE_DIRS={'butler','wxbot','log','common','tests','plugins'}
 SPECIAL={'.agents/plugins/marketplace.json','scripts/setup.ps1','tools/probe_codex.py','tools/release.py',
-         'docs/CODEX_INSTALL.md','docs/CODEX_PROTOCOL.md','docs/CODEX_VERIFICATION.md','docs/NEWS_DELIVERY.md','docs/TELEGRAM_NEWS.md','README.wxbot.md'}
+         'docs/CODEX_INSTALL.md','docs/CODEX_PROTOCOL.md','docs/CODEX_VERIFICATION.md','docs/NEWS_DELIVERY.md','docs/TELEGRAM_NEWS.md','docs/TELEGRAM_BOT.md','README.wxbot.md'}
 FORBIDDEN_PARTS={'.venv','__pycache__','.git','.idea','.pytest_cache','data','cache','dist','.superpowers'}
 
 
@@ -37,7 +37,8 @@ def source_files():
 
 def audit(files):
     findings=[]
-    patterns=[re.compile(r'\bsk-(?!test|example|fake)[A-Za-z0-9_-]{24,}\b'),
+    patterns=[re.compile(r'\b\d{6,}:[A-Za-z0-9_-]{30,}\b'),
+              re.compile(r'\bsk-(?!test|example|fake)[A-Za-z0-9_-]{24,}\b'),
               re.compile(r'\bgh[pousr]_[A-Za-z0-9]{30,}\b'),
               re.compile(r'^-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----$',re.M)]
     for path in files:

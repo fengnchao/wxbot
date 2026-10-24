@@ -201,3 +201,30 @@ Windows 上的个人微信机器人，Python 项目，拆成两个本地进程�
 - 本次只补诊断：clipboard固定错误附clipboard_operation/clipboard_error/clipboard_format/os_error_code；区分OpenClipboard、格式枚举/备份/大小/复制、内存写入、恢复等失败。恢复失败保留结构化原因供后续pending阻断透传。typing细分clipboard_acquire/paste_key阶段，错误追加固定原因；异常类型/安全数值进入队列审计白名单，不记录剪贴板正文或任意异常str。
 - 未调整剪贴板保留、输入/焦点守卫、等待、自动重发或失败丢弃策略；没有证据可声称发送根因已修复。3文件AST与diff空白检查通过；本轮用户只要求排查，未添加或运行测试。未操作真实剪贴板/微信、未改实际配置、未重启服务、未提交Git。
 - 需要用户自行重启wxbot以加载诊断并发一条新消息，取得更具体失败原因后再修实际根因；原已超时丢弃的句子不会自动重发。log原进程若未重载新白名单，错误原因文本仍可看到，新增现场字段需重启log才完整显示。
+
+## 群聊成员区分与随机表情插话（2026-10-22）
+
+- 需求：群聊此前所有 @消息共用一个会话（按群窗口名 uid 隔离），无上下文；改为按成员区分会话，每人独立记忆/上下文；文字回复时 @发言人；收到消息去掉 @Bot 前缀；接收所有群消息；被 @必回文字，普通消息按概率随机发一张表情图（微信自带表情面板）。
+- 会话隔离：wxbot 采集群消息时把 `member_key`（头像感知哈希）与 `member_name`（配置昵称或 `成员-<hash8>`）写进 inbox/batches；`butler/_contact()` 对 group + member_key 把 `uid` 追加为 `{uid}::{member_key}`，从而 session/记忆按成员隔离（`contacts.py` 的 GROUP_IDENTITY_HINT 已改为“每成员独立会话”）。`POST /v1/handle`、`/v1/reset` 新增可选 `member_key`/`member_name`。
+- @前缀：wxbot 侧 `finish_batch_parts` 只给首个分句加 `@member_name `，模型正文不含 @；member_name 未在 `[wechat.group_sender.member_names]` 映射时是 `成员-<id>`，@不到真人，需配置真实群昵称。
+- 收件与随机插话：`inbox._capture` 不再因“未 @”跳过，始终去 @Bot 前缀；被 @ 入 inbox（文字链路），普通消息按 `[bot].group_reply_chance`（默认 0.1）概率直接 `enqueue_sticker` 入发件箱（kind=emoji，不走模型）。`_discover` 不再因群未 @ 而跳过。队列 schema 升到 VERSION 4（inbox 加 member_name、batches 加 member_key/member_name、outbox 加 kind），自动迁移。
+- 表情发送：新增 `wxbot/wechat/emoji.py`，按 `[wechat.emoji]` 的 button/panel/item 定位点击随机条目；`delivery._start_emoji` 处理 kind=emoji 的发件，点击后按新增自己的气泡确认（读 `read_all_messages`），未确认按 uncertain 走既有失败策略。`[wechat.emoji]` 定位需按本机微信版本用 `tools/probe.py` 校准，未校准时表情发件会 blocked 并留日志。
+- 验证：离线全套 pytest 通过（exit 0），`git diff --check` 干净；新增 `tests/test_group_member_identity.py` 覆盖每成员 uid 隔离、@前缀、emoji 发件、member 透传与表情面板点击。未操作真实微信、未发测试消息、未重启任何服务；表情面板定位与真实 @效果需用户自行重启 wxbot 并校准后观察。
+
+## 每条消息进上下文 + 文字/表情二选一 + log 实时流转（2026-10-22）
+
+- 需求迭代：上一轮是「非@消息按 10% 概率直接发图、其余跳过」；用户澄清要「每条消息都进 AI 上下文，回复随机，文字为主偶尔发图」，并要求 log 看板展示实时流转。
+- 行为：所有群消息（@与非@）都入 inbox 并调用模型（进成员独立 session 上下文）。回复方式 `reply_mode`（text/emoji/none）在采集层随机决定：@ 必回 text；非@ 按 `group_reply_chance` 抽中后按 `emoji_chance` 二选一（text/emoji），未抽中 none。批次合并时取优先级 text > emoji > none（`merge_reply_mode`）。
+- worker：emoji 批次丢弃模型文字并 `enqueue_sticker` 发图；none 批次丢弃模型文字静默（`finish_batch_parts(id, ())`）；text 批次正常发文字并 @。所有批次仍调模型，故「每条进上下文」成立；token 成本随消息量与历史长度增长（用户已接受）。
+- 队列 schema 升到 VERSION 5：inbox/batches 加 `reply_mode`，自动迁移。配置新增 `bot.emoji_chance`（默认 0.2）。
+- log 流转：`record('wxbot_reply_mode', ...)` 写入决策阶段；`log/flow_view.py` 的 STAGES 与 `log/assets/messages.js` 的 FLOW_STAGE_LABELS / FLOW_STATUS_LABELS 加 wxbot_reply_mode 及 text/emoji/none 标签。
+- 验证：离线全套 pytest 通过（exit 0），`git diff --check` 干净。未操作真实微信、未重启服务；表情面板定位仍待用户按本机微信校准，@真实昵称需配置 member_names。
+
+## 发送失败自动重试 + 剪贴板降级 + 表情自动降级（2026-10-22）
+
+- 问题：发件常因剪贴板备份失败、输入读回不一致、前台窗口/焦点变化而 blocked/uncertain；一条发件卡住会阻塞同会话后续消息，默认 180 秒后才丢弃，表现为「经常发不出去然后卡住」。
+- 自动重试：`queue_store.retry_failed_deliveries` 对 blocked/uncertain 发件，从首次失败起过 `retry_delay_seconds`（默认 20）自动重新入队，最多 `max_delivery_retries`（默认 2）次；`delivery.expire_failures` 每秒同时跑自动重试与超时丢弃。默认丢弃时间 `failure_discard_seconds` 180 → 60。队列 schema 升到 VERSION 6（outbox 加 `retries`）。
+- 剪贴板降级：`ClipboardLease` 备份（snapshot）失败时不再中止发送，改为 `saved=None` 直接清空并写入（`degraded=True`），发送后不恢复原剪贴板；但「序号为 0 且已有内容」这类安全风险仍拒绝，不降级。
+- 表情自动降级：`inbox._reply_mode` 在 `[wechat.emoji]` 未配置（button/item 为空）时不再返回 emoji，改发文字，避免表情面板未校准导致的 blocked 报错；校准后自动恢复发图。
+- 配置：`queue.failure_discard_seconds`（默认 60）、`retry_delay_seconds`（默认 20）、`max_delivery_retries`（默认 2）；`bot.emoji_chance`（默认 0.2）。
+- 验证：离线全套 pytest 通过（exit 0），`git diff --check` 干净；新增剪贴板降级与 delivery pump 自动重试回归。未重启服务；实机发送（用户授权可给 101 发消息）待用户重启 wxbot 后验证。

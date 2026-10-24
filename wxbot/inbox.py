@@ -1,6 +1,7 @@
 """主窗口持续收件；模型与发件通过 SQLite 队列和 UI 主线程衔接。"""
 from dataclasses import asdict
 import math
+import random
 import time
 import uuid
 
@@ -14,7 +15,7 @@ from .queue_store import Incoming, QueueStore, queue_database
 from .queue_worker import ModelWorker
 from .state import new_messages, overlap_end
 from .wechat.chat_window import Message
-from .wechat.main_window import MainWindow, Session
+from .wechat.main_window import MainWindow, Session, preview_sender
 
 
 def mentioned_text(text: str, names: list[str]) -> str | None:
@@ -50,9 +51,13 @@ class MainInbox:
                 or quiet < 0 or max_wait <= 0 or confirm_timeout <= 0):
             raise ValueError("queue.quiet_seconds 必须 >= 0，max_wait_seconds/confirm_timeout 必须 > 0，且为有限数值")
         self.store = store if store is not None else QueueStore(
-            queue_database(cfg), failure_timeout_seconds=qcfg.get('failure_discard_seconds', 180))
+            queue_database(cfg), failure_timeout_seconds=qcfg.get('failure_discard_seconds', 180),
+            retry_delay_seconds=qcfg.get('retry_delay_seconds',20),
+            max_delivery_retries=qcfg.get('max_delivery_retries',2),
+            restart_chat_policy=qcfg.get('restart_chat_policy','discard'))
         self.trace = FlowTrace(queue_trace_path(self.store.path),log.info)
         self.chats, self.snapshots, self.pending = {}, {}, {}
+        self.session_previews = {}
         self.groups = set(self.bot.get("bound_groups", []))
         self.bound = set(self.bot.get("bound_users", [])) | self.groups
         self.listen_all = cfg["wechat"].get("main_window", {}).get("listen_all", True)
@@ -98,6 +103,28 @@ class MainInbox:
     def _allowed(self, name):
         return self.listen_all or name in self.bound
 
+    def _should_interject(self):
+        chance = float(self.bot.get("group_reply_chance", 0.1))
+        return chance > 0 and random.random() < chance
+
+    def _emoji_chance(self):
+        return float(self.bot.get("emoji_chance", 0.2))
+
+    def _emoji_available(self):
+        """表情面板是否已校准（button/item 都配了才视为可用，未校准则自动降级为文字）。"""
+        emoji = self.cfg.get("wechat", {}).get("emoji") or {}
+        return bool(emoji.get("button")) and bool(emoji.get("item"))
+
+    def _reply_mode(self, mentioned):
+        """群消息的回复方式：@必回文字；普通消息抽中后文字/表情二选一，未抽中静默。"""
+        if mentioned:
+            return "text"
+        if self._should_interject():
+            if self._emoji_available() and random.random() < self._emoji_chance():
+                return "emoji"
+            return "text"
+        return "none"
+
     def _chat(self, name):
         if name not in self.chats:
             self.chats[name] = self.desktop.chat(name, group_mode=name in self.groups)
@@ -112,20 +139,46 @@ class MainInbox:
         if fresh is None:
             previous = self.snapshots.get(name)
             fresh = new_messages(previous, messages) if previous else messages if previous == [] else []
+        # The session preview describes the last message, never an arbitrary earlier
+        # incoming row. Keep the learned names scoped to this group across restarts.
+        if chat.group_mode and messages and messages[-1].sender == "other":
+            last = messages[-1]
+            preview = self.session_previews.pop(name, "")
+            nickname = preview_sender(preview, last.text)
+            if nickname:
+                try:
+                    current = next((s.preview for s in self.desktop.sessions(scan=False)
+                                    if s.contact == name), "")
+                except Exception as exc:
+                    log.debug("[%s] 无法复核群昵称摘要: %s", name, type(exc).__name__)
+                    current = ""
+                if current != preview:
+                    nickname = None  # Another member may have sent the same text meanwhile.
+            if (last.sender_key and nickname
+                    and nickname != self.store.group_member_name(name, last.sender_key)):
+                self.store.remember_group_member(name, last.sender_key, nickname, now=self.clock())
+                log.info("[%s] 自动映射群成员昵称：member_id=%s，昵称=%s", name, last.sender_key, nickname)
         incoming = []
         for message in fresh:
             if message.sender != "other" or not self._allowed(name):
                 continue
-            text, member, context = message.text, "", ""
+            text, member, member_name, context = message.text, "", "", ""
+            reply_mode = "text"
             if chat.group_mode:
-                text = mentioned_text(text, self.bot.get("mention_names", []))
-                if text is None:
-                    log.info("[%s] 群消息未 @机器人，跳过", name)
-                    continue
+                mention = mentioned_text(text, self.bot.get("mention_names", []))
+                mentioned = mention is not None
+                text = mention if mentioned else text      # 去掉 @Bot 前缀；无 @ 时保留原文
                 member = message.sender_key or "unknown-" + uuid.uuid4().hex
-                context = (f"[群聊发言人：{message.sender_name or '未知成员'}; "
+                member_name = message.sender_name or ""
+                if member_name == f"成员-{(message.sender_key or 'unknown')[:8]}":
+                    member_name = ""
+                member_name = member_name or self.store.group_member_name(name, member)
+                context = (f"[群聊发言人：{member_name or '未知成员'}; "
                            f"member_id={message.sender_key or 'unknown'}]")
-            incoming.append(Incoming(text, member, context))
+                reply_mode = self._reply_mode(mentioned)
+                log.info("[%s] 群消息入队（成员 %s，回复方式=%s，member_id=%s，内容=%s）",
+                         name, member_name, reply_mode, message.sender_key or 'unknown', text[:40])
+            incoming.append(Incoming(text, member, context, member_name, reply_mode))
         ids = self.store.capture(name, [asdict(m) for m in messages], incoming,
                                  group_mode=chat.group_mode, now=self.clock())
         self.snapshots[name] = messages  # 事务成功后才移动锚点。
@@ -148,10 +201,10 @@ class MainInbox:
         return self.delivery.enqueue(request)
 
     def _discover(self, *, scan=False):
-        for session in self.desktop.sessions(scan=scan):
+        sessions = self.desktop.sessions(scan=scan)
+        self.session_previews = {s.contact: s.preview for s in sessions}
+        for session in sessions:
             if not session.unread_count or not self._allowed(session.contact):
-                continue
-            if session.contact in self.groups and not session.mentioned:
                 continue
             if session.contact not in self.pending:
                 log.info("[%s] 发现未读 %d 条；有人@我=%s", session.contact,
@@ -282,7 +335,7 @@ def run_main_inbox(cfg, router, queue):
     log.info("微信主窗口队列模式；监听范围：%s；连续消息合并=%s 秒，最长=%s 秒",
              "全部会话" if inbox.listen_all else "已绑定会话", inbox.worker.quiet, inbox.worker.max_wait)
     if not cfg["bot"].get("mention_names"):
-        log.warning("[bot].mention_names 为空，群聊不会触发回复")
+        log.warning("[bot].mention_names 为空，无法识别 @机器人，群聊将按普通消息概率随机插话")
     try:
         inbox.start()
         while True:

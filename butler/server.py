@@ -108,6 +108,23 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
             self._send(404, {"error": "not found"})
 
         def do_POST(self):
+            if self.path == '/v1/telegram/inbox':
+                if not self._authed():
+                    return
+                from .telegram_bot.inbox import accept
+                try:
+                    result = accept(cfg.data_path() / 'telegram-bot' / 'inbox.sqlite3', self._body())
+                except (ValueError, TypeError):
+                    self._send(400, {'ok': False, 'error': 'invalid Telegram envelope or conflicting update'})
+                    return
+                except Exception as exc:
+                    _log('[Telegram] 收件入库失败 type=%s', type(exc).__name__)
+                    self._send(503, {'ok': False, 'error': 'Telegram inbox unavailable'})
+                    return
+                _log('[Telegram] 收件已持久化 bot=%s update=%s receipt=%s status=%s',
+                     result['bot_id'], result['update_id'], result['receipt_id'], result['status'])
+                self._send(200, result)
+                return
             if self.path == '/mcp':
                 if butler.tools is None:
                     self._send(503,{'error':'Codex tools unavailable'}); return
@@ -168,14 +185,17 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 if channel_type not in ("dm", "group"):
                     self._send(400, {"error": "channel_type 只支持 dm / group"})
                     return
+                member_key = str(b.get("member_key") or "").strip()
+                member_name = str(b.get("member_name") or "").strip()
                 try:
                     res = butler.handle(contact, text, msg_id=b.get("msg_id"),
-                                        channel_type=channel_type)
+                                        channel_type=channel_type,
+                                        member_key=member_key, member_name=member_name)
                 except Exception as e:                     # 绝不让异常变成"通道死了"
                     _log("handle 异常: %s: %s", type(e).__name__, e)
                     self._send(500, {"error": f"{type(e).__name__}: {e}"})
                     return
-                self._send(200, res.as_dict())
+                self._send(200, res.as_dict(reply_chunk_chars=cfg.reply_chunk_chars))
                 return
             if self.path.startswith("/v1/reset"):
                 if not self._authed():
@@ -189,7 +209,9 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 if channel_type not in ('dm', 'group'):
                     self._send(400, {'error': 'channel_type 只支持 dm / group'})
                     return
-                self._send(200, butler.reset(contact, channel_type=channel_type).as_dict())
+                member_key = str(b.get("member_key") or "").strip()
+                self._send(200, butler.reset(contact, channel_type=channel_type,
+                                             member_key=member_key).as_dict(reply_chunk_chars=cfg.reply_chunk_chars))
                 return
             if self.path.startswith("/v1/push"):
                 if not self._authed():
@@ -232,7 +254,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                     _log("push 异常: %s: %s", type(e).__name__, e)
                     self._send(500, {"error": f"{type(e).__name__}: {e}"})
                     return
-                self._send(200, res.as_dict())
+                self._send(200, res.as_dict(reply_chunk_chars=cfg.reply_chunk_chars))
                 return
             self._send(404, {"error": "not found"})
 

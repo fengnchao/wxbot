@@ -10,9 +10,9 @@ def failed(store, state='blocked', at=10):
     return task
 
 
-@pytest.mark.parametrize('state',['blocked','uncertain'])
+@pytest.mark.parametrize('state',['blocked'])
 def test_failure_expires_at_180_seconds_and_preserves_history(state):
-    store=QueueStore(':memory:')
+    store=QueueStore(':memory:', failure_timeout_seconds=180)
     task=failed(store,state)
     later=store.enqueue_delivery('A','next reply',now=11)
     assert store.expire_failed_deliveries(now=189.9)==[]
@@ -65,15 +65,15 @@ def test_manual_actions_reject_stale_page_and_wrong_contact():
     assert store.delivery_events()[-1]['source']=='log'
 
 
-def test_expiring_one_part_does_not_drop_the_rest_of_the_turn():
+def test_expiring_one_part_ends_remaining_turn():
     from test_queue_migration import batch
     store=QueueStore(':memory:')
     turn=batch(store,'A',['first','second'])
     first=store.claim_delivery(now=0)
     store.finish_delivery(first.id,'blocked',now=0,error='unavailable')
     store.expire_failed_deliveries(now=180)
-    assert store.get_batch(turn.id)['state']=='waiting_delivery'
-    assert store.claim_delivery(now=180).part_seq==2
+    assert store.get_batch(turn.id)['state']=='done'
+    assert store.claim_delivery(now=180) is None
 
 
 def test_failure_details_persist_only_supported_metadata():
@@ -87,18 +87,52 @@ def test_failure_details_persist_only_supported_metadata():
     assert details=={'expected_contact':'A','actual_contact':'B','foreground_hwnd':123,'phase':'input_guard'}
 
 
-def test_delivery_pump_expires_failure_and_logs_the_release(caplog):
+def test_delivery_pump_auto_retries_then_discards(caplog):
     import logging
     from test_delivery_queue import Chat,pump
     store=QueueStore(':memory:');clock=[0]
     task=failed(store,at=0)
     later=store.enqueue_delivery('A','next',now=0)
     sender=pump(store,Chat(),clock)
+    # 未到重试延迟：保持 blocked
+    clock[0]=19
+    with caplog.at_level(logging.WARNING):sender.tick(allow_start=False)
+    assert store.get_delivery(task)['state']=='blocked'
+    # 过了重试延迟（20 秒）：自动重试第 1 次
+    clock[0]=20
+    with caplog.at_level(logging.WARNING):sender.tick(allow_start=False)
+    assert store.get_delivery(task)['state']=='pending'
+    assert store.get_delivery(task)['retries']==1
+    assert '自动重试' in caplog.text
+    # 重试后又失败 → 再过重试延迟重试第 2 次
+    store.claim_delivery(now=20)
+    store.finish_delivery(task,'blocked',now=20,error='focus changed')
+    clock[0]=40
+    with caplog.at_level(logging.WARNING):sender.tick(allow_start=False)
+    assert store.get_delivery(task)['retries']==2
+    assert store.get_delivery(task)['state']=='pending'
+    # 重试次数用尽且超过丢弃时间（60 秒）→ 丢弃并释放后续消息
+    store.claim_delivery(now=40)
+    store.finish_delivery(task,'blocked',now=40,error='focus changed')
     clock[0]=180
     with caplog.at_level(logging.WARNING):sender.tick(allow_start=False)
+    assert store.get_delivery(task)['state']=='skipped'
     assert store.get_delivery(task)['resolution']=='timeout'
     assert store.get_delivery(later)['state']=='pending'
     assert task in caplog.text and '自动丢弃' in caplog.text
+
+
+def test_uncertain_is_not_auto_retried_to_avoid_duplicate_send(caplog):
+    import logging
+    from test_delivery_queue import Chat,pump
+    store=QueueStore(':memory:');clock=[0]
+    task=failed(store,state='uncertain',at=0)
+    sender=pump(store,Chat(),clock)
+    clock[0]=30  # 过了重试延迟
+    with caplog.at_level(logging.WARNING):sender.tick(allow_start=False)
+    # uncertain 已回车但未确认气泡，可能已发出 → 绝不自动重试
+    assert store.get_delivery(task)['state']=='uncertain'
+    assert '自动重试' not in caplog.text
 
 
 @pytest.mark.parametrize('action',['retry','sent','skip'])

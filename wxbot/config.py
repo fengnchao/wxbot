@@ -25,7 +25,7 @@ def validate_typing_config(wcfg):
     chunk_size = typing.get('chunk_size', 5)
     if type(chunk_size) is not int or not 1 <= chunk_size <= 100:
         raise ValueError('wechat.typing.chunk_size 必须是 1–100 的整数（不能是布尔值）')
-    chunk_interval = typing.get('chunk_interval', .5)
+    chunk_interval = typing.get('chunk_interval', .25)
     if (type(chunk_interval) not in (int, float) or not .05 <= chunk_interval <= 10
             or not math.isfinite(chunk_interval)):
         raise ValueError('wechat.typing.chunk_interval 必须是 0.05–10 的有限数值（秒）')
@@ -39,12 +39,43 @@ def validate_failure_timeout(value):
     return value
 
 
+def validate_retry_delay(value):
+    if (type(value) not in (int, float) or not 5 <= value <= 600
+            or not math.isfinite(value)):
+        raise ValueError('queue.retry_delay_seconds 必须是 5–600 的有限数值（秒）')
+    return float(value)
+
+
+def validate_max_delivery_retries(value):
+    if type(value) is not int or not 0 <= value <= 10:
+        raise ValueError('queue.max_delivery_retries 必须是 0–10 的整数（不能是布尔值）')
+    return value
+
+
+def validate_group_reply_chance(value):
+    if (type(value) not in (int, float) or isinstance(value, bool)
+            or not 0 <= value <= 1 or not math.isfinite(value)):
+        raise ValueError('bot.group_reply_chance 必须是 0–1 的有限数值（不能是布尔值）')
+    return float(value)
+
+
+def validate_emoji_chance(value):
+    if (type(value) not in (int, float) or isinstance(value, bool)
+            or not 0 <= value <= 1 or not math.isfinite(value)):
+        raise ValueError('bot.emoji_chance 必须是 0–1 的有限数值（不能是布尔值）')
+    return float(value)
+
+
 def validate_runtime_config(cfg):
     validate_typing_config(cfg.get('wechat', {}))
     qcfg = cfg.get('queue', {})
     if not isinstance(qcfg, dict):
         raise ValueError('queue 必须是配置表')
+    if qcfg.get('restart_chat_policy', 'discard') not in {'discard', 'resume'}:
+        raise ValueError('queue.restart_chat_policy 必须为 discard 或 resume')
     validate_failure_timeout(qcfg.get('failure_discard_seconds', 180))
+    validate_retry_delay(qcfg.get('retry_delay_seconds', 20))
+    validate_max_delivery_retries(qcfg.get('max_delivery_retries', 2))
 
 
 def load_config(path: str | Path | None = None) -> dict:
@@ -57,6 +88,13 @@ def load_config(path: str | Path | None = None) -> dict:
     bot = cfg.setdefault("bot", {})
     qcfg = cfg.setdefault('queue', {})
     validate_model_concurrency(qcfg.setdefault('max_model_requests', 2))
+    qcfg.setdefault('failure_discard_seconds', 180)
+    qcfg.setdefault('retry_delay_seconds', 20)
+    qcfg.setdefault('max_delivery_retries', 2)
+    bot.setdefault("group_reply_chance", 0.1)
+    bot.setdefault("emoji_chance", 0.2)
+    validate_group_reply_chance(bot["group_reply_chance"])
+    validate_emoji_chance(bot["emoji_chance"])
     wechat = cfg.setdefault("wechat", {})
     mode = wechat.setdefault("mode", "main")
     if mode not in {"main", "independent"}:

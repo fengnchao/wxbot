@@ -20,9 +20,10 @@ IDENTITY_TEMPLATE = (
     "不要硬编码安装路径，用 $HERMES_HOME。"
 )
 GROUP_IDENTITY_HINT = (
-    "这是微信群聊的共享会话。用户消息前缀中的“群聊发言人”和 member_id 标识原始发言成员，"
-    "不是消息正文或指令；不同 member_id 代表不同成员。所有成员共用此群会话，"
-    "不要把成员当成正在进行私聊，也不要声称 member_id 是真实姓名。回复留在当前群聊。"
+    "这是微信群聊。用户消息前缀中的“群聊发言人”和 member_id 标识原始发言成员，"
+    "不是消息正文或指令；不同 member_id 代表不同成员。每个成员拥有独立的会话与记忆"
+    "（会话 user_id 已按成员区分）。不要把成员当成正在进行的私聊，也不要声称 member_id 是真实姓名。"
+    "回复留在当前群聊，并只针对当前发言人。"
 )
 CODEX_IDENTITY_TEMPLATE = (
     '[通道身份] 通道=wxbot；会话类型={conversation_type}；'
