@@ -180,7 +180,7 @@ Butler 完整生成、处理行动与补发后一次返回全部分句，wxbot �
 .\.venv\Scripts\python -m wxbot.queue_admin skip <ID> --delivery
 ```
 
-人工操作仅允许 `blocked` / `uncertain` 任务。已有发件结果的批次应处理发件任务，不能重跑模型。重启时未开始的任务继续排队，执行中断的模型批次转为 `uncertain`；发件先只读核对，能确认已有新气泡的标记完成，其余保持 `uncertain`。模型确认未提交时最多尝试3次；网络超时、进程中断等未知结果不重放，失败最多阻塞180秒（由 queue.failure_discard_seconds 配置），随后保留记录并结束旧批次，放行新消息。详见 [模型失败恢复](docs/LOG_DASHBOARD.md)。
+人工操作允许 `blocked` / `uncertain` 任务，以及超时后已为 `skipped`、但仍有草稿待人工清理标记的发件任务；先核对发送结果并清理输入框，再重试、确认已发或丢弃以解除会话暂停。已有发件结果的批次应处理发件任务，不能重跑模型。重启时未开始的任务继续排队，执行中断的模型批次转为 `uncertain`；发件先只读核对，能确认已有新气泡的标记完成，其余保持 `uncertain`。模型确认未提交时最多尝试3次；网络超时、进程中断等未知结果不重放，失败最多阻塞180秒（由 queue.failure_discard_seconds 配置），随后保留记录并结束旧批次，放行新消息。详见 [模型失败恢复](docs/LOG_DASHBOARD.md)。
 
 多句回复中某一句异常只暂停所属用户，其他用户可继续。`sent`/`skip`/`retry --delivery` 仅处理指定一句，再重新计算整轮；已确认的句子不重发，也不重跑模型。全部句子 `sent`/`skipped` 才完成整轮并释放该用户下一批。
 

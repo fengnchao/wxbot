@@ -22,7 +22,10 @@ class QueueActions:
             raise ValueError('不支持的队列操作')
         if not isinstance(contact,str) or not contact or len(contact)>256:
             raise ValueError('必须指定任务联系人')
-        if payload.get('expected_state') not in {'blocked','uncertain'} or 'expected_finished_at' not in payload:
+        # A timed-out delivery can remain skipped with a draft hold; the store
+        # checks manual_required and the exact snapshot inside its transaction.
+        states={'blocked','uncertain','skipped'} if kind=='outbox' else {'blocked','uncertain'}
+        if payload.get('expected_state') not in states or 'expected_finished_at' not in payload:
             raise ValueError('缺少任务快照，请刷新队列')
         finished=payload['expected_finished_at']
         if finished is not None and (type(finished) not in (int,float) or not math.isfinite(finished)):
