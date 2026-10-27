@@ -28,25 +28,39 @@ class ActiveDelivery:
     typing: object
     baseline: list
     deadline: float | None = None
+    authorization_paused_at: float | None = None
 
 
 class DeliveryPump:
     def __init__(self, store, get_chat, capture_target, discover, *, timeout=5,
-                 clock=time.time, monotonic=time.monotonic, capture_messages=None):
+                 clock=time.time, monotonic=time.monotonic, capture_messages=None,
+                 package_authorizer=None):
         self.store, self.get_chat = store, get_chat
         self.capture_target, self.discover = capture_target, discover
         self.timeout, self.clock, self.monotonic = timeout, clock, monotonic
         self.capture_messages = capture_messages
+        self.package_authorizer = package_authorizer
         self.active = None
         self._waiters = {}
+        self._package_waiters = {}
         self._next_expiry=0
 
     @property
     def busy(self):
         return self.active is not None
 
+    @property
+    def requires_ui_review(self):
+        return self.store.requires_image_ui_review()
+
     def enqueue(self, request):
         try:
+            if getattr(request,'items',None) is not None:
+                package_id=self.store.enqueue_package(request.contact,request.items,request.request_id,
+                                                      media_paths=request.media_paths,now=self.clock())
+                self._package_waiters.setdefault(package_id,[]).append(request)
+                self._notify_package(package_id)
+                return package_id
             record_id = self.store.enqueue_delivery(request.contact, request.text, now=self.clock())
             self._waiters[record_id] = request
             log.info("[队列][%s][%s] 主动推送已持久化入发件箱", request.contact, record_id)
@@ -55,6 +69,12 @@ class DeliveryPump:
             request.finish(False, "发件入库失败")
             log.error("[队列] 发件入库失败: %s", type(exc).__name__)
             return None
+
+    def _notify_package(self,package_id):
+        receipt=self.store.package_receipt(package_id)
+        if receipt['done']:
+            for request in self._package_waiters.pop(package_id,[]):
+                request.finish(receipt['ok'],receipt['state'])
 
     @staticmethod
     def _diagnostics(chat,phase):
@@ -68,6 +88,8 @@ class DeliveryPump:
     def _finish(self, delivery, state, error="",details=None):
         details=dict(details or {})
         if self.active is not None:
+            if delivery.kind=='image' and state!='sent' and getattr(self.active.typing,'_pasted',False):
+                details['manual_required']=True
             details.update(getattr(self.active.typing,'failure_details',{}))
             details.setdefault('enter_attempted',self.active.typing.enter_attempted)
             close=getattr(self.active.typing,'close',None)
@@ -81,6 +103,8 @@ class DeliveryPump:
         waiter = self._waiters.pop(delivery.id, None)
         if waiter is not None:
             waiter.finish(state == "sent", "sent" if state == "sent" else error or state)
+        if getattr(delivery,'package_id',None):
+            self._notify_package(delivery.package_id)
         log.info("[队列][%s][%s][%d/%d] 发送状态=%s %s", delivery.contact, delivery.id,
                  delivery.part_seq, delivery.part_count, state, error)
         if delivery.batch_id:
@@ -112,6 +136,13 @@ class DeliveryPump:
     def _start(self, delivery):
         chat=None
         try:
+            authorization=self._package_authorization(delivery)
+            if authorization is None:
+                self.store.defer_delivery(delivery.id,now=self.clock())
+                return
+            if authorization is False:
+                self._finish(delivery,'skipped','新闻订阅已撤销，图文包停止')
+                return
             if delivery.kind == "emoji":
                 self._start_emoji(delivery)
                 return
@@ -131,7 +162,12 @@ class DeliveryPump:
                                  {'phase':'draft_cleanup','manual_required':getattr(chat,'draft_conflict',False)})
                     return
                 self.store.forget_draft(delivery.contact)
-            typing = chat.start_send(delivery.text, clock=self.monotonic)
+            mention_name = getattr(delivery, 'mention_name', '')
+            if delivery.kind == 'image':
+                typing=chat.start_image(delivery.media_path,clock=self.monotonic)
+            else:
+                typing = (chat.start_send(delivery.text, mention_name=mention_name, clock=self.monotonic)
+                          if mention_name else chat.start_send(delivery.text, clock=self.monotonic))
             if typing is None:
                 self._finish(delivery, "blocked", "输入框有草稿或无法读取、对象无法确认或窗口不可用",
                              {**self._diagnostics(chat,'prepare_input'), 'manual_required':getattr(chat,'draft_conflict',False)})
@@ -170,6 +206,28 @@ class DeliveryPump:
             self._finish(delivery, "blocked", f"表情发送失败: {type(exc).__name__}",
                          self._diagnostics(chat, 'sticker'))
 
+    def _package_authorization(self,delivery):
+        if not getattr(delivery,'package_id',None) or self.package_authorizer is None:
+            return True
+        try:
+            answer=self.package_authorizer(delivery)
+            return answer if answer is True or answer is False else None
+        except Exception:
+            return None
+
+    def _cancel_revoked(self,active):
+        task=active.typing
+        pasted=(getattr(task,'_pasted',False) or getattr(task,'index',0)>0 or
+                bool(getattr(task,'mention_verified',False)))
+        if task.enter_attempted:
+            self._finish(active.delivery,'uncertain','新闻订阅已撤销，已提交结果待核对，停止剩余图文包',
+                         {'manual_required':pasted})
+        elif pasted:
+            self._finish(active.delivery,'blocked','新闻订阅已撤销，保留已输入内容，未提交发送',
+                         {'manual_required':True})
+        else:
+            self._finish(active.delivery,'skipped','新闻订阅已撤销，图文包停止')
+
     def _prepare_enter(self, active):
         if not active.chat.target_is_current(active.typing.win):
             raise RuntimeError("回车前目标会话变化")
@@ -179,6 +237,16 @@ class DeliveryPump:
         text = getattr(active.typing, "submitted_text", None) or active.delivery.text
         self.store.save_baseline(active.delivery.id, [asdict(m) for m in current], submitted_text=text)
         active.baseline = current
+        # UIA reads may be slow: check freshness after the final snapshot, as
+        # close as possible to the caller's guarded native submit operation.
+        authorization=self._package_authorization(active.delivery)
+        if authorization is None:
+            if active.authorization_paused_at is None:
+                active.authorization_paused_at=self.monotonic()
+            return False
+        if authorization is False:
+            self._cancel_revoked(active)
+            return False
 
     def start_next(self):
         if self.busy:
@@ -197,6 +265,21 @@ class DeliveryPump:
                 self.start_next()
             return
         active = self.active
+        authorization=self._package_authorization(active.delivery)
+        if authorization is None:
+            if active.authorization_paused_at is None:
+                active.authorization_paused_at=self.monotonic()
+            return
+        if authorization is False:
+            self._cancel_revoked(active)
+            return
+        if active.authorization_paused_at is not None:
+            resume=getattr(active.typing,'resume_after_authorization_pause',None)
+            if resume is not None:
+                resume(max(0,self.monotonic()-active.authorization_paused_at))
+            if active.deadline is not None:
+                active.deadline+=max(0,self.monotonic()-active.authorization_paused_at)
+            active.authorization_paused_at=None
         row = self.store.get_delivery(active.delivery.id)
         if (active.delivery.batch_id and row['failed_at'] is not None
                 and self.clock() >= row['failed_at'] + self.store.failure_timeout_seconds
@@ -205,6 +288,8 @@ class DeliveryPump:
             self.store.expire_failed_deliveries(now=self.clock())
             return
         state = active.typing.step()
+        if self.active is None:
+            return
         if state == "typing":
             return
         if not active.typing.enter_attempted:
@@ -219,7 +304,9 @@ class DeliveryPump:
             if active.chat.target_is_current(active.typing.win):
                 current = active.chat.read_from_window(active.typing.win, strict_sender=True)
                 text = getattr(active.typing, "submitted_text", None) or active.delivery.text
-                if reply_is_visible(active.baseline, current, text):
+                visible=(active.typing.confirmation_visible() if active.delivery.kind=='image'
+                         else reply_is_visible(active.baseline, current, text))
+                if visible:
                     # Persist the same snapshot that proved the bubble is ours.
                     # Capture concurrent incoming messages before advancing the
                     # anchor; assigning the snapshot alone would lose them.
@@ -227,8 +314,11 @@ class DeliveryPump:
                         self.capture_messages(active.delivery.contact, active.chat, current)
                         log.info('[收件防回流][%s][%s] 已同步发送确认快照；自己的气泡不入收件队列',
                                  active.delivery.contact, active.delivery.id)
-                    active.chat.remember_sent(active.delivery.text)
-                    self._finish(active.delivery, "sent")
+                    if active.delivery.kind!='image':
+                        active.chat.remember_sent(text)
+                    self._finish(active.delivery, "sent", details={
+                        'mention_verified': getattr(active.typing, 'mention_verified', False),
+                        'bubble_verified': True})
                     return
         except Exception as exc:
             log.debug("[队列][%s] 发送确认暂时不可读: %s", active.delivery.id, type(exc).__name__)
@@ -239,6 +329,10 @@ class DeliveryPump:
         """重启后只核对已知不确定发件；不再输入，也不再按回车。"""
         self.expire_failures()
         for row in self.store.records("outbox"):
+            # Image identities are per UI session. A restart cannot prove which
+            # picture was ours from a text-only snapshot; leave it for review.
+            if row['kind']=='image':
+                continue
             if row["state"] != "uncertain" or row["baseline"] is None or (row.get('detached') and row['batch_id']):
                 continue
             try:

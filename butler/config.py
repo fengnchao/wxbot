@@ -17,6 +17,8 @@ DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config.butler.toml"
 @dataclass
 class Config:
     reply_chunk_chars: int = 500
+    group_context_messages: int = 30
+    group_context_characters: int = 6000
     provider: str = 'hermes'  # Existing files keep their backend; init creates Codex configs.
     data_dir: str = 'data'
     config_dir: str = ''
@@ -153,8 +155,16 @@ def load(path: str | os.PathLike | None = None) -> Config:
 
     from .reply import validate_chunk_chars
     chunk_chars = validate_chunk_chars((raw.get('reply') or {}).get('chunk_chars', 500))
+    context = raw.get('context') or {}
+    context_messages = context.get('group_messages',30)
+    context_characters = context.get('group_characters',6000)
+    if type(context_messages)is not int or not 1<=context_messages<=200:
+        raise ValueError('context.group_messages must be an integer from 1 to 200')
+    if type(context_characters)is not int or not 1<=context_characters<=30000:
+        raise ValueError('context.group_characters must be an integer from 1 to 30000')
     return Config(
         reply_chunk_chars=chunk_chars,
+        group_context_messages=context_messages,group_context_characters=context_characters,
         provider=provider, config_dir=str(p.resolve().parent),
         data_dir=str(agent.get('data_dir') or 'data'),
         codex_home=str(codex.get('home') or ''), codex_plugin=str(codex.get('plugin_root') or ''),

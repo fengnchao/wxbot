@@ -48,5 +48,19 @@ Functional skills declare metadata.butler.tools using implemented tool names.
 Adding a skill never creates executable authority on its own. New executable
 tools must be registered and authorized in ToolService as well.
 
+The user registry assigns immutable UUID identities. Conversation scopes are
+binding-specific; administrators can explicitly link memory owners without
+sharing threads. Unknown or ambiguous group identities are issued capabilities
+without memory access even if their group's skill policy includes memory.
+Memory revisions invalidate subsequent thread scopes after changes or deletion.
+`memory_delete` is available only through the authorized `butler-memory` skill.
+
+Authenticated `/v1/users`, `/v1/users/memory` and `/v1/users/audit` expose
+administrator operations; model capabilities cannot authenticate these endpoints.
+`POST /v1/group/archive` archives idempotent public observations without a model
+turn. Handle envelopes may include `avatar` and `group_context_seq`; context
+boundaries must belong to the same contact and request. Final result metadata
+contains the verified `user_id`, `binding_id`, `identity_status` and `mention_name`.
+
 Role tags from metadata.hermes are accepted for compatibility of supplied role
 files. Setup skills are excluded from the chatbot catalogue and cannot be granted.

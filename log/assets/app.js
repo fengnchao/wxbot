@@ -12,11 +12,11 @@ function switchTab(t){
   state.tab = t;
   document.body.classList.toggle('workflow-page',t==='workflow');
   $('#pane').dataset.view='';
-  const titles={workflow:'实时工作流',wxbot:'消息流转',queue:'收发队列',runtime:'模型与记忆',heartbeat:'角色与心跳',jobs:'定时任务',groups:'用户分组',configuration:'配置管理'};
+  const titles={workflow:'实时工作流',wxbot:'消息流转',queue:'收发队列',runtime:'模型与记忆',users:'用户与记忆',heartbeat:'角色与心跳',jobs:'定时任务',groups:'用户分组',configuration:'配置管理','telegram-relay':'Telegram 转发'};
   $('#page-title').textContent=titles[t];
   $('#view-search').value=state.viewSearch[t]||'';
   $('#view-search').placeholder=t==='workflow'?'搜索用户 / UID / 消息 ID':t==='wxbot'?'筛选本页消息':t==='queue'?'筛选本页任务':t==='heartbeat'?'搜索 Skill 或执行记录':'搜索当前记录';
-  $('#view-search').classList.toggle('hide',t==='configuration');
+  $('#view-search').classList.toggle('hide',t==='configuration'||t==='telegram-relay');
   $('#tab-wxbot').classList.toggle('on', t==='wxbot');
   $('#tab-workflow').classList.toggle('on', t==='workflow');
   $('#b-auto').classList.toggle('hide',t==='workflow');
@@ -26,7 +26,9 @@ function switchTab(t){
   $('#tab-heartbeat').classList.toggle('on', t==='heartbeat');
   $('#tab-queue').classList.toggle('on', t==='queue');
   $('#tab-configuration').classList.toggle('on', t==='configuration');
+  $('#tab-telegram-relay').classList.toggle('on', t==='telegram-relay');
   $('#tab-runtime').classList.toggle('on', t==='runtime');
+  $('#tab-users').classList.toggle('on', t==='users');
   $('#j-showdone').classList.toggle('hide', t!=='jobs');     // 各标签专属按钮
   $('#w-order').classList.toggle('hide', t!=='wxbot');
   $('#w-kind').classList.toggle('hide', t!=='wxbot');
@@ -35,6 +37,10 @@ function switchTab(t){
   $('#c-search').classList.toggle('hide', t!=='configuration');
   if(t==='workflow'){
     $('#list').innerHTML='';if(workflowReady())startWorkflow();else renderWorkflowUnavailable();
+  } else if(t==='telegram-relay'){
+    $('#list').innerHTML='';$('#pane').innerHTML='<div class="empty">载入转发设置…</div>';loadTelegramRelay();
+  } else if(t==='users'){
+    $('#list').innerHTML='';$('#pane').innerHTML='<div class="empty">载入用户…</div>';loadUsers();
   } else if(t==='runtime'){
     $('#list').innerHTML='';$('#pane').innerHTML='<div class="empty">载入运行记录…</div>';loadRuntime();
   } else if(t==='queue'){
@@ -64,7 +70,9 @@ $('#tab-groups').onclick = ()=>switchTab('groups');
 $('#tab-heartbeat').onclick = ()=>switchTab('heartbeat');
 $('#tab-queue').onclick = ()=>switchTab('queue');
 $('#tab-configuration').onclick = ()=>switchTab('configuration');
+$('#tab-telegram-relay').onclick = ()=>switchTab('telegram-relay');
 $('#tab-runtime').onclick = ()=>switchTab('runtime');
+$('#tab-users').onclick = ()=>switchTab('users');
 $('#q-state').onchange=()=>{state.qState=$('#q-state').value;resetQueuePages();loadQueue();};
 $('#c-search').oninput=()=>{state.cSearch=$('#c-search').value;renderConfigurationNav();renderConfigurationPane();};
 
@@ -84,8 +92,10 @@ $('#j-showdone').onclick = ()=>{                       // 默认隐藏「已完�
 function refreshCurrent(){
   if(state.tab==='workflow'){if(workflowReady())loadWorkflow();else renderWorkflowUnavailable();}
   else if(state.tab==='runtime') loadRuntime();
+  else if(state.tab==='users') loadUsers();
   else if(state.tab==='queue') loadQueue();
   else if(state.tab==='configuration') loadConfiguration();
+  else if(state.tab==='telegram-relay') loadTelegramRelay();
   else if(state.tab==='jobs') loadJobs();
   else if(state.tab==='groups') loadGroups();
   else if(state.tab==='heartbeat') loadHeartbeat();
@@ -97,10 +107,12 @@ $('#b-collapse').onclick=()=>expandPage(false);
 function renderCurrentCached(){
   if(state.tab==='workflow'){if(workflowReady())renderWorkflow(true);else renderWorkflowUnavailable();}
   else if(state.tab==='runtime')renderRuntime();
+  else if(state.tab==='users'){userAdmin.query=state.viewSearch.users||'';userAdmin.offset=0;loadUsers();}
   else if(state.tab==='queue')renderQueuePane();
   else if(state.tab==='jobs'&&state.jobs){renderJobsNav();renderJobs();}
   else if(state.tab==='groups'&&state.gdata){renderGroupsNav();renderGroupsPane();}
   else if(state.tab==='heartbeat')renderHeartbeatPane();
+  else if(state.tab==='telegram-relay')renderTelegramRelay();
   else if(state.tab==='wxbot')renderWxPane();
 }
 $('#view-search').oninput=()=>{state.viewSearch[state.tab]=$('#view-search').value;renderCurrentCached();};
@@ -133,7 +145,7 @@ async function boot(){
   if(qp.get('worder')==='asc')state.wOrder='asc';
   $('#w-order').textContent='排序：'+(state.wOrder==='asc'?'正序（旧→新）':'倒序（新→旧）');
   const tab = qp.get('tab') || 'workflow';
-  switchTab(['workflow','wxbot','jobs','groups','heartbeat','queue','configuration','runtime'].includes(tab)?tab:'workflow');
+  switchTab(['workflow','wxbot','jobs','groups','heartbeat','queue','configuration','runtime','users','telegram-relay'].includes(tab)?tab:'workflow');
 }
 // Preserve manual disclosures, focus and scroll during refreshes and form rerenders.
 renderWxPane=preservingPane(renderWxPane);

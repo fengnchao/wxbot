@@ -34,7 +34,30 @@ class ButlerProcessor(Processor):
     def handle(self, contact: str, text: str) -> str | None:
         return self.handle_reply(contact, text).text
 
-    def handle_reply(self, contact: str, text: str, *, request_id=None, member_key="", member_name="") -> Reply:
+    def observe_users(self, contact, channel_type, messages):
+        response = requests.post(self.url + '/v1/users/observe', headers=self._headers(),
+            json={'contact': contact, 'channel_type': channel_type, 'messages': messages},
+            timeout=min(self.timeout, 10))
+        response.raise_for_status()
+        return response.json()
+
+    def archive_group(self, contact, source_id, text, member_key, member_name, avatar=''):
+        message = {'text': text, 'member_key': member_key, 'member_name': member_name}
+        if avatar:
+            message['avatar'] = avatar
+        return self.archive_group_messages(contact, source_id, [message])
+
+    def archive_group_messages(self, contact, source_id, messages):
+        response = requests.post(self.url + '/v1/group/archive', headers=self._headers(),
+            json={'contact': contact, 'source_id': source_id, 'messages': messages}, timeout=self.timeout)
+        response.raise_for_status()
+        data = response.json()
+        if not isinstance(data, dict) or type(data.get('seq')) is not int or data['seq'] < 1:
+            raise ValueError('Butler group archive sequence is invalid')
+        return data['seq']
+
+    def handle_reply(self, contact: str, text: str, *, request_id=None, member_key="", member_name="",
+                     avatar='', group_context_seq=None) -> Reply:
         started = time.monotonic()
         record('wxbot_butler','started')
         try:
@@ -45,6 +68,10 @@ class ButlerProcessor(Processor):
                 body["member_name"] = member_name
             if request_id is not None:
                 body["msg_id"] = request_id
+            if avatar:
+                body['avatar'] = avatar
+            if group_context_seq is not None:
+                body['group_context_seq'] = group_context_seq
             resp = requests.post(self.url + "/v1/handle", headers=self._headers(),
                                  json=body, timeout=self.timeout)
             resp.raise_for_status()
@@ -80,6 +107,9 @@ class ButlerProcessor(Processor):
             raise error
         if request_id is not None and 'msg_id' in meta and meta['msg_id'] != request_id:
             raise ValueError('Butler 返回的请求 ID 不匹配')
+        mention_name = meta.get('mention_name', '')
+        if not isinstance(mention_name, str) or len(mention_name) > 300 or any(c in mention_name for c in '\r\n\t'):
+            raise ValueError('Butler mention_name 格式错误')
         reply = data.get("reply")
         if reply is not None and not isinstance(reply, str):
             raise ValueError('Butler reply 格式错误')
@@ -88,16 +118,18 @@ class ButlerProcessor(Processor):
             return fallback
         parts = data.get('reply_parts')
         if isinstance(parts, list) and parts and all(isinstance(p,str) and p.strip() for p in parts):
-            return Reply(reply, tuple(parts))
+            return Reply(reply, tuple(parts), mention_name=mention_name)
         if 'reply_parts' in data:
             log.warning('Butler 分句无效，保留完整正文作为单条回复')
-        return fallback
+        return Reply(fallback.text, fallback.parts, mention_name=mention_name)
 
-    def reset(self, contact: str, *, channel_type='dm', member_key="") -> None:
+    def reset(self, contact: str, *, channel_type='dm', member_key="",avatar='') -> None:
         try:
             body = {"contact": contact, "channel_type": channel_type}
             if member_key:
                 body["member_key"] = member_key
+            if avatar:
+                body['avatar'] = avatar
             response = requests.post(self.url + "/v1/reset", headers=self._headers(),
                                      json=body, timeout=self.timeout)
             response.raise_for_status()

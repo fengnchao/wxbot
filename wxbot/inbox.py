@@ -1,11 +1,12 @@
 """主窗口持续收件；模型与发件通过 SQLite 队列和 UI 主线程衔接。"""
 from dataclasses import asdict
+from collections import OrderedDict
 import math
 import random
 import time
 import uuid
 
-from common.flow_trace import FlowTrace,queue_trace_path
+from common.flow_trace import FlowTrace,queue_trace_path,record
 from .wechat.clipboard import restore_pending
 
 from .delivery import DeliveryPump
@@ -14,7 +15,7 @@ from .log import log
 from .queue_store import Incoming, QueueStore, queue_database
 from .queue_worker import ModelWorker
 from .state import new_messages, overlap_end
-from .wechat.chat_window import Message
+from .wechat.chat_window import Message, ReadDeferred
 from .wechat.main_window import MainWindow, Session, preview_sender
 
 
@@ -36,7 +37,7 @@ def mentioned_text(text: str, names: list[str]) -> str | None:
 
 class MainInbox:
     def __init__(self, cfg, router, *, desktop=None, store=None,
-                 clock=time.time, monotonic=time.monotonic):
+                 clock=time.time, monotonic=time.monotonic, telegram=None):
         validate_runtime_config(cfg)
         self.cfg, self.bot = cfg, cfg["bot"]
         self.clock, self.monotonic = clock, monotonic
@@ -84,16 +85,57 @@ class MainInbox:
         self._next_poll = 0
         self._next_ui = 'receive'
         self._receive_retry = {}
+        self.telegram=telegram
+        self._telegram_turn=False
 
     def start(self):
         self.store.acquire_runtime()
         recovered = self.store.recover()
         log.info("[队列] 已恢复：%s；当前状态：%s", recovered, self.store.counts())
-        self.delivery.reconcile()
+        if not self.delivery.requires_ui_review and not (self.telegram and self.telegram.requires_ui_review):
+            self.delivery.reconcile()
+        self.sync_users()
         self.worker.start()
 
+    def sync_users(self):
+        """Register saved identities; never submit historical text or create replies."""
+        observe = getattr(self.worker.router, 'observe_users', None)
+        if observe is None:
+            return
+        # Current snapshots may contain only an unresolved row. Earlier captured
+        # avatar evidence remains usable for enrollment without replaying text.
+        captured = {}
+        for row in self.store.identity_observations():
+            captured.setdefault((row['contact'],row['group_mode']),[]).append(
+                {key:row[key] for key in ('member_key','member_name','avatar')})
+        for (name, group), values in captured.items():
+            for offset in range(0,len(values),50):
+                try:
+                    observe(name, 'group' if group else 'dm', values[offset:offset+50])
+                except Exception as exc:
+                    log.warning('[用户登记] 已收头像登记失败，未重放历史消息：%s', type(exc).__name__)
+                    return
+        for name, messages in self.snapshots.items():
+            metadata = {}
+            for message in messages:
+                if message.sender == 'other':
+                    item = {'member_key': message.sender_key or '', 'member_name': message.sender_name or '',
+                            'avatar': message.avatar or ''}
+                    metadata[(item['member_key'], item['avatar']) if name in self.groups else ('dm','')] = item
+            values = list(metadata.values())
+            for offset in range(0, len(values), 50):
+                try:
+                    observe(name, 'group' if name in self.groups else 'dm', values[offset:offset+50])
+                except Exception as exc:
+                    log.warning('[用户登记] 启动快照登记失败，未重放历史消息：%s', type(exc).__name__)
+                    return
+
     def close(self):
+        telegram=getattr(self,'telegram',None)
+        if telegram is not None:telegram.close()
         self.delivery.close()
+        authorization=getattr(self,'relay_authorization',None)
+        if authorization is not None:authorization.close()
         restore_pending(force=True)
         if self.worker.stop():
             self.store.close()
@@ -115,15 +157,65 @@ class MainInbox:
         emoji = self.cfg.get("wechat", {}).get("emoji") or {}
         return bool(emoji.get("button")) and bool(emoji.get("item"))
 
-    def _reply_mode(self, mentioned):
+    def _reply_mode(self, mentioned, *, contact=''):
         """群消息的回复方式：@必回文字；普通消息抽中后文字/表情二选一，未抽中静默。"""
         if mentioned:
+            self._last_reply_reason = 'direct'
+            record('wxbot_group_decision', 'direct')
             return "text"
         if self._should_interject():
+            if contact:
+                now = self.clock()
+                history = getattr(self, '_group_reply_history', None)
+                if history is None:
+                    self._group_reply_history = history = OrderedDict()
+                times = history.pop(contact, [])
+                window = self.bot.get('group_reply_budget_window_seconds', 600)
+                times = [at for at in times if now - at < window]
+                history[contact] = times
+                if len(history) > 1000:
+                    history.popitem(last=False)
+                if times and now - times[-1] < self.bot.get('group_reply_cooldown_seconds', 30):
+                    self._last_reply_reason = 'cooldown'
+                    record('wxbot_group_decision', 'cooldown')
+                    return 'none'
+                if len(times) >= self.bot.get('group_reply_budget', 10):
+                    self._last_reply_reason = 'budget'
+                    record('wxbot_group_decision', 'budget')
+                    return 'none'
+                times.append(now)
             if self._emoji_available() and random.random() < self._emoji_chance():
+                self._last_reply_reason = 'emoji'
+                record('wxbot_group_decision', 'emoji')
                 return "emoji"
+            self._last_reply_reason = 'random'
+            record('wxbot_group_decision', 'random')
             return "text"
+        self._last_reply_reason = 'silent'
+        record('wxbot_group_decision', 'silent')
         return "none"
+
+    def _group_direct_request(self, contact, member, text, mentioned, previous_sender):
+        """Only the recent addressed member continues a turn after a bot bubble."""
+        prefix = self.bot.get('command_prefix', '/')
+        named = any(text.startswith(str(name).strip().lstrip('@') + delimiter)
+                    for name in self.bot.get('mention_names', []) if str(name).strip().lstrip('@')
+                    for delimiter in (' ', ',', '，', ':', '：', '、'))
+        direct = mentioned or bool(prefix and text.startswith(prefix)) or named
+        turns = getattr(self, '_group_direct_turns', None)
+        if turns is None:
+            self._group_direct_turns = turns = OrderedDict()
+        now = self.clock()
+        last_member, at = turns.get(contact, ('', float('-inf')))
+        continuation = (previous_sender == 'self' and member == last_member and bool(member)
+                        and 0 <= now - at < self.bot.get('group_continuation_seconds', 120))
+        if direct or continuation:
+            turns.pop(contact, None)
+            turns[contact] = (member, now)
+            if len(turns) > 1000:
+                turns.popitem(last=False)
+            return True
+        return False
 
     def _chat(self, name):
         if name not in self.chats:
@@ -139,6 +231,10 @@ class MainInbox:
         if fresh is None:
             previous = self.snapshots.get(name)
             fresh = new_messages(previous, messages) if previous else messages if previous == [] else []
+        if any(message.sender == 'system' for message in fresh):
+            # Text rows with no reliable direction are not system notifications.
+            # Do not consume their text checkpoint before a readable retry.
+            raise ReadDeferred('unknown_fresh_sender','新文字消息发送方暂不可确认，保留快照等待重读')
         # The session preview describes the last message, never an arbitrary earlier
         # incoming row. Keep the learned names scoped to this group across restarts.
         if chat.group_mode and messages and messages[-1].sender == "other":
@@ -159,6 +255,7 @@ class MainInbox:
                 self.store.remember_group_member(name, last.sender_key, nickname, now=self.clock())
                 log.info("[%s] 自动映射群成员昵称：member_id=%s，昵称=%s", name, last.sender_key, nickname)
         incoming = []
+        previous_senders = {id(m): messages[n-1].sender if n else '' for n, m in enumerate(messages)}
         for message in fresh:
             if message.sender != "other" or not self._allowed(name):
                 continue
@@ -175,10 +272,14 @@ class MainInbox:
                 member_name = member_name or self.store.group_member_name(name, member)
                 context = (f"[群聊发言人：{member_name or '未知成员'}; "
                            f"member_id={message.sender_key or 'unknown'}]")
-                reply_mode = self._reply_mode(mentioned)
+                direct = self._group_direct_request(name, member, text, mentioned,
+                                                    previous_senders.get(id(message), ''))
+                reply_mode = self._reply_mode(direct, contact=name)
                 log.info("[%s] 群消息入队（成员 %s，回复方式=%s，member_id=%s，内容=%s）",
                          name, member_name, reply_mode, message.sender_key or 'unknown', text[:40])
-            incoming.append(Incoming(text, member, context, member_name, reply_mode))
+            incoming.append(Incoming(text, member, context, member_name, reply_mode,
+                                     avatar=getattr(message, 'avatar', ''),
+                                     reply_reason=self._last_reply_reason if chat.group_mode else ''))
         ids = self.store.capture(name, [asdict(m) for m in messages], incoming,
                                  group_mode=chat.group_mode, now=self.clock())
         self.snapshots[name] = messages  # 事务成功后才移动锚点。
@@ -228,6 +329,11 @@ class MainInbox:
         if session.unread_count:
             messages, unread = chat.read_bundle(session.unread_count)
             previous = self.snapshots.get(name)
+            candidates = new_messages(previous, messages) if previous else []
+            if not candidates:
+                candidates = [message for message in messages if message.sender != 'self'][-session.unread_count:]
+            if any(message.sender == 'system' for message in candidates):
+                raise ReadDeferred('unknown_unread_sender','未读文字消息发送方暂不可确认，保留未读任务等待重读')
             if previous is None or (previous and overlap_end(previous, messages) is None):
                 fresh = unread
                 if previous:
@@ -272,8 +378,9 @@ class MainInbox:
         try:
             succeeded = self._receive(session)
         except Exception as exc:
-            log.error('[%s] 采集失败，未读任务保留待下轮处理: %s',
-                      session.contact, type(exc).__name__)
+            log.error('[%s] 采集失败，未读任务保留待下轮处理: %s%s',
+                      session.contact, type(exc).__name__,
+                      '（'+exc.read_code+'）' if isinstance(exc,ReadDeferred) else '')
         if succeeded:
             self._receive_retry.pop(session.contact, None)
         else:
@@ -306,6 +413,13 @@ class MainInbox:
 
     def tick(self):
         restore_pending()
+        telegram=getattr(self,'telegram',None)
+        if getattr(self.delivery,'requires_ui_review',False) or (telegram and getattr(telegram,'requires_ui_review',False)):
+            return
+        if telegram and telegram.busy:
+            telegram.tick()
+            self._next_poll=0
+            return
         was_busy = self.delivery.busy
         if self.monotonic() >= self._next_poll:
             try:
@@ -322,16 +436,35 @@ class MainInbox:
         receive_ready = bool(self._connected and any(
             self._receive_retry.get(name, 0) <= self.monotonic() for name in self.pending))
         send_ready = self.store.has_ready_delivery(now=self.clock())
+        if telegram and (self._telegram_turn or not(receive_ready or send_ready)):
+            self._telegram_turn=False
+            if telegram.tick():return
         action = self._next_ui if receive_ready and send_ready else 'receive' if receive_ready else 'send'
         if action == 'receive' and receive_ready:
             if self._receive_one():
                 self._next_ui = 'send'
+                self._telegram_turn=True
         elif send_ready and self.delivery.start_next():
             self._next_ui = 'receive'
+            self._telegram_turn=True
 
 
 def run_main_inbox(cfg, router, queue):
-    inbox = MainInbox(cfg, router)
+    import os
+    from pathlib import Path
+    from .config import ROOT
+    from .telegram_desktop import DesktopRelay
+    base=Path(os.environ.get('WXBOT_CONFIG') or ROOT/'config.wxbot.toml').resolve().parent
+    relay=cfg.get('telegram_relay',{})
+    config_path=Path(relay.get('config','config.telegram-relay.toml'))
+    state_path=Path(relay.get('state_dir','data/telegram-relay'))
+    config_path=config_path if config_path.is_absolute() else base/config_path
+    state_path=state_path if state_path.is_absolute() else base/state_path
+    inbox = MainInbox(cfg, router,telegram=DesktopRelay(config_path,state_path))
+    from .relay_authorization import RelayAuthorization
+    butler=cfg.get('butler',{})
+    inbox.relay_authorization=RelayAuthorization(butler.get('url',''),butler.get('token',''))
+    inbox.delivery.package_authorizer=inbox.relay_authorization.allowed
     log.info("微信主窗口队列模式；监听范围：%s；连续消息合并=%s 秒，最长=%s 秒",
              "全部会话" if inbox.listen_all else "已绑定会话", inbox.worker.quiet, inbox.worker.max_wait)
     if not cfg["bot"].get("mention_names"):

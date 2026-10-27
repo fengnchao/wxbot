@@ -1,5 +1,23 @@
 """Queue schema creation and atomic legacy migration. No service/UI access."""
-VERSION = 8
+import sqlite3
+import time
+from contextlib import closing
+from pathlib import Path
+
+VERSION = 10
+
+
+def backup_before_migration(db, path):
+    """Snapshot an existing queue before PRAGMAs/DDL, including its WAL."""
+    if path == ':memory:' or is_latest(db):
+        return
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table'").fetchone():
+        return
+    if db.execute('PRAGMA user_version').fetchone()[0] > VERSION:
+        raise ValueError('队列版本较新，不能用旧版程序打开')
+    target = Path(str(path) + '.backup-' + str(time.time_ns()))
+    with closing(sqlite3.connect(target)) as backup:
+        db.backup(backup)
 
 OUTBOX_SQL = """CREATE TABLE outbox (
     seq INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL UNIQUE,
@@ -14,6 +32,10 @@ OUTBOX_SQL = """CREATE TABLE outbox (
     UNIQUE(batch_id,part_seq))"""
 
 _TABLES = (
+    """CREATE TABLE IF NOT EXISTS delivery_packages (
+        id TEXT PRIMARY KEY, contact TEXT NOT NULL, request_id TEXT NOT NULL,
+        payload_hash TEXT NOT NULL, created_at REAL NOT NULL,
+        state TEXT NOT NULL DEFAULT 'pending', UNIQUE(contact,request_id))""",
     """CREATE TABLE IF NOT EXISTS group_member_names (
         contact TEXT NOT NULL, member_key TEXT NOT NULL, name TEXT NOT NULL,
         updated_at REAL NOT NULL, PRIMARY KEY(contact, member_key))""",
@@ -52,10 +74,11 @@ def columns(db, table):
 
 def is_latest(db):
     return (db.execute('PRAGMA user_version').fetchone()[0] == VERSION and
-            {'part_seq', 'submitted_text', 'failed_at', 'resolution', 'kind', 'retries', 'detached', 'draft_text', 'manual_required'} <= columns(db, 'outbox') and
+            {'part_seq', 'submitted_text', 'failed_at', 'resolution', 'kind', 'retries', 'detached', 'draft_text', 'manual_required', 'mention_name', 'package_id', 'media_id', 'media_path'} <= columns(db, 'outbox') and
+            bool(columns(db, 'delivery_packages')) and
             bool(columns(db, 'delivery_events')) and bool(columns(db, 'group_member_names')) and
-            {'reply_text', 'reply_complete', 'part_count', 'member_key', 'member_name', 'reply_mode', 'first_delivery_failure', 'delivery_resolution'} <= columns(db, 'batches') and
-            {'member_name', 'reply_mode'} <= columns(db, 'inbox'))
+            {'reply_text', 'reply_complete', 'part_count', 'member_key', 'member_name', 'reply_mode', 'first_delivery_failure', 'delivery_resolution', 'avatar', 'reply_reason'} <= columns(db, 'batches') and
+            {'member_name', 'reply_mode', 'avatar', 'reply_reason'} <= columns(db, 'inbox'))
 
 
 def initialize(db):
@@ -88,23 +111,32 @@ def initialize(db):
                                  ('retries',"INTEGER NOT NULL DEFAULT 0"),
                                  ('detached','INTEGER NOT NULL DEFAULT 0'),
                                  ('manual_required','INTEGER NOT NULL DEFAULT 0'),
+                                 ('mention_name',"TEXT NOT NULL DEFAULT ''"),
+                                 ('package_id','TEXT REFERENCES delivery_packages(id)'),
+                                 ('media_id',"TEXT NOT NULL DEFAULT ''"),
+                                 ('media_path',"TEXT NOT NULL DEFAULT ''"),
                                  ('draft_text','TEXT')):
             if name not in existing:
                 db.execute(f'ALTER TABLE outbox ADD COLUMN {name} {declaration}')
-        db.execute("""UPDATE outbox SET failed_at=COALESCE(finished_at,submitted_at,created_at)
-            WHERE failed_at IS NULL AND state IN ('blocked','uncertain')""")
+        if 'failed_at' not in existing:
+            db.execute("""UPDATE outbox SET failed_at=COALESCE(finished_at,submitted_at,created_at)
+                WHERE failed_at IS NULL AND state IN ('blocked','uncertain')""")
         batch_cols = columns(db, 'batches')
         for name, declaration in (('reply_text','TEXT'), ('reply_complete','INTEGER NOT NULL DEFAULT 0'),
                                   ('part_count','INTEGER NOT NULL DEFAULT 0'),
                                   ('member_key',"TEXT NOT NULL DEFAULT ''"),
                                   ('member_name',"TEXT NOT NULL DEFAULT ''"),
                                   ('reply_mode',"TEXT NOT NULL DEFAULT 'text'"),
+                                  ('avatar',"TEXT NOT NULL DEFAULT ''"),
+                                  ('reply_reason',"TEXT NOT NULL DEFAULT ''"),
                                   ('first_delivery_failure','REAL'),
                                   ('delivery_resolution',"TEXT NOT NULL DEFAULT ''")):
             if name not in batch_cols:
                 db.execute(f'ALTER TABLE batches ADD COLUMN {name} {declaration}')
         inbox_cols = columns(db, 'inbox')
         for name, declaration in (('member_name',"TEXT NOT NULL DEFAULT ''"),
+                                  ('avatar',"TEXT NOT NULL DEFAULT ''"),
+                                  ('reply_reason',"TEXT NOT NULL DEFAULT ''"),
                                   ('reply_mode',"TEXT NOT NULL DEFAULT 'text'")):
             if name not in inbox_cols:
                 db.execute(f'ALTER TABLE inbox ADD COLUMN {name} {declaration}')
@@ -121,6 +153,16 @@ def initialize(db):
             db.execute(sql)
         db.execute('''UPDATE batches SET first_delivery_failure=(SELECT MIN(failed_at) FROM outbox WHERE batch_id=batches.id)
             WHERE first_delivery_failure IS NULL''')
+        if version < 9:
+            # Legacy hashes/names do not prove a registry binding. Keep original
+            # text intact and require review. Never touch started/uncertain rows.
+            db.execute("""UPDATE outbox SET state='blocked',manual_required=1,
+                error='旧版群回复包含文本 @ 前缀，缺少已确认绑定，请人工核对',
+                failed_at=COALESCE(failed_at,created_at)
+                WHERE state='pending' AND batch_id IS NOT NULL AND part_seq=1
+                AND submitted_at IS NULL AND submitted_text IS NULL AND baseline IS NULL
+                AND draft_text IS NULL AND text LIKE '@%'
+                AND EXISTS(SELECT 1 FROM inbox WHERE inbox.batch_id=outbox.batch_id AND group_mode=1)""")
         db.execute(f'PRAGMA user_version={VERSION}')
         db.commit()
     except BaseException:

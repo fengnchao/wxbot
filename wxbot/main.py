@@ -61,7 +61,13 @@ def run() -> None:
         host = ocfg.get("host", "127.0.0.1")
         port = ocfg.get("port", 8765)
         try:
-            start_server(host, port, str(ocfg.get("token", "")), queue)
+            from pathlib import Path
+            from .queue_store import queue_database
+            media_cache=Path(queue_database(cfg)).resolve().parent/'wechat-media'
+            start_server(host, port, str(ocfg.get("token", "")), queue,
+                         butler_url=cfg.get('butler',{}).get('url',''),
+                         butler_token=cfg.get('butler',{}).get('token',''),media_cache_dir=media_cache,
+                         allow_bundles=cfg['wechat']['mode']=='main')
             log.info("外发服务已启动 → http://%s:%s（接收 butler/脚本的主动推送）", host, port)
         except Exception as e:
             if cfg["wechat"]["mode"] == "main":
@@ -82,6 +88,9 @@ def run() -> None:
         restore_pending()
         # 每轮先排空外发队列：在主线程调 ChatWindow.send，HTTP 线程绝不触碰 uiautomation
         for req in queue.drain():
+            if req.items is not None:
+                req.finish(False,'图文包只支持主窗口队列模式，未提交')
+                continue
             chat = chats.get(req.contact)
             bound = chat is not None
             if chat is None:                       # 未绑定的目标：临时开窗发送

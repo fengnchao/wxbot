@@ -11,6 +11,11 @@ mention_names = []
 group_reply_chance = 0.1
 # 抽中回复时，其中有多少概率发表情图（其余为文字回复），0–1
 emoji_chance = 0.2
+# 普通随机插话冷却和每窗口请求数预算；明确 @ / 命令优先
+group_reply_cooldown_seconds = 30
+group_reply_budget = 10
+group_reply_budget_window_seconds = 600
+group_continuation_seconds = 120
 # 轮询间隔（秒）
 poll_interval = 1.5
 # 回复前随机延迟（秒），模拟真人

@@ -1,11 +1,17 @@
 """Long polling and independent, idempotent delivery to Butler."""
 import threading
+from datetime import datetime, timezone
+import json
+from pathlib import Path
+import re
 import requests
 
 from butler.telegram.service import instance_lock
 from .inbox import validate
 from .queue import Queue
 from .news import NewsRelay
+from .media import TelegramMedia, validate_file_path
+from butler.media import MAX_BYTES, _atomic
 
 
 def log(message):
@@ -18,7 +24,7 @@ class TelegramError(RuntimeError):
         self.code = code
         self.retry_after = retry_after
         self.kind = kind
-        self.method = method if method in ('getMe', 'getWebhookInfo', 'getUpdates') else 'API'
+        self.method = method if method in ('getMe', 'getWebhookInfo', 'getUpdates', 'getFile', 'download') else 'API'
 
     def __str__(self):
         reasons = {
@@ -46,6 +52,7 @@ class TelegramError(RuntimeError):
 class BotAPI:
     def __init__(self, cfg):
         self._url = 'https://api.telegram.org/bot' + cfg.token + '/'
+        self._files_url = 'https://api.telegram.org/file/bot' + cfg.token + '/'
         self.session = requests.Session()
         self.session.trust_env = False
         if cfg.proxy_url:
@@ -84,6 +91,36 @@ class BotAPI:
         except requests.exceptions.RequestException:
             raise TelegramError(0, kind='network', method=method) from None
 
+    def download(self, file_path):
+        validate_file_path(file_path)
+        try:
+            with self.session.get(self._files_url + file_path, stream=True,
+                                  timeout=(10, 40), allow_redirects=False) as response:
+                if response.status_code != 200:
+                    raise TelegramError(response.status_code, method='download')
+                length = response.headers.get('Content-Length')
+                if length is not None and (not length.isdigit() or int(length) > MAX_BYTES):
+                    raise ValueError('Telegram 图片超过下载上限')
+                data = bytearray()
+                for block in response.iter_content(64 * 1024):
+                    if len(data) + len(block) > MAX_BYTES:
+                        raise ValueError('Telegram 图片超过下载上限')
+                    data.extend(block)
+                return bytes(data)
+        except requests.RequestException:
+            raise TelegramError(0, kind='network', method='download') from None
+
+
+def publish_identity(state_dir, me):
+    """Only public, validated getMe data is made available to the desktop broker."""
+    if (not isinstance(me, dict) or type(me.get('id')) is not int or me['id'] <= 0
+            or me.get('is_bot') is not True or not isinstance(me.get('username'), str)
+            or not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]{3,31}', me['username'])):
+        raise ValueError('无效机器人身份')
+    state_dir.mkdir(parents=True, exist_ok=True)
+    _atomic(state_dir / 'bot-identity.json', json.dumps({'bot_id': me['id'],
+        'username': me['username'], 'at': datetime.now(timezone.utc).isoformat()}).encode('utf-8'))
+
 
 # Keep text entities (including hidden URLs), media metadata and original forward attribution.
 MESSAGE_KEYS = ('message_id', 'date', 'from', 'chat', 'text', 'entities', 'caption', 'caption_entities',
@@ -104,6 +141,86 @@ def select_message(update, allowed):
         log(f'未接收：sender_id={uid} 不在 allowed_user_ids；不记录正文')
         return None
     return {key: msg[key] for key in MESSAGE_KEYS if key in msg}
+
+
+def _public_forward_receipt(value):
+    """Return only the bounded public source identity carried by one Bot receipt."""
+    if not isinstance(value, dict):
+        return None
+    if (type(value.get('source_chat_id')) is not int or value['source_chat_id'] >= 0
+            or type(value.get('source_message_id')) is not int or value['source_message_id'] <= 0
+            or type(value.get('bot_message_id')) is not int or value['bot_message_id'] <= 0):
+        return None
+    username, received = value.get('source_username', ''), value.get('received_at')
+    if (not isinstance(username, str) or (username and not re.fullmatch(r'[A-Za-z][A-Za-z0-9_]{3,31}', username))
+            or not isinstance(received, str) or len(received) > 40):
+        return None
+    try:
+        if datetime.fromisoformat(received).tzinfo is None:
+            return None
+    except ValueError:
+        return None
+    return {key: value.get(key, '') for key in
+            ('source_chat_id', 'source_username', 'source_message_id', 'bot_message_id', 'received_at')}
+
+
+def publish_forward_receipt(state_dir, bot, message):
+    """Called only after authorized ingress commits. Failure never affects that commit."""
+    origin = message.get('forward_origin')
+    if not isinstance(origin, dict) or origin.get('type') != 'channel':
+        return
+    source = origin.get('chat')
+    if not isinstance(source, dict):
+        return
+    at = datetime.now(timezone.utc).isoformat()
+    receipt = _public_forward_receipt(dict(source_chat_id=source.get('id'),
+        source_username=source.get('username', ''), source_message_id=origin.get('message_id'),
+        bot_message_id=message.get('message_id'), received_at=at))
+    if receipt is None:
+        return
+    try:
+        state_dir = Path(state_dir)
+        state_dir.mkdir(parents=True, exist_ok=True)
+        path = state_dir / 'forward-receipts.json'
+        old = {}
+        if path.is_file():
+            try:
+                with path.open('rb') as stream:
+                    data = stream.read(2 * 1024 * 1024 + 1)
+                if len(data) <= 2 * 1024 * 1024:
+                    parsed = json.loads(data)
+                    old = parsed if isinstance(parsed, dict) else {}
+            except (ValueError, UnicodeError):
+                pass
+        receipts = []
+        if old.get('bot_id') == bot and isinstance(old.get('receipts'), list):
+            for entry in old['receipts'][-2000:]:
+                safe = _public_forward_receipt(entry)
+                if safe is not None:
+                    if safe['bot_message_id'] == receipt['bot_message_id']:
+                        return  # An old update must never masquerade as a fresh forwarding receipt.
+                    receipts.append(safe)
+        receipts.append(receipt)
+        _atomic(path, json.dumps({'bot_id': bot, 'at': at, 'receipts': receipts[-2000:]},
+                                ensure_ascii=False).encode('utf-8'))
+    except Exception:
+        log('转发收件回执写入失败；已提交的入站消息仍保留')
+
+
+def persist_update(queue, state_dir, bot, update, allowed):
+    """One ingestion boundary used by the sole existing getUpdates poller."""
+    message = select_message(update, allowed)
+    if message is not None:
+        validate({'bot_id': bot, 'update_id': update['update_id'], 'message': message})
+    queue.ingest(bot, update, message)
+    if message is not None:
+        # INSERT OR IGNORE retains the first durable payload for a repeated update ID.
+        # A conflicting duplicate may advance no forwarding evidence.
+        with queue.db() as db:
+            stored = db.execute('SELECT payload FROM pending WHERE bot=? AND uid=?', (bot, update['update_id'])).fetchone()
+        if stored is not None and json.loads(stored[0])['message'] == message:
+            publish_forward_receipt(state_dir, bot, message)
+    return message
 
 
 def submit(session, cfg, body):
@@ -142,18 +259,25 @@ def run(cfg, butler_cfg):
         errors = []
         worker = None
         news_worker = None
+        media_api = None
         try:
             log('正在连接 getMe；网络方式=' + ('显式代理' if cfg.proxy_url else '直连（未配置 proxy_url）'))
             me = api.call('getMe')
             bot = me['id']
             if type(bot) is not int or bot <= 0 or me.get('is_bot') is not True:
                 raise ValueError('无效机器人身份')
+            publish_identity(cfg.state_dir, me)
             log('getMe 认证成功，正在检查 Webhook')
             if api.call('getWebhookInfo').get('url'):
                 log('机器人已有 Webhook；请先核对原接收服务，本程序不会删除它')
                 raise ValueError('机器人已有 Webhook；请先核对原接收服务，本程序不会删除它')
             log(f'机器人连接成功 bot_id={bot}；仅接收私聊；白名单人数={len(cfg.allowed_users)}')
-            news = NewsRelay(queue, bot, butler_cfg, cfg.allowed_users, log)
+            from butler.telegram_relay.settings import load as load_relay
+            relay_path = cfg.relay_config or cfg.butler_config.parent / 'config.telegram-relay.toml'
+            media_api = BotAPI(cfg)  # Independent HTTP session; only the original api polls updates.
+            news = NewsRelay(queue, bot, butler_cfg, cfg.allowed_users, log,
+                             media=TelegramMedia(media_api, butler_cfg),
+                             relay_settings=lambda: load_relay(relay_path))
             news.recover()
 
             def deliver_news():
@@ -213,10 +337,7 @@ def run(cfg, butler_cfg):
                 for update in sorted(updates, key=lambda item: item['update_id']):
                     if stop.is_set():
                         break
-                    msg = select_message(update, cfg.allowed_users)
-                    if msg is not None:
-                        validate({'bot_id': bot, 'update_id': update['update_id'], 'message': msg})
-                    queue.ingest(bot, update, msg)
+                    msg = persist_update(queue, cfg.state_dir, bot, update, cfg.allowed_users)
                     if msg is not None:
                         log(f"已收件 update={update['update_id']} sender={msg['from']['id']}；等待 Butler 确认")
             if errors:
@@ -228,3 +349,5 @@ def run(cfg, butler_cfg):
             if news_worker is not None:
                 news_worker.join()
             api.session.close()
+            if media_api is not None:
+                media_api.session.close()

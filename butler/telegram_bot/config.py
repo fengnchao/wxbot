@@ -15,6 +15,7 @@ class Config:
     state_dir: Path
     butler_config: Path
     proxy_url: str = field(default='', repr=False)
+    relay_config: Path | None = None
 
 
 def load(path=DEFAULT):
@@ -32,4 +33,5 @@ def load(path=DEFAULT):
     if not isinstance(proxy, str) or (proxy and not proxy.startswith(('http://', 'https://'))):
         raise ValueError('proxy_url 仅支持 HTTP/HTTPS 代理')
     return Config(token, tuple(users), resolve(raw.get('state_dir', 'data/telegram-bot')),
-                  resolve(raw.get('butler_config', 'config.butler.toml')), proxy)
+                  resolve(raw.get('butler_config', 'config.butler.toml')), proxy,
+                  resolve(raw.get('relay_config', 'config.telegram-relay.toml')))

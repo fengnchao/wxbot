@@ -36,7 +36,8 @@ def test_received_preview_maps_avatar_to_nickname_and_reply():
     inbox = make_inbox(store, "我干嘛: @Bot 你好")
     capture(inbox)
     assert inbox.worker.process_once()
-    assert store.records("outbox")[0]["text"] == "@我干嘛 收到"
+    assert store.records("outbox")[0]["text"] == "收到"
+    assert store.records('outbox')[0]['mention_name'] == ''  # Preview is not registry authority.
     row = store.records("inbox")[0]
     assert row["member_key"] == KEY
     assert row["member_name"] == "我干嘛"
@@ -73,7 +74,8 @@ def test_configured_name_takes_precedence_over_learned_nickname():
     inbox = make_inbox(store, "自动昵称: @Bot 你好")
     capture(inbox, name="手动昵称")
     inbox.worker.process_once()
-    assert store.records("outbox")[0]["text"] == "@手动昵称 收到"
+    assert store.records("outbox")[0]["text"] == "收到"
+    assert store.records('outbox')[0]['mention_name'] == ''
 
 
 def test_outgoing_tail_cannot_assign_old_incoming_avatar_to_new_preview():
@@ -125,8 +127,8 @@ def test_disappearing_session_cannot_reuse_an_old_preview():
     assert store.records("inbox")[0]["member_name"] == ""
 
 
-@pytest.mark.parametrize("nickname,expected", [("", "收到"), ("已识别昵称", "@已识别昵称 收到")])
-def test_old_queued_placeholder_uses_learned_name_or_omits_mention(nickname, expected):
+@pytest.mark.parametrize("nickname", ["", "已识别昵称"])
+def test_old_queued_placeholder_does_not_authorize_mention(nickname):
     store = QueueStore(":memory:")
     if nickname:
         store.remember_group_member("测试群", KEY, nickname, now=0)
@@ -134,4 +136,5 @@ def test_old_queued_placeholder_uses_learned_name_or_omits_mention(nickname, exp
     store.prepare(quiet=0, max_wait=10, prefix="/", now=0)
     batch = store.claim_batch(now=0)
     store.finish_batch_parts(batch.id, ("收到",), now=0)
-    assert store.records("outbox")[0]["text"] == expected
+    assert store.records("outbox")[0]["text"] == '收到'
+    assert store.records('outbox')[0]['mention_name'] == ''

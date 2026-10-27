@@ -35,15 +35,16 @@ def test_group_handle_isolates_session_per_member(make_home):
 
 # ---------- queue_store：@ 前缀与表情发件 ----------
 
-def test_finish_batch_parts_prepends_mention_to_first_part_only():
+def test_finish_batch_parts_saves_explicit_mention_to_first_part_only():
     store = QueueStore(":memory:")
     store.capture("群", [], [Incoming("你好", "m1", "[群聊发言人：甲; member_id=m1]", "甲")],
                   group_mode=True, now=0)
     store.prepare(quiet=0, max_wait=10, prefix="/", now=0)
     batch = store.claim_batch(now=0)
     assert (batch.member_key, batch.member_name) == ("m1", "甲")
-    store.finish_batch_parts(batch.id, ("第一句", "第二句"), now=0)
-    assert [row["text"] for row in store.records("outbox")] == ["@甲 第一句", "第二句"]
+    store.finish_batch_parts(batch.id, ("第一句", "第二句"), now=0, mention_name='甲')
+    assert [row["text"] for row in store.records("outbox")] == ["第一句", "第二句"]
+    assert [row['mention_name'] for row in store.records('outbox')] == ['甲', '']
 
 
 def test_dm_reply_has_no_mention_prefix():
@@ -167,7 +168,7 @@ def test_merge_reply_mode_priority():
     assert merge_reply_mode([]) == "text"
 
 
-def test_worker_emoji_mode_discards_text_and_enqueues_sticker():
+def test_worker_emoji_mode_skips_model_and_enqueues_sticker():
     store = QueueStore(":memory:")
     store.capture("群", [], [Incoming("你好", "m1", "ctx", "甲", "emoji")], group_mode=True, now=0)
     store.prepare(quiet=0, max_wait=10, prefix="/", now=0)
@@ -179,10 +180,10 @@ def test_worker_emoji_mode_discards_text_and_enqueues_sticker():
             return Reply.from_text("模型文字")
 
     ModelWorker(store, Router(), quiet=0, max_wait=10, clock=lambda: 0).process_once()
-    assert called.get("model")  # 仍调用模型（进上下文）
+    assert not called.get("model")
     batch = store.records("batches")[0]
-    assert batch["state"] == "done"
-    assert [r for r in store.records("outbox") if r["batch_id"] == batch["id"]] == []  # 无文字发件
+    assert batch["state"] == "waiting_delivery"
+    assert [r for r in store.records("outbox") if r["batch_id"] == batch["id"] and r['kind'] == 'text'] == []
     emoji = [r for r in store.records("outbox") if r["kind"] == "emoji"]
     assert len(emoji) == 1 and emoji[0]["text"] == ""
 

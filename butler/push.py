@@ -13,6 +13,8 @@ import json
 import urllib.error
 import urllib.request
 
+from common.media_bundle import validate_items, validate_request_id
+
 
 def push_to_wxbot(cfg, contact: str, text: str, log=None) -> tuple[bool, str]:
     """把 text 投给 wxbot 代发给 contact（窗口标题）。返回 (ok, detail)。"""
@@ -41,3 +43,30 @@ def push_to_wxbot(cfg, contact: str, text: str, log=None) -> tuple[bool, str]:
     except Exception as e:
         log("wxbot 外发失败: %s: %s", type(e).__name__, e)
         return False, f"{type(e).__name__}: {e}"
+
+
+def push_bundle_to_wxbot(cfg, contact, items, request_id, log=None):
+    """Wait for every ordered item; never log payloads or transport secrets."""
+    try:
+        items = validate_items(items)
+        validate_request_id(request_id)
+        url = (cfg.wxbot_url or '').rstrip('/')
+        if not url:
+            return False, 'wxbot_url 未配置'
+        timeout = float(cfg.wxbot_timeout or 120)
+        headers = {'Content-Type': 'application/json'}
+        if cfg.wxbot_token:
+            headers['X-Wxbot-Token'] = cfg.wxbot_token
+        request = urllib.request.Request(url + '/send-bundle',
+            data=json.dumps({'contact': contact, 'items': items, 'request_id': request_id,
+                             'wait': True, 'timeout': timeout}, ensure_ascii=False).encode('utf-8'),
+            headers=headers, method='POST')
+        with urllib.request.urlopen(request, timeout=timeout + 15) as response:
+            result = json.loads(response.read().decode('utf-8'))
+        ok = (isinstance(result, dict) and result.get('ok') is True
+              and result.get('request_id') == request_id and result.get('contact') == contact)
+        return ok, str(result.get('detail') or ('sent' if ok else '图文包回执未确认')) if isinstance(result, dict) else '图文包回执无效'
+    except urllib.error.HTTPError as exc:
+        return False, f'wxbot HTTP {exc.code}；图文包未确认'
+    except Exception:
+        return False, 'wxbot 图文包连接或回执异常；结果未知，不自动重发'

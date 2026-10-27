@@ -6,6 +6,7 @@ from dataclasses import dataclass
 class Reply:
     text: str | None
     parts: tuple[str, ...]
+    mention_name: str = ''
 
     @classmethod
     def from_text(cls, text):

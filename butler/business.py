@@ -97,13 +97,36 @@ class BusinessStore:
                 'AND (key LIKE ? OR value LIKE ?) ORDER BY updated DESC LIMIT 100',
                 (owner,'%'+query+'%','%'+query+'%'))]
 
-    def set_memory(self, owner, key, value, *, db=None):
+    def set_memory(self, owner, key, value, *, db=None, source='authorized_tool'):
         if not isinstance(key,str) or not key.strip() or len(key)>200 or not isinstance(value,str) or len(value)>10000:
             raise ValueError('Invalid memory key/value')
         if db is None:
             with self.transaction() as conn:
-                return self.set_memory(owner,key,value,db=conn)
+                return self.set_memory(owner,key,value,db=conn,source=source)
+        old=db.execute('SELECT value FROM memory WHERE owner=? AND key=?',(owner,key)).fetchone()
         db.execute('INSERT OR REPLACE INTO memory VALUES(?,?,?,?)',(owner,key,value,time.time()))
+        self._memory_changed(db, owner, key, 'model_memory_set',source,old[0] if old else None,value)
+        return {'ok':True}
+
+    @staticmethod
+    def _memory_changed(db, owner, key, action,source='authorized_tool',previous=None,value=None):
+        if not owner.startswith('user:') or not db.execute("SELECT 1 FROM sqlite_master WHERE name='user_profiles'").fetchone():
+            return
+        user_id = owner[5:]
+        db.execute('UPDATE user_profiles SET memory_version=memory_version+1 WHERE user_id=?', (user_id,))
+        for row in db.execute('SELECT binding_id FROM user_bindings WHERE user_id=?', (user_id,)).fetchall() if source=='authorized_tool' else []:
+            db.execute('INSERT INTO user_audit(binding_id,action,details,at)VALUES(?,?,?,?)',
+                       (row[0],action,json.dumps({'key':key,'source':source,'previous':previous,'value':value},ensure_ascii=False),time.time()))
+
+    def delete_memory(self, owner, key, *, db=None, source='authorized_tool'):
+        if not isinstance(key,str) or not key.strip() or len(key)>200:
+            raise ValueError('Invalid memory key')
+        if db is None:
+            with self.transaction() as conn:
+                return self.delete_memory(owner,key,db=conn,source=source)
+        old=db.execute('SELECT value FROM memory WHERE owner=? AND key=?',(owner,key)).fetchone()
+        db.execute('DELETE FROM memory WHERE owner=? AND key=?',(owner,key))
+        self._memory_changed(db,owner,key,'model_memory_delete',source,old[0] if old else None)
         return {'ok':True}
 
     def reminders(self, owner=None, *, db=None, order='recent'):

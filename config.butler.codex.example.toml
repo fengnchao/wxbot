@@ -3,6 +3,10 @@
 provider = "codex"
 data_dir = "data"
 
+[context]
+group_messages = 30
+group_characters = 6000
+
 [server]
 host = "127.0.0.1"
 port = 8770

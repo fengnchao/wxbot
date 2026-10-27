@@ -103,11 +103,11 @@ const FLOW_STAGE_LABELS={wxbot_received:'wxbot 确认收件入库',wxbot_inbox:'
   hermes_tool:'模型运行时 工具执行',hermes_status:'模型运行时 过程事件',hermes_approval:'模型运行时 等待审批',
   hermes_result:'模型运行时 完整结果',butler_action:'Butler 行动执行',butler_result:'Butler 结果就绪',
   wxbot_result:'wxbot 完整回复入发件箱',wxbot_outbox:'回复分句入队',wechat_submitted:'微信已按回车',wechat_delivery:'微信分句发送',
-  wxbot_reply_mode:'群回复方式决策'};
+  wxbot_reply_mode:'群回复方式决策',telegram_media:'Telegram 图片准备'};
 const FLOW_STATUS_LABELS={ok:'完成',started:'已开始，等待确认',accepted:'接口已接受',waiting:'等待中',
   running:'执行中',completed:'执行结束',failed:'失败',error:'失败',blocked:'已阻塞',uncertain:'结果不确定',
   unconfirmed:'未记录 / 未确认',not_started:'未提交',pending:'待发送',sending:'键入中',confirming:'发送确认中',sent:'已确认发送',skipped:'已跳过 / 丢弃',
-  text:'文字回复',emoji:'表情图',none:'静默（不回复）'};
+  text:'文字回复',emoji:'表情图',none:'静默（不回复）',preparing:'图片准备中',media_failed:'图片准备失败',awaiting_bot:'等待机器人收件',ready:'已就绪'};
 function groupFlowEvents(events){
   const groups=new Map();
   const pending=new Map();let occurrence=0;
@@ -144,9 +144,9 @@ function renderMessageFlow(data){
   if(data.status!=='ok') return `<div class="head"><h2>消息流转记录</h2><div class="warn">${esc(data.error||'无法读取')}</div></div>`;
   let flows=(data.flows||[]).filter(f=>(state.wUid==='all'||f.contact===state.wUid)&&matchesQuery(f.contact,f.preview,f.state,f.reason?.error,f.reason?.message,f.request_id));
   const cards=flows.map((f,i)=>{
-    const reason=f.reason||{},bad=['blocked','uncertain','model_failed'].includes(reason.code)||['blocked','uncertain','model_failed'].includes(f.state);
+    const reason=f.reason||{},bad=['blocked','uncertain','model_failed','media_failed'].includes(reason.code)||['blocked','uncertain','model_failed','media_failed'].includes(f.state);
     const events=groupFlowEvents(f.events||[]).map(e=>{
-      const failed=['error','failed','blocked','uncertain'].includes(e.status);
+      const failed=['error','failed','blocked','uncertain','media_failed'].includes(e.status);
       const errorNote={missing_final_response:'缺少最终正文事件，请更新并重启 模型运行时',invalid_stream:'模型运行时 过程流无效或未完整结束'}[e.error_code];
       const bits=[e.tool&&('工具 '+e.tool),e.tool_call_id&&('调用 '+e.tool_call_id),
         e.http_status&&('HTTP '+e.http_status),e.elapsed_ms!=null&&('耗时 '+(e.elapsed_ms/1000).toFixed(2)+'s'),

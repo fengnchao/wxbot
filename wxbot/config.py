@@ -67,6 +67,20 @@ def validate_emoji_chance(value):
 
 
 def validate_runtime_config(cfg):
+    bot = cfg.get('bot', {})
+    if not isinstance(bot, dict):
+        raise ValueError('bot 必须是配置表')
+    for key, default, low, high in (
+        ('group_reply_cooldown_seconds', 30, 0, 86400),
+        ('group_reply_budget_window_seconds', 600, 1, 86400),
+        ('group_continuation_seconds', 120, 0, 3600),
+    ):
+        value = bot.get(key, default)
+        if type(value) not in (int, float) or not math.isfinite(value) or not low <= value <= high:
+            raise ValueError(f'bot.{key} 必须是 {low}–{high} 的有限数值')
+    budget = bot.get('group_reply_budget', 10)
+    if type(budget) is not int or not 0 <= budget <= 10000:
+        raise ValueError('bot.group_reply_budget 必须是 0–10000 的整数')
     validate_typing_config(cfg.get('wechat', {}))
     qcfg = cfg.get('queue', {})
     if not isinstance(qcfg, dict):
@@ -93,6 +107,10 @@ def load_config(path: str | Path | None = None) -> dict:
     qcfg.setdefault('max_delivery_retries', 2)
     bot.setdefault("group_reply_chance", 0.1)
     bot.setdefault("emoji_chance", 0.2)
+    bot.setdefault('group_reply_cooldown_seconds', 30)
+    bot.setdefault('group_reply_budget', 10)
+    bot.setdefault('group_reply_budget_window_seconds', 600)
+    bot.setdefault('group_continuation_seconds', 120)
     validate_group_reply_chance(bot["group_reply_chance"])
     validate_emoji_chance(bot["emoji_chance"])
     wechat = cfg.setdefault("wechat", {})

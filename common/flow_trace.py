@@ -12,7 +12,9 @@ import uuid
 _current = ContextVar('message_flow', default=None)
 _write_lock = threading.Lock()
 EVENT_FIELDS = {'backend', 'elapsed_ms', 'http_status', 'error_type', 'error_code', 'profile', 'session_id',
-           'tool', 'tool_call_id', 'characters', 'part_count', 'progress_available', 'attempt'}
+           'tool', 'tool_call_id', 'characters', 'part_count', 'progress_available', 'attempt',
+           'user_id','binding_id','memory_count','context_count','context_from','context_to',
+           'decision','mention_stage','identity_status'}
 
 
 def queue_trace_path(database):

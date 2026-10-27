@@ -62,7 +62,8 @@ async function checks(){
   const topology=run("workflowDiagram({backend:'codex'},[],null,new Set())");
   assert.equal((topology.match(/data-service=\"butler\"/g)||[]).length,1,'one shared Butler for requests and replies');
   assert.equal((topology.match(/data-service=\"wxbot\"/g)||[]).length,1,'one shared wxbot');
-  assert.equal((topology.match(/data-service=/g)||[]).length,5);
+  assert.equal((topology.match(/data-service=\"telegram\"/g)||[]).length,1,'Telegram keeps its existing separate intake node');
+  assert.equal((topology.match(/data-service=/g)||[]).length,6);
   assert.ok(topology.indexOf('data-service="model"')<topology.indexOf('data-service="butler"'));
   for(const edge of ['request','result','dispatch','enqueue','receive','send'])assert.match(topology,new RegExp('id="wf-edge-'+edge+'"'));
   assert.equal(run('workflowService(2)'),run('workflowService(4)'));
@@ -141,6 +142,8 @@ async function checks(){
   assert.match(element('#pane').innerHTML,/data-discard-at="181"/);
   assert.match(element('#pane').innerHTML,/&lt;img/);
   context.actionRows={...context.fixture,outbox:[{id:'task',contact:'A',state:'blocked',preview:'reply',actions:['retry','sent','skip']}]};
+  context.actionRows.rounds=[{id:'batch',contact:'A',state:'blocked',preview:'reply',part_count:1,sent_parts:0,
+    parts:context.actionRows.outbox.map(part=>({...part,part_seq:1}))}];
   run('state.qdata=actionRows;renderQueuePane()');
   assert.equal(element('#pane').querySelectorAll('[data-q-action]').length,3,'the same recovery actions must not appear twice');
   context.timeoutFixture={...base,failure_timeout_seconds:75,events:[{at:1,contact:'A',action:'timeout_discard',reason:'旧记录',record_id:'task'}]};
@@ -153,7 +156,8 @@ async function checks(){
   assert.match(element('#pane').innerHTML,/最多等待180秒/,'old queue payloads must keep the 180-second default');
   accepted=false;
   await run("performQueueAction({id:'fake',kind:'outbox',contact:'A'},'retry')");
-  assert.match(confirmations.at(-1),/首次失败的超时期限不会重置/);
+  assert.match(confirmations.at(-1),/整轮失败期限不会重置/);
+  assert.match(confirmations.at(-1),/重试可能重复发送/);
   accepted=true;
   context.snapshot={id:'task',kind:'outbox',contact:'A',expected_state:'blocked',expected_finished_at:1};
   run("state.qBusy=false;state.tab='queue'");

@@ -107,6 +107,24 @@ def test_codex_identity_has_no_legacy_storage_dependency():
     assert 'Butler' in identity and 'member_id' in identity
 
 
+def test_observed_group_identity_has_no_memory_capability(tmp_path, monkeypatch):
+    b = make_backend(tmp_path)
+    original = b.tools.issue
+    definitions = []
+    def issue(**kwargs):
+        token = original(**kwargs)
+        definitions.extend(b.tools.definitions(token))
+        return token
+    monkeypatch.setattr(b.tools, 'issue', issue)
+    try:
+        c = Contact('group', 'default', 'observed-user', channel_type='group', identity_status='observed')
+        b.chat(c, 'remember me', skill_policy={'role_skill':'butler-companion', 'allowed_skills':['butler-memory']})
+        assert not any(item['name'].startswith('memory_') for item in definitions)
+        assert '不能读取或保存个人长期记忆' in c.identity(backend='codex')
+    finally:
+        b.close()
+
+
 def test_sdk_gets_system_proxy_and_localhost_bypass(tmp_path,monkeypatch):
     monkeypatch.setattr('butler.backends.codex.getproxies',lambda:{'https':'http://127.0.0.1:9876'})
     b=make_backend(tmp_path)

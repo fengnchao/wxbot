@@ -21,7 +21,14 @@ DEFAULT_POLICY={'role_skill':'butler-companion','allowed_skills':[]}
 
 
 def owner_key(contact):
+    if contact.memory_owner:
+        return contact.memory_owner
     return hashlib.sha256(json.dumps([contact.key(),contact.name],ensure_ascii=False).encode()).hexdigest()
+
+
+def tool_owner_key(contact):
+    """Reminders and operation idempotency never inherit a shared memory owner."""
+    return 'binding:' + contact.binding_id if contact.binding_id else owner_key(contact)
 
 
 @dataclass
@@ -51,7 +58,8 @@ class CodexBackend:
 
     def scope(self,contact,policy=None,kind='chat'):
         policy=self.tools.catalogue.validate(policy or DEFAULT_POLICY)
-        return hashlib.sha256(json.dumps([owner_key(contact),policy,kind],sort_keys=True).encode()).hexdigest()
+        return hashlib.sha256(json.dumps([owner_key(contact),contact.key(),contact.memory_version,
+            contact.binding_version,policy,kind],sort_keys=True).encode()).hexdigest()
 
     def session_guard(self,contact,*,skill_policy=None,session_kind='chat'):
         return self.locks.session(contact,session_kind=session_kind)
@@ -257,8 +265,9 @@ class CodexBackend:
             try:
                 acquired=self._slots.acquire(timeout=deadline.remaining())
                 if not acquired:raise HermesError('Codex 请求队列等待超时')
-                capability=self.tools.issue(owner=owner_key(contact),contact=contact.name,
-                    policy=policy,read_only=session_kind=='heartbeat',request_id=current_request_id() or uuid.uuid4().hex,ttl=limit+60)
+                capability=self.tools.issue(owner=tool_owner_key(contact),memory_owner=owner_key(contact),contact=contact.name,
+                    policy=policy,read_only=session_kind=='heartbeat',request_id=current_request_id() or uuid.uuid4().hex,
+                    memory_allowed=contact.identity_status not in {'unknown','ambiguous','disabled','observed'},ttl=limit+60)
                 worker=self._worker(scope,policy,capability,contact.name,deadline)
                 workspace=self.cfg.data_path()/'workspaces'/scope
                 inputs=[TextInput(text=contact.identity(backend='codex')+'\n'+extra_system+'\n'+text)]

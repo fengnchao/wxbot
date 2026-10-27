@@ -7,7 +7,7 @@ from .clipboard import ClipboardLease,failure_details
 
 
 class TypingSession:
-    def __init__(self, chat, win, edit, text, *, clock=time.monotonic):
+    def __init__(self, chat, win, edit, text, *, mention_name='', clock=time.monotonic):
         self.chunk_size, self.chunk_interval = validate_typing_config(getattr(chat, 'wcfg', {}))
         self.chat, self.win, self.edit, self.text = chat, win, edit, text
         self.clock = clock
@@ -28,8 +28,24 @@ class TypingSession:
         self._clipboard = None
         self.failure_details = {}
         self.phase = 'input_guard'
+        self.mention_name = mention_name
+        self.mention_verified = False
+        self._mention_prefix = ''
+        self._mention_identity = None
+        if mention_name:
+            from .mentions import MentionSelection
+            self._mention = MentionSelection(chat, win, edit, mention_name, clock=clock)
+        else:
+            self._mention = None
 
     def _draft(self):
+        if self.mention_verified:
+            from .mentions import rich_draft
+            proof = rich_draft(self.edit, self.mention_name)
+            if proof is None or proof[1] != self._mention_identity:
+                return None
+            raw = proof[0]
+            return raw[len(self._mention_prefix):] if raw.startswith(self._mention_prefix) else None
         value = self.chat._input_text(self.edit)
         return value.replace("\r\n", "\n").replace("\r", "\n") if value is not None else None
 
@@ -69,11 +85,30 @@ class TypingSession:
                 self.state, self.error = "blocked", self._target_or_focus_error('输入前')
                 self.close()
                 return self.state
+            if self._mention is not None:
+                self.phase = self._mention.phase
+                result = self._mention.step()
+                if result == 'blocked':
+                    self.state, self.error = 'blocked', self._mention.error
+                    self.failure_details['manual_required'] = True
+                    return self.state
+                if result == 'plain':
+                    self.failure_details.update(mention_fallback=self._mention.fallback_reason,mention_verified=False)
+                    self.mention_name = ''
+                    self._mention = None
+                    return self.state
+                if result != 'selected':
+                    return self.state
+                self._mention_prefix, self._mention_identity = self._mention.proof
+                self.mention_verified = True
+                self.failure_details['mention_verified'] = True
+                self._mention = None
+                return self.state
             if self._verify_prefix:
                 self.phase='verify_prefix'
                 expected = self.normalized[:self.index * self.chunk_size]
                 if self._draft() == expected:
-                    if self.on_verified_draft is not None:
+                    if self.on_verified_draft is not None and not self.mention_name:
                         self.on_verified_draft(expected)
                     if not self.close():
                         self.state,self.error = 'blocked','剪贴板暂时无法恢复，已保留草稿，未按回车'
@@ -100,6 +135,10 @@ class TypingSession:
                     self.state,self.error='blocked',self._target_or_focus_error('粘贴前')
                     self.close()
                     return self.state
+                if self._draft() != self.normalized[:self.index * self.chunk_size]:
+                    self.state, self.error = 'blocked', '粘贴前草稿或提及对象变化，未粘贴、未按回车'
+                    self.close()
+                    return self.state
                 if not self._clipboard.is_current():
                     self.failure_details.update(clipboard_write=self._clipboard.sequence_at_write,
                         clipboard_committed=self._clipboard.seq,clipboard_checked=self._clipboard.sequence_at_check)
@@ -118,12 +157,16 @@ class TypingSession:
                 self.next_due = self.clock() + (self.chunk_interval if self.index < len(self.chunks) else 0.05)
             else:
                 self.phase='before_enter'
-                self.submitted_text = self._draft()
-                if self.submitted_text != self.normalized:
+                if self._draft() != self.normalized:
                     self.state, self.error = "blocked", "回车前输入内容变化，已保留草稿"
                     return self.state
+                visible_prefix = self._mention_prefix
+                if self.mention_verified and visible_prefix.startswith('\ufffc'):
+                    visible_prefix = '@' + self.mention_name + visible_prefix[1:]
+                self.submitted_text = visible_prefix + self.normalized
                 if self.before_enter is not None:
-                    self.before_enter()
+                    if self.before_enter() is False:
+                        return self.state
                 if not self.chat._can_send(self.win, self.edit) or self._draft() != self.normalized:
                     self.state, self.error = "blocked", "回车前对象、焦点或输入内容变化，已保留草稿"
                     return self.state
@@ -140,6 +183,8 @@ class TypingSession:
             self.close()
         finally:
             if self.state in {'blocked','uncertain'}:
+                if self.mention_name and not self.enter_attempted:
+                    self.failure_details['manual_required'] = True
                 self.failure_details.update(phase=self.phase,enter_attempted=self.enter_attempted,
                     characters_entered=min(self.index*self.chunk_size,len(self.normalized)))
         return self.state

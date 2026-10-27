@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 from dataclasses import dataclass
 import json
+import hashlib
 import os
 from pathlib import Path
 import sqlite3
@@ -20,7 +21,8 @@ FAILURE_DETAIL_FIELDS = {'phase','expected_contact','actual_contact','expected_g
     'expected_hwnd','foreground_hwnd','input_focused','target_matches','characters_entered',
     'enter_attempted','clipboard_write','clipboard_committed','clipboard_checked',
     'clipboard_operation','clipboard_format','clipboard_error','os_error_code','exception_type',
-    'manual_required','retry_safe','attempt','max_attempts','retry_at','error_code'}
+    'manual_required','retry_safe','attempt','max_attempts','retry_at','error_code',
+    'mention_verified','mention_fallback','bubble_verified'}
 
 
 def queue_database(cfg):
@@ -39,6 +41,8 @@ class Incoming:
     context: str = ""
     member_name: str = ""
     reply_mode: str = "text"   # text=文字回复 / emoji=表情图 / none=静默（已进上下文不回复）
+    avatar: str = ""
+    reply_reason: str = ""
 
 
 @dataclass(frozen=True)
@@ -50,6 +54,8 @@ class Batch:
     member_key: str = ""
     member_name: str = ""
     reply_mode: str = "text"
+    avatar: str = ""
+    reply_reason: str = ""
 
 
 REPLY_MODE_PRIORITY = ("text", "emoji", "none")
@@ -74,6 +80,10 @@ class Delivery:
     part_seq: int = 1
     part_count: int = 1
     kind: str = "text"
+    mention_name: str = ""
+    package_id: str | None = None
+    media_id: str = ''
+    media_path: str = ''
 
 
 class QueueStore(DeliveryPolicy):
@@ -104,6 +114,7 @@ class QueueStore(DeliveryPolicy):
                 self._db = sqlite3.connect(uri, uri=True, timeout=5, check_same_thread=False)
             self._db.row_factory = sqlite3.Row
             if access == "runtime":
+                queue_schema.backup_before_migration(self._db, self.path)
                 self._db.execute("PRAGMA journal_mode=WAL")
                 self._db.execute("PRAGMA synchronous=FULL")
                 self._db.execute("PRAGMA foreign_keys=ON")
@@ -162,6 +173,22 @@ class QueueStore(DeliveryPolicy):
                 (contact, member_key)).fetchone()
             return row[0] if row else ""
 
+    def group_observations(self, batch_id):
+        """Original public observations, in capture order, before batch merging."""
+        with self._lock:
+            return [dict(row) for row in self._db.execute(
+                'SELECT text,member_key,member_name,avatar FROM inbox '
+                'WHERE batch_id=? AND group_mode=1 ORDER BY id', (batch_id,))]
+
+    def identity_observations(self):
+        """Bounded latest captured avatar evidence; no historical message bodies."""
+        with self._lock:
+            return [dict(row) for row in self._db.execute('''
+                SELECT contact,group_mode,member_key,member_name,avatar FROM inbox
+                WHERE id IN (SELECT MAX(id) FROM inbox WHERE avatar!=''
+                    GROUP BY contact,group_mode,member_key)
+                ORDER BY id DESC LIMIT 500''')]
+
     def remember_group_member(self, contact, member_key, name, *, now):
         with self._transaction() as db:
             db.execute("""INSERT INTO group_member_names VALUES(?,?,?,?)
@@ -195,9 +222,9 @@ class QueueStore(DeliveryPolicy):
             received_at = min(now, pending[0]) if pending else now
             for message in messages:
                 cursor = db.execute("""INSERT INTO inbox
-                    (contact,text,member_key,member_name,reply_mode,context,group_mode,received_at) VALUES(?,?,?,?,?,?,?,?)""",
+                    (contact,text,member_key,member_name,reply_mode,context,group_mode,received_at,avatar,reply_reason) VALUES(?,?,?,?,?,?,?,?,?,?)""",
                     (contact, message.text, message.member_key, message.member_name,
-                     message.reply_mode, message.context, int(group_mode), received_at))
+                     message.reply_mode, message.context, int(group_mode), received_at, message.avatar, message.reply_reason))
                 ids.append(cursor.lastrowid)
             db.execute("""INSERT INTO observations VALUES(?,?,?,?)
                 ON CONFLICT(contact) DO UPDATE SET snapshot=excluded.snapshot,
@@ -248,11 +275,12 @@ class QueueStore(DeliveryPolicy):
                 batch_id = uuid.uuid4().hex
                 first = selected[0]
                 reply_mode = merge_reply_mode(selected)
-                db.execute("""INSERT INTO batches(id,contact,text,context,member_key,member_name,reply_mode,state,created_at)
-                    VALUES(?,?,?,?,?,?,?,'ready',?)""",
+                reason = next((row['reply_reason'] for row in selected if row['reply_mode'] == reply_mode), '')
+                db.execute("""INSERT INTO batches(id,contact,text,context,member_key,member_name,reply_mode,state,created_at,avatar,reply_reason)
+                    VALUES(?,?,?,?,?,?,?,'ready',?,?,?)""",
                     (batch_id, first["contact"], "\n".join(row["text"] for row in selected),
                      first["context"], first["member_key"] or "", first["member_name"] or "",
-                     reply_mode, now))
+                     reply_mode, now, first['avatar'], reason))
                 db.executemany("UPDATE inbox SET batch_id=? WHERE id=?",
                                [(batch_id, row["id"]) for row in selected])
         return len(candidates)
@@ -266,14 +294,14 @@ class QueueStore(DeliveryPolicy):
             db.execute("""UPDATE batches SET state='processing',started_at=?,finished_at=NULL,attempts=attempts+1
                 WHERE id=?""", (now, row["id"]))
             return Batch(row["id"], row["contact"], row["text"], row["context"],
-                         row["member_key"] or "", row["member_name"] or "", row["reply_mode"] or "text")
+                         row["member_key"] or "", row["member_name"] or "", row["reply_mode"] or "text", row['avatar'], row['reply_reason'])
 
     @staticmethod
-    def _insert_delivery(db, contact, text, now, not_before, batch_id=None, part_seq=1, kind="text"):
+    def _insert_delivery(db, contact, text, now, not_before, batch_id=None, part_seq=1, kind="text", mention_name=""):
         delivery_id = f"{batch_id}:{part_seq}" if batch_id else uuid.uuid4().hex
-        db.execute("""INSERT INTO outbox(id,contact,text,batch_id,state,created_at,not_before,part_seq,kind)
-            VALUES(?,?,?,?,'pending',?,?,?,?)""",
-                   (delivery_id, contact, text, batch_id, now, not_before, part_seq, kind))
+        db.execute("""INSERT INTO outbox(id,contact,text,batch_id,state,created_at,not_before,part_seq,kind,mention_name)
+            VALUES(?,?,?,?,'pending',?,?,?,?,?)""",
+                   (delivery_id, contact, text, batch_id, now, not_before, part_seq, kind, mention_name))
         return delivery_id
 
     def release_unsubmitted_batch(self, batch_id):
@@ -287,7 +315,7 @@ class QueueStore(DeliveryPolicy):
         parts = (reply,) if isinstance(reply, str) and reply.strip() else ()
         return self.finish_batch_parts(batch_id, parts, now=now, delay=delay, reply_text=reply)
 
-    def finish_batch_parts(self, batch_id, parts, *, now, delay=0, reply_text=None):
+    def finish_batch_parts(self, batch_id, parts, *, now, delay=0, reply_text=None, mention_name=''):
         if not isinstance(parts, tuple) or any(not isinstance(p, str) or not p.strip() for p in parts):
             raise ValueError("分句必须是完整的非空字符串元组")
         with self._transaction() as db:
@@ -295,17 +323,13 @@ class QueueStore(DeliveryPolicy):
                              (batch_id,)).fetchone()
             if row is None:
                 raise ValueError("批次不处于处理中，不能重复保存模型结果")
-            member_name = (row["member_name"] or "").strip()
-            member_key = row["member_key"] or ""
-            if member_name == f"成员-{member_key[:8]}":
-                member_name = ""
-            if member_key and not member_name:
-                mapped = db.execute("SELECT name FROM group_member_names WHERE contact=? AND member_key=?",
-                                    (row["contact"], member_key)).fetchone()
-                member_name = mapped[0] if mapped else ""
+            # Only the service-resolved target is authority; observed names/hash
+            # mappings and text supplied by the model never choose a recipient.
+            group = db.execute('SELECT group_mode FROM inbox WHERE batch_id=? LIMIT 1', (batch_id,)).fetchone()
+            member_name = str(mention_name or '').strip() if group and group[0] else ''
             for n, part in enumerate(parts, 1):
-                text = f"@{member_name} {part}" if n == 1 and member_name else part
-                self._insert_delivery(db, row["contact"], text, now, now + delay, batch_id, n)
+                self._insert_delivery(db, row["contact"], part, now, now + delay, batch_id, n,
+                                      mention_name=member_name if n == 1 else '')
             db.execute("""UPDATE batches SET reply_text=?,reply_complete=1,part_count=?,error='',finished_at=NULL WHERE id=?""",
                        (reply_text if reply_text is not None else ''.join(parts), len(parts), batch_id))
             self._recompute_batch(db, batch_id, now)
@@ -322,6 +346,18 @@ class QueueStore(DeliveryPolicy):
                  else 'blocked' if 'blocked' in states else 'waiting_delivery')
         db.execute("""UPDATE batches SET state=?,finished_at=CASE WHEN ?='done'
             THEN COALESCE(finished_at,?) ELSE NULL END WHERE id=?""", (state,state,now,batch_id))
+
+    def finish_batch_sticker(self, batch_id, *, now):
+        """Keep emoji delivery in its parent's turn until it is confirmed."""
+        with self._transaction() as db:
+            row = db.execute("SELECT * FROM batches WHERE id=? AND state='processing'",
+                             (batch_id,)).fetchone()
+            if row is None:
+                raise ValueError('批次不处于处理中，不能重复保存回复')
+            self._insert_delivery(db, row['contact'], '', now, now, batch_id, 1, kind='emoji')
+            db.execute("""UPDATE batches SET reply_text='',reply_complete=1,part_count=1,
+                error='',finished_at=NULL WHERE id=?""", (batch_id,))
+            self._recompute_batch(db, batch_id, now)
 
     @staticmethod
     def _advance_turn(db, contact):
@@ -367,12 +403,83 @@ class QueueStore(DeliveryPolicy):
         with self._transaction() as db:
             return self._insert_delivery(db, contact, text, now, now)
 
+    def enqueue_package(self, contact, items, request_id, *, media_paths, now):
+        """Insert an ordered package in one transaction. Paths are trusted cache outputs only."""
+        from common.media_bundle import validate_items, validate_request_id
+        items = validate_items(items)
+        if not isinstance(contact, str) or not contact.strip() or len(contact) > 256:
+            raise ValueError('无效联系人')
+        validate_request_id(request_id)
+        for item in items:
+            if item['kind'] == 'image' and item['media_id'] not in media_paths:
+                raise ValueError('图片尚未准备完成')
+        payload = json.dumps(items, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+        digest = hashlib.sha256(payload.encode()).hexdigest()
+        with self._transaction() as db:
+            prior = db.execute('SELECT id,payload_hash FROM delivery_packages WHERE contact=? AND request_id=?',
+                               (contact, request_id)).fetchone()
+            if prior:
+                if prior['payload_hash'] != digest:
+                    raise ValueError('同一包标识不能更改内容')
+                return prior['id']
+            package_id = uuid.uuid4().hex
+            db.execute('INSERT INTO delivery_packages(id,contact,request_id,payload_hash,created_at) VALUES(?,?,?,?,?)',
+                       (package_id,contact,request_id,digest,now))
+            for seq,item in enumerate(items,1):
+                delivery_id = self._insert_delivery(db,contact,item.get('text',''),now,now,
+                                                    part_seq=seq,kind=item['kind'])
+                media_id = item.get('media_id','')
+                db.execute('UPDATE outbox SET package_id=?,media_id=?,media_path=? WHERE id=?',
+                           (package_id,media_id,str(media_paths[media_id]) if media_id else '',delivery_id))
+            return package_id
+
+    def package_receipt(self, package_id):
+        with self._lock:
+            package = self._db.execute('SELECT state FROM delivery_packages WHERE id=?',(package_id,)).fetchone()
+            if package is None:
+                raise ValueError('未知发件包')
+            state = package['state']
+            return {'done':state != 'pending','ok':state == 'sent','state':state}
+
+    @staticmethod
+    def _recompute_package(db,package_id):
+        if not package_id:
+            return
+        states={row[0] for row in db.execute('SELECT state FROM outbox WHERE package_id=?',(package_id,))}
+        if states=={'sent'}:
+            state='sent'
+        elif 'uncertain' in states:
+            state='uncertain'
+        elif 'blocked' in states:
+            state='blocked'
+        elif states & {'pending','sending','confirming'}:
+            state='pending'
+        else:
+            state='skipped'
+        db.execute('UPDATE delivery_packages SET state=? WHERE id=?',(state,package_id))
+
+    def requires_image_ui_review(self):
+        with self._lock:
+            return self._db.execute("SELECT 1 FROM outbox WHERE (kind='image' OR package_id IS NOT NULL) AND manual_required=1 LIMIT 1").fetchone() is not None
+
+    def defer_delivery(self,delivery_id,*,now):
+        """No UI work has started: yield the claim while background authorization runs."""
+        with self._transaction() as db:
+            db.execute("""UPDATE outbox SET state='pending',not_before=? WHERE id=? AND state='sending'
+                AND baseline IS NULL AND submitted_at IS NULL""",(now+.1,delivery_id))
+
+    @staticmethod
+    def _stop_package(db, package_id, state, now):
+        db.execute('UPDATE delivery_packages SET state=? WHERE id=?',(state,package_id))
+        db.execute("""UPDATE outbox SET state='skipped',detached=1,finished_at=?,resolution='package_stopped',
+            error='图文包未完整确认，停止剩余内容，需人工核对' WHERE package_id=? AND state='pending'""",(now,package_id))
+
     def enqueue_sticker(self, contact, *, now):
         with self._transaction() as db:
             return self._insert_delivery(db, contact, "", now, now, kind="emoji")
 
     _DELIVERY_CANDIDATE = """SELECT o.*,
-        COALESCE(b.part_count,1) AS part_count FROM outbox o
+        COALESCE(b.part_count,NULLIF((SELECT COUNT(*) FROM outbox p WHERE p.package_id=o.package_id),0),1) AS part_count FROM outbox o
         LEFT JOIN batches b ON b.id=o.batch_id
         LEFT JOIN delivery_turns t ON t.contact=o.contact
         WHERE o.state='pending' AND o.detached=0 AND o.not_before<=?
@@ -398,7 +505,7 @@ class QueueStore(DeliveryPolicy):
                 group_kind = db.execute("SELECT group_mode FROM observations WHERE contact=?", (row["contact"],)).fetchone()
             return Delivery(row["id"], row["contact"], row["text"], row["batch_id"],
                             bool(group_kind[0]) if group_kind is not None else None, row['part_seq'], row['part_count'],
-                            row["kind"] or "text")
+                            row["kind"] or "text", row['mention_name'], row['package_id'], row['media_id'], row['media_path'])
 
     def save_baseline(self, delivery_id, snapshot, *, submitted_text=None):
         with self._transaction() as db:
@@ -452,6 +559,9 @@ class QueueStore(DeliveryPolicy):
                 resolution=? WHERE id=?""",
                 (state,now,error,failure,now,'sent' if state=='sent' else '',delivery_id))
             if failure:
+                if row['package_id']:
+                    self._stop_package(db,row['package_id'],state,now)
+                    db.execute("UPDATE outbox SET detached=1 WHERE id=?",(delivery_id,))
                 if row['batch_id']:
                     db.execute('UPDATE batches SET first_delivery_failure=COALESCE(first_delivery_failure,?) WHERE id=?',
                                (now,row['batch_id']))
@@ -467,9 +577,15 @@ class QueueStore(DeliveryPolicy):
                     self._advance_turn(db,row['contact'])
             if state == 'sent':
                 db.execute('UPDATE outbox SET draft_text=NULL,manual_required=0 WHERE id=?',(delivery_id,))
+                if details and ('mention_verified' in details or 'bubble_verified' in details):
+                    self._event(db, row, 'confirmed', now, state, '已确认自己的新消息气泡', details)
             if state in {'sent','skipped'}:
                 self._advance_turn(db, row['contact'])
             self._recompute_batch(db, row['batch_id'], now)
+            if row['package_id'] and state in {'sent','skipped'}:
+                if state == 'skipped':
+                    self._stop_package(db,row['package_id'],'skipped',now)
+                self._recompute_package(db,row['package_id'])
 
     def retry_failed_deliveries(self, *, now):
         """blocked 发件过了重试延迟且未超重试上限 → 自动重新入队（救回瞬态失败）。
@@ -478,7 +594,7 @@ class QueueStore(DeliveryPolicy):
         """
         with self._transaction() as db:
             rows = db.execute("""SELECT * FROM outbox WHERE state='blocked'
-                AND detached=0 AND manual_required=0
+                AND detached=0 AND manual_required=0 AND package_id IS NULL
                 AND failed_at IS NOT NULL AND failed_at<=? AND failed_at>? AND retries<?
                 ORDER BY seq""",
                 (now - self.retry_delay_seconds, now - self.failure_timeout_seconds, self.max_delivery_retries)).fetchall()
@@ -522,6 +638,10 @@ class QueueStore(DeliveryPolicy):
                 failed_at=COALESCE(failed_at,?),finished_at=?
                 WHERE state IN ('sending','confirming')""",(now,now)).rowcount
             for row in interrupted:
+                if row['kind']=='image' or row['package_id']:
+                    db.execute('UPDATE outbox SET manual_required=1 WHERE id=?',(row['id'],))
+                if row['package_id']:
+                    self._stop_package(db,row['package_id'],'uncertain',now)
                 self._event(db,row,'failed',now,'uncertain','进程中断，发送结果需核对',{'phase':'recovery'})
             if self.restart_chat_policy == 'discard':
                 for batch in db.execute("SELECT id FROM batches WHERE reply_complete=1 AND EXISTS(SELECT 1 FROM outbox WHERE batch_id=batches.id AND detached=0 AND state NOT IN ('sent','skipped'))").fetchall():
@@ -613,6 +733,7 @@ class QueueStore(DeliveryPolicy):
                 db.execute("""UPDATE outbox SET detached=0,state='pending',error='',resolution='',baseline=NULL,
                     submitted_at=NULL,submitted_text=NULL,finished_at=NULL WHERE id=?""", (record_id,))
                 self._recompute_batch(db, row["batch_id"])
+                self._recompute_package(db,row['package_id'])
             else:
                 db.execute("""UPDATE batches SET state='ready',error='',started_at=NULL,
                     finished_at=NULL WHERE id=?""", (record_id,))
@@ -638,6 +759,7 @@ class QueueStore(DeliveryPolicy):
                             'manual_sent' if sent else 'manual_skip',record_id))
                 self._advance_turn(db, row["contact"])
                 self._recompute_batch(db, row["batch_id"], now)
+                self._recompute_package(db,row['package_id'])
             else:
                 if db.execute("SELECT 1 FROM outbox WHERE batch_id=?", (record_id,)).fetchone():
                     raise ValueError("模型已有回复，请处理对应发件任务")

@@ -21,6 +21,7 @@ import json
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlsplit, parse_qs
 
 from . import skills
 from .config import Config, load, masked
@@ -79,6 +80,43 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
 
         # ---------- 路由 ----------
         def do_GET(self):
+            path = urlsplit(self.path)
+            if path.path=='/v1/telegram-relay/authorize':
+                if not self._authed():return
+                from .telegram.service import read_subscribers
+                query=parse_qs(path.query)
+                contact=query.get('contact',[''])[0]
+                if set(query)!={'contact'} or len(query['contact'])!=1 or not contact or len(contact)>200:
+                    self._send(400,{'error':'无效联系人'});return
+                try:allowed=contact in read_subscribers(cfg.group_file_path())
+                except ValueError:
+                    self._send(503,{'error':'新闻订阅策略暂不可用'});return
+                self._send(200,{'contact':contact,'allowed':allowed});return
+            if path.path.startswith('/v1/media/'):
+                if not self._authed():return
+                from .media import MediaStore
+                try:
+                    data,metadata=MediaStore(cfg.data_path()/'media').read(path.path[len('/v1/media/'):])
+                except FileNotFoundError:
+                    self._send(404,{'error':'图片不存在'});return
+                except (ValueError,OSError):
+                    self._send(400,{'error':'图片标识或缓存无效'});return
+                self.send_response(200)
+                self.send_header('Content-Type',metadata['mime'])
+                self.send_header('Content-Length',str(len(data)))
+                self.send_header('Cache-Control','no-store')
+                self.end_headers();self.wfile.write(data);return
+            if path.path in ('/v1/users', '/v1/users/memory', '/v1/users/audit'):
+                if not self._authed(): return
+                registry = getattr(butler, 'registry', None)
+                if registry is None:
+                    self._send(503, {'error': '用户管理仅在 Codex 后端可用'}); return
+                from .user_api import dispatch_user_get
+                try:
+                    self._send(200, dispatch_user_get(registry, path.path, parse_qs(path.query)))
+                except (ValueError, TypeError) as exc:
+                    self._send(400, {'error': str(exc)})
+                return
             if self.path == '/v1/skills':
                 if not self._authed(): return
                 if cfg.provider!='codex':
@@ -108,6 +146,92 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
             self._send(404, {"error": "not found"})
 
         def do_POST(self):
+            if self.path=='/v1/media':
+                if not self._authed():return
+                from .media import MediaStore,MAX_BYTES
+                try:
+                    length=int(self.headers.get('Content-Length','0'))
+                    if not 0<length<=MAX_BYTES:raise ValueError('image size')
+                    data=self.rfile.read(length)
+                    if len(data)!=length:raise ValueError('incomplete image')
+                    result=MediaStore(cfg.data_path()/'media').put(data)
+                except (ValueError,OSError):
+                    self._send(400,{'error':'图片大小或内容无效'});return
+                self._send(200,result);return
+            if self.path=='/v1/push/bundle':
+                if not self._authed():return
+                from common.media_bundle import validate_items,validate_request_id
+                from .media import MediaStore
+                from .push import push_bundle_to_wxbot
+                try:
+                    payload=self._body()
+                    if not isinstance(payload,dict) or set(payload)!={'contact','items','request_id'}:raise ValueError('bundle fields')
+                    contact=payload['contact']
+                    if not isinstance(contact,str) or not contact.strip() or len(contact)>200:raise ValueError('contact')
+                    items=validate_items(payload['items']);request_id=validate_request_id(payload['request_id'])
+                    for item in items:
+                        if item['kind']=='image':MediaStore(cfg.data_path()/'media').read(item['media_id'])
+                except (ValueError,FileNotFoundError,OSError):
+                    self._send(400,{'ok':False,'error':'图文包或图片无效，未提交'});return
+                from .telegram.service import read_subscribers
+                try:subscribed=contact in read_subscribers(cfg.group_file_path())
+                except ValueError:
+                    self._send(503,{'ok':False,'error':'新闻订阅策略暂不可用，未提交'});return
+                if not subscribed:
+                    self._send(403,{'ok':False,'error':'该联系人未订阅新闻，未提交'});return
+                ok,detail=push_bundle_to_wxbot(cfg,contact,items,request_id,log=_log)
+                self._send(200,{'ok':ok,'detail':detail,'contact':contact,'request_id':request_id});return
+            if self.path=='/v1/telegram-relay/resolve':
+                if not self._authed():return
+                from .telegram_relay.store import RelayStore
+                try:
+                    payload=self._body()
+                    if (not isinstance(payload,dict) or set(payload)!={'id','action','acknowledge'}
+                            or payload['acknowledge'] is not True or not isinstance(payload['id'],str)):
+                        raise ValueError('必须先核对Telegram实际发送和残留界面')
+                    state_path=cfg.data_path()/'telegram-relay'/'desktop.sqlite3'
+                    if not state_path.is_file():raise ValueError('转发状态尚不存在')
+                    result=RelayStore(state_path).resolve(payload['id'],payload['action'])
+                except (ValueError,OSError) as exc:
+                    self._send(400,{'error':str(exc)});return
+                self._send(200,result);return
+            if self.path == '/v1/users/observe':
+                if not self._authed(): return
+                try:
+                    body = self._body()
+                    if not isinstance(body,dict) or set(body)-{'contact','channel_type','messages'}:
+                        raise ValueError('Invalid user observations')
+                    self._send(200,butler.observe_users(body.get('contact'),body.get('channel_type'),body.get('messages')))
+                except (ValueError,TypeError):
+                    self._send(400,{'error':'Invalid user observations'})
+                return
+            if self.path == '/v1/group/archive':
+                if not self._authed(): return
+                if not callable(getattr(butler,'archive_group',None)):
+                    self._send(503,{'error':'Group context unavailable'}); return
+                try:
+                    body=self._body()
+                    if not isinstance(body,dict) or set(body)-{'contact','source_id','messages'}:
+                        raise ValueError('Invalid group archive')
+                    result=butler.archive_group(body.get('contact'),body.get('source_id'),body.get('messages'))
+                    self._send(200,result)
+                except (ValueError,TypeError):
+                    self._send(400,{'error':'Invalid group archive'})
+                return
+            if urlsplit(self.path).path == '/v1/users':
+                if not self._authed(): return
+                registry = getattr(butler, 'registry', None)
+                if registry is None:
+                    self._send(503, {'error': '用户管理仅在 Codex 后端可用'}); return
+                from .user_api import dispatch_user_post
+                from .user_registry import VersionConflict
+                try:
+                    self._send(200, dispatch_user_post(registry, self._body()))
+                except VersionConflict as exc:
+                    self._send(409, {'error': str(exc), 'code': 'version_conflict'})
+                except (ValueError, TypeError) as exc:
+                    self._send(400, {'error': str(exc)})
+                return
             if self.path == '/v1/telegram/inbox':
                 if not self._authed():
                     return
@@ -132,7 +256,6 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                     from .mcp_gateway import dispatch
                     origin=self.headers.get('Origin')
                     if origin:
-                        from urllib.parse import urlsplit
                         if urlsplit(origin).hostname not in ('127.0.0.1','localhost','::1'):
                             self._send(403,{'error':'Invalid origin'}); return
                     auth=self.headers.get('Authorization','')
@@ -187,10 +310,16 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                     return
                 member_key = str(b.get("member_key") or "").strip()
                 member_name = str(b.get("member_name") or "").strip()
+                avatar = b.get('avatar','')
+                boundary = b.get('group_context_seq',0)
+                if not isinstance(avatar,str) or len(avatar)>750000 or type(boundary)is not int or boundary<0:
+                    self._send(400,{'error':'Invalid avatar or group context sequence'}); return
                 try:
                     res = butler.handle(contact, text, msg_id=b.get("msg_id"),
                                         channel_type=channel_type,
-                                        member_key=member_key, member_name=member_name)
+                                        member_key=member_key, member_name=member_name,
+                                        **({'avatar':avatar}if avatar else {}),
+                                        **({'group_context_seq':boundary}if boundary else {}))
                 except Exception as e:                     # 绝不让异常变成"通道死了"
                     _log("handle 异常: %s: %s", type(e).__name__, e)
                     self._send(500, {"error": f"{type(e).__name__}: {e}"})
@@ -210,8 +339,11 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                     self._send(400, {'error': 'channel_type 只支持 dm / group'})
                     return
                 member_key = str(b.get("member_key") or "").strip()
+                avatar = b.get('avatar','')
+                if not isinstance(avatar,str)or len(avatar)>750000:
+                    self._send(400,{'error':'Invalid avatar'}); return
                 self._send(200, butler.reset(contact, channel_type=channel_type,
-                                             member_key=member_key).as_dict(reply_chunk_chars=cfg.reply_chunk_chars))
+                                             member_key=member_key,**({'avatar':avatar}if avatar else {})).as_dict(reply_chunk_chars=cfg.reply_chunk_chars))
                 return
             if self.path.startswith("/v1/push"):
                 if not self._authed():

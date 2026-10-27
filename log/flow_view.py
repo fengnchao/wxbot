@@ -11,8 +11,26 @@ from .queue_view import QueueView
 
 STAGES = {'wxbot_model','wxbot_butler','butler_received','butler_session','hermes_request',
           'hermes_tool','hermes_status','hermes_approval','hermes_generating','hermes_result',
-          'butler_action','butler_result','wxbot_result','wxbot_reply_mode'}
+          'butler_action','butler_result','wxbot_result','wxbot_reply_mode',
+          'butler_identity','butler_memory','butler_context','wxbot_group_context',
+          'wxbot_group_decision','wechat_mention'}
 MILESTONES = ('wxbot_butler','butler_received','hermes_request','hermes_result','wxbot_result','wechat_delivery')
+SUMMARY_FIELDS = ('user_id','binding_id','identity_status','memory_count','context_count',
+                  'context_from','context_to','decision','mention_stage')
+
+
+def summarize(flow):
+    """Copy only bounded scalar facts from already allowlisted process events."""
+    for event in sorted(flow['events'], key=lambda e:e.get('ts') or 0):
+        if event['stage'] == 'butler_identity':
+            flow['identity_status'] = event['status'][:100]
+        for field in SUMMARY_FIELDS:
+            value = event.get(field)
+            if field in ('memory_count','context_count','context_from','context_to'):
+                if type(value) is int and 0 <= value <= 2**63-1:
+                    flow[field] = value
+            elif isinstance(value, str) and len(value) <= 256:
+                flow[field] = value
 
 
 def read_trace(path):
@@ -108,8 +126,13 @@ class FlowView:
         if is_batch:
             add('wxbot_merge','ok',row['at'])
             flow['events'].extend(traces.get((row['contact'],str(row['id'])),[]))
-            if item['started_at'] is not None and not any(e['stage']=='wxbot_model' for e in flow['events']):
+            local_only = item['reply_mode'] in ('none','emoji') if 'reply_mode' in item.keys() else False
+            if item['started_at'] is not None and not local_only and not any(e['stage']=='wxbot_model' for e in flow['events']):
                 add('wxbot_model','started',item['started_at'])
+            if 'reply_reason' in item.keys() and item['reply_reason']:
+                flow['decision'] = item['reply_reason'][:100]
+                if not any(e['stage']=='wxbot_group_decision' for e in flow['events']):
+                    add('wxbot_group_decision', item['reply_reason'][:100], row['at'], decision=item['reply_reason'][:100])
             deliveries=db.execute('SELECT * FROM outbox WHERE batch_id=? ORDER BY seq',(row['id'],)).fetchall()
             if reason.get('record_id') not in {str(row['id']),*[r['id'] for r in deliveries]}:
                 flow['reason']={'code':item['state'],'message':'此批次状态：'+item['state'],'record_id':row['id'],'error':item['error']}
@@ -117,6 +140,14 @@ class FlowView:
                 add('wechat_delivery',d['state'],d['finished_at'] or d['submitted_at'] or d['created_at'],
                     detail=d['error'],delivery_id=d['id'],part_seq=d['part_seq'] if 'part_seq' in d.keys() else 1,
                     part_count=len(deliveries))
+                if 'mention_name' in d.keys() and d['mention_name']:
+                    self._mention_events(db, flow, d, add)
+            if (local_only and item['reply_mode']=='none' and item['state']=='done' and
+                    item['reply_complete'] and (flow.get('decision') or
+                    any(e['stage']=='wxbot_group_context' and e['status']=='archived' for e in flow['events']))):
+                flow['state'] = 'archived'
+                flow['reason'] = {'code':'archived','message':'已归档 / 静默，未调用模型',
+                                  'record_id':row['id'],'error':''}
             if item['state']=='done' and not item['reply_complete'] and item['error'] and not deliveries:
                 flow['state']='model_failed'
                 flow['reason']={'code':'model_failed','message':'模型失败批次已结束，后续消息可以继续处理',
@@ -126,7 +157,35 @@ class FlowView:
             add('wxbot_merge',status,None,detail=reason['message'],blocker_id=reason.get('record_id',''))
         flow['events'].sort(key=lambda e:e.get('ts') if e.get('ts') is not None else float('inf'))
         seen={e['stage'] for e in flow['events']}
-        for stage in MILESTONES:
+        milestones = (('wechat_delivery',) if item['reply_mode']=='emoji' else ()) if is_batch and local_only else MILESTONES
+        for stage in milestones:
             if stage not in seen:
                 add(stage,'unconfirmed' if is_batch else 'not_started',None)
+        summarize(flow)
         return flow
+
+    @staticmethod
+    def _mention_events(db, flow, delivery, add):
+        """Project existing delivery checks; a sent bubble alone proves no @ object."""
+        flow.setdefault('mention_stage', 'pending')
+        if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='delivery_events'").fetchone():
+            return
+        rows = db.execute('SELECT at,state,details FROM delivery_events WHERE contact=? AND record_id=? ORDER BY seq DESC LIMIT 100',
+                          (delivery['contact'], delivery['id'])).fetchall()
+        for row in reversed(rows):
+            try:
+                details = json.loads(row['details']) if len(row['details']) <= 16384 else {}
+            except (ValueError, TypeError):
+                continue
+            if not isinstance(details, dict):
+                continue
+            if details.get('mention_verified') is True:
+                stage = 'object_verified'
+            elif details.get('mention_fallback') in {'picker_missing','multiple_candidates','member_missing','object_unverified'}:
+                stage = 'fallback_plain'
+            elif isinstance(details.get('phase'),str) and details['phase'].startswith('mention_'):
+                stage = 'selection_blocked' if row['state'] in ('blocked','uncertain') else 'selecting'
+            else:
+                continue
+            add('wechat_mention','ok' if stage in {'object_verified','fallback_plain'} else row['state'],row['at'],
+                mention_stage=stage,delivery_id=delivery['id'])

@@ -1,0 +1,27 @@
+# Copy locally to config.telegram-relay.toml, then configure in log.
+# No Bot Token here: reuse the current Telegram Bot receiver identity.
+enabled = false
+window_title = "Telegram"
+bot_username = ""
+bot_id = 0
+poll_interval = 5.0
+include_text = true
+include_images = false
+include_source = true
+include_time = true
+first_run = "baseline"
+image_failure_policy = "hold"
+album_quiet_seconds = 2.0
+max_album_wait = 15.0
+admin_contacts = []
+channels = []
+
+[desktop]
+message_list = "消息"
+chat_search = "搜索"
+copy_link_menu = "复制消息链接"
+forward_menu = "转发"
+recipient_search = "搜索"
+recipient_username_field = "用户名" # Must expose actual username as Value, never just display name.
+forward_dialog = "转发消息"
+send_button = "发送"

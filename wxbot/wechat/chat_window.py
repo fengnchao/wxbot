@@ -6,7 +6,9 @@
 因此运行时聊天窗口必须完整显示在屏幕上，不能被遮挡或最小化。
 """
 import time
-from collections import deque
+import json
+from io import BytesIO
+from collections import deque, OrderedDict
 from dataclasses import dataclass
 from statistics import median
 
@@ -16,12 +18,20 @@ from PIL import Image, ImageGrab
 from ..log import log
 from .locator import find, matches
 
+
+class ReadDeferred(RuntimeError):
+    """A known read failure with a payload-free diagnostic code."""
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.read_code = code
+
 @dataclass(frozen=True)
 class Message:
     sender: str   # "other" 对方 / "self" 自己 / "system" 时间、系统提示、非文字消息
     text: str
     sender_name: str | None = None  # 群聊成员映射名或稳定头像 ID
     sender_key: str | None = None   # 头像感知哈希，用于稳定区分/配置映射
+    avatar: str = ''  # Shared normalized PNG, base64; unavailable stays unknown.
 
 
 def _color_diff(a, b) -> int:
@@ -38,6 +48,8 @@ class ChatWindow:
         self._win: auto.WindowControl | None = None
         self._list: auto.Control | None = None
         self._sent: deque[str] = deque(maxlen=50)   # 机器人自己发过的内容，作为兜底判断
+        self._sender_diagnostics = {}
+        self._sender_warning_at = OrderedDict()
 
     # ---------- 窗口 ----------
     def _window(self) -> auto.WindowControl | None:
@@ -71,6 +83,8 @@ class ChatWindow:
     def side_scores(self, item: auto.Control, list_rect) -> tuple[int, int] | None:
         """返回 (左侧非背景像素数, 右侧非背景像素数)；条目不在可见区域时返回 None。"""
         r = item.BoundingRectangle
+        self._sender_diagnostics = {'row':[r.left,r.top,r.right,r.bottom],
+                                   'list':[list_rect.left,list_rect.top,list_rect.right,list_rect.bottom]}
         # Only the avatar-height band carries reliable direction evidence. The
         # middle of a wide outgoing bubble is NOT the conversation background.
         # A clipped row may have lost its avatar; do not classify its text tail.
@@ -80,8 +94,10 @@ class ChatWindow:
         left, right = r.left, r.right
         if (top < list_rect.top or bottom > list_rect.bottom
                 or left < list_rect.left or right > list_rect.right):
+            self._sender_diagnostics['reason'] = 'row_clipped'
             return None
         if bottom - top < 10 or right - left < 100:
+            self._sender_diagnostics['reason'] = 'row_too_small'
             return None
         img = ImageGrab.grab(bbox=(left, top, right, bottom), all_screens=True).convert("RGB")
         w, h = img.size
@@ -97,6 +113,7 @@ class ChatWindow:
         bg = gutter_color((0, 1, 2))
         right_bg = gutter_color((w - 3, w - 2, w - 1))
         if _color_diff(bg, right_bg) > threshold:
+            self._sender_diagnostics.update(reason='gutter_mismatch',left_bg=bg,right_bg=right_bg)
             return None
         step = 2
         lcount = rcount = 0
@@ -107,6 +124,7 @@ class ChatWindow:
             for x in range(max(0, w - strip), w, step):
                 if _color_diff(px[x, y], bg) > threshold:
                     rcount += 1
+        self._sender_diagnostics.update(left_score=lcount,right_score=rcount)
         return lcount, rcount
 
     def _classify(self, item: auto.Control, text: str, list_rect, *, use_sent_cache=True) -> str:
@@ -121,44 +139,72 @@ class ChatWindow:
                 sender = "self"
         if sender == "unknown" and use_sent_cache and text in self._sent:
             return "self"
+        if sender == 'unknown':
+            now = time.monotonic()
+            details = dict(self._sender_diagnostics)
+            details.setdefault('reason','ambiguous_side_pixels')
+            key = (details['reason'],tuple(details.get('row',())))
+            previous = self._sender_warning_at.get(key)
+            if previous is None or now-previous >= 15:
+                self._sender_warning_at[key] = now
+                self._sender_warning_at.move_to_end(key)
+                if len(self._sender_warning_at)>32:
+                    self._sender_warning_at.popitem(last=False)
+                log.warning('[%s] 文字行发送方暂不可确认（不推进新消息快照）：%s',
+                            self.title,json.dumps(details,ensure_ascii=False))
         return sender if sender != "unknown" else "system"
 
-    def _group_sender_identity(self, item: auto.Control, list_rect):
-        """Return a configured display name or stable visual ID for a group avatar."""
-        rect = item.BoundingRectangle
-        size = int(self.group_sender_cfg.get("avatar_size", 48))
-        x_offset = int(self.group_sender_cfg.get("avatar_left_offset", 4))
-        y_offset = int(self.group_sender_cfg.get("avatar_top_offset", 0))
-        left = max(rect.left + x_offset, list_rect.left)
-        top = max(rect.top + y_offset, list_rect.top)
-        right = min(rect.right, list_rect.right, left + size)
-        bottom = min(rect.bottom, list_rect.bottom, top + size)
-        sender_key = None
-        sender_name = None
-        if right - left >= 16 and bottom - top >= 16:
-            try:
-                avatar = ImageGrab.grab(bbox=(left, top, right, bottom), all_screens=True)
-                gray = avatar.convert("L").resize((9, 8), Image.Resampling.LANCZOS)
-                low, high = gray.getextrema()
-                pixels = gray.load()
-                bits = 0
-                for y in range(8):
-                    for x in range(8):
-                        bits = (bits << 1) | int(pixels[x, y] > pixels[x + 1, y])
-                if high - low >= 8 and bits not in (0, (1 << 64) - 1):
-                    sender_key = f"{bits:016x}"
-                    member_names = self.group_sender_cfg.get("member_names", {})
-                    sender_name = str(member_names.get(sender_key) or f"成员-{sender_key[:8]}")
-            except Exception as e:
-                log.debug("[%s] 读取群成员头像失败: %s", self.title, type(e).__name__)
+    def _avatar_scale(self):
+        """UIA rectangles are physical pixels; layout offsets are 96-DPI units."""
+        import ctypes
+        try:
+            # _window() can select a conversation in main-window mode. Avatar
+            # sampling also runs in read_from_window(), which must stay read-only.
+            hwnd = getattr(self._win, 'NativeWindowHandle', 0) or auto.GetForegroundWindow()
+            function = ctypes.windll.user32.GetDpiForWindow
+            function.argtypes = [ctypes.c_void_p]
+            function.restype = ctypes.c_uint
+            dpi = function(hwnd)
+            return dpi / 96 if dpi >= 48 else 1.0
+        except (AttributeError, OSError):
+            return 1.0
 
-        return sender_name, sender_key
+    def _runtime_avatar(self, item, list_rect):
+        """Crop only the tight 36px avatar, never its nickname/gutter/bubble."""
+        from common.avatar_identity import normalize_avatar
+        rect = getattr(item, 'BoundingRectangle', None)
+        if rect is None or list_rect is None:
+            return None
+        scale = self._avatar_scale()
+        size = round(36 * scale)
+        left = round(max(rect.left, list_rect.left) + float(self.group_sender_cfg.get('identity_avatar_left_offset', 12)) * scale)
+        top = round(rect.top + float(self.group_sender_cfg.get('identity_avatar_top_offset', 0)) * scale)
+        right, bottom = left + size, top + size
+        if (rect.top < list_rect.top or left < list_rect.left or top < list_rect.top
+                or right > min(rect.right, list_rect.right) or bottom > min(rect.bottom, list_rect.bottom)):
+            return None
+        try:
+            image = ImageGrab.grab(bbox=(left, top, right, bottom), all_screens=True)
+            stream = BytesIO()
+            image.save(stream, format='PNG')
+            return normalize_avatar(stream.getvalue())
+        except Exception as exc:
+            log.debug('[%s] 读取成员头像失败: %s', self.title, type(exc).__name__)
+            return None
+
+    def _group_sender_identity(self, item: auto.Control, list_rect, *, avatar=None):
+        feature = self._runtime_avatar(item, list_rect) if avatar is None else avatar
+        if not feature:
+            return None, None
+        sender_key = feature['hash']
+        member_names = self.group_sender_cfg.get('member_names', {})
+        return str(member_names.get(sender_key) or f'成员-{sender_key[:8]}'), sender_key
 
     # ---------- 读取 ----------
     def _read_entries(self, lst=None, *, strict_sender=False) -> list[tuple[Message, bool]]:
         lst = self._message_list() if lst is None else lst
         if lst is None:
-            raise RuntimeError(f"[{self.title}] 消息列表暂时不可读取")
+            raise ReadDeferred('message_list_unavailable',f"[{self.title}] 消息列表暂时不可读取")
         list_rect = lst.BoundingRectangle
         result = []
         for item in lst.GetChildren():
@@ -175,9 +221,13 @@ class ChatWindow:
                       if strict_sender else self._classify(item, text, list_rect))
             sender_name = None
             sender_key = None
+            avatar = ''
+            feature = self._runtime_avatar(item, list_rect) if sender == 'other' else None
+            if feature:
+                avatar = feature['image']
             if self.group_mode and sender == "other":
-                sender_name, sender_key = self._group_sender_identity(item, list_rect)
-            result.append((Message(sender, text, sender_name, sender_key), is_text))
+                sender_name, sender_key = self._group_sender_identity(item, list_rect, avatar=feature or {})
+            result.append((Message(sender, text, sender_name, sender_key, avatar), is_text))
         return result
 
     def read_messages(self, *, strict_sender=False) -> list[Message]:
@@ -191,7 +241,7 @@ class ChatWindow:
         """只读当前面板，不选择会话；用于离开会话前的最后一次收件。"""
         lst = self._find(root, self.wcfg["message_list"])
         if lst is None:
-            raise RuntimeError(f"[{self.title}] 当前面板消息列表暂时不可读取")
+            raise ReadDeferred('message_list_unavailable',f"[{self.title}] 当前面板消息列表暂时不可读取")
         return [message for message, is_text in self._read_entries(lst, strict_sender=strict_sender) if is_text]
 
     def read_unread_messages(self, count: int) -> list[Message]:
@@ -201,7 +251,7 @@ class ChatWindow:
         all_entries = self._read_entries()
         messages = [message for message, is_text in all_entries if is_text]
         entries = [(message, is_text) for message, is_text in all_entries
-                   if message.sender == "other"]
+                   if message.sender in {"other", "system"}]
         if count > len(entries):
             log.warning("[%s] 未读 %d 条，当前可读取 %d 条；超出已加载消息区的历史不会自动补读",
                         self.title, count, len(entries))
@@ -261,10 +311,12 @@ class ChatWindow:
         auto.SendKeys('{Back}', waitTime=0.05)
         return self._can_send(win, edit) and self._input_text(edit) == ''
 
-    def start_send(self, text: str, *, clock=time.monotonic):
+    def start_send(self, text: str, *, mention_name='', clock=time.monotonic):
         from .typing import TypingSession
 
         self.draft_conflict = False
+        if mention_name and not self.group_mode:
+            return None
         win = self._window()
         if win is None:
             log.warning("[%s] 窗口不存在，无法发送", self.title)
@@ -287,7 +339,7 @@ class ChatWindow:
             self.draft_conflict = True
             log.warning("[%s] 输入框已有未发送内容，放弃发送以免拼接消息", self.title)
             return None
-        return TypingSession(self, win, edit, text, clock=clock)
+        return TypingSession(self, win, edit, text, mention_name=mention_name, clock=clock)
 
     def send(self, text: str) -> bool:
         """兼容独立窗口模式；主窗口队列使用 start_send 后逐步调用 step。"""
@@ -311,3 +363,94 @@ class ChatWindow:
         """从微信表情面板随机发一张表情/贴图；返回 'sent' | 'blocked' | 'uncertain'。"""
         from .emoji import EmojiPanel
         return EmojiPanel(self).send(clock=clock, timeout=timeout)
+
+    def start_image(self, path, *, clock=time.monotonic):
+        from .image import ImageSession
+        cfg=self.wcfg.get('image',{})
+        self.draft_conflict=False
+        # Selectors must be calibrated for this WeChat build before any paste.
+        if not cfg.get('preview') or not cfg.get('send') or not cfg.get('item'):
+            return None
+        win=self._window()
+        if win is None or not self.target_is_current(win):
+            return None
+        edit=self._find(win,self.wcfg['input'])
+        if edit is None:
+            return None
+        edit.Click(simulateMove=False)
+        draft=self._input_text(edit)
+        if draft!='' or not self._can_send(win,edit) or self.image_preview(win) is not None:
+            self.draft_conflict=draft is not None and draft!=''
+            return None
+        return ImageSession(self,win,edit,path,clock=clock)
+
+    def image_preview(self,win):
+        cfg=self.wcfg.get('image',{})
+        if not cfg.get('preview') or not cfg.get('send'):
+            return None
+        preview=self._find(win,cfg['preview'])
+        if preview is None:
+            return None
+        button=self._find(preview,cfg['send'])
+        return (preview,button) if button is not None else None
+
+    def image_preview_is_current(self,win,preview,button):
+        if not self.target_is_current(win):
+            return False
+        current=self.image_preview(win)
+        if current is None:
+            return False
+        # Runtime IDs identify the exact preview and button created by our paste.
+        return (tuple(current[0].GetRuntimeId())==tuple(preview.GetRuntimeId()) and
+                tuple(current[1].GetRuntimeId())==tuple(button.GetRuntimeId()) and
+                bool(button.IsEnabled))
+
+    def submit_image_preview(self,button):
+        button.Click(simulateMove=False)
+
+    def image_preview_draft(self,preview):
+        """Prove all exposed caption editors are empty; incomplete trees fail closed."""
+        spec=self.wcfg.get('image',{}).get('caption')
+        pending=[(preview,0)]
+        proof=[]
+        seen=0
+        try:
+            while pending:
+                control,depth=pending.pop()
+                seen+=1
+                if seen>200 or depth>20:
+                    return None
+                is_editor=(control.ControlTypeName in {'EditControl','DocumentControl'} or
+                           bool(spec and matches(control,spec)))
+                if is_editor:
+                    value=self._input_text(control)
+                    identity=tuple(control.GetRuntimeId())
+                    if value is None or not identity:
+                        return None
+                    proof.append((identity,value))
+                # Unlike locator.find_all, never hide inaccessible subtrees;
+                # an unreadable child may be a user-edited caption.
+                pending.extend((child,depth+1) for child in control.GetChildren())
+            if spec and not proof:
+                return None
+            return tuple(sorted(proof))
+        except Exception:
+            return None
+
+    def image_bubbles(self,win):
+        from .locator import matches
+        spec=self.wcfg.get('image',{}).get('item')
+        if not spec:
+            raise ReadDeferred('image_not_calibrated','图片气泡控件未校准')
+        lst=self._find(win,self.wcfg['message_list'])
+        if lst is None:
+            raise ReadDeferred('message_list_unavailable','图片气泡列表不可读取')
+        result=[]
+        for item in lst.GetChildren():
+            if matches(item,spec):
+                identity=list(item.GetRuntimeId())
+                if not identity:
+                    raise ReadDeferred('image_id_unavailable','图片气泡标识不可读取')
+                result.append({'id':identity,'sender':self._classify(item,item.Name or '',
+                              lst.BoundingRectangle,use_sent_cache=False)})
+        return result

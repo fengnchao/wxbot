@@ -48,9 +48,11 @@ cd butler-wxbot
 - [插件和业务工具协议](docs/CODEX_PROTOCOL.md)
 - [本次实现与验证、手动切换清单](docs/CODEX_VERIFICATION.md)
 - [微信 UI 与队列说明](README.wxbot.md)
+- [固定用户身份、长期记忆、群上下文与真正 @](docs/USER_MEMORY.md)
 - [综合新闻订阅、每日投递与状态记录](docs/NEWS_DELIVERY.md)
 - [Telegram 联合早报文字转发到新闻分组](docs/TELEGRAM_NEWS.md)
 - [Telegram 机器人收件到 Butler](docs/TELEGRAM_BOT.md)
+- [Telegram 频道窗口转发 Skill、图文投递与人工核对](docs/TELEGRAM_RELAY_SKILL.md)
 - [原 Butler/Hermes 接口说明](butler/README.md)：仅用于旧后端兼容。
 
 ```powershell

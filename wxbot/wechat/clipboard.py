@@ -43,6 +43,7 @@ class WindowsClipboard:
         self._close=_bind(user,'CloseClipboard',wt.BOOL)
         self._sequence=_bind(user,'GetClipboardSequenceNumber',wt.DWORD)
         self._owner=_bind(user,'GetClipboardOwner',wt.HWND)
+        self._owner_process=_bind(user,'GetWindowThreadProcessId',wt.DWORD,wt.HWND,ct.POINTER(wt.DWORD))
         self._enum=_bind(user,'EnumClipboardFormats',wt.UINT,wt.UINT)
         self._get=_bind(user,'GetClipboardData',wt.HANDLE,wt.UINT)
         self._set=_bind(user,'SetClipboardData',wt.HANDLE,wt.UINT,wt.HANDLE)
@@ -77,6 +78,29 @@ class WindowsClipboard:
 
     def sequence(self):
         return int(self._sequence())
+
+    def owner_process_id(self):
+        owner=self._owner()
+        if not owner:
+            return None
+        process=wt.DWORD()
+        self._owner_process(owner,ct.byref(process))
+        return process.value or None
+
+    def read_text(self):
+        handle=self._get(13)
+        if not handle:
+            raise _clipboard_error('剪贴板没有Unicode文本','read_text',fmt=13)
+        size=self._size(handle)
+        if not 0<size<=1024*1024 or size%2:
+            raise _clipboard_error('剪贴板文本长度无效','read_text_size',fmt=13)
+        address=self._lock(handle)
+        if not address:
+            raise _clipboard_error('剪贴板文本不可读','read_text_lock',fmt=13,native=True)
+        try:
+            return ct.string_at(address,size).decode('utf-16-le').split('\0',1)[0]
+        finally:
+            self._unlock(handle)
 
     def owned_sequence(self):
         # A user's copy transfers ownership. Recheck around the version read so a
@@ -156,6 +180,20 @@ class WindowsClipboard:
         finally:
             self.free_snapshot(copies)
 
+    def write_dib(self,data):
+        handle=self._alloc(2,len(data))
+        if not handle: raise _clipboard_error('图片剪贴板内存分配失败','allocate_image',native=True)
+        try:
+            address=self._lock(handle)
+            if not address: raise _clipboard_error('图片剪贴板内存不可写','lock_image',native=True)
+            try: ct.memmove(address,data,len(data))
+            finally: self._unlock(handle)
+            if not self._empty(): raise _clipboard_error('清空图片剪贴板失败','empty_for_image',native=True)
+            if not self._set(8,handle): raise _clipboard_error('图片剪贴板写入失败','set_image',fmt=8,native=True)
+            handle=None
+        finally:
+            if handle: self._free(handle)
+
     def free_snapshot(self,saved):
         for _,medium in saved:
             if medium.handle:
@@ -182,8 +220,10 @@ def restore_pending(*,force=False):
 
 
 class ClipboardLease:
-    def __init__(self,text,*,api=None):
-        if not isinstance(text,str) or '\0' in text:
+    def __init__(self,text,*,api=None,_image=False):
+        if _image and (not isinstance(text,bytes) or not 0<len(text)<=160*1024*1024):
+            raise ValueError('无效 DIB 数据')
+        if not _image and (not isinstance(text,str) or '\0' in text):
             raise ValueError('粘贴正文必须是无NUL的Unicode字符串')
         if not restore_pending(force=True):
             error=_clipboard_error('上一批剪贴板尚未恢复，停止继续粘贴','pending_restore')
@@ -203,6 +243,8 @@ class ClipboardLease:
                 try:
                     self.saved=self.api.snapshot()
                 except Exception as backup_exc:
+                    if _image:
+                        raise
                     # 备份失败：降级为不备份、直接覆盖剪贴板，保证消息仍能发出；
                     # 代价是原剪贴板内容无法恢复。
                     self.saved=None
@@ -213,7 +255,8 @@ class ClipboardLease:
                 if initial_sequence==0 and self.saved:
                     raise _clipboard_error('无法核对已有剪贴板内容的序号','initial_sequence')
                 try:
-                    self.api.write_text(text)
+                    if _image: self.api.write_dib(text)
+                    else: self.api.write_text(text)
                 finally:
                     self.seq=self.api.sequence()
                     self.sequence_at_write=self.seq
@@ -273,4 +316,72 @@ class ClipboardLease:
             return False
         self.closed=True
         if self in _pending: _pending.remove(self)
+        return True
+
+
+class ImageClipboardLease(ClipboardLease):
+    """CF_DIB lease: fail closed when any original clipboard format cannot be saved."""
+    def __init__(self,data,*,api=None):
+        super().__init__(data,api=api,_image=True)
+
+
+class ClipboardReadLease:
+    """Snapshot before a native Copy, then accept only that process's new text."""
+    def __init__(self,*,api=None):
+        if not restore_pending(force=True):
+            raise _clipboard_error('上一批剪贴板尚未恢复','pending_restore')
+        self.api=api if api is not None else WindowsClipboard()
+        self.saved,self.seq,self.closed=None,None,False
+        self.expected_process_id=None
+        self.restore_failure={}
+        try:
+            with self.api.open():
+                self.before_sequence=self.api.sequence()
+                self.saved=self.api.snapshot()
+                if self.before_sequence==0 and self.saved:
+                    raise _clipboard_error('无法核对已有剪贴板序号','initial_sequence')
+        except BaseException:
+            self.close()
+            raise
+
+    def read(self,*,expected_process_id):
+        if self.closed or type(expected_process_id) is not int or expected_process_id<=0:
+            raise _clipboard_error('预期剪贴板进程无效','read_owner')
+        with self.api.open():
+            seq=self.api.sequence()
+            if not seq or seq==self.before_sequence or self.api.owner_process_id()!=expected_process_id:
+                raise _clipboard_error('剪贴板没有预期进程的新复制内容','read_owner')
+            # The native Copy is ours even when its payload cannot be read as
+            # text. Retain ownership proof so close can still restore safely.
+            self.seq,self.expected_process_id=seq,expected_process_id
+            value=self.api.read_text()
+            if self.api.sequence()!=seq or self.api.owner_process_id()!=expected_process_id:
+                raise _clipboard_error('读取期间剪贴板所有者变化','read_owner')
+            return value
+
+    def close(self):
+        if self.closed:
+            return True
+        try:
+            if self.saved is not None and self.seq is not None:
+                with self.api.open():
+                    if self.api.sequence()==self.seq and self.api.owner_process_id()==self.expected_process_id:
+                        try:
+                            self.api.restore(self.saved)
+                        finally:
+                            self.seq=self.api.sequence()
+                            self.expected_process_id=self.api.owner_process_id()
+            if self.saved is not None:
+                self.api.free_snapshot(self.saved)
+            self.api.dispose()
+        except BaseException as exc:
+            self.restore_failure=failure_details(exc)
+            if self not in _pending:
+                _pending.append(self)
+            if not isinstance(exc,Exception):
+                raise
+            return False
+        self.closed=True
+        if self in _pending:
+            _pending.remove(self)
         return True

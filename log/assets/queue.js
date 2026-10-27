@@ -4,11 +4,12 @@ const QUEUE_LABELS={review:'结果待核对（不阻塞）',restart_discard:'重
   completed:'已完成',ok:'完成',failed:'失败',error:'错误',started:'已开始',running:'执行中',accepted:'已接受',finished:'已结束'};
 const ORIGIN_LABELS={file:'文件值',default:'默认值',code:'固定规则',runtime:'运行参数'};
 function queueBadge(status){
-  const cls=['blocked','uncertain','failed','error','model_failed','rejected','not_submitted'].includes(status)?'sb-error':(['done','sent','skipped','completed','ok','finished'].includes(status)?'sb-ok':'sb-manual');
+  const cls=['blocked','uncertain','failed','error','model_failed','rejected','not_submitted','media_failed'].includes(status)?'sb-error':(['done','sent','skipped','completed','ok','finished'].includes(status)?'sb-ok':'sb-manual');
   return `<span class="sbadge ${cls}">${esc(QUEUE_LABELS[status]||status)}</span>`;
 }
 QUEUE_LABELS.model_failed='模型失败已结束';
 Object.assign(QUEUE_LABELS,{batched:'已合并',received:'Butler 已收件',rejected:'已拒绝',not_submitted:'未提交',cancelled:'已取消'});
+Object.assign(QUEUE_LABELS,{preparing:'图片准备中',media_failed:'图片准备失败',awaiting_bot:'等待机器人收件'});
 function modelRecoveryNote(row){
   const retry=row.retry_at!=null?`下次自动重试：${full(row.retry_at)} · 已尝试 ${row.attempts||0}/${row.max_attempts||3} 次`:
     row.retry_safe===false?'结果未知，不自动重放本条；到期结束失败批次并放行后续消息':'';

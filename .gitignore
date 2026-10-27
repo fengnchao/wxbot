@@ -4,6 +4,7 @@ config.wxbot.toml
 config.log.toml
 config.telegram.toml
 config.telegram-bot.toml
+config.telegram-relay.toml
 *.session
 *.session-*
 *.session.relay.lock

@@ -41,8 +41,20 @@ class Contact:
     label: str = ""
     session_key: str = ""
     channel_type: str = "dm"
+    binding_id: str = ""
+    user_id: str = ""
+    memory_owner: str = ""
+    memory_version: int = 0
+    binding_version: int = 0
+    identity_status: str = "legacy"
+    observed_member_key: str = ""
+    avatar: str = ""
+    group_context_seq: int = 0
+    mention_name: str = ''
 
     def key(self) -> str:
+        if self.binding_id:
+            return f'agent:{self.profile}:wxbot:{self.channel_type}:binding:{self.binding_id}'
         tpl = self.session_key or DEFAULT_SESSION_KEY
         return tpl.format(profile=self.profile, uid=self.uid, name=self.name,
                           channel_type=self.channel_type)
@@ -54,10 +66,12 @@ class Contact:
     def identity(self, *, backend='hermes') -> str:
         conversation_type = "群聊(group)" if self.channel_type == "group" else "私聊(dm)"
         template=CODEX_IDENTITY_TEMPLATE if backend=='codex' else IDENTITY_TEMPLATE
-        identity = template.format(uid=self.uid, profile=self.profile, name=self.name,
+        identity = template.format(uid=self.user_id or self.uid, profile=self.profile, name=self.name,
                                             conversation_type=conversation_type)
         if self.channel_type == "group":
             identity += GROUP_IDENTITY_HINT
+        if self.identity_status in {'unknown','ambiguous','disabled','observed'}:
+            identity += '当前成员身份尚未确认，不能读取或保存个人长期记忆；不要声称已经记住。'
         return identity
 
     def display(self) -> str:

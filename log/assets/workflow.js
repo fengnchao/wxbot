@@ -1,17 +1,25 @@
 // Live projection only: this view never schedules, retries or sends a message.
-const workflow = {data:null, selected:'', scope:'active', expanded:new Set(), paused:false,
+const workflow = {data:null, selected:'', scope:'all', expanded:new Set(), paused:false,
   timer:null, controller:null, epoch:0, busy:false, baseline:false, error:'', signature:'',
   lastSuccess:0, pulses:[]};
 const WF_STATUS = {unbatched:'等待合并',ready:'等待提交',processing:'处理中',waiting_delivery:'回复已就绪',
   pending:'等待发送',sending:'分批输入中',confirming:'等待气泡确认',sent:'已确认发送',
   blocked:'已阻断',uncertain:'结果不确定',waiting_blocker:'等待旧任务释放',discarded:'已丢弃',
-  model_failed:'模型失败已结束',no_reply:'本轮无需回复'};
+  model_failed:'模型失败已结束',no_reply:'本轮无需回复',archived:'已归档 / 静默'};
 const WF_COLORS = ['#72b4ff','#bb9aff','#51d4b1','#f0bc76','#f18db0'];
 Object.assign(WF_STATUS,{received:'Butler 已收件，等待新闻调度',rejected:'已拒绝',not_submitted:'新闻未提交',cancelled:'已取消',skipped:'已跳过'});
+Object.assign(WF_STATUS,{preparing:'图片准备中',media_failed:'图片准备失败',awaiting_bot:'等待机器人收件'});
 Object.assign(FLOW_STAGE_LABELS,{telegram_received:'Telegram 机器人收件',telegram_butler:'Butler 确认收件',telegram_news:'新闻投递回执'});
+Object.assign(FLOW_STAGE_LABELS,{butler_identity:'身份解析',butler_memory:'相关记忆召回',butler_context:'群公共上下文',
+  wxbot_group_context:'群消息归档',wxbot_group_decision:'本地群回复决策',wechat_mention:'微信提及对象核验'});
+const WF_DECISIONS={direct:'主动请求',cooldown:'冷却中',budget:'预算已用完',random:'普通插话',emoji:'表情回复',silent:'未抽中 / 静默'};
+const WF_IDENTITIES={confirmed:'已确认',observed:'待核对',unknown:'待绑定',ambiguous:'待核对',disabled:'已停用'};
+const WF_MENTIONS={pending:'等待选择',selecting:'选择中',object_verified:'提及对象已核验',fallback_plain:'未提及，已转纯正文',selection_blocked:'提及选择已阻断'};
+Object.assign(FLOW_STATUS_LABELS,{archived:'已归档 / 静默',confirmed:'身份已确认',observed:'身份待核对',unknown:'身份待绑定',ambiguous:'身份待核对',...WF_DECISIONS});
+function workflowInScope(m,scope=workflow.scope){return scope==='all'||(scope==='active'?!m.terminal&&m.scope!=='issues':m.scope===scope);}
 function workflowColor(m){let h=0;for(const c of m.uid+'|'+m.members.join('|'))h=(h*31+c.charCodeAt(0))>>>0;return WF_COLORS[h%WF_COLORS.length];}
-function workflowMatches(m){return matchesQuery(m.contact,m.uid,m.label,m.members.join(' '),m.request_id,m.id,m.inbox_ids.join(' '),m.preview,m.reply_preview,m.error);}
-function workflowSignature(data){return JSON.stringify(data.messages.map(m=>[m.id,m.stage,m.status,m.scope,m.preview,m.reply_preview,m.error,m.uid,m.members,m.attempts,m.part_count,m.sent_parts,m.retry_at,m.discard_at,m.reason,m.events.map(e=>e.key)]))+JSON.stringify(data.counts)+JSON.stringify(data.sources);}
+function workflowMatches(m){return matchesQuery(m.contact,m.uid,m.user_id,m.binding_id,m.label,m.members.join(' '),m.request_id,m.id,m.inbox_ids.join(' '),m.preview,m.reply_preview,m.error);}
+function workflowSignature(data){return JSON.stringify(data.messages.map(m=>[m.id,m.stage,m.status,m.scope,m.preview,m.reply_preview,m.error,m.uid,m.members,m.user_id,m.binding_id,m.identity_status,m.memory_count,m.context_count,m.context_from,m.context_to,m.decision,m.mention_stage,m.attempts,m.part_count,m.sent_parts,m.retry_at,m.discard_at,m.reason,m.events.map(e=>e.key)]))+JSON.stringify(data.counts)+JSON.stringify(data.sources);}
 function workflowFresh(previous,next,baseline){
   if(!previous||!baseline)return [];
   const old=new Set(previous.messages.flatMap(m=>m.events.map(e=>e.key)));
@@ -101,6 +109,17 @@ function updateWorkflowClock(){
 }
 function workflowIdentity(m){return `<span class="wf-identity">UID <code>${esc(m.uid)}</code>${m.group?'<b>群聊</b>':''}</span>`+
   (m.group?`<span class="wf-member">成员 ${m.members.length?m.members.map(esc).join(' / '):'未记录'}</span>`:'');}
+function workflowMetadata(m){
+  const rows=[];
+  if(m.user_id)rows.push(['固定用户 ID',m.user_id]);
+  if(m.binding_id)rows.push(['通道绑定 ID',m.binding_id]);
+  if(m.identity_status)rows.push(['身份',WF_IDENTITIES[m.identity_status]||m.identity_status]);
+  if(Number.isInteger(m.memory_count))rows.push(['召回记忆',m.memory_count+' 条']);
+  if(Number.isInteger(m.context_count))rows.push(['群公共上下文',m.context_count+' 条 · 序号 '+(m.context_from??0)+'–'+(m.context_to??0)]);
+  if(m.decision)rows.push(['回复决策',WF_DECISIONS[m.decision]||m.decision]);
+  if(m.mention_stage)rows.push(['微信提及',WF_MENTIONS[m.mention_stage]||m.mention_stage]);
+  return rows.length?`<div class="wf-meta">${rows.map(([label,value])=>`<div><strong>${esc(label)}</strong> · <span>${esc(String(value))}</span></div>`).join('')}</div>`:'';
+}
 function workflowRecovery(m){
   return `${m.attempts?`<span>已尝试 ${m.attempts} 次 · 重试 ${Math.max(0,m.attempts-1)} 次</span>`:''}`+
     (m.retry_at?`<span>自动重试：<b data-wf-deadline="${m.retry_at}"></b></span>`:'')+
@@ -117,11 +136,11 @@ function workflowTrace(m){
   const grouped=groupFlowEvents(m.events);
   const diagnostics=JSON.stringify({request_id:m.request_id,record_id:m.id,inbox_ids:m.inbox_ids,delivery_id:m.delivery_id,events:m.events},null,2);
   return `<div class="wf-inspect" style="--identity:${workflowColor(m)}"><div class="row"><b>${esc(m.contact)} · 流转详情</b><button id="wf-deselect" aria-label="取消消息选择">×</button></div>
-    ${workflowIdentity(m)}<div class="wf-meta">${esc(full(m.at))} · 当前：${esc(WF_STATUS[m.status]||m.status)}</div>
+    ${workflowIdentity(m)}${workflowMetadata(m)}<div class="wf-meta">${esc(full(m.at))} · 当前：${esc(WF_STATUS[m.status]||m.status)}</div>
     <div class="wf-fulltext">${esc(m.preview)}</div>
     ${m.error?`<p class="wf-error">${esc(m.error)}</p>`:''}<div class="wf-recovery">${workflowRecovery(m)}</div>
     ${m.reason.record_id&&m.reason.record_id!==m.request_id?`<div class="wf-meta">关联任务：<code>${esc(m.reason.record_id)}</code></div>`:''}
-    <ol class="wf-trace">${grouped.map(e=>`<li class="${['error','failed','blocked','uncertain','skipped'].includes(e.status)?'bad':''}"><time>${e.time_unknown?'时间未记录':esc(hm(e.ts))+':'+p2(new Date(e.ts*1000).getSeconds())}</time><div><b>${esc(FLOW_STAGE_LABELS[e.stage]||e.stage)}</b><small>${esc(FLOW_STATUS_LABELS[e.status]||e.status)}${!e.time_unknown&&e.elapsed_ms!=null?' · '+(e.elapsed_ms/1000).toFixed(2)+' 秒':''}${e.tool?' · '+esc(e.tool):''}</small></div></li>`).join('')}</ol>
+    <ol class="wf-trace">${grouped.map(e=>`<li class="${['error','failed','blocked','uncertain','skipped','media_failed'].includes(e.status)?'bad':''}"><time>${e.time_unknown?'时间未记录':esc(hm(e.ts))+':'+p2(new Date(e.ts*1000).getSeconds())}</time><div><b>${esc(FLOW_STAGE_LABELS[e.stage]||e.stage)}</b><small>${esc(FLOW_STATUS_LABELS[e.status]||e.status)}${!e.time_unknown&&e.elapsed_ms!=null?' · '+(e.elapsed_ms/1000).toFixed(2)+' 秒':''}${e.tool?' · '+esc(e.tool):''}</small></div></li>`).join('')}</ol>
     ${m.events_truncated?'<p class="wf-note">此处保留最近 200 条事件，完整记录见消息流转。</p>':''}
     <p class="wf-note">未记录的阶段保持未确认；动画只表示新事件到达。</p>
     <details data-detail="workflow:${esc(m.id)}"><summary>诊断详情 · 完整 ID 与事件</summary><pre class="pre">${esc(diagnostics)}</pre></details>
@@ -154,7 +173,7 @@ function workflowSummaryRow(m,variant){
 function workflowDiagram(data,visible,selected,recent){
   const trail=new Set((selected?.events||[]).map(e=>workflowService(e.node)));
   const edges=new Set((selected?.events||[]).map(workflowEventEdge));
-  const present=visible.filter(m=>!m.terminal||m.id===workflow.selected||recent.has(m.id));
+  const present=visible.filter(m=>m.id===workflow.selected||(m.scope!=='issues'&&(!m.terminal||recent.has(m.id))));
   const model=data?.backend==='hermes'?'Hermes':data?.backend==='codex'?'Codex':'模型';
   function node(id,title,subtitle,icon){
     const messages=present.filter(m=>workflowService(m.stage)===id).sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id));
@@ -188,7 +207,7 @@ function renderWorkflow(force=false){
   const all=data?.messages||[],visible=all.filter(workflowMatches),selected=all.find(m=>m.id===workflow.selected);
   const count=data?.counts||{};
   const diagram=workflowDiagram(data,visible,selected,recent);
-  const scoped=visible.filter(m=>workflow.scope==='active'?!m.terminal:m.scope===workflow.scope)
+  const scoped=visible.filter(m=>workflowInScope(m))
     .sort((a,b)=>workflow.scope==='active'?a.at-b.at||a.id.localeCompare(b.id):b.updated_at-a.updated_at||b.id.localeCompare(a.id));
   const events=visible.flatMap(m=>m.events.map(e=>({m,e}))).sort((a,b)=>b.e.ts-a.e.ts).slice(0,6);
   const warnSources=(data?.sources||[]).filter(s=>s.status!=='ok'||s.truncated);
@@ -201,7 +220,7 @@ function renderWorkflow(force=false){
     ${data?.active_more?'<div class="wf-alert">当前展示最早的 500 条待处理记录。更多记录请在收发队列分页查看。</div>':''}
     <div class="wf-layout"><div class="wf-canvas"><div class="wf-section-heading"><h2>消息工作流</h2><span>进线与出线分开 · 服务节点共用</span></div>${diagram}<div class="wf-legend"><i></i> 新事件传输 <em></em> 所选消息经过的路径 <span>同一用户保持同一颜色</span></div></div>
     <div class="wf-sidebar"><div class="wf-section-heading"><h2>实时消息</h2><span>${visible.length} 条已载入</span></div>
-      <div class="wf-tabs">${[['active','进行中'],['issues','异常'],['complete','已完成']].map(([value,label])=>`<button data-wf-scope="${value}" class="${workflow.scope===value?'on':''}">${label} <b>${visible.filter(m=>value==='active'?!m.terminal:m.scope===value).length}</b></button>`).join('')}</div>
+      <div class="wf-tabs">${[['all','最近消息'],['active','进行中'],['issues','异常'],['complete','已完成']].map(([value,label])=>`<button data-wf-scope="${value}" class="${workflow.scope===value?'on':''}">${label} <b>${visible.filter(m=>workflowInScope(m,value)).length}</b></button>`).join('')}</div>
       ${selected?workflowTrace(selected):'<div class="wf-select-hint">点选消息，查看身份、耗时与完整流转路径。</div>'}
       <div class="wf-feed">${scoped.map(m=>workflowCard(m)).join('')||'<div class="empty">没有匹配的消息</div>'}</div>
       <p class="wf-note">当前载入的消息可按用户、UID、群成员及 ID 搜索。${data?.history_more?'历史仅显示最近 60 轮，更多见消息流转。':'历史不会重复进入工作流。'}</p></div></div>

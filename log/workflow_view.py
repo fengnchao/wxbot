@@ -22,10 +22,14 @@ EVENT_NODE = dict(wxbot_received=0, wxbot_inbox=1, wxbot_merge=1, wxbot_model=1,
                   butler_received=2, butler_session=2, hermes_request=3, hermes_tool=3,
                   hermes_generating=3, hermes_status=3, hermes_approval=3, hermes_result=4,
                   butler_action=4, butler_result=4, wxbot_result=5, wxbot_outbox=5, wechat_submitted=6)
+EVENT_NODE.update(butler_identity=2,butler_memory=2,butler_context=2,wxbot_group_context=2,
+                  wxbot_group_decision=1,wechat_mention=6)
 IGNORED = {'not_started', 'unconfirmed', 'missing'}
 
 
 def event_node(event):
+    if event['stage']=='wxbot_result' and event['status']=='archived':
+        return 2
     if event['stage'] == 'wechat_delivery':
         return {'pending':5, 'sending':6, 'confirming':7, 'sent':7}.get(event['status'], 6)
     # An unsuccessful result is still a model failure, not a completed result.
@@ -83,7 +87,7 @@ class WorkflowView:
             result['counts'] = dict(
                 active=totals.get(0,0),
                 inbox=scalar('SELECT COUNT(*) FROM inbox WHERE batch_id IS NULL'),
-                model=scalar("SELECT COUNT(*) FROM batches WHERE state='processing'"),
+                model=scalar("SELECT COUNT(*) FROM batches WHERE state='processing' AND reply_mode NOT IN ('none','emoji')"),
                 outbox=scalar("SELECT COUNT(*) FROM outbox WHERE state NOT IN ('sent','skipped')"),
                 issues=scalar("SELECT COUNT(*) FROM batches b WHERE state IN ('blocked','uncertain') AND NOT EXISTS (SELECT 1 FROM outbox o WHERE o.batch_id=b.id)")+
                        scalar("SELECT COUNT(*) FROM outbox WHERE state IN ('blocked','uncertain')"),
@@ -166,7 +170,9 @@ class WorkflowView:
                 flow.update(status='discarded', scope='issues', stage=6,
                             error=next((d['error'] for d in deliveries if d['state']=='skipped' and d['error']), '部分回复已丢弃'))
         elif kind=='batch' and item['state']=='done':
-            if item['reply_complete']:
+            if flow['state']=='archived':
+                flow.update(status='archived',stage=2)
+            elif item['reply_complete']:
                 flow.update(status='no_reply',stage=4)
             else:
                 flow.update(status='model_failed',scope='issues',error=item['error'] or '批次已结束，未生成完整回复')

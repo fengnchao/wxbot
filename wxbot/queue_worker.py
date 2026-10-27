@@ -44,29 +44,58 @@ class ModelWorker:
         log.info("[队列][%s][%s] 模型线程已领取，准备请求后端；接收结果见流转记录", batch.contact, batch.id)
         with self.trace.bind(batch.contact,batch.id) if self.trace else nullcontext():
             started = time.monotonic()
-            record('wxbot_model','started')
             record('wxbot_reply_mode', batch.reply_mode or 'text')
+            reason = getattr(batch, 'reply_reason', '')
+            if reason:
+                record('wxbot_group_decision', reason, decision=reason)
             try:
-                # 所有批次都调用模型：群消息即使静默/发图也已进入该成员的会话上下文。
-                reply = self.router.handle_reply(batch.contact, batch.text, context=batch.context, request_id=batch.id,
-                                                 member_key=batch.member_key, member_name=batch.member_name)
+                extra = {}
+                avatar = getattr(batch, 'avatar', '')
+                if avatar:
+                    extra['avatar'] = avatar
+                archive = getattr(self.router, 'archive_group', None)
+                archive_messages = getattr(self.router, 'archive_group_messages', None)
+                if batch.member_key and (archive is not None or archive_messages is not None):
+                    try:
+                        observations = self.store.group_observations(batch.id) if archive_messages else []
+                        if observations:
+                            seq = archive_messages(batch.contact, batch.id, observations)
+                        else:
+                            seq = archive(batch.contact, batch.id, batch.text, batch.member_key,
+                                          batch.member_name, avatar=avatar)
+                    except Exception as exc:
+                        # No model has received this batch; idempotent archive retries are safe.
+                        exc.retry_safe = True
+                        raise
+                    if seq is not None:
+                        extra['group_context_seq'] = seq
+                        record('wxbot_group_context', 'archived', context_to=seq,
+                               context_count=len(observations) or 1)
                 mode = batch.reply_mode or 'text'
                 if mode == 'emoji':
-                    # 丢弃模型文字，改为发一张表情图。
-                    self.store.finish_batch_parts(batch.id, (), now=self.clock())
-                    self.store.enqueue_sticker(batch.contact, now=self.clock())
+                    finish_sticker = getattr(self.store, 'finish_batch_sticker', None)
+                    if finish_sticker is not None:
+                        finish_sticker(batch.id, now=self.clock())
+                    else:
+                        # Compatibility for older fake stores; keep the group busy
+                        # until its sticker has entered the delivery queue.
+                        self.store.enqueue_sticker(batch.contact, now=self.clock())
+                        self.store.finish_batch_parts(batch.id, (), now=self.clock())
                     record('wxbot_result','ok',part_count=0,characters=0,
                            elapsed_ms=round((time.monotonic()-started)*1000))
                     log.info("[队列][%s][%s] 本批次回复方式=表情图，已入表情发送队列", batch.contact, batch.id)
                 elif mode == 'none':
-                    # 已进上下文，但不发送任何回复。
                     self.store.finish_batch_parts(batch.id, (), now=self.clock())
-                    record('wxbot_result','ok',part_count=0,characters=0,
+                    record('wxbot_result','archived',part_count=0,characters=0,
                            elapsed_ms=round((time.monotonic()-started)*1000))
                     log.info("[队列][%s][%s] 本批次静默（已进上下文，不回复）", batch.contact, batch.id)
                 else:
+                    record('wxbot_model','started')
+                    reply = self.router.handle_reply(batch.contact, batch.text, context=batch.context, request_id=batch.id,
+                                                     member_key=batch.member_key, member_name=batch.member_name, **extra)
                     self.store.finish_batch_parts(batch.id, reply.parts, reply_text=reply.text, now=self.clock(),
-                                                  delay=random.uniform(self.delay_min, self.delay_max))
+                                                  delay=random.uniform(self.delay_min, self.delay_max),
+                                                  mention_name=getattr(reply, 'mention_name', ''))
                     record('wxbot_result','ok',part_count=len(reply.parts),characters=len(reply.text or ''),
                            elapsed_ms=round((time.monotonic()-started)*1000))
                     log.info("[队列][%s][%s] %s", batch.contact, batch.id,

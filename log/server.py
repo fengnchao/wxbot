@@ -59,9 +59,12 @@ from log.config_editor import ConfigEditor,ConfigConflict,config_lock
 from log.settings import load_settings,config_path as log_config_path
 from log.queue_view import QueueView
 from log.queue_actions import QueueActions
+from log.user_admin import request_user_admin
 from log.flow_view import FlowView
 from log.workflow_view import WorkflowView
 from log.telegram_view import TelegramView, ISSUES as TELEGRAM_ISSUES, TERMINAL as TELEGRAM_TERMINAL
+from log.telegram_relay_admin import TelegramRelayAdmin, request_resolution as request_relay_resolution
+from butler.telegram_relay.settings import SettingsConflict
 from common import news_config
 _LOG_SETTINGS=load_settings()
 HERMES_HOME = os.environ.get("HERMES_HOME") or _LOG_SETTINGS['sources']['home']
@@ -1393,6 +1396,12 @@ class Handler(BaseHTTPRequestHandler):
             log_runtime={'host':self.server.server_address[0],'port':self.server.server_address[1],
                          'overrides':{k:os.environ[k] for k in ('HERMES_HOME','WXBOT_CONFIG','BUTLER_CONFIG','BUTLER_GROUP_FILE') if os.environ.get(k)}})
 
+    def _relay_admin(self):
+        from butler.config import load as load_butler
+        cfg = load_butler(butler_config_path())
+        return TelegramRelayAdmin(cfg.resolve_path('config.telegram-relay.toml'),
+                                  cfg.data_path()/'telegram-relay'/'desktop-status.json')
+
     def do_GET(self):
         u = urlparse(self.path)
         qs = parse_qs(u.query)
@@ -1420,7 +1429,7 @@ class Handler(BaseHTTPRequestHandler):
             if p.startswith('/assets/'):
                 name=p.removeprefix('/assets/')
                 allowed={'dashboard.css','common.js','messages.js','jobs.js','groups.js',
-                         'heartbeat.js','queue.js','configuration.js','runtime.js','workflow.js','workflow.css','app.js'}
+                         'heartbeat.js','queue.js','configuration.js','runtime.js','workflow.js','workflow.css','users.js','telegram_relay.js','app.js'}
                 if name not in allowed:
                     self._send(404,'Not found','text/plain; charset=utf-8')
                     return
@@ -1428,6 +1437,16 @@ class Handler(BaseHTTPRequestHandler):
                     self._send(200,fh.read(),('text/css' if name.endswith('.css') else 'text/javascript')+'; charset=utf-8')
                 return
 
+            if p == '/api/telegram-relay':
+                try:
+                    self._json(self._relay_admin().read())
+                except (OSError, ValueError, RuntimeError):
+                    self._json({'error': 'Telegram 转发配置暂不可读，请检查本机配置'}, 503)
+                return
+            if p in ('/api/users', '/api/users/memory', '/api/users/audit'):
+                status, payload = request_user_admin(_load_butler_config(), '/v1' + p.removeprefix('/api') + ('?' + u.query if u.query else ''))
+                self._json(payload, status)
+                return
             if p == '/api/workflow':
                 try:
                     view = self._config_view()
@@ -1611,6 +1630,36 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         p = u.path.rstrip("/") or "/"
         try:
+            if p == '/api/telegram-relay/resolve':
+                if not self._confirmed_origin('X-Wxbot-Relay-Action'):
+                    self._json({'error': '任务核对仅接受当前页面的确认请求'}, 403)
+                    return
+                try:
+                    status, payload = request_relay_resolution(_load_butler_config(), self._body())
+                    self._json(payload, status)
+                except (OSError, ValueError, RuntimeError):
+                    self._json({'error': 'Telegram 转发任务核对暂不可用'}, 503)
+                return
+            if p == '/api/telegram-relay':
+                if not self._confirmed_origin('X-Wxbot-Relay-Action'):
+                    self._json({'error': '转发设置仅接受当前页面的保存请求'}, 403)
+                    return
+                try:
+                    self._json(self._relay_admin().update(self._body()))
+                except SettingsConflict:
+                    self._json({'error': '配置已被修改，草稿已保留；请刷新后重新编辑'}, 409)
+                except ValueError as exc:
+                    self._json({'error': str(exc)}, 400)
+                except (OSError, RuntimeError):
+                    self._json({'error': 'Telegram 转发设置保存失败，请检查本机配置'}, 503)
+                return
+            if p == '/api/users':
+                if not self._confirmed_origin('X-Wxbot-User-Action'):
+                    self._json({'error': '用户操作仅接受当前页面发出的确认请求'}, 403)
+                    return
+                status, payload = request_user_admin(_load_butler_config(), '/v1/users', self._body())
+                self._json(payload, status)
+                return
             if p == '/api/news-config':
                 if not self._confirmed_origin('X-Wxbot-Config-Action'):
                     self._json({'ok': False, 'error': '新闻设置仅接受当前页面的保存请求'}, 403)

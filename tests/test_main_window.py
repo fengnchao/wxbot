@@ -139,14 +139,23 @@ def test_first_unread_only_processes_unread_tail():
     assert [call[1] for call in router.calls] == ["第一条\n第二条"]
 
 
-def test_group_messages_all_enter_context_and_mention_is_stripped():
+def test_group_messages_archive_without_silent_model_calls_and_mention_is_stripped():
     private = Chat("101", [Message("other", "123")])
     group = Chat("鸭王集训营", [Message("other", "12")], True)
     mentioned = Chat("Bott", [Message("other", "普通消息"), Message("other", "@别人 hi"),
                               Message("other", "@Bot\u2005你好", "成员甲", "abc")], True)
     desktop = Desktop([private, group, mentioned],
                       [Session("101", 1), Session("鸭王集训营", 1), Session("Bott", 3, True)])
-    router = Router()
+    class ArchiveRouter(Router):
+        def __init__(self):
+            super().__init__()
+            self.archived = []
+        def archive_group(self, contact, source_id, text, member_key, member_name, avatar=''):
+            self.archived.append((contact, text))
+            return len(self.archived)
+        def handle_reply(self, *args, group_context_seq=None, **kwargs):
+            return super().handle_reply(*args, **kwargs)
+    router = ArchiveRouter()
     inbox = MainInbox(cfg(), router, desktop=desktop)
     inbox.poll(allow_switch=True)
     inbox.poll(allow_switch=True)
@@ -155,9 +164,11 @@ def test_group_messages_all_enter_context_and_mention_is_stripped():
     pairs = [(c, t) for c, t, _ in router.calls]
     # 私聊进模型
     assert ("101", "123") in pairs
-    # 非 @群消息也进模型（进上下文），不再被跳过
-    assert ("鸭王集训营", "12") in pairs
-    assert ("Bott", "普通消息") in pairs
+    # 普通消息先归档，静默批次不调用模型。
+    assert ("鸭王集训营", "12") not in pairs
+    assert ("Bott", "普通消息") not in pairs
+    assert ("鸭王集训营", "12") in router.archived
+    assert ("Bott", "普通消息") in router.archived
     # @Bot 前缀被去掉，并保留 member_id 上下文
     assert ("Bott", "你好") in pairs
     assert any("member_id=abc" in ctx for _, _, ctx in router.calls)
@@ -176,6 +187,95 @@ def test_active_chat_is_polled_even_without_badge_and_baselines_history():
     inbox.poll(allow_switch=True)
     process(inbox)
     assert [call[1] for call in router.calls] == ["当前窗口新消息"]
+
+
+def test_new_text_with_unresolved_sender_keeps_checkpoint_until_readable():
+    chat = Chat('101', [Message('other', '历史')])
+    desktop = Desktop([chat], current=Conversation('101', False))
+    inbox = MainInbox(cfg(), Router(), desktop=desktop)
+    inbox.poll(allow_switch=True)
+    before = inbox.store.snapshots()
+    chat.messages.append(Message('system', '早上好'))
+    with pytest.raises(RuntimeError, match='发送方'):
+        inbox.poll(allow_switch=True)
+    assert inbox.store.snapshots() == before
+    chat.messages[-1] = Message('other', '早上好')
+    inbox.poll(allow_switch=True)
+    assert [row['text'] for row in inbox.store.records('inbox')] == ['早上好']
+    inbox.poll(allow_switch=True)
+    assert len(inbox.store.records('inbox')) == 1
+
+
+def test_unread_text_with_unresolved_sender_preserves_pending_session():
+    chat = Chat('101', [Message('system', '早上好')])
+    desktop = Desktop([chat], [Session('101', 1)])
+    inbox = MainInbox(cfg(), Router(), desktop=desktop)
+    inbox.poll(allow_switch=True)
+    assert inbox.store.pending_sessions()[0]['contact'] == '101'
+    assert inbox.store.snapshots() == {}
+    chat.messages[-1] = Message('other', '早上好')
+    inbox._receive_retry.clear()
+    inbox.poll(allow_switch=True)
+    assert [row['text'] for row in inbox.store.records('inbox')] == ['早上好']
+
+
+def test_startup_snapshot_identity_sync_does_not_replay_messages_or_create_delivery():
+    from dataclasses import asdict
+    from wxbot.queue_store import QueueStore
+    store = QueueStore(':memory:')
+    store.capture('101', [asdict(Message('other', '早上好'))], [], now=1)
+    chat = Chat('101', [Message('other', '早上好')])
+    class ObserveRouter(Router):
+        def __init__(self):
+            super().__init__()
+            self.observed = []
+        def observe_users(self, contact, channel_type, messages):
+            self.observed.append((contact, channel_type, messages))
+    router = ObserveRouter()
+    inbox = MainInbox(cfg(), router, desktop=Desktop([chat]), store=store)
+    inbox.sync_users()
+    assert router.observed == [('101', 'dm', [{'member_key': '', 'member_name': '', 'avatar': ''}])]
+    assert not router.calls and not store.records('inbox') and not store.records('outbox')
+
+
+def test_startup_identity_sync_includes_archived_avatar_when_current_snapshot_is_unreadable():
+    from dataclasses import asdict
+    from wxbot.queue_store import QueueStore, Incoming
+    from test_user_registry import avatar
+    store = QueueStore(':memory:')
+    store.capture('鸭王集训营', [asdict(Message('system', '当前识别不明的文字'))],
+                  [Incoming('此前已收到的消息','key','','甲','none',avatar())], group_mode=True, now=1)
+    class ObserveRouter(Router):
+        def __init__(self):
+            super().__init__(); self.observed=[]
+        def observe_users(self, contact, channel_type, messages):
+            self.observed.append((contact,channel_type,messages))
+    router=ObserveRouter()
+    inbox=MainInbox(cfg(),router,desktop=Desktop([]),store=store)
+    inbox.sync_users()
+    assert router.observed == [('鸭王集训营','group',[{'member_key':'key','member_name':'甲','avatar':avatar()}])]
+    assert not router.calls and not store.records('outbox')
+
+
+def test_unread_unresolved_text_before_self_bubble_does_not_replay_old_other():
+    chat = Chat('101', [Message('other', '旧问候')])
+    desktop = Desktop([chat], current=Conversation('101', False))
+    inbox = MainInbox(cfg(), Router(), desktop=desktop)
+    inbox.poll(allow_switch=True)
+    before = inbox.store.snapshots()
+    chat.messages.extend([Message('system', '早上好'), Message('self', '自己稍后发的消息')])
+    desktop.pending = [Session('101', 1)]
+    inbox.poll(allow_switch=True)
+    assert not inbox.store.records('inbox') and inbox.store.snapshots() == before
+    assert inbox.store.pending_sessions()[0]['contact'] == '101'
+
+
+def test_read_bundle_retains_unresolved_unread_candidate_instead_of_older_text(monkeypatch):
+    from wxbot.wechat.chat_window import ChatWindow
+    chat = ChatWindow('101', {})
+    messages = [Message('other', '旧问候'), Message('system', '早上好'), Message('self', '自己稍后发的消息')]
+    monkeypatch.setattr(chat, '_read_entries', lambda: [(m, True) for m in messages])
+    assert chat.read_bundle(1)[1] == [messages[1]]
 
 
 def test_incoming_during_model_call_is_not_discarded_by_post_send_snapshot():

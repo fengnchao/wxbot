@@ -17,7 +17,9 @@ from log.settings import DEFAULTS as LOG_DEFAULTS,config_path
 
 WX_DEFAULTS = {
     'bot': {'bound_users': [], 'bound_groups': [], 'mention_names': [], 'poll_interval':1.5,
-            'reply_delay_min':.8, 'reply_delay_max':2.5, 'command_prefix':'/'},
+            'reply_delay_min':.8, 'reply_delay_max':2.5, 'command_prefix':'/',
+            'group_reply_chance':.1,'emoji_chance':.2,'group_reply_cooldown_seconds':30,
+            'group_reply_budget':10,'group_reply_budget_window_seconds':600,'group_continuation_seconds':120},
     'queue': {'database':'cache/wxbot_queue.sqlite3', 'quiet_seconds':3., 'max_wait_seconds':10.,
               'confirm_timeout':5., 'max_model_requests':2,'failure_discard_seconds':180,'restart_chat_policy':'discard'},
     'butler': {'url':'http://127.0.0.1:8770', 'token':'', 'timeout':660},
@@ -25,12 +27,14 @@ WX_DEFAULTS = {
     'wechat': {'mode':'main', 'main_window':{'window_class':'mmui::MainWindow','chat_tab_name':'微信',
                 'session_list_id':'session_list','search_depth':32,'listen_all':True,
                 'max_scan_pages':20,'switch_timeout':3.},
-               'group_sender':{'avatar_size':48,'avatar_left_offset':4,'avatar_top_offset':0,'member_names':{}},
+               'group_sender':{'avatar_size':48,'avatar_left_offset':4,'avatar_top_offset':0,'member_names':{},
+                               'identity_avatar_left_offset':12,'identity_avatar_top_offset':0},
                'sender_detect':{'strip_width':80,'diff_threshold':40,'min_pixels':20},
                'typing':{'chunk_size':5,'chunk_interval':.25}},
 }
 BT_DEFAULTS = {
     'reply':{'chunk_chars':500},
+    'context':{'group_messages':30,'group_characters':6000},
     'agent':{'provider':'hermes','data_dir':'data'},
     'codex':{'home':'','plugin_root':'','model':'','timeout':600,'max_workers':2,'idle_seconds':600},
     'server':{'host':'127.0.0.1','port':8770,'token':''},
