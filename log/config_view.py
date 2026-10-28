@@ -6,7 +6,7 @@ import re
 import time
 import tomllib
 from pathlib import Path
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit, unquote
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit, unquote, unquote_plus
 
 from common.flow_trace import queue_trace_path,butler_trace_path
 from wxbot.queue_store import FAILURE_TIMEOUT_SECONDS
@@ -175,6 +175,20 @@ class ConfigView:
         if isinstance(data,(list,tuple)):
             return [self.scrub(value) for value in data]
         return self._text(data) if isinstance(data,str) else data
+
+    def scrub_message_text(self, value):
+        """Redact message secrets without reserializing URLs or changing prose."""
+        def redact_url(match):
+            url = match[0]
+            url = re.sub(r'(^[A-Za-z][A-Za-z0-9+.-]*://)[^/?#]*@', r'\1***@', url)
+            def parameter(part):
+                return part[1]+part[2]+'='+('***' if sensitive(unquote_plus(part[2])) else part[3])
+            return re.sub(r'([?&#])([^?&#=]+)=([^&#]*)', parameter, url)
+        value = re.sub(r'''[A-Za-z][A-Za-z0-9+.-]*://[^\s<>"']+''', redact_url, value)
+        for secret in sorted(self._secrets,key=len,reverse=True):
+            if len(secret)>=4 or value==secret:
+                value = value.replace(secret,'***')
+        return value
 
     def read(self):
         self._sources, self._raw, self._secrets = [], {}, set()

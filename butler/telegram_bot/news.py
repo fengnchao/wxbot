@@ -172,6 +172,10 @@ class NewsRelay:
         if parts and not users:
             reason = '新闻消息分组没有接收人，本条跳过'
         with self.queue.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if not db.execute("SELECT 1 FROM pending WHERE bot=? AND uid=? AND state='received'",
+                              (self.bot, uid)).fetchone():
+                return False  # An operator deleted the source while formatting.
             created = db.execute('INSERT OR IGNORE INTO news_plan(bot,uid,reason) VALUES(?,?,?)',
                                  (self.bot, uid, reason or '新闻投递任务已生成')).rowcount
             if created:
@@ -280,9 +284,10 @@ class NewsRelay:
         uid, key, members, existing, incomplete = chosen
         if existing:
             with self.queue.db() as db:
+                db.execute('BEGIN IMMEDIATE')
                 for member_uid, _, _ in members:
-                    db.execute('INSERT OR IGNORE INTO news_plan VALUES(?,?,?)',
-                               (self.bot, member_uid, '图集迟到或重复成员，需人工核对；不自动重发'))
+                    db.execute('INSERT OR IGNORE INTO news_plan SELECT bot,uid,? FROM pending WHERE bot=? AND uid=?',
+                               ('图集迟到或重复成员，需人工核对；不自动重发', self.bot, member_uid))
             return True
         assembly_key = key
         sources = sorted({self._source_key(msg) for _, msg, _ in members if self._source_key(msg)})
@@ -291,6 +296,7 @@ class NewsRelay:
             key = 'source:album:' + sha256(json.dumps(identities).encode()).hexdigest()
         hold_reason = ''
         with self.queue.db() as db:
+            db.execute('BEGIN IMMEDIATE')
             known = {row[0] for source in sources for row in db.execute(
                 'SELECT package_key FROM news_package_alias WHERE bot=? AND alias=?', (self.bot, source))}
             found = sum(db.execute('SELECT 1 FROM news_package_alias WHERE bot=? AND alias=?', (self.bot, source)).fetchone() is not None
@@ -299,8 +305,8 @@ class NewsRelay:
                 original_key = next(iter(known))
                 db.execute('INSERT OR IGNORE INTO news_package_alias VALUES(?,?,?)', (self.bot, assembly_key, original_key))
                 for member_uid, _, _ in members:
-                    db.execute('INSERT OR IGNORE INTO news_plan VALUES(?,?,?)',
-                               (self.bot, member_uid, '图集迟到或重复成员，需人工核对；不自动重发'))
+                    db.execute('INSERT OR IGNORE INTO news_plan SELECT bot,uid,? FROM pending WHERE bot=? AND uid=?',
+                               ('图集迟到或重复成员，需人工核对；不自动重发', self.bot, member_uid))
                 return True
             if found:
                 hold_reason = '原来源消息与已有图文包部分重叠，保留待人工核对，不重复投递'
@@ -312,6 +318,10 @@ class NewsRelay:
         elif not users:
             reason = '新闻消息分组没有接收人'
         with self.queue.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            if any(not db.execute('SELECT 1 FROM pending WHERE bot=? AND uid=?',
+                                  (self.bot, member_uid)).fetchone() for member_uid, _, _ in members):
+                return False  # Selection may have raced with queue cleanup.
             inserted = db.execute('INSERT OR IGNORE INTO news_package(bot,package_key,uid,sender,state,reason) VALUES(?,?,?,?,?,?)',
                 (self.bot, key, uid, sender, 'media_failed' if hold_reason else 'skipped' if reason else 'preparing', hold_reason or reason)).rowcount
             if not inserted:
@@ -350,8 +360,15 @@ class NewsRelay:
             self.log(f'新闻 update={uid}：图片准备失败，未创建部分投递')
             return True
         with self.queue.db() as db:
-            db.execute("UPDATE news_package SET items=?,state='ready',reason='图文包就绪' WHERE bot=? AND package_key=?",
-                       (json.dumps(items, ensure_ascii=False), self.bot, key))
+            db.execute('BEGIN IMMEDIATE')
+            if any(not db.execute('SELECT 1 FROM pending WHERE bot=? AND uid=?',
+                                  (self.bot, member_uid)).fetchone() for member_uid, _, _ in members):
+                return False
+            updated = db.execute("UPDATE news_package SET items=?,state='ready',reason='图文包就绪' "
+                                 "WHERE bot=? AND package_key=? AND state='preparing'",
+                                 (json.dumps(items, ensure_ascii=False), self.bot, key)).rowcount
+            if not updated:
+                return False  # Preparing media was deleted/cancelled while downloading.
             for user in users:
                 request_id = 'tg-' + sha256(f'{self.bot}:{key}:{user}'.encode('utf-8')).hexdigest()
                 db.execute('INSERT OR IGNORE INTO news_bundle_delivery(bot,package_key,contact,request_id) VALUES(?,?,?,?)',

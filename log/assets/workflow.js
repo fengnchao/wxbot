@@ -1,7 +1,7 @@
 // Live projection only: this view never schedules, retries or sends a message.
 const workflow = {data:null, selected:'', scope:'all', expanded:new Set(), paused:false,
   timer:null, controller:null, epoch:0, busy:false, baseline:false, error:'', signature:'',
-  lastSuccess:0, pulses:[]};
+  lastSuccess:0, pulses:[],content:null,contentController:null};
 const WF_STATUS = {unbatched:'等待合并',ready:'等待提交',processing:'处理中',waiting_delivery:'回复已就绪',
   pending:'等待发送',sending:'分批输入中',confirming:'等待气泡确认',sent:'已确认发送',
   blocked:'已阻断',uncertain:'结果不确定',waiting_blocker:'等待旧任务释放',discarded:'已丢弃',
@@ -36,6 +36,7 @@ function workflowFresh(previous,next,baseline){
 }
 function stopWorkflow(){
   workflow.epoch++;clearTimeout(workflow.timer);workflow.controller?.abort();workflow.controller=null;
+  workflow.contentController?.abort();workflow.contentController=null;workflow.content=null;
   workflow.busy=false;workflow.baseline=false;stopWorkflowPulses();
 }
 function startWorkflow(){
@@ -61,6 +62,9 @@ async function loadWorkflow(){
     }
     const recovered=!!workflow.error;workflow.data=data;workflow.error='';workflow.lastSuccess=Date.now();workflow.baseline=true;
     renderWorkflow(recovered);updateWorkflowClock();
+    const selected=data.messages.find(m=>m.id===workflow.selected);
+    if(selected)loadWorkflowContent(selected);
+    else {workflow.contentController?.abort();workflow.contentController=null;workflow.content=null;}
     if(!workflow.paused)pulseWorkflow(fresh);
     markRefreshed();
   }catch(error){
@@ -72,6 +76,31 @@ async function loadWorkflow(){
     if(epoch===workflow.epoch&&state.tab==='workflow'){
       workflow.busy=false;workflow.controller=null;workflow.timer=setTimeout(loadWorkflow,1000);
     }
+  }
+}
+async function loadWorkflowContent(message){
+  if(!message||state.tab!=='workflow'||workflow.selected!==message.id)return;
+  const version=JSON.stringify([message.id,message.preview,message.part_count]);
+  if(workflow.content?.version===version&&['loading','ok'].includes(workflow.content.status))return;
+  workflow.contentController?.abort();
+  const epoch=workflow.epoch,controller=new AbortController();workflow.contentController=controller;
+  workflow.content={id:message.id,version,status:'loading'};
+  renderWorkflow(true);
+  const timeout=setTimeout(()=>controller.abort(),5000);
+  const current=()=>epoch===workflow.epoch&&state.tab==='workflow'&&workflow.selected===message.id&&workflow.contentController===controller;
+  try{
+    const response=await fetch('/api/workflow-content?'+new URLSearchParams({id:message.id}),{signal:controller.signal,cache:'no-store'});
+    const data=await response.json();
+    if(!current())return;
+    if(!response.ok)throw new Error(data.status==='missing'?data.error:response.status===404?'消息全文接口尚未加载，请手动重启 log 服务后刷新页面':data.error||'消息全文暂时不可读取');
+    if(data.status!=='ok'||data.id!==message.id)throw new Error('消息全文返回结果不匹配，请重试');
+    workflow.content={id:message.id,version,status:'ok',text:String(data.text??''),reply_text:String(data.reply_text??'')};
+  }catch(error){
+    if(!current())return;
+    workflow.content={id:message.id,version,status:'error',error:error.name==='AbortError'?'消息全文读取超时，请重试':error instanceof TypeError?'无法连接 log 服务':error.message};
+  }finally{
+    clearTimeout(timeout);
+    if(current()){workflow.contentController=null;renderWorkflow(true);}
   }
 }
 function stopWorkflowPulses(){
@@ -125,23 +154,33 @@ function workflowRecovery(m){
     (m.retry_at?`<span>自动重试：<b data-wf-deadline="${m.retry_at}"></b></span>`:'')+
     (m.discard_at&&!m.terminal?`<span>失败到期释放：<b data-wf-deadline="${m.discard_at}"></b></span>`:'');
 }
+function workflowExcerpt(value){
+  const text=String(value??'').replace(/\s+/g,' ').trim();
+  const characters=typeof Intl.Segmenter==='function'?
+    Array.from(new Intl.Segmenter('zh-CN',{granularity:'grapheme'}).segment(text),part=>part.segment):Array.from(text);
+  return characters.length>20?characters.slice(0,20).join('')+'…':text;
+}
 function workflowCard(m,compact=false){
   return `<button class="wf-message ${compact?'compact':''} ${m.scope==='issues'?'issue':''} ${workflow.selected===m.id?'selected':''}" data-focus-key="wf-${compact?'node':'feed'}-${esc(m.id)}" data-wf-select="${esc(m.id)}" style="--identity:${workflowColor(m)}" aria-label="查看 ${esc(m.contact)} 消息 ${esc(m.id)}">
     <span class="wf-message-head"><strong>${esc(m.contact)}</strong><span>${esc(WF_STATUS[m.status]||m.status)}</span></span>
-    ${workflowIdentity(m)}<span class="wf-preview">${esc(m.stage>=5&&m.reply_preview?m.reply_preview:m.preview)}</span>
+    ${workflowIdentity(m)}<span class="wf-preview">${esc(workflowExcerpt(m.stage>=5&&m.reply_preview?m.reply_preview:m.preview))}</span>
     <span class="wf-meta">${m.kind==='push'?'主动推送':m.message_count+' 条收件'} · ${m.request_id?'请求 '+esc(m.request_id.slice(0,10)):m.kind==='push'?'发件 '+esc(m.delivery_id):'收件 #'+esc(m.inbox_ids.join(', #'))}${m.part_count?' · 已发 '+m.sent_parts+'/'+m.part_count+' 句':''}</span>
     ${m.error?`<span class="wf-error">${esc(m.error)}</span>`:''}<span class="wf-recovery">${workflowRecovery(m)}</span></button>`;
 }
 function workflowTrace(m){
   const grouped=groupFlowEvents(m.events);
+  const content=workflow.content?.id===m.id?workflow.content:null;
+  const body=content?.status==='ok'?`<div class="wf-meta">${m.kind==='push'?'推送正文':'消息正文'}</div><div class="wf-fulltext">${esc(content.text||'此消息没有文字正文')}</div>`+
+    (content.reply_text?`<div class="wf-meta">回复正文</div><div class="wf-fulltext">${esc(content.reply_text)}</div>`:''):
+    `<p class="${content?.status==='error'?'wf-error':'wf-note'}">${esc(content?.error||'正在读取消息全文…')}</p>`;
   const diagnostics=JSON.stringify({request_id:m.request_id,record_id:m.id,inbox_ids:m.inbox_ids,delivery_id:m.delivery_id,events:m.events},null,2);
   return `<div class="wf-inspect" style="--identity:${workflowColor(m)}"><div class="row"><b>${esc(m.contact)} · 流转详情</b><button id="wf-deselect" aria-label="取消消息选择">×</button></div>
     ${workflowIdentity(m)}${workflowMetadata(m)}<div class="wf-meta">${esc(full(m.at))} · 当前：${esc(WF_STATUS[m.status]||m.status)}</div>
-    <div class="wf-fulltext">${esc(m.preview)}</div>
+    ${body}
     ${m.error?`<p class="wf-error">${esc(m.error)}</p>`:''}<div class="wf-recovery">${workflowRecovery(m)}</div>
     ${m.reason.record_id&&m.reason.record_id!==m.request_id?`<div class="wf-meta">关联任务：<code>${esc(m.reason.record_id)}</code></div>`:''}
     <ol class="wf-trace">${grouped.map(e=>`<li class="${['error','failed','blocked','uncertain','skipped','media_failed'].includes(e.status)?'bad':''}"><time>${e.time_unknown?'时间未记录':esc(hm(e.ts))+':'+p2(new Date(e.ts*1000).getSeconds())}</time><div><b>${esc(FLOW_STAGE_LABELS[e.stage]||e.stage)}</b><small>${esc(FLOW_STATUS_LABELS[e.status]||e.status)}${!e.time_unknown&&e.elapsed_ms!=null?' · '+(e.elapsed_ms/1000).toFixed(2)+' 秒':''}${e.tool?' · '+esc(e.tool):''}</small></div></li>`).join('')}</ol>
-    ${m.events_truncated?'<p class="wf-note">此处保留最近 200 条事件，完整记录见消息流转。</p>':''}
+    ${m.events_truncated?'<p class="wf-note">此处保留最近 200 条事件。</p>':''}
     <p class="wf-note">未记录的阶段保持未确认；动画只表示新事件到达。</p>
     <details data-detail="workflow:${esc(m.id)}"><summary>诊断详情 · 完整 ID 与事件</summary><pre class="pre">${esc(diagnostics)}</pre></details>
     <button id="wf-diagnose">在收发队列中查看 / 处理</button></div>`;
@@ -165,7 +204,7 @@ function workflowSummaryRow(m,variant){
   const text=m.stage>=5&&m.reply_preview?m.reply_preview:m.preview;
   const status=m.scope==='issues'||m.terminal?(WF_STATUS[m.status]||m.status):({2:'接收 / 调度',4:'完整结果就绪',9:'新闻投递'}[m.stage]||WF_STATUS[m.status]||m.status);
   return `<button class="wf-summary-row ${workflow.selected===m.id?'selected':''} ${m.scope==='issues'?'issue':''}" data-wf-select="${esc(m.id)}" data-focus-key="wf-node-${esc(m.id)}" style="--identity:${workflowColor(m)}" aria-label="查看 ${esc(m.contact)} 消息 ${esc(m.id)}">
-    <span class="wf-row-text"><strong>${esc(m.contact)}</strong><span class="wf-row-content"> · ${esc(text)}</span></span>
+    <span class="wf-row-text"><strong>${esc(m.contact)}</strong><span class="wf-row-content"> · ${esc(workflowExcerpt(text))}</span></span>
     <span class="wf-row-sub"><span class="wf-row-uid">UID ${esc(m.uid)}${m.group?' / 成员 '+esc(m.members.join(', ')||'未记录'):''}</span><span>${esc(status)}${m.part_count?' · '+m.sent_parts+'/'+m.part_count+' 句':''}</span></span>
     ${variant==='model'?`<span class="wf-model-progress">${tool?'工具 '+esc(tool.tool||'未知')+' · '+esc(FLOW_STATUS_LABELS[tool.status]||tool.status):'等待模型过程事件'} · 请求 ${esc(m.request_id.slice(0,10)||m.id)}</span>`:''}
     ${m.error?`<span class="wf-row-error">${esc(m.error)}</span>`:''}${m.scope==='issues'?`<span class="wf-recovery">${workflowRecovery(m)}</span>`:''}</button>`;
@@ -223,13 +262,16 @@ function renderWorkflow(force=false){
       <div class="wf-tabs">${[['all','最近消息'],['active','进行中'],['issues','异常'],['complete','已完成']].map(([value,label])=>`<button data-wf-scope="${value}" class="${workflow.scope===value?'on':''}">${label} <b>${visible.filter(m=>workflowInScope(m,value)).length}</b></button>`).join('')}</div>
       ${selected?workflowTrace(selected):'<div class="wf-select-hint">点选消息，查看身份、耗时与完整流转路径。</div>'}
       <div class="wf-feed">${scoped.map(m=>workflowCard(m)).join('')||'<div class="empty">没有匹配的消息</div>'}</div>
-      <p class="wf-note">当前载入的消息可按用户、UID、群成员及 ID 搜索。${data?.history_more?'历史仅显示最近 60 轮，更多见消息流转。':'历史不会重复进入工作流。'}</p></div></div>
+      <p class="wf-note">当前载入的消息可按用户、UID、群成员及 ID 搜索。${data?.history_more?'历史仅显示最近 60 轮。':'历史不会重复进入工作流。'}</p></div></div>
     <details class="wf-recent" data-detail="workflow-recent"><summary>最近事件 · ${events.length?esc(full(events[0].e.ts)):'等待收件'}</summary>${events.map(({m,e})=>`<div><time>${esc(full(e.ts))}</time><b>${esc(m.contact)}</b><span>${esc(FLOW_STAGE_LABELS[e.stage]||e.stage)} · ${esc(FLOW_STATUS_LABELS[e.status]||e.status)}</span></div>`).join('')}</details></div>`;
   $('#wf-animation').onclick=()=>{workflow.paused=!workflow.paused;stopWorkflowPulses();renderWorkflow(true);};
-  $('#pane').querySelectorAll('[data-wf-select]').forEach(button=>button.onclick=()=>{workflow.selected=button.dataset.wfSelect;renderWorkflow(true);});
+  $('#pane').querySelectorAll('[data-wf-select]').forEach(button=>button.onclick=()=>{
+    workflow.selected=button.dataset.wfSelect;
+    loadWorkflowContent(workflow.data?.messages.find(m=>m.id===workflow.selected));renderWorkflow(true);
+  });
   $('#pane').querySelectorAll('[data-wf-scope]').forEach(button=>button.onclick=()=>{workflow.scope=button.dataset.wfScope;renderWorkflow(true);});
   $('#pane').querySelectorAll('[data-wf-more]').forEach(button=>button.onclick=()=>{const id=button.dataset.wfMore;workflow.expanded.has(id)?workflow.expanded.delete(id):workflow.expanded.add(id);renderWorkflow(true);});
-  if(selected){$('#wf-deselect').onclick=()=>{workflow.selected='';renderWorkflow(true);};
+  if(selected){$('#wf-deselect').onclick=()=>{workflow.selected='';workflow.contentController?.abort();workflow.contentController=null;workflow.content=null;renderWorkflow(true);};
     $('#wf-diagnose').onclick=()=>{state.qContact=selected.contact;state.qState='all';state.qScope=selected.terminal?'history':selected.scope==='issues'?'issues':'active';resetQueuePages();switchTab('queue');};}
   for(const [selector,top] of scrolls){const node=$(selector);if(node)node.scrollTop=top;}
   updateWorkflowClock();

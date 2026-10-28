@@ -8,7 +8,7 @@ function queueBadge(status){
   return `<span class="sbadge ${cls}">${esc(QUEUE_LABELS[status]||status)}</span>`;
 }
 QUEUE_LABELS.model_failed='模型失败已结束';
-Object.assign(QUEUE_LABELS,{batched:'已合并',received:'Butler 已收件',rejected:'已拒绝',not_submitted:'未提交',cancelled:'已取消'});
+Object.assign(QUEUE_LABELS,{batched:'已合并',received:'Butler 已收件',rejected:'已拒绝',not_submitted:'未提交',cancelled:'已取消',partial_deleted:'部分已发，其余已删除'});
 Object.assign(QUEUE_LABELS,{preparing:'图片准备中',media_failed:'图片准备失败',awaiting_bot:'等待机器人收件'});
 function modelRecoveryNote(row){
   const retry=row.retry_at!=null?`下次自动重试：${full(row.retry_at)} · 已尝试 ${row.attempts||0}/${row.max_attempts||3} 次`:
@@ -84,9 +84,32 @@ async function performQueueAction(record,action){
   finally{state.qBusy=false;}
   if(state.tab==='queue')await loadQueue();
 }
+async function performQueueDeleteUnsent(){
+  if(state.qBusy) return;
+  if(!confirm('删除所有未发送成功消息\n\n范围：微信和 Telegram 的全部会话，不受当前筛选或分页影响。\n删除消息记录并停止后续投递；已发送成功的记录保留。\n正在输入、确认发送结果或提交中的任务本次保留，请稍后处理。\n尚未实际采集的微信会话继续接收，本次保留。\n微信输入框已有草稿需自行清理。')) return;
+  state.qBusy=true;state.qMessage='正在删除…';state.qActionFailed=false;
+  if(state.tab==='queue')renderQueuePane();
+  try{
+    const response=await fetch('/api/queue-delete-unsent',{method:'POST',
+      headers:{'Content-Type':'application/json','X-Wxbot-Queue-Action':'1'},
+      body:JSON.stringify({acknowledge:true})});
+    const data=await response.json();
+    if(!response.ok||!data.ok)throw new Error(data.error||'删除失败');
+    const wx=data.wxbot||{},telegram=data.telegram||{};
+    const protectedActive=(wx.protected_active||0)+(telegram.protected_active||0);
+    state.qMessage=`已删除：微信 ${wx.deleted_messages||0} 条消息、${wx.deleted_deliveries||0} 条投递；Telegram ${telegram.deleted_messages||0} 条消息、${telegram.deleted_deliveries||0} 条投递。本次保留正在处理的任务 ${protectedActive} 个（微信 ${wx.protected_active||0}，Telegram ${telegram.protected_active||0}）${protectedActive?'，请稍后处理。':'。'}`;
+    if(wx.drafts_to_clear)state.qMessage+=`另有 ${wx.drafts_to_clear} 个会话的微信输入框草稿需自行清理。`;
+    if(wx.protected_reads)state.qMessage+=`保留任务中有 ${wx.protected_reads} 个尚未采集的微信会话。`;
+  }catch(error){state.qActionFailed=true;state.qMessage=error.message||'删除失败';}
+  finally{state.qBusy=false;}
+  if(state.tab==='queue')await loadQueue();
+}
 function queueReason(c,records){
   const r=c.reason, bad=['blocked','uncertain'].includes(r.code);
-  const actionsInList=(state.qdata?.[r.record_kind]||[]).some(row=>String(row.id)===String(r.record_id)&&row.actions?.length&&matchesQuery(row.contact,row.preview,row.error,row.id));
+  const visibleRows=r.record_kind==='outbox'?
+    (state.qdata?.rounds||[]).filter(row=>matchesQuery(row.contact,row.preview,row.error,row.id)).flatMap(row=>row.parts||[]):
+    (state.qdata?.[r.record_kind]||[]).filter(row=>matchesQuery(row.contact,row.preview,row.error,row.id));
+  const actionsInList=visibleRows.some(row=>String(row.id)===String(r.record_id)&&row.actions?.length);
   const labels={sent:'已核对实际发送成功',retry:'确需重试（可能重复操作）',skip:'放弃此异常任务'};
   return `<div class="queue-reason ${bad?'error':''}"><h3>${esc(c.contact)} · ${queueBadge(r.code)}</h3>
     <div>${esc(r.message)}${r.wait_seconds>0?' · 约 '+Math.ceil(r.wait_seconds)+' 秒':''}</div>
@@ -159,7 +182,13 @@ function queueEventTable(events){
 }
 function renderQueuePane(){
   const d=state.qdata;
-  if(!d){ $('#pane').innerHTML=`<div class="empty warn">${esc(state.qError||'正在载入队列…')}</div>`; return; }
+  const deletionControls=`<div class="queue-actions"><button id="q-delete-unsent" class="discard" ${state.qBusy?'disabled':''}>删除所有未发送成功消息</button></div><div class="monitor-note">适用于全部微信与 Telegram 会话，不受当前筛选或分页影响。</div>`;
+  const feedback=state.qMessage?`<div class="monitor-note ${state.qActionFailed?'warn':''}">${esc(state.qMessage)}</div>`:'';
+  if(!d){
+    $('#pane').innerHTML=`<div class="head"><h2>收发队列</h2>${deletionControls}${feedback}</div><div class="empty warn">${esc(state.qError||'正在载入队列…')}</div>`;
+    $('#q-delete-unsent').onclick=performQueueDeleteUnsent;
+    return;
+  }
   d.counts??={};d.pages??={};
   const total=(which,status)=>d.counts[which]?.[status]||0;
   const contacts=(d.contacts||[]).filter(c=>(state.qContact?c.contact===state.qContact:c.reason.code!=='idle')&&matchesQuery(c.contact,c.reason.message,c.reason.error));
@@ -167,12 +196,13 @@ function renderQueuePane(){
   const configuredTimeout=Number(d.failure_timeout_seconds);
   const timeoutSeconds=Number.isFinite(configuredTimeout)&&configuredTimeout>0?configuredTimeout:180;
   $('#pane').innerHTML=`<div class="head"><h2>收发队列 · ${esc(state.qContact||'全部会话')}</h2>
+    ${deletionControls}
     ${d.status!=='ok'?`<div class="warn">wxbot 队列：${esc(d.error)} · ${esc(d.database)}</div>`:''}
     <div class="monitor-grid"><span class="chip">Telegram <b>${Object.values(d.telegram?.counts||{}).reduce((n,v)=>n+v,0)}</b></span><span class="chip">全队列待合并 <b>${d.counts.unbatched||0}</b></span><span class="chip">待提交 <b>${total('batches','ready')}</b></span>
     <span class="chip">等待模型 <b>${total('batches','processing')}</b></span><span class="chip">待发块 <b>${total('outbox','pending')}</b></span>
     <span class="chip">异常块 <b class="warn">${total('outbox','blocked')+total('outbox','uncertain')}</b></span></div>
     <div class="monitor-note">同一会话按顺序处理。发件失败从首次失败起最多等待${timeoutSeconds}秒，超时结束本轮剩余分块并保留日志；结果不确定的保留核对记录且不阻塞后续消息。模型确认未提交时最多尝试3次；模型结果未知时不重放，失败满${timeoutSeconds}秒结束旧批次，继续处理后续消息。人工核对按钮在下方异常任务旁，操作前需要确认。</div>
-    ${state.qMessage?`<div class="monitor-note ${state.qActionFailed?'warn':''}">${esc(state.qMessage)}</div>`:''}
+    ${feedback}
     <details class="diagnostic" data-detail="queue-settings"><summary>诊断详情 · 队列规则与来源</summary><div class="monitor-source">倒计时按配置文件计算，修改后需重启 wxbot；运行参数未核验。</div>
     ${!d.actions_enabled?'<div class="monitor-note warn">请先重启更新后的 wxbot 完成队列升级，启用失败超时规则和人工核对按钮。</div>':''}
     <div class="monitor-source">数据库：${esc(d.database)} · 查询时间：${esc(full(d.at))}</div></details></div>`+
@@ -183,6 +213,7 @@ function renderQueuePane(){
     (['all','active'].includes(state.qScope)?queueTable(state.qScope==='all'?'微信收件（含已合并）':'待合并消息',d.inbox||[],'inbox',d.pages.inbox,records):'')+queueTable('模型批次',d.batches||[],'batches',d.pages.batches,records)+
     replyRoundsTable(d.rounds,d.pages.rounds,records)+
     `<details data-detail="queue-audit" ${state.qScope==='issues'?'open':''}><summary>失败、自动恢复与人工核对记录</summary>${queueEventTable(d.events||[])}</details>`;
+  $('#q-delete-unsent').onclick=performQueueDeleteUnsent;
   $('#pane').querySelectorAll('[data-q-scope]').forEach(button=>button.onclick=()=>{
     state.qScope=button.dataset.qScope;state.qState='all';$('#q-state').value='all';resetQueuePages();loadQueue();
   });

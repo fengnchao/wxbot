@@ -9,7 +9,7 @@ import time
 import tomllib
 
 ISSUES = ('blocked', 'uncertain', 'rejected', 'not_submitted', 'media_failed')
-TERMINAL = ('sent', 'skipped', 'cancelled')
+TERMINAL = ('sent', 'skipped', 'cancelled', 'partial_deleted')
 
 
 def timestamp(value):
@@ -53,6 +53,8 @@ class TelegramView:
                         CASE WHEN p.state='rejected' THEN 'rejected'
                           WHEN p.state!='received' THEN p.state
                           WHEN d.issues>0 THEN 'blocked' WHEN d.sending>0 THEN 'sending'
+                          WHEN n.reason LIKE '未成功投递已删除；%' AND d.sent>0 THEN 'partial_deleted'
+                          WHEN n.reason LIKE '未成功投递已删除；%' THEN 'cancelled'
                           WHEN d.pending>0 THEN 'pending' WHEN d.sent>0 THEN 'sent'
                           WHEN d.total>0 THEN 'cancelled' WHEN n.uid IS NOT NULL THEN 'skipped'
                           ELSE 'received' END state
@@ -85,6 +87,9 @@ class TelegramView:
                         COALESCE(b.reason,'') media_reason,COALESCE(json_array_length(b.items),0) media_items,
                         CASE WHEN b.package_key IS NULL THEN v.state
                           WHEN v.ingress_state='rejected' THEN 'rejected'
+                          WHEN v.plan_reason LIKE '未成功投递已删除；%' AND bd.sending>0 THEN 'sending'
+                          WHEN v.plan_reason LIKE '未成功投递已删除；%' AND bd.sent>0 THEN 'partial_deleted'
+                          WHEN v.plan_reason LIKE '未成功投递已删除；%' THEN 'cancelled'
                           WHEN v.plan_reason LIKE '图集迟到或重复成员，%' THEN 'blocked'
                           WHEN b.state='media_failed' THEN 'media_failed'
                           WHEN v.ingress_state!='received' THEN v.ingress_state
@@ -106,15 +111,15 @@ class TelegramView:
                 # Filters are applied before pagination, using numeric sender identity or target contact.
                 filters, args = [], []
                 if scope == 'active':
-                    filters.append("state NOT IN ('sent','skipped','cancelled')")
+                    filters.append("state NOT IN ('sent','skipped','cancelled','partial_deleted')")
                 elif scope == 'issues':
                     filters.append("state IN ('blocked','uncertain','rejected','not_submitted','media_failed')")
                 elif scope == 'history':
-                    filters.append("state IN ('sent','skipped','cancelled')")
+                    filters.append("state IN ('sent','skipped','cancelled','partial_deleted')")
                 if state not in ('all', 'active'):
                     filters.append('state=?'); args.append(state)
                 elif state == 'active':
-                    filters.append("state NOT IN ('sent','skipped','cancelled')")
+                    filters.append("state NOT IN ('sent','skipped','cancelled','partial_deleted')")
                 if contact:
                     clause = "('Telegram · ' || json_extract(payload,'$.message.from.id')=?"
                     if news:
@@ -164,6 +169,8 @@ class TelegramView:
                     if late_member:
                         error = row['plan_reason']
                     reason = row['media_reason'] or row['plan_reason'] or ('Butler 已收件，等待新闻任务生成；检查接收器是否已重启加载新闻转发版本' if row['ingress_state']=='received' else '等待提交 Butler 收件接口')
+                    if row['state'] == 'partial_deleted':
+                        reason = '部分成功，其余未成功投递已删除，停止后续投递'
                     for task in tasks:
                         prior = next((t for t in tasks if t['contact']==task['contact'] and t['part']<task['part'] and t['state']!='sent'),None)
                         if task['state']=='pending' and prior:

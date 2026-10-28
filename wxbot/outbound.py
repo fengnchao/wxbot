@@ -20,6 +20,7 @@ import math
 import os
 from pathlib import Path
 import threading
+import time
 import uuid
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -88,15 +89,16 @@ class BundleMediaCache:
 class OutboundRequest:
     """一次外发请求：带一个 Event 和结果槽，主循环发完 set() 通知等待方。"""
 
-    __slots__ = ("contact", "text", "event", "ok", "detail", "items", "request_id", "media_paths")
+    __slots__ = ("contact", "text", "event", "ok", "detail", "items", "request_id", "media_paths", "received_at")
 
-    def __init__(self, contact: str, text: str, *, items=None, request_id='', media_paths=None):
+    def __init__(self, contact: str, text: str, *, items=None, request_id='', media_paths=None, received_at=None):
         self.contact = contact
         self.text = text
         self.event = threading.Event()
         self.ok = False
         self.detail = ""
         self.items, self.request_id, self.media_paths = items, request_id, media_paths or {}
+        self.received_at = time.time() if received_at is None else received_at
 
     def finish(self, ok: bool, detail: str = "") -> None:
         self.ok = bool(ok)
@@ -111,8 +113,8 @@ class OutboundQueue:
         self._q: collections.deque = collections.deque()
         self._lock = threading.Lock()
 
-    def submit(self, contact: str, text: str) -> OutboundRequest:
-        req = OutboundRequest(contact, text)
+    def submit(self, contact: str, text: str, *, received_at=None) -> OutboundRequest:
+        req = OutboundRequest(contact, text, received_at=received_at)
         with self._lock:
             self._q.append(req)
         return req
@@ -124,9 +126,9 @@ class OutboundQueue:
             self._q.clear()
         return items
 
-    def submit_bundle(self, contact, items, request_id, *, media_paths):
+    def submit_bundle(self, contact, items, request_id, *, media_paths, received_at=None):
         from common.media_bundle import validate_items
-        req=OutboundRequest(contact,'',items=validate_items(items),request_id=request_id,media_paths=media_paths)
+        req=OutboundRequest(contact,'',items=validate_items(items),request_id=request_id,media_paths=media_paths,received_at=received_at)
         with self._lock:
             self._q.append(req)
         return req
@@ -176,6 +178,7 @@ def make_handler(queue: OutboundQueue, token: str, *, media_cache=None,allow_bun
             self._send(404, {"ok": False, "detail": "not found"})
 
         def do_POST(self):
+            received_at = time.time()
             if self.path in {'/send','/send-bundle'}:
                 if not self._authed():
                     return
@@ -214,12 +217,12 @@ def make_handler(queue: OutboundQueue, token: str, *, media_cache=None,allow_bun
                         if any(item['kind']=='image' for item in items) and media_cache is None:
                             raise ValueError('图片服务未配置')
                         paths=media_cache.resolve(items) if media_cache else {}
-                        req=queue.submit_bundle(contact,items,request_id,media_paths=paths)
+                        req=queue.submit_bundle(contact,items,request_id,media_paths=paths,received_at=received_at)
                     except Exception:
                         self._send(400,{'ok':False,'detail':'图文包或图片校验失败，未入队'})
                         return
                 else:
-                    req = queue.submit(contact, text)
+                    req = queue.submit(contact, text, received_at=received_at)
                 if not wait:                       # 即发即回，不等结果
                     self._send(200, {"ok": True, "detail": "queued"})
                     return

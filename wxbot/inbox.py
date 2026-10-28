@@ -78,7 +78,7 @@ class MainInbox:
         self.delivery = DeliveryPump(
             self.store, self._chat, self._capture_target, self._discover,
             timeout=confirm_timeout, clock=clock, monotonic=monotonic,
-            capture_messages=self._capture,
+            capture_messages=self._capture_for_delivery,
         )
         self.desktop.before_switch = self._before_switch
         self._connected = None
@@ -296,7 +296,29 @@ class MainInbox:
             return
         chat = self._chat(current.title)
         chat.group_mode = current.group_mode
-        self._capture(current.title, chat, chat.read_from_window(root))
+        try:
+            self._capture(current.title, chat, chat.read_from_window(root))
+        except ReadDeferred as exc:
+            # This is the conversation being left, not the send target. Keep
+            # its read task without preventing independent target validation.
+            self._defer_capture(current.title, exc)
+
+    def _defer_capture(self, name, exc):
+        session = self.pending.get(name, Session(name))
+        self.store.remember_session(name, session.unread_count, session.mentioned, now=self.clock())
+        self.pending[name] = session
+        self._receive_retry[name] = self.monotonic() + self._poll_interval()
+        log.warning('[%s] 采集暂缓，保留快照与未读任务，发送仍独立核验: %s', name, exc.read_code)
+
+    def _capture_for_delivery(self, name, chat, messages):
+        try:
+            self._capture(name, chat, messages)
+        except ReadDeferred as exc:
+            if exc.read_code not in {'unknown_fresh_sender', 'unknown_unread_sender'}:
+                raise
+            # Baseline/bubble reads belong to DeliveryPump. An ambiguous
+            # incoming row cannot invalidate its independently verified send.
+            self._defer_capture(name, exc)
 
     def deliver(self, request):
         return self.delivery.enqueue(request)
@@ -351,7 +373,16 @@ class MainInbox:
         return True
 
     def _capture_target(self, name):
-        return self._receive(self.pending.get(name, Session(name)))
+        try:
+            return self._receive(self.pending.get(name, Session(name)))
+        except ReadDeferred as exc:
+            if exc.read_code not in {'unknown_fresh_sender', 'unknown_unread_sender'}:
+                raise
+            # _receive already verified chat availability before sender
+            # classification. DeliveryPump must still read its own baseline;
+            # message_list_unavailable and all target errors remain fatal.
+            self._defer_capture(name, exc)
+            return True
 
     def _capture_current(self, *, root=None):
         root = self.desktop.passive_window(self.bound, root=root)

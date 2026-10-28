@@ -41,7 +41,7 @@ class TypingSession:
     def _draft(self):
         if self.mention_verified:
             from .mentions import rich_draft
-            proof = rich_draft(self.edit, self.mention_name)
+            proof = rich_draft(self.edit, self.mention_name, receipt=self._mention_identity)
             if proof is None or proof[1] != self._mention_identity:
                 return None
             raw = proof[0]
@@ -162,6 +162,11 @@ class TypingSession:
                     return self.state
                 visible_prefix = self._mention_prefix
                 if self.mention_verified and visible_prefix.startswith('\ufffc'):
+                    from .mentions import PickerReceipt
+                    # This Qt provider hides the mention separator in the edit
+                    # range, but WeChat adds U+2005 to the sent bubble.
+                    if isinstance(self._mention_identity,PickerReceipt) and visible_prefix == '\ufffc':
+                        visible_prefix += '\u2005'
                     visible_prefix = '@' + self.mention_name + visible_prefix[1:]
                 self.submitted_text = visible_prefix + self.normalized
                 if self.before_enter is not None:

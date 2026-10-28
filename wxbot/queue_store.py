@@ -113,6 +113,8 @@ class QueueStore(DeliveryPolicy):
                 uri = Path(self.path).resolve().as_uri() + ("?mode=ro" if access == "readonly" else "?mode=rw")
                 self._db = sqlite3.connect(uri, uri=True, timeout=5, check_same_thread=False)
             self._db.row_factory = sqlite3.Row
+            if access != 'readonly':
+                self._db.execute('PRAGMA foreign_keys=ON')
             if access == "runtime":
                 queue_schema.backup_before_migration(self._db, self.path)
                 self._db.execute("PRAGMA journal_mode=WAL")
@@ -399,11 +401,24 @@ class QueueStore(DeliveryPolicy):
             recovered.append({'id':row['id'],'contact':row['contact'],'action':action,'reason':reason})
         return recovered
 
-    def enqueue_delivery(self, contact, text, *, now):
+    @staticmethod
+    def _check_outbound_cutoff(db, received_at):
+        if received_at is None:
+            return
+        cutoff = db.execute("SELECT MAX(at) FROM delivery_events WHERE action='delete_unsent'").fetchone()[0]
+        if cutoff is not None and received_at <= cutoff:
+            raise ValueError('此推送已由用户删除，停止投递')
+
+    def delete_unsent(self, *, now=None, source='log'):
+        from .queue_cleanup import delete_unsent
+        return delete_unsent(self, now=time.time() if now is None else now, source=source)
+
+    def enqueue_delivery(self, contact, text, *, now, received_at=None):
         with self._transaction() as db:
+            self._check_outbound_cutoff(db, received_at)
             return self._insert_delivery(db, contact, text, now, now)
 
-    def enqueue_package(self, contact, items, request_id, *, media_paths, now):
+    def enqueue_package(self, contact, items, request_id, *, media_paths, now, received_at=None):
         """Insert an ordered package in one transaction. Paths are trusted cache outputs only."""
         from common.media_bundle import validate_items, validate_request_id
         items = validate_items(items)
@@ -416,6 +431,7 @@ class QueueStore(DeliveryPolicy):
         payload = json.dumps(items, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
         digest = hashlib.sha256(payload.encode()).hexdigest()
         with self._transaction() as db:
+            self._check_outbound_cutoff(db, received_at)
             prior = db.execute('SELECT id,payload_hash FROM delivery_packages WHERE contact=? AND request_id=?',
                                (contact, request_id)).fetchone()
             if prior:
@@ -445,6 +461,9 @@ class QueueStore(DeliveryPolicy):
     def _recompute_package(db,package_id):
         if not package_id:
             return
+        current = db.execute('SELECT state FROM delivery_packages WHERE id=?', (package_id,)).fetchone()
+        if current is not None and current[0] == 'cancelled':
+            return
         states={row[0] for row in db.execute('SELECT state FROM outbox WHERE package_id=?',(package_id,))}
         if states=={'sent'}:
             state='sent'
@@ -470,7 +489,7 @@ class QueueStore(DeliveryPolicy):
 
     @staticmethod
     def _stop_package(db, package_id, state, now):
-        db.execute('UPDATE delivery_packages SET state=? WHERE id=?',(state,package_id))
+        db.execute("UPDATE delivery_packages SET state=? WHERE id=? AND state!='cancelled'",(state,package_id))
         db.execute("""UPDATE outbox SET state='skipped',detached=1,finished_at=?,resolution='package_stopped',
             error='图文包未完整确认，停止剩余内容，需人工核对' WHERE package_id=? AND state='pending'""",(now,package_id))
 
@@ -668,9 +687,13 @@ class QueueStore(DeliveryPolicy):
         result = dict(row)
         if table == 'outbox':
             result.setdefault('part_seq', 1)
-            result['part_count'] = (self._db.execute('SELECT COUNT(*) FROM outbox WHERE batch_id=?',
-                                                  (result['batch_id'],)).fetchone()[0]
-                                    if result.get('batch_id') else 1)
+            if result.get('batch_id'):
+                count = self._db.execute('SELECT COUNT(*) FROM outbox WHERE batch_id=?', (result['batch_id'],)).fetchone()[0]
+                parent = self._db.execute('SELECT * FROM batches WHERE id=?', (result['batch_id'],)).fetchone()
+                original = parent['part_count'] if parent is not None and 'part_count' in parent.keys() else 0
+                result['part_count'] = max(count, original)
+            else:
+                result['part_count'] = 1
             result.setdefault('submitted_text', None)
         elif table == 'batches':
             count = self._db.execute('SELECT COUNT(*) FROM outbox WHERE batch_id=?', (result['id'],)).fetchone()[0]

@@ -3,6 +3,7 @@
 
 def read_rounds(db, row_reader, *, contact, state, scope, limit, offset, now, timeout):
     columns = {r[1] for r in db.execute('PRAGMA table_info(outbox)')}
+    batch_columns = {r[1] for r in db.execute('PRAGMA table_info(batches)')}
     detached = 'detached=0 AND ' if 'detached' in columns else ''
     manual = ' OR manual_required=1' if 'manual_required' in columns else ''
     terms, args = [], []
@@ -31,10 +32,18 @@ def read_rounds(db, row_reader, *, contact, state, scope, limit, offset, now, ti
         active = next((r for r in items if not r.get('detached') and r['state'] not in ('sent','skipped')), None)
         review = next((r for r in items if r['state']=='uncertain' or r.get('manual_required')), None)
         chosen = active or review or items[-1]
+        original_count = len(items)
+        deleted = False
+        if rows[0]['batch_id'] and {'part_count','delivery_resolution'} <= batch_columns:
+            parent = db.execute('SELECT part_count,delivery_resolution FROM batches WHERE id=?',
+                                (rows[0]['batch_id'],)).fetchone()
+            if parent:
+                original_count = max(original_count, parent['part_count'])
+                deleted = parent['delivery_resolution'] == 'deleted'
         result.append({'id':group['round_id'], 'contact':chosen['contact'], 'state':chosen['state'],
-                       'display_state':chosen.get('display_state',chosen['state']),
+                       'display_state':'partial_deleted' if deleted and not active else chosen.get('display_state',chosen['state']),
                        'preview': ''.join(r['preview'] for r in items)[:240],
-                       'sent_parts':sum(r['state']=='sent' for r in items), 'part_count':len(items),
-                       'error':chosen['error'], 'discard_at':chosen.get('discard_at'),
+                       'sent_parts':sum(r['state']=='sent' for r in items), 'part_count':original_count,
+                       'error':'其余未发送部分已由用户删除' if deleted else chosen['error'], 'discard_at':chosen.get('discard_at'),
                        'created_at':items[0]['created_at'], 'parts':items})
     return result, {'total':total, 'offset':offset, 'limit':limit, 'has_more':offset+len(result)<total}

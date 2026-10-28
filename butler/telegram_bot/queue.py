@@ -53,6 +53,10 @@ class Queue:
         if type(uid) is not int or uid < 0:
             raise ValueError('Invalid update id')
         with self.db() as db:
+            db.execute('BEGIN IMMEDIATE')
+            cursor = db.execute('SELECT offset FROM cursor WHERE bot=?', (bot,)).fetchone()
+            if cursor is not None and uid < cursor[0]:
+                return  # A deleted/acknowledged update must never re-enter the queue.
             if message is not None:
                 payload = json.dumps({'bot_id': bot, 'update_id': uid, 'message': message}, ensure_ascii=False)
                 db.execute('INSERT OR IGNORE INTO pending(bot,uid,payload,received_at) VALUES(?,?,?,?)',

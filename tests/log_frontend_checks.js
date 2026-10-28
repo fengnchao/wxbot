@@ -37,7 +37,8 @@ let accepted=true;
 const confirmations=[];
 const context=vm.createContext({
   document:{querySelector:element,querySelectorAll(){return []},addEventListener(){}},URLSearchParams,location:{search:''},
-  setInterval(){return 1},clearInterval(){},confirm(message){confirmations.push(message);return accepted},
+  setInterval(){return 1},clearInterval(){},setTimeout,clearTimeout,AbortController,
+  confirm(message){confirmations.push(message);return accepted},
   localStorage:new Proxy({},{get(){throw new Error('configuration must not use localStorage')}}),
   fetch(url,options){return new Promise(resolve=>pending.push({url,options,resolve}));}
 });
@@ -54,7 +55,8 @@ const missingWorkflowContext=vm.createContext({
   setInterval(){return 1},clearInterval(){}
 });
 assert.doesNotThrow(()=>vm.runInContext(missingWorkflowScript,missingWorkflowContext),'missing optional workflow asset must not abort dashboard initialization');
-vm.runInContext("switchTab('workflow');refreshCurrent();renderCurrentCached()",missingWorkflowContext);
+vm.runInContext("switchTab('wxbot');refreshCurrent();renderCurrentCached()",missingWorkflowContext);
+assert.equal(vm.runInContext('state.tab',missingWorkflowContext),'workflow','retired message page links open the live workflow');
 assert.match(element('#pane').innerHTML,/重启.*log/);
 vm.runInContext("loadQueue=()=>{state.queueLoaded=true};switchTab('queue')",missingWorkflowContext);
 assert.equal(vm.runInContext('state.queueLoaded',missingWorkflowContext),true,'existing pages remain reachable without the workflow asset');
@@ -71,6 +73,52 @@ async function checks(){
   const hostile=run("workflowCard({id:'x\\\"<script>',uid:'u<&',contact:'<img src=x>',label:'A',members:[],group:false,inbox_ids:[1],request_id:'',kind:'inbox',message_count:1,stage:1,status:'unbatched',scope:'active',preview:'<script>alert(1)</script>',error:'',part_count:0,attempts:0},true)");
   assert.doesNotMatch(hostile,/<script>|<img src=x>/);
   assert.match(hostile,/&lt;script&gt;/);
+  assert.equal(run("workflowExcerpt('短消息')"),'短消息');
+  assert.equal(run("workflowExcerpt('一二三四五六七八九十甲乙丙丁戊己庚辛壬癸后续正文')"),'一二三四五六七八九十甲乙丙丁戊己庚辛壬癸…');
+  assert.equal(run("workflowExcerpt('🙂'.repeat(21))"),'🙂'.repeat(20)+'…','truncation must not split emoji surrogates');
+  context.contentMessage={id:'content-message',uid:'a',contact:'A',label:'A',members:[],group:false,
+    inbox_ids:[1],request_id:'content-message',kind:'batch',message_count:1,stage:1,status:'processing',scope:'active',
+    preview:'一二三四五六七八九十甲乙丙丁戊己庚辛壬癸后续正文',reply_preview:'回复摘要',
+    error:'',reason:{},events:[],part_count:0,attempts:1,at:1,updated_at:1};
+  for(const html of [run('workflowCard(contentMessage)'),run("workflowSummaryRow(contentMessage,'inbox')")]){
+    assert.match(html,/一二三四五六七八九十甲乙丙丁戊己庚辛壬癸…/);
+    assert.doesNotMatch(html,/后续正文/,'lists contain only the short excerpt');
+  }
+  const originalWorkflowRender=run('renderWorkflow'),oldTab=run('state.tab');
+  context.suppressContentRender=()=>{};
+  run("renderWorkflow=suppressContentRender;state.tab='workflow';workflow.selected=contentMessage.id");
+  const contentRequest=run('loadWorkflowContent(contentMessage)');
+  const fullRequest=pending.shift();
+  assert.equal(fullRequest.url,'/api/workflow-content?id=content-message');
+  context.fullContent={status:'ok',id:'content-message',kind:'batch',
+    text:'完整正文\n'.repeat(80)+'<script>收到的末尾</script>',reply_text:'完整回复\n'.repeat(80)+'回复末尾'};
+  reply(fullRequest,context.fullContent);await contentRequest;
+  const fullHtml=run('workflowTrace(contentMessage)');
+  assert.match(fullHtml,/收到的末尾/);assert.match(fullHtml,/回复末尾/);
+  assert.doesNotMatch(fullHtml,/<script>/);assert.match(fullHtml,/&lt;script&gt;/);
+  assert.ok(fullHtml.includes(context.fullContent.reply_text),'the selected reply must not be cut at the preview limit');
+  await run('loadWorkflowContent(contentMessage)');
+  assert.equal(pending.length,0,'unchanged polling snapshots do not reload the complete body');
+  run('contentMessage.updated_at=2');
+  const progressOnlyLoad=run('loadWorkflowContent(contentMessage)'),progressOnlyRequest=pending.shift();
+  if(progressOnlyRequest)reply(progressOnlyRequest,context.fullContent);
+  await progressOnlyLoad;
+  assert.equal(progressOnlyRequest,undefined,'tool/status timestamps must not reload the same text and interrupt reading');
+  context.otherContentMessage={...context.contentMessage,id:'other-message'};
+  run('workflow.selected=otherContentMessage.id');const oldContentRequest=run('loadWorkflowContent(otherContentMessage)');
+  const oldFullRequest=pending.shift();
+  run('workflow.selected=contentMessage.id;contentMessage.part_count=2');const newerContentRequest=run('loadWorkflowContent(contentMessage)');
+  const newerFullRequest=pending.shift();
+  reply(oldFullRequest,{status:'ok',id:'other-message',text:'wrong selected body',reply_text:''});await oldContentRequest;
+  reply(newerFullRequest,context.fullContent);await newerContentRequest;
+  assert.doesNotMatch(run('workflowTrace(contentMessage)'),/wrong selected body/);
+  run('contentMessage.part_count=3');const abandonedContent=run('loadWorkflowContent(contentMessage)');
+  const abandonedFullRequest=pending.shift();run("stopWorkflow();state.tab='queue'");
+  assert.equal(abandonedFullRequest.options.signal.aborted,true);
+  reply(abandonedFullRequest,{status:'ok',id:'content-message',text:'late body from previous page',reply_text:''});await abandonedContent;
+  assert.notEqual(run('workflow.content?.text'),'late body from previous page');
+  context.restoreWorkflowRender=originalWorkflowRender;
+  run('renderWorkflow=restoreWorkflowRender;workflow.selected=""');context.restoreWorkflowTab=oldTab;run('state.tab=restoreWorkflowTab');
   run("state.cdata={sections:[{rows:[{key:'butler.agent.provider',value:'codex'}]}]}");
   assert.equal(run("configurationCategory({id:'butler.codex',source_id:'butler'},{key:'butler.codex.model',path:['codex','model'],editable:true})"),'model');
   assert.equal(run("configurationCategory({id:'log',rows:[]},{key:'log.home',editable:false})"),'advanced');
@@ -95,7 +143,7 @@ async function checks(){
   const originalPaneQuery=element('#pane').querySelectorAll;
   context.disclosures=[{dataset:{detail:'flow:stable'},open:true}];
   element('#pane').querySelectorAll=selector=>selector.startsWith('details')?context.disclosures:originalPaneQuery.call(element('#pane'),selector);
-  element('#pane').dataset.view='wxbot';element('#pane').scrollTop=380;element('#list').scrollTop=120;
+  run("state.tab='queue'");element('#pane').dataset.view='queue';element('#pane').scrollTop=380;element('#list').scrollTop=120;
   run('rememberPane()');context.disclosures[0]={dataset:{detail:'flow:stable'},open:false};
   element('#pane').scrollTop=0;element('#list').scrollTop=0;run('restorePane()');
   assert.equal(context.disclosures[0].open,true);
@@ -146,6 +194,21 @@ async function checks(){
     parts:context.actionRows.outbox.map(part=>({...part,part_seq:1}))}];
   run('state.qdata=actionRows;renderQueuePane()');
   assert.equal(element('#pane').querySelectorAll('[data-q-action]').length,3,'the same recovery actions must not appear twice');
+  const recoveryButtonCounts=[];
+  context.offPageActions={...context.actionRows,rounds:[]};
+  run('state.qdata=offPageActions;renderQueuePane()');
+  recoveryButtonCounts.push(element('#pane').querySelectorAll('[data-q-action]').length);
+  context.searchHiddenRound={...context.actionRows,
+    contacts:[{...context.fixture.contacts[0],reason:{...context.fixture.contacts[0].reason,message:'needle failure'}}],
+    outbox:context.actionRows.outbox.map(row=>({...row,preview:'needle block'})),
+    rounds:context.actionRows.rounds.map(row=>({...row,preview:'different round preview'}))};
+  run("state.viewSearch.queue='needle';state.qdata=searchHiddenRound;renderQueuePane()");
+  recoveryButtonCounts.push(element('#pane').querySelectorAll('[data-q-action]').length);
+  context.roundOnlyActions={...context.actionRows,outbox:[]};
+  run("state.viewSearch.queue='';state.qdata=roundOnlyActions;renderQueuePane()");
+  recoveryButtonCounts.push(element('#pane').querySelectorAll('[data-q-action]').length);
+  assert.deepEqual(recoveryButtonCounts,[3,3,3],
+    'recovery buttons must appear exactly once when rounds are off page, search-hidden, or absent from the outbox page');
   context.timeoutFixture={...base,failure_timeout_seconds:75,events:[{at:1,contact:'A',action:'timeout_discard',reason:'旧记录',record_id:'task'}]};
   run("state.qdata=timeoutFixture;renderQueuePane()");
   assert.match(element('#pane').innerHTML,/最多等待75秒/,'queue help must use the configured timeout');
@@ -170,6 +233,7 @@ async function checks(){
   run("state.tab='configuration'");
   reply(mutation,{ok:true});
   await operation;
+  await queueDeletionChecks(base);
   context.config={note:'file configuration only',sources:[],sections:[{id:'queue',title:'queue',source:'fake.toml',
     rows:[{key:'wxbot.queue.quiet_seconds',value:3,origin:'default'},{key:'wxbot.custom.note',value:'<script>bad</script>',origin:'file'}]}]};
   run("state.tab='configuration';state.cSection='all';state.cdata=config;renderConfigurationNav();renderConfigurationPane()");
@@ -195,6 +259,67 @@ async function checks(){
   assert.match(flowHtml,/&lt;script&gt;/);
   assert.doesNotMatch(flowHtml,/<script>|<img/);
   console.log('frontend checks passed');
+}
+async function queueDeletionChecks(base){
+  context.deleteFixture={...base,actions_enabled:false};
+  run("state.tab='queue';state.qBusy=false;state.qdata=deleteFixture;state.qContact='filtered contact';state.qState='uncertain';state.viewSearch.queue='no matching message';state.qOffsets.rounds=50");
+  for(const scope of ['all','active','issues','history']){
+    context.deleteScope=scope;
+    run('state.qScope=deleteScope;renderQueuePane()');
+    assert.match(element('#pane').innerHTML,/id="q-delete-unsent"/,'global deletion must stay visible under every queue filter');
+    assert.match(element('#pane').innerHTML,/删除所有未发送成功消息/);
+  }
+  run("state.qdata=null;state.qError='queue unavailable';renderQueuePane()");
+  assert.match(element('#pane').innerHTML,/id="q-delete-unsent"/,'one unavailable queue must not hide global deletion');
+  accepted=false;
+  await element('#q-delete-unsent').onclick();
+  assert.equal(pending.length,0,'declining deletion must not mutate the queue');
+  assert.match(confirmations.at(-1),/微信.*Telegram/);
+  assert.match(confirmations.at(-1),/全部会话/);
+  assert.match(confirmations.at(-1),/筛选.*分页/);
+  assert.match(confirmations.at(-1),/已发送/);
+  assert.match(confirmations.at(-1),/正在输入.*确认.*提交/);
+  assert.match(confirmations.at(-1),/稍后/);
+  assert.match(confirmations.at(-1),/微信输入框.*草稿.*自行清理/);
+  accepted=true;
+  run('state.qdata=deleteFixture;renderQueuePane()');
+  const deleting=element('#q-delete-unsent').onclick(),post=pending.shift();
+  assert.equal(post.url,'/api/queue-delete-unsent');
+  assert.equal(post.options.method,'POST');
+  assert.equal(post.options.headers['Content-Type'],'application/json');
+  assert.equal(post.options.headers['X-Wxbot-Queue-Action'],'1');
+  assert.deepEqual(JSON.parse(post.options.body),{acknowledge:true},'global deletion must exclude the visible filters and page');
+  assert.match(element('#pane').innerHTML,/<button[^>]*id="q-delete-unsent"[^>]*disabled/);
+  const confirmationCount=confirmations.length;
+  await element('#q-delete-unsent').onclick();
+  assert.equal(pending.length,0,'an in-flight deletion must block duplicate submissions');
+  assert.equal(confirmations.length,confirmationCount);
+  reply(post,{ok:true,wxbot:{deleted_messages:2,deleted_deliveries:3,protected_active:1,drafts_to_clear:2},
+    telegram:{deleted_messages:4,deleted_deliveries:5,protected_active:6}});
+  await new Promise(setImmediate);
+  const refresh=pending.shift();
+  assert.match(refresh.url,/^\/api\/queue\?/,'successful deletion must refresh actual queue state');
+  reply(refresh,context.deleteFixture);await deleting;
+  assert.equal(run('state.qBusy'),false);
+  assert.match(element('#pane').innerHTML,/微信[^<]*2[^<]*3/);
+  assert.match(element('#pane').innerHTML,/Telegram[^<]*4[^<]*5/);
+  assert.match(element('#pane').innerHTML,/保留[^<]*7/,'feedback must show the total protected active tasks');
+  assert.match(element('#pane').innerHTML,/2[^<]*微信输入框[^<]*草稿[^<]*自行清理/,'deletion must explain which remaining drafts need manual cleanup');
+  const failing=element('#q-delete-unsent').onclick(),failedPost=pending.shift();
+  reply(failedPost,{ok:false,error:'删除失败 <script>bad</script>'},503);
+  await new Promise(setImmediate);
+  reply(pending.shift(),context.deleteFixture);await failing;
+  assert.equal(run('state.qActionFailed'),true);
+  assert.equal(run('state.qBusy'),false);
+  assert.match(element('#pane').innerHTML,/删除失败 &lt;script&gt;/);
+  assert.doesNotMatch(element('#pane').innerHTML,/<script>/);
+  const leaving=element('#q-delete-unsent').onclick(),lastPost=pending.shift();
+  run("state.tab='configuration'");element('#pane').innerHTML='another tab is active';
+  reply(lastPost,{ok:true,wxbot:{deleted_messages:1,deleted_deliveries:0,protected_active:0}});await leaving;
+  assert.equal(pending.length,0,'finishing deletion on another tab must not reload the queue');
+  assert.equal(element('#pane').innerHTML,'another tab is active');
+  assert.match(run('state.qMessage'),/Telegram[^<]*0[^<]*0/,'an absent queue result must show zero deletions');
+  run("state.qContact='';state.qState='all';state.qScope='all';state.viewSearch.queue='';resetQueuePages()");
 }
 async function configurationEditorChecks(){
   // These checks catch lost drafts, stale versions, accidental secret writes, and unconfirmed mutations.

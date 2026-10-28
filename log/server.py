@@ -1447,6 +1447,23 @@ class Handler(BaseHTTPRequestHandler):
                 status, payload = request_user_admin(_load_butler_config(), '/v1' + p.removeprefix('/api') + ('?' + u.query if u.query else ''))
                 self._json(payload, status)
                 return
+            if p == '/api/workflow-content':
+                try:
+                    from log.workflow_content import read_content
+                    view = self._config_view()
+                    view.read()
+                    detail = read_content(view.queue_options()['path'], view.root/'config.telegram-bot.toml', one('id'))
+                    if detail is None:
+                        self._json({'status':'missing','error':'消息已删除或记录不存在'},404)
+                    else:
+                        for field in ('text','reply_text'):
+                            detail[field] = view.scrub_message_text(detail[field])
+                        self._json({'status':'ok',**detail})
+                except ValueError:
+                    self._json({'status':'error','error':'消息标识或配置无效'},400)
+                except (OSError,sqlite3.Error,KeyError,TypeError):
+                    self._json({'status':'error','error':'消息全文暂时不可读取'},503)
+                return
             if p == '/api/workflow':
                 try:
                     view = self._config_view()
@@ -1691,6 +1708,20 @@ class Handler(BaseHTTPRequestHandler):
                 except ValueError as exc:self._json({'ok':False,'error':view.scrub(str(exc))},400)
                 except (OSError,RuntimeError) as exc:self._json({'ok':False,'error':'配置保存失败（'+type(exc).__name__+'）'},503)
                 except Exception as exc:self._json({'ok':False,'error':'配置保存失败（'+type(exc).__name__+'）'},500)
+                return
+            if p == '/api/queue-delete-unsent':
+                if not self._confirmed_origin('X-Wxbot-Queue-Action'):
+                    self._json({'ok':False,'error':'队列删除仅接受当前页面发出的确认请求'},403)
+                    return
+                try:
+                    view=self._config_view()
+                    result=QueueActions(view.queue_options()['path']).delete_unsent(
+                        self._body(),telegram_config=view.root/'config.telegram-bot.toml')
+                    self._json(result)
+                except ValueError as exc:
+                    self._json({'ok':False,'error':str(exc)},409)
+                except (OSError,sqlite3.Error) as exc:
+                    self._json({'ok':False,'error':'队列删除失败（'+type(exc).__name__+'）'},503)
                 return
             if p == '/api/queue-action':
                 if not self._confirmed_origin('X-Wxbot-Queue-Action'):

@@ -85,6 +85,81 @@ def test_real_mention_picker_selects_object_then_types_and_submits_visible_text(
     assert edit.pasted == ['正文']
 
 
+def qt_mention_chat(monkeypatch):
+    """Qt exposes the selected object as U+FFFC without TextRange children."""
+    chat, sent, edit = mention_chat(monkeypatch)
+    panel = chat._find(None, chat.wcfg['mention']['panel'])
+    edit.GetRuntimeId = lambda: [42, 123, 4, 79]
+    original = panel.GetChildren()[0].Click
+    def choose(**kwargs):
+        original(**kwargs)
+        edit.value = '\ufffc'
+        edit.objects = []
+        panel.IsOffscreen = True
+    panel.GetChildren()[0].Click = choose
+    return chat, sent, edit, panel
+
+
+def test_qt_childless_selected_mention_continues_all_body_chunks_and_submits(monkeypatch):
+    chat, sent, edit, _ = qt_mention_chat(monkeypatch)
+    clock = [0]
+    text = '正文超过五字🙂，继续输入'
+    task = chat.start_send(text, mention_name='甲', clock=lambda:clock[0])
+    assert advance(task,clock) == 'submitted'
+    assert task.mention_verified and task.submitted_text == '@甲\u2005'+text
+    assert ''.join(edit.pasted) == text and sent.count('{Enter}') == 1
+    from wxbot.wechat.chat_window import Message
+    from wxbot.delivery import reply_is_visible
+    assert reply_is_visible([], [Message('self','@甲\u2005'+text)], task.submitted_text)
+
+
+@pytest.mark.parametrize('change', ['input_replaced','picker_open','ambiguous_picker','extra_object','extra_text'])
+def test_qt_childless_mention_requires_unchanged_input_closed_picker_and_exact_object(monkeypatch, change):
+    chat, sent, edit, panel = qt_mention_chat(monkeypatch)
+    clock = [0]
+    task = chat.start_send('正文', mention_name='甲', clock=lambda:clock[0])
+    task.step();task.step();clock[0]=1;task.step()
+    if change == 'input_replaced': edit.GetRuntimeId = lambda:[42,123,4,80]
+    elif change == 'picker_open': panel.IsOffscreen = False
+    elif change == 'ambiguous_picker':
+        from wxbot.wechat import mentions
+        panel.IsOffscreen = False
+        task._mention.cfg = {}
+        task.win.ProcessId = 7
+        popups = [SimpleNamespace(NativeWindowHandle=handle,ProcessId=7) for handle in (501,502)]
+        monkeypatch.setattr(mentions,'top_level_windows',lambda:popups)
+        monkeypatch.setattr(mentions,'window_owner',lambda handle:123)
+    elif change == 'extra_object': edit.value += '\ufffc'
+    else: edit.value += '用户草稿'
+    assert advance(task,clock) == 'blocked'
+    assert not edit.pasted and '{Enter}' not in sent
+
+
+def test_qt_closed_picker_can_leave_a_stale_visible_uia_element(monkeypatch):
+    chat, sent, edit, panel = qt_mention_chat(monkeypatch)
+    clock = [0]
+    task = chat.start_send('正文',mention_name='甲',clock=lambda:clock[0])
+    task.step();task.step();clock[0]=1;task.step()
+    panel.IsOffscreen = False
+    panel.Exists = lambda timeout:True
+    original_find = chat._find
+    monkeypatch.setattr(chat,'_find',lambda win,spec:None if spec==chat.wcfg['mention']['panel'] else original_find(win,spec))
+    assert advance(task,clock) == 'submitted'
+    assert task.mention_verified and edit.pasted == ['正文'] and sent.count('{Enter}') == 1
+
+
+def test_qt_childless_mention_rechecks_input_identity_before_pasting_body(monkeypatch):
+    chat, sent, edit, _ = qt_mention_chat(monkeypatch)
+    clock = [0]
+    task = chat.start_send('正文', mention_name='甲', clock=lambda:clock[0])
+    for _ in range(4):
+        task.step();clock[0]+=1
+    assert task.mention_verified
+    edit.GetRuntimeId = lambda:[42,123,4,80]
+    assert advance(task,clock) == 'blocked'
+    assert not edit.pasted and '{Enter}' not in sent
+
+
 @pytest.mark.parametrize('names', [(), ('甲', '甲'), ('甲','甲乙'), ('甲','')])
 def test_missing_or_ambiguous_picker_sends_body_without_literal_at(monkeypatch, names):
     chat, sent, edit = mention_chat(monkeypatch, names=names)

@@ -1,8 +1,10 @@
 """UI-thread mention picker with verified, body-only fallback.
 
 Calibrate ``wechat.mention.panel`` and ``item`` for the installed WeChat.
-TextPattern embedded children provide the rich object proof, not an @ string.
+Prefer TextPattern embedded children. Qt clients without child exposure use a
+receipt from our exact picker selection and the unchanged input control.
 """
+from dataclasses import dataclass
 import time
 
 import uiautomation as auto
@@ -22,15 +24,27 @@ def window_owner(hwnd):
     return function(hwnd, 4)  # GW_OWNER; do not confuse parent with owner.
 
 
-def rich_draft(edit, name):
-    """Return (raw text, embedded object's runtime identity), or no proof."""
+@dataclass(frozen=True)
+class PickerReceipt:
+    edit_identity: tuple
+    name: str
+
+
+def rich_draft(edit, name, *, receipt=None):
+    """Return raw text and embedded identity or a checked picker receipt."""
     try:
         document = edit.GetTextPattern().DocumentRange
         children = document.GetChildren()
+        raw = document.GetText().replace('\r\n', '\n').replace('\r', '\n')
+        if not children and isinstance(receipt,PickerReceipt):
+            if (receipt.name == name and receipt.edit_identity
+                    and tuple(edit.GetRuntimeId()) == receipt.edit_identity
+                    and raw.startswith('\ufffc') and raw.count('\ufffc') == 1):
+                return raw, receipt
+            return None
         if len(children) != 1 or children[0].Name not in (name, '@' + name):
             return None
         identity = tuple(children[0].GetRuntimeId())
-        raw = document.GetText().replace('\r\n', '\n').replace('\r', '\n')
         if not identity or not (raw.startswith('\ufffc') or raw.startswith('@' + name)):
             return None
         return raw, identity
@@ -57,6 +71,7 @@ class MentionSelection:
         self.fallback_reason = ''
         self.fallback_draft = None
         self.clicked = False
+        self.receipt = None
         self.filter_ready = 0
 
     @staticmethod
@@ -96,8 +111,10 @@ class MentionSelection:
         if len(popups) == 1:
             return popups[0]
         if popups:
-            return None
+            raise LookupError('提及候选窗口不唯一')
         inline = [panel for key,panel in self._inline_panels().items() if key not in self.existing_panels]
+        if len(inline) > 1:
+            raise LookupError('提及候选列表不唯一')
         return inline[0] if len(inline)==1 else None
 
     def step(self):
@@ -150,12 +167,24 @@ class MentionSelection:
                 return self._wait('member_missing')
             # A click selects the candidate; Enter remains reserved for the
             # final verified body, never for an ambiguous popup selection.
+            identity = self._identity(self.edit)
+            if identity:
+                self.receipt = PickerReceipt(identity,self.name)
             candidates[0].Click(simulateMove=False)
             self.clicked = True
             self.phase = 'mention_verify'
             self.deadline = self.clock() + 2
             return 'typing'
         self.proof = rich_draft(self.edit, self.name)
+        if self.proof is None and self.clicked and self.receipt is not None:
+            try:
+                # Re-enumerate: Qt can retain a detached panel whose Exists and
+                # IsOffscreen properties still claim it is visible. Ambiguity
+                # raises above and cannot be mistaken for an absent picker.
+                if self._panel() is None:
+                    self.proof = rich_draft(self.edit,self.name,receipt=self.receipt)
+            except Exception:
+                pass
         if self.proof is None:
             return self._wait('object_unverified')
         raw, _ = self.proof

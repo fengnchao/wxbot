@@ -57,11 +57,13 @@ class DeliveryPump:
         try:
             if getattr(request,'items',None) is not None:
                 package_id=self.store.enqueue_package(request.contact,request.items,request.request_id,
-                                                      media_paths=request.media_paths,now=self.clock())
+                                                      media_paths=request.media_paths,now=self.clock(),
+                                                      received_at=getattr(request,'received_at',None))
                 self._package_waiters.setdefault(package_id,[]).append(request)
                 self._notify_package(package_id)
                 return package_id
-            record_id = self.store.enqueue_delivery(request.contact, request.text, now=self.clock())
+            record_id = self.store.enqueue_delivery(request.contact, request.text, now=self.clock(),
+                                                   received_at=getattr(request,'received_at',None))
             self._waiters[record_id] = request
             log.info("[队列][%s][%s] 主动推送已持久化入发件箱", request.contact, record_id)
             return record_id
@@ -259,6 +261,12 @@ class DeliveryPump:
         return True  # A blocked preparation still consumed one UI service turn.
 
     def tick(self, *, allow_start=True):
+        for record_id, request in list(self._waiters.items()):
+            if self.store.get_delivery(record_id) is None:
+                self._waiters.pop(record_id, None)
+                request.finish(False, '消息已由用户删除，停止投递')
+        for package_id in list(self._package_waiters):
+            self._notify_package(package_id)
         self.expire_failures()
         if self.active is None:
             if allow_start:
