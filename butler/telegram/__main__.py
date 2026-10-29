@@ -46,11 +46,18 @@ async def run(cfg, butler_cfg, store):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=('login', 'run', 'status'))
+    parser.add_argument('command', choices=('init', 'login', 'run', 'status'))
     parser.add_argument('--config', default=str(ROOT / 'config.telegram.toml'))
     parser.add_argument('--butler-config', help='覆盖 Telegram 配置中的 Butler 配置文件路径')
     args = parser.parse_args(argv)
     try:
+        if args.command == 'init':
+            import tomlkit
+            from butler.defaults import telegram_defaults
+            from butler.setup import _new
+            created=_new(Path(args.config).resolve(),tomlkit.dumps(telegram_defaults()))
+            emit({'ok':True,'created':created,'config':str(Path(args.config).resolve())})
+            return 0
         cfg = load(args.config, butler_config=args.butler_config)
         if args.command == 'status':
             emit(status(cfg))

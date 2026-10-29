@@ -87,14 +87,14 @@ class CodexBackend:
 
     def alive(self,profile='default'):
         # No agent turn and no personal auth file contents are returned.
-        return (self.cfg.codex_home_path()/'auth.json').is_file()
+        return bool(self.cfg.codex_api_key) or (self.cfg.codex_home_path()/'auth.json').is_file()
 
     def skills(self,contact=None):
         return self.tools.catalogue.list()
 
     def _error_detail(self,exc):
         detail=getattr(exc,'_butler_safe_detail',str(exc))
-        for secret in [self.cfg.token,self.cfg.wxbot_token,*self._credentials.keys(),*self._credentials.values()]:
+        for secret in [self.cfg.codex_api_key,self.cfg.token,self.cfg.wxbot_token,*self._credentials.keys(),*self._credentials.values()]:
             if secret:detail=detail.replace(secret,'[REDACTED]')
         detail=re.sub(r'(?i)(bearer\s+)\S+',r'\1[REDACTED]',detail)
         detail=re.sub(r'\b(?:sk-[A-Za-z0-9_-]{16,}|eyJ[A-Za-z0-9_.-]{30,})\b','[REDACTED]',detail)
@@ -187,6 +187,12 @@ class CodexBackend:
             else:
                 client=DeadlineCodex(config,(deadline,startup))
             deadline.check();startup.check()
+            if self.cfg.codex_api_key:
+                try:
+                    client.login_api_key(self.cfg.codex_api_key)
+                except Exception as exc:
+                    raise HermesError('Codex API Key 登录失败：'+self._error_detail(exc)) from None
+                deadline.check();startup.check()
             from openai_codex.errors import InternalRpcError
             # account/read performs remote routing discovery with its own
             # short timeout. Keep the same transport warm while retrying

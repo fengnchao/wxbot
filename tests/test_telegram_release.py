@@ -10,10 +10,11 @@ def release_module():
     return module
 
 
-def test_source_distribution_includes_telegram_template_and_instructions():
+def test_source_distribution_includes_telegram_defaults_and_instructions():
     module = release_module()
     paths = {p.relative_to(module.ROOT).as_posix() for p in module.source_files()}
-    assert 'config.telegram.example.toml' in paths
+    assert 'butler/defaults.py' in paths
+    assert not any(p.endswith('.example.toml') for p in paths)
     assert 'docs/TELEGRAM_NEWS.md' in paths
 
 

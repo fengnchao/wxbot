@@ -160,14 +160,13 @@ function renderMessageFlow(data){
     return `<details data-detail="flow:${esc(f.id)}" class="flow-card ${bad?'error':''}"><summary><div class="flow-summary"><b>${esc(f.contact)}</b><time>${esc(full(f.at))}</time>${queueBadge(f.state)}<span class="flow-meta">${esc(FLOW_STAGE_LABELS[currentFlowStage(f.events||[])]||'等待后续处理')}</span></div><div class="flow-preview">${esc(f.preview)}</div>
       ${bad?`<div class="warn">${esc(reason.error||reason.message||'需要人工核对')}</div>`:''}</summary>
       <div class="flow-body"><div class="flow-meta">${f.message_count||1} 条收件</div>
-      <div class="monitor-note ${bad?'warn':''}">${esc(reason.message||'')}${reason.record_id?' · 任务 '+esc(reason.record_id):''}${reason.error?'<br>'+esc(reason.error):''}</div>
-      <ol class="flow-list">${events}</ol><details class="diagnostic" data-detail="raw:${esc(f.id)}"><summary>诊断详情 · 请求 ID 与原始事件</summary>
-      <div class="monitor-source">收件序号 ${esc((f.inbox_ids||[]).join(', '))} · 请求 ID：<code>${esc(f.request_id||'尚未合并/提交')}</code></div><pre class="pre">${esc(JSON.stringify(f.events||[],null,2))}</pre></details></div></details>`;
+      <div class="monitor-note ${bad?'warn':''}">${esc(reason.message||'')}${reason.error?'<br>'+esc(reason.error):''}</div>
+      <ol class="flow-list">${events}</ol></div></details>`;
   }).join('');
   return `<div class="head"><h2>消息流转记录 · ${esc(state.wUid==='all'?'全部会话':state.wUid)}</h2>
     <div class="monitor-note">从 wxbot 收件入库开始显示。按用户和请求 ID 关联；未记录的阶段不会推断为成功。旧任务没有过程日志时显示“未确认”。</div>
     <div class="flow-meta">共 ${data.total||0} 轮 / 待合并消息 · 查询 ${esc(full(data.at))} · 每页 ${data.limit||50} 条</div>
-    <details data-detail="flow-sources" class="diagnostic"><summary>诊断详情 · 数据来源</summary>${(data.sources||[]).map(s=>`<div class="monitor-source">${esc(s.path)} · ${esc(s.status)}${s.truncated?' · 仅读取最近 4MB':''}</div>`).join('')}</details></div>`+
+    </div>`+
     (cards||'<div class="monitor-note">当前没有消息流转记录</div>')+
     `<div class="row"><button id="w-flow-prev" ${data.offset>0?'':'disabled'}>上一页流转</button><span class="flow-meta">第 ${Math.floor((data.offset||0)/(data.limit||50))+1} 页</span><button id="w-flow-next" ${data.has_more?'':'disabled'}>下一页流转</button></div>`;
 }

@@ -9,6 +9,13 @@ config.telegram-relay.toml
 *.session-*
 *.session.relay.lock
 *.config-backup-*
+*.backup-*
+*.bak
+*.old
+*.orig
+*.rej
+*.tmp
+*~
 *.edit.lock
 *.pyc
 __pycache__/
@@ -19,6 +26,8 @@ __pycache__/
 *.sqlite3-shm
 *.sqlite3.lock
 /.superpowers/
+/.tmp-*/
+/@AutomationLog.txt
 /data/
 /.venv/
 /.idea/

@@ -18,7 +18,7 @@ uv sync --locked --extra dev --extra telegram
 .\.venv\Scripts\python.exe -m pip install "Telethon==1.45.0" "python-socks[asyncio]>=2.7,<3"
 ```
 
-首次配置时将 `config.telegram.example.toml` 复制为 `config.telegram.toml`；已有本机配置时直接编辑，不覆盖。示例文件默认关闭，凭据为空。
+首次运行 `python -m butler.telegram init`，由代码默认值生成 `config.telegram.toml`；已有本机配置保留，不覆盖。生成配置默认关闭、凭据为空。
 
 在 [Telegram API development tools](https://my.telegram.org/apps) 为自己的账号申请 `api_id`、`api_hash`，在本机配置中填写，并设置 `enabled = true`。不把密钥、验证码、二次验证密码或 `.session` 文件发到聊天中。
 
@@ -30,7 +30,7 @@ uv sync --locked --extra dev --extra telegram
 - 状态目录：`data/telegram/`。
 - 补收扫描间隔：10 秒，新消息事件可提前唤醒扫描。
 
-相对路径均以配置文件所在目录为基准。代理如有需要，取消模板末尾 `[proxy]` 的注释并填写 Telegram 可用代理；本地 Butler 请求绕过代理。
+相对路径均以配置文件所在目录为基准。代理如有需要，在本机配置增加 `[proxy]`，填写 `type`、`host`、`port` 及必要凭据，使用 Telegram 可用代理；本地 Butler 请求绕过代理。
 
 电脑 Telegram 已登录不代表接收程序已授权。接收程序使用独立本地会话，不读取桌面客户端的 `tdata`。账号须已加入来源频道；程序不会自动入群。
 
@@ -61,7 +61,7 @@ $env:PYTHONIOENCODING = 'utf-8'
 
 `message_results` 按最近 100 条消息列出计划接收人数及完成接收人数；仅当某人的全部分段都获得 Butler 成功回执，才计入该条消息的 `completed_recipients`。
 
-三个命令都支持 `--config <Telegram配置路径>`；`--butler-config <Butler配置路径>` 可覆盖配置中的 Butler 路径。
+上述命令支持 `--config <Telegram配置路径>`；`--butler-config <Butler配置路径>` 可覆盖配置中的 Butler 路径。
 
 ## 接收和发送规则
 

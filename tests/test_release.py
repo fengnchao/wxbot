@@ -18,6 +18,9 @@ def test_release_excludes_runtime_and_contains_plugin(tmp_path):
         assert 'plugins/butler-wechat/.codex-plugin/plugin.json' in archive.namelist()
         assert '.agents/plugins/marketplace.json' in archive.namelist()
         assert 'scripts/wechat_stack_ctl.py' not in archive.namelist()
+        for required in ('butler/defaults.py', 'butler/install_wizard.py', 'docs/MESSAGE_API.md'):
+            assert required in archive.namelist()
+        assert not any(Path(name).name.startswith('config.') and name.endswith('.toml') for name in archive.namelist())
 
 
 def test_invalid_plugin_names_cannot_escape_workspace(tmp_path):
@@ -26,3 +29,14 @@ def test_invalid_plugin_names_cannot_escape_workspace(tmp_path):
     p=tmp_path/'evil/SKILL.md';p.parent.mkdir()
     p.write_text('---\nname: ../../escape\ndescription: bad\nmetadata:\n  butler:\n    tags: [butler-role]\n---\ntext',encoding='utf-8')
     with pytest.raises(ValueError):SkillCatalogue(tmp_path).list()
+
+
+def test_release_excludes_config_templates_at_any_depth(tmp_path, monkeypatch):
+    path = Path(__file__).resolve().parents[1] / 'tools/release.py'
+    spec = importlib.util.spec_from_file_location('release_no_templates', path)
+    module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+    (tmp_path / 'butler').mkdir()
+    for name in ('config.telegram.example.toml', 'butler/config.hidden.example.toml', 'butler/config.actual.toml'):
+        (tmp_path / name).write_text('fixture', encoding='utf-8')
+    monkeypatch.setattr(module, 'ROOT', tmp_path)
+    assert module.source_files() == []

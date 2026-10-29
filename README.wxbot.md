@@ -11,7 +11,7 @@
 
 ```
 wxbot/
-├── config.wxbot.example.toml # 配置模板（复制为 config.wxbot.toml）
+├── config.wxbot.toml      # 安装向导生成的本机配置（不分发）
 ├── requirements.txt
 ├── tools/
 │   └── probe.py            # 控件树探测（默认脱敏），用来校准控件定位
@@ -50,9 +50,9 @@ wxbot/
 
 `[wechat].mode = "independent"` 可切回原来的独立窗口模式。已有独立窗口的绑定对象在主窗口模式下也兼容读取。现有本地配置省略 `mode` 时默认使用 `main`，重启 wxbot 后生效。Butler/Hermes 接口和角色绑定仍按会话名匹配；自动发现的新对象未配置 Butler 身份时，沿用 Butler 的 default Profile 回退规则。
 
-在配置的 `[bot]` 中，`bound_users` 填联系人窗口标题，`bound_groups` 填群聊窗口标题，`mention_names` 填机器人在微信中的昵称（可多个）。允许收取的群消息先存入同群公共上下文；本地规则决定文字、表情或静默，静默和表情批次无需调用模型。每个已绑定成员保留独立会话与有权限访问的长期记忆。固定用户身份请在 log 的“用户与记忆”中用头像和昵称建立；头像哈希是收件观测信息，昵称映射仅辅助显示，不会自动授予个人记忆权限或选择 @ 收件人。联系人和群聊标题不要重复。
+在 log 管理台的共享目录中维护私聊／群聊监听名单和机器人昵称（可多个）；旧 `[bot]` 字段通过 `python -m butler migrate` 导入 `data/business.sqlite3`。允许收取的群消息先存入同群公共上下文；本地规则决定文字、表情或静默，静默和表情批次无需调用模型。每个已绑定成员保留独立会话与有权限访问的长期记忆。固定用户身份请在 log 的“用户与记忆”中用头像和昵称建立；头像哈希是收件观测信息，昵称映射仅辅助显示，不会自动授予个人记忆权限或选择 @ 收件人。联系人和群聊标题不要重复。
 
-主窗口模式收件时，会用会话列表里的「群昵称: 消息摘要」与最后一条收到的消息核对；正文完整匹配后，自动保存该群的 `member_id → 群昵称` 映射到收发队列数据库，后续消息和重启后继续复用。不同群的映射独立，手动配置的昵称优先。摘要截断、消息不匹配或最后一条是自己发送的消息时不建立映射。实际收件头像按窗口 DPI 截取紧贴头像的 36×36 布局区域，再使用与管理台上传相同的标准化算法；采样失败保留为未知身份。头像变化不改变已建立的固定用户 ID。
+主窗口模式收件时，会用会话列表里的「群昵称: 消息摘要」与最后一条收到的消息核对；正文完整匹配后，自动保存该群的 `member_id → 群昵称` 映射到共享目录数据库，后续消息和重启后继续复用。不同群的映射独立，手动配置的昵称优先。摘要截断、消息不匹配或最后一条是自己发送的消息时不建立映射。实际收件头像按窗口 DPI 截取紧贴头像的 36×36 布局区域，再使用与管理台上传相同的标准化算法；采样失败保留为未知身份。头像变化不改变已建立的固定用户 ID。
 
 ### 真正微信 @ 的识别与校准
 
@@ -76,17 +76,12 @@ control_type = "ListItemControl"
 
 ```bash
 pip install -r requirements.txt
-copy config.wxbot.example.toml config.wxbot.toml
+python -m butler setup
 ```
 
-处理端二选一：
-
-- **Hermes Agent**：在 Hermes 的环境配置里开启 API Server（默认端口 8642），运行 `hermes gateway`，
-  看到 `API server listening on http://127.0.0.1:8642` 即可。配置里 `backend = "hermes"`。
-- **Ollama**：安装后拉取模型，例如 `ollama pull qwen2.5:7b`，配置里 `backend = "ollama"`。
-
-> ⚠️ Hermes 带有终端、文件操作等工具。好友发来的消息会直接交给它，
-> 务必为这个用途关闭或限制危险工具，避免别人通过聊天让它在你电脑上执行命令。
+向导支持本机 Codex、已有 Butler，以及 Hermes、OpenClaw、Cursor、DeepSeek 和自定义 API 的直接接入。
+默认值来自代码，已有配置不覆盖；自动化初始化可用 `python -m butler init`。
+模式、登录与升级步骤见 [安装文档](docs/CODEX_INSTALL.md)。直接接入不提供 Butler 业务工具。
 
 ### 2. 校准控件（必做）
 
@@ -108,7 +103,7 @@ copy config.wxbot.example.toml config.wxbot.toml
 python -m wxbot.main
 ```
 
-让好友发一条消息，机器人应回复"收到：xxx"。确认收发都正常后再改回 `ollama`。
+仅在使用者明确授权后，让测试联系人发一条消息，机器人应回复"收到：xxx"。核对收发后恢复向导选择的后端。
 
 ## 工作原理
 

@@ -9,14 +9,14 @@ const ago = t => { if(!t) return '-'; const s=(Date.now()/1000)-t;
   if(s<60) return '刚刚'; if(s<3600) return Math.floor(s/60)+'分钟前';
   if(s<86400) return Math.floor(s/3600)+'小时前'; return Math.floor(s/86400)+'天前'; };
 
-let state = { tab:'workflow', jobUid:'all', jobShowDone:false, jobs:null,jRequest:0,gRequest:0, auto:0, timer:null,
+let state = { tab:'workflow', jobUid:'all', jobShowDone:false, jobs:null,jRequest:0,jobDeleting:'',jobError:'',jobMessage:'',gRequest:0, auto:0, timer:null,
               wdata:null, wUid:'all', wOrder:'desc', wKind:'flow',wRequest:0,wFlowOffset:0,
               gdata:null, gUid:'all', gOpen:{}, gError:'',
               gNewsDraft:null,gNewsVersion:'',gNewsBusy:false,gNewsMessage:'',gNewsError:'',
               hdata:null, hstatus:null, hStatusError:'', hContact:'', hSkills:[], hSkillsContact:'', hRequest:0, hDraft:null, hError:'', hSaved:'',
               hTriggering:false, hTriggerMessage:'',hDrafts:new Map(),
               qdata:null,qContact:'',qState:'all',qScope:'all',qOffsets:{inbox:0,batches:0,outbox:0,rounds:0,telegram:0},qOffset:0,qRequest:0,qError:'',qBusy:false,qMessage:'',qActionFailed:false,
-              cdata:null,cSection:'basic',cSearch:'',cRequest:0,cError:'',viewSearch:{},runtime:null,rRequest:0,
+              cdata:null,cSection:'basic',cSearch:'',cRequest:0,cError:'',viewSearch:{},
               cDrafts:new Map(),cMessages:new Map(),cBusy:new Set(),cRefreshNeeded:false };
 
 async function get(u){

@@ -146,6 +146,16 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
             self._send(404, {"error": "not found"})
 
         def do_POST(self):
+            if self.path=='/v1/jobs/delete':
+                if not self._authed():return
+                if cfg.provider!='codex' or getattr(butler,'store',None) is None:
+                    self._send(503,{'error':'此任务由其他调度器管理，请到对应调度器删除'});return
+                from .job_admin import delete_job,JobConflict,JobMissing
+                try:self._send(200,delete_job(butler.store,self._body()))
+                except JobConflict as exc:self._send(409,{'error':str(exc)})
+                except JobMissing as exc:self._send(404,{'error':str(exc)})
+                except (ValueError,TypeError) as exc:self._send(400,{'error':str(exc)})
+                return
             if self.path=='/v1/media':
                 if not self._authed():return
                 from .media import MediaStore,MAX_BYTES

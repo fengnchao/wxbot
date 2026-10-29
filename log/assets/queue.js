@@ -2,7 +2,6 @@ const QUEUE_LABELS={review:'结果待核对（不阻塞）',restart_discard:'重
   pending:'待发送',sending:'键入中',confirming:'发送确认中',blocked:'已阻断',uncertain:'结果不确定',
   sent:'已发送',skipped:'已跳过',timeout_discard:'超时丢弃',done:'整轮完成',idle:'空闲',pending_capture:'待采集',merging:'合并中',ready_to_merge:'待调度',state_mismatch:'状态待核对',
   completed:'已完成',ok:'完成',failed:'失败',error:'错误',started:'已开始',running:'执行中',accepted:'已接受',finished:'已结束'};
-const ORIGIN_LABELS={file:'文件值',default:'默认值',code:'固定规则',runtime:'运行参数'};
 function queueBadge(status){
   const cls=['blocked','uncertain','failed','error','model_failed','rejected','not_submitted','media_failed'].includes(status)?'sb-error':(['done','sent','skipped','completed','ok','finished'].includes(status)?'sb-ok':'sb-manual');
   return `<span class="sbadge ${cls}">${esc(QUEUE_LABELS[status]||status)}</span>`;
@@ -110,17 +109,14 @@ function queueReason(c,records){
     (state.qdata?.rounds||[]).filter(row=>matchesQuery(row.contact,row.preview,row.error,row.id)).flatMap(row=>row.parts||[]):
     (state.qdata?.[r.record_kind]||[]).filter(row=>matchesQuery(row.contact,row.preview,row.error,row.id));
   const actionsInList=visibleRows.some(row=>String(row.id)===String(r.record_id)&&row.actions?.length);
-  const labels={sent:'已核对实际发送成功',retry:'确需重试（可能重复操作）',skip:'放弃此异常任务'};
   return `<div class="queue-reason ${bad?'error':''}"><h3>${esc(c.contact)} · ${queueBadge(r.code)}</h3>
     <div>${esc(r.message)}${r.wait_seconds>0?' · 约 '+Math.ceil(r.wait_seconds)+' 秒':''}</div>
-    ${r.record_id?`<div class="monitor-source">${r.record_kind==='outbox'?'发件 ID':'批次 ID'}：<code>${esc(r.record_id)}</code></div>`:''}
     ${r.error?`<div class="monitor-note warn">${esc(r.error)}</div>`:''}
     ${modelRecoveryNote(r)}
     ${queueCountdown(r.discard_at)}
     ${r.actions?.length?'<div class="monitor-source">人工核对：先确认微信实际发送结果及输入框草稿，再操作。</div>':''}
     ${actionsInList?'<div class="monitor-note">在下方对应任务行执行人工核对操作。</div>':queueActionButtons({...r,contact:c.contact},r.record_kind,records)}
-    ${r.commands?`<details><summary>查看对应恢复命令</summary><div class="monitor-note">先核对微信、草稿和实际发送结果；也可使用页面的人工核对按钮。以下命令请在项目目录的 PowerShell 中使用，不会自动执行。</div>
-      <div class="queue-commands">${Object.entries(r.commands).map(([kind,cmd])=>`<div>${esc(labels[kind]||kind)}<code>${esc(cmd)}</code></div>`).join('')}</div></details>`:''}</div>`;
+</div>`;
 }
 function resetQueuePages(){state.qOffset=0;state.qOffsets={inbox:0,batches:0,outbox:0,rounds:0,telegram:0};}
 function telegramQueueTable(data){
@@ -130,10 +126,10 @@ function telegramQueueTable(data){
   return `<h3 class="monitor-section-title">Telegram 收件 / 新闻转发 · ${page.total} 条</h3>
     <div class="monitor-note">按发送者数字 ID 区分用户；收件成功与微信发送成功分别记录。阻塞分段显示前置任务，跨系统未有关联证据时不合并为同一条。</div>`+
     (rows.length?`<div class="monitor-table-wrap"><table class="monitor-table"><thead><tr><th>用户 / 状态</th><th>内容 / 阻塞原因</th><th>时间 / 去向</th></tr></thead><tbody>${rows.map(r=>`<tr>
-      <td>${esc(r.contact)}<br>${queueBadge(r.state)}<div class="monitor-source">${esc(r.id)}</div></td>
+      <td>${esc(r.contact)}<br>${queueBadge(r.state)}</td>
       <td class="preview">${esc(r.preview)}${r.has_media?'<div class="monitor-note">含媒体附件</div>':''}<div class="monitor-note ${r.error?'warn':''}">${esc(r.error||r.reason)}</div>
       <details data-detail="telegram:${esc(r.id)}" ${r.error?'open':''}><summary>逐人发送与阻塞详情 · ${r.deliveries.length} 段</summary>
-      ${r.deliveries.map(t=>`<div class="queue-reason ${['uncertain','blocked','not_submitted','rejected'].includes(t.state)?'error':''}"><b>${esc(t.contact)} · 第 ${t.part} 段</b> ${queueBadge(t.state)}<div>${esc(t.reason)}</div><div class="monitor-source">任务 ${esc(t.id)}${t.blocker_id?' · 阻塞任务 '+esc(t.blocker_id):''} · ${esc(full(t.updated))}</div></div>`).join('')||'<div class="monitor-note">尚无新闻投递任务，请查看上面的原因。</div>'}
+      ${r.deliveries.map(t=>`<div class="queue-reason ${['uncertain','blocked','not_submitted','rejected'].includes(t.state)?'error':''}"><b>${esc(t.contact)} · 第 ${t.part} 段</b> ${queueBadge(t.state)}<div>${esc(t.reason)}</div><div class="monitor-source">${esc(full(t.updated))}</div></div>`).join('')||'<div class="monitor-note">尚无新闻投递任务，请查看上面的原因。</div>'}
       ${r.deliveries_truncated?'<div class="warn">仅显示前 200 个分段，完整记录保存在接收器数据库。</div>':''}</details></td>
       <td>消息 ${esc(full(r.created_at))}<br>Butler 入库 ${esc(full(r.received_at))}<div>${esc(r.targets||'尚未分配接收人')}</div></td></tr>`).join('')}</tbody></table></div>`:
       '<div class="monitor-note">当前筛选下没有 Telegram 消息</div>')+
@@ -144,7 +140,7 @@ function queueTable(title,rows,kind,page,records){
   const offset=page?.offset||0,limit=page?.limit||50;
   const pager=`<div class="pagination"><button data-q-page="${kind}" data-q-delta="-1" ${offset?'':'disabled'}>上一页</button><span>第 ${Math.floor(offset/limit)+1} 页 · 共 ${page?.total||0} 条</span><button data-q-page="${kind}" data-q-delta="1" ${page?.has_more?'':'disabled'}>下一页</button></div>`;
   return `<h3 class="monitor-section-title">${title} <span class="monitor-source">${page?.total||0} 条，当前显示 ${rows.length} 条</span></h3>`+
-    (rows.length?`<div class="monitor-table-wrap"><table class="monitor-table"><thead><tr><th>会话 / 状态</th><th>内容预览</th><th>时间 / 进度</th><th>任务 ID</th></tr></thead><tbody>`+
+    (rows.length?`<div class="monitor-table-wrap"><table class="monitor-table"><thead><tr><th>会话 / 状态</th><th>内容预览</th><th>时间 / 进度</th></tr></thead><tbody>`+
     rows.map(r=>`<tr><td>${esc(r.contact)}<br>${queueBadge(r.display_state||(r.resolution==='timeout'?'timeout_discard':r.state))}</td><td class="preview">${esc(r.preview)}<div class="monitor-source">${r.characters} 字${r.characters>240?'，仅显示前 240 字':''}</div>
       ${r.error?`<div class="warn">${esc(r.error)}</div>`:''}${queueCountdown(r.discard_at)}
       ${kind==='batches'?modelRecoveryNote(r):''}
@@ -152,7 +148,7 @@ function queueTable(title,rows,kind,page,records){
       ${kind==='outbox'?`<div>第 ${r.part_seq}/${r.part_count} 块</div>`:kind==='batches'?`<div>已发 ${r.sent_parts}/${r.part_count} 块</div><div>提交次数 ${r.attempts||0}</div>`:''}
       ${r.started_at?`<div class="monitor-source">模型开始 ${esc(full(r.started_at))}</div>`:''}
       ${r.submitted_at?`<div class="monitor-source">回车 ${esc(full(r.submitted_at))}</div>`:''}</td>
-      <td><details data-detail="queue:${kind}:${esc(r.id)}"><summary>任务详情</summary><code>${esc(r.id)}</code>${r.batch_id?`<div class="monitor-source">批次 ${esc(r.batch_id)}</div>`:''}</details></td></tr>`).join('')+
+</tr>`).join('')+
       '</tbody></table></div>':'<div class="monitor-note">当前筛选下没有任务</div>')+pager;
 }
 function replyRoundsTable(rounds,page,records){
@@ -162,9 +158,9 @@ function replyRoundsTable(rounds,page,records){
       <div>${esc(r.preview)}</div><div class="monitor-note">已发 ${r.sent_parts} / ${r.part_count} 块 · ${esc(full(r.created_at))}</div>
       ${r.error?`<div class="warn">${esc(r.error)}</div>`:''}${queueCountdown(r.discard_at)}
       ${r.parts.filter(p=>p.actions?.length).map(p=>`<div class="queue-actions">第 ${p.part_seq} 块 ${queueActionButtons(p,'outbox',records)}</div>`).join('')}
-      <details data-detail="reply-round:${esc(r.id)}"><summary>展开本轮分块与诊断</summary>
+      <details data-detail="reply-round:${esc(r.id)}"><summary>查看分段回复</summary>
       ${r.parts.map(p=>`<div class="monitor-note"><b>第 ${p.part_seq} 块</b> ${queueBadge(p.display_state||p.state)} · ${p.characters} 字
-        <div>${esc(p.preview)}</div><div class="warn">${esc(p.error||'')}</div><code>${esc(p.id)}</code></div>`).join('')}</details></div>`).join('')+
+        <div>${esc(p.preview)}</div><div class="warn">${esc(p.error||'')}</div></div>`).join('')}</details></div>`).join('')+
     (rows.length?'':'<div class="monitor-note">当前筛选下没有回复任务</div>')+
     `<div class="pagination"><button data-q-page="rounds" data-q-delta="-1" ${page?.offset?'':'disabled'}>上一页</button>
      <span>第 ${Math.floor((page?.offset||0)/(page?.limit||50))+1} 页 · 共 ${page?.total||0} 轮</span>
@@ -174,10 +170,10 @@ function queueEventTable(events){
   const labels={restart_discard:'重启停止续发',review:'结果待核对，停止本轮续发',timeout:'整轮失败超时结束',failed:'发送失败',timeout_discard:'失败超时丢弃',retry:'人工重试',confirm_sent:'人工确认已发',manual_discard:'人工丢弃',
     model_retryable:'模型失败，等待自动重试',model_uncertain:'模型结果未知',model_retry:'模型自动重试',model_abandoned:'模型失败已结束'};
   return '<h3 class="monitor-section-title">失败与恢复记录 · 最近50条</h3>'+(events.length?
-    `<div class="monitor-table-wrap"><table class="monitor-table"><thead><tr><th>时间 / 会话</th><th>处理记录</th><th>任务</th></tr></thead><tbody>${events.map(e=>
+    `<div class="monitor-table-wrap"><table class="monitor-table"><thead><tr><th>时间 / 会话</th><th>处理记录</th></tr></thead><tbody>${events.map(e=>
       `<tr><td>${esc(full(e.at))}<br>${esc(e.contact)}</td><td><b>${esc(labels[e.action]||e.action)}</b><div class="monitor-note">${esc(e.reason)}</div>
-      ${Object.keys(e.details||{}).length?`<details data-detail="failure:${esc(e.seq||e.record_id+':'+e.at)}"><summary>失败现场信息</summary><pre>${esc(JSON.stringify(e.details,null,2))}</pre></details>`:''}</td>
-      <td><code>${esc(e.record_id)}</code><div class="monitor-source">来源 ${esc(e.source)}</div></td></tr>`).join('')}</tbody></table></div>`:
+</td>
+      </tr>`).join('')}</tbody></table></div>`:
     '<div class="monitor-note">暂无失败或人工处理记录</div>');
 }
 function renderQueuePane(){
@@ -197,15 +193,13 @@ function renderQueuePane(){
   const timeoutSeconds=Number.isFinite(configuredTimeout)&&configuredTimeout>0?configuredTimeout:180;
   $('#pane').innerHTML=`<div class="head"><h2>收发队列 · ${esc(state.qContact||'全部会话')}</h2>
     ${deletionControls}
-    ${d.status!=='ok'?`<div class="warn">wxbot 队列：${esc(d.error)} · ${esc(d.database)}</div>`:''}
+    ${d.status!=='ok'?`<div class="warn">wxbot 队列：${esc(d.error)}</div>`:''}
     <div class="monitor-grid"><span class="chip">Telegram <b>${Object.values(d.telegram?.counts||{}).reduce((n,v)=>n+v,0)}</b></span><span class="chip">全队列待合并 <b>${d.counts.unbatched||0}</b></span><span class="chip">待提交 <b>${total('batches','ready')}</b></span>
     <span class="chip">等待模型 <b>${total('batches','processing')}</b></span><span class="chip">待发块 <b>${total('outbox','pending')}</b></span>
     <span class="chip">异常块 <b class="warn">${total('outbox','blocked')+total('outbox','uncertain')}</b></span></div>
     <div class="monitor-note">同一会话按顺序处理。发件失败从首次失败起最多等待${timeoutSeconds}秒，超时结束本轮剩余分块并保留日志；结果不确定的保留核对记录且不阻塞后续消息。模型确认未提交时最多尝试3次；模型结果未知时不重放，失败满${timeoutSeconds}秒结束旧批次，继续处理后续消息。人工核对按钮在下方异常任务旁，操作前需要确认。</div>
     ${feedback}
-    <details class="diagnostic" data-detail="queue-settings"><summary>诊断详情 · 队列规则与来源</summary><div class="monitor-source">倒计时按配置文件计算，修改后需重启 wxbot；运行参数未核验。</div>
-    ${!d.actions_enabled?'<div class="monitor-note warn">请先重启更新后的 wxbot 完成队列升级，启用失败超时规则和人工核对按钮。</div>':''}
-    <div class="monitor-source">数据库：${esc(d.database)} · 查询时间：${esc(full(d.at))}</div></details></div>`+
+    ${!d.actions_enabled?'<div class="monitor-note warn">请先重启更新后的 wxbot，启用人工核对按钮。</div>':''}</div>`+
     `<div class="segmented">${[['all','全部消息'],['active','待处理'],['issues','异常待核对'],['history','历史记录']].map(([value,label])=>`<button data-q-scope="${value}" class="${state.qScope===value?'on':''}">${label}</button>`).join('')}<button id="q-clear-filters">清除全部筛选</button></div>
     <div class="monitor-note">${['all','history'].includes(state.qScope)?'最新记录在前':state.qScope==='issues'?'最早任务在前 · 请先核对实际发送结果':'按实际处理序号排列'} · 状态：${esc(state.qState==='all'?'全部':QUEUE_LABELS[state.qState]||state.qState)}${currentQuery()?' · 搜索作用于本页及当前会话摘要':''}</div>`+
     (state.qScope!=='history'?(contacts.length?contacts.map(c=>queueReason(c,records)).join(''):'<div class="monitor-note">没有待处理任务</div>'):'')+

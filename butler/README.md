@@ -134,9 +134,9 @@ wxbot 侧（管家推给它）：`POST http://127.0.0.1:8765/send` `{contact,tex
 ## 启动
 
 ```bash
-cd D:\bot
-copy config.example.toml config.toml     # 填 hermes.api_key / server.token / wxbot.token
-python -m butler.server --config config.toml        # 前台
+python -m butler init                 # 从代码默认值初始化；保留已有配置
+# 新安装选择接入方式请用 python -m butler setup，见 ../docs/CODEX_INSTALL.md
+python -m butler.server --config config.butler.toml # 前台，本机模式
 python -m butler.server --status                    # 探活 + 各 Profile 通不通
 ```
 

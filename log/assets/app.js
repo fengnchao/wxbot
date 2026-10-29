@@ -8,12 +8,14 @@ function renderWorkflowUnavailable(){
 }
 function switchTab(t){
   if(t==='wxbot')t='workflow';
+  if(t==='runtime')t='users';
+  if(state.connection&&state.connection.mode!=='local'&&['users','heartbeat','jobs','groups','telegram-relay'].includes(t))t='configuration';
   rememberPane();
   if(typeof stopWorkflow==='function')stopWorkflow();
   state.tab = t;
   document.body.classList.toggle('workflow-page',t==='workflow');
   $('#pane').dataset.view='';
-  const titles={workflow:'实时工作流',queue:'收发队列',runtime:'模型与记忆',users:'用户与记忆',heartbeat:'角色与心跳',jobs:'定时任务',groups:'用户分组',configuration:'配置管理','telegram-relay':'Telegram 转发'};
+  const titles={workflow:'实时工作流',queue:'收发队列',users:'用户与记忆',heartbeat:'角色与心跳',jobs:'定时任务',groups:'用户分组',configuration:'配置管理','telegram-relay':'Telegram 转发'};
   $('#page-title').textContent=titles[t];
   $('#view-search').value=state.viewSearch[t]||'';
   $('#view-search').placeholder=t==='workflow'?'搜索用户 / UID / 消息 ID':t==='queue'?'筛选本页任务':t==='heartbeat'?'搜索 Skill 或执行记录':'搜索当前记录';
@@ -27,7 +29,6 @@ function switchTab(t){
   $('#tab-queue').classList.toggle('on', t==='queue');
   $('#tab-configuration').classList.toggle('on', t==='configuration');
   $('#tab-telegram-relay').classList.toggle('on', t==='telegram-relay');
-  $('#tab-runtime').classList.toggle('on', t==='runtime');
   $('#tab-users').classList.toggle('on', t==='users');
   $('#j-showdone').classList.toggle('hide', t!=='jobs');     // 各标签专属按钮
   $('#q-state').classList.toggle('hide', t!=='queue');
@@ -39,8 +40,6 @@ function switchTab(t){
     $('#list').innerHTML='';$('#pane').innerHTML='<div class="empty">载入转发设置…</div>';loadTelegramRelay();
   } else if(t==='users'){
     $('#list').innerHTML='';$('#pane').innerHTML='<div class="empty">载入用户…</div>';loadUsers();
-  } else if(t==='runtime'){
-    $('#list').innerHTML='';$('#pane').innerHTML='<div class="empty">载入运行记录…</div>';loadRuntime();
   } else if(t==='queue'){
     $('#list').innerHTML='';$('#pane').innerHTML='<div class="empty">载入队列…</div>';loadQueue();
   } else if(t==='configuration'){
@@ -65,7 +64,6 @@ $('#tab-heartbeat').onclick = ()=>switchTab('heartbeat');
 $('#tab-queue').onclick = ()=>switchTab('queue');
 $('#tab-configuration').onclick = ()=>switchTab('configuration');
 $('#tab-telegram-relay').onclick = ()=>switchTab('telegram-relay');
-$('#tab-runtime').onclick = ()=>switchTab('runtime');
 $('#tab-users').onclick = ()=>switchTab('users');
 $('#q-state').onchange=()=>{state.qState=$('#q-state').value;resetQueuePages();loadQueue();};
 $('#c-search').oninput=()=>{state.cSearch=$('#c-search').value;renderConfigurationNav();renderConfigurationPane();};
@@ -79,7 +77,6 @@ $('#j-showdone').onclick = ()=>{                       // 默认隐藏「已完�
 
 function refreshCurrent(){
   if(state.tab==='workflow'){if(workflowReady())loadWorkflow();else renderWorkflowUnavailable();}
-  else if(state.tab==='runtime') loadRuntime();
   else if(state.tab==='users') loadUsers();
   else if(state.tab==='queue') loadQueue();
   else if(state.tab==='configuration') loadConfiguration();
@@ -93,7 +90,6 @@ $('#b-expand').onclick=()=>expandPage(true);
 $('#b-collapse').onclick=()=>expandPage(false);
 function renderCurrentCached(){
   if(state.tab==='workflow'){if(workflowReady())renderWorkflow(true);else renderWorkflowUnavailable();}
-  else if(state.tab==='runtime')renderRuntime();
   else if(state.tab==='users'){userAdmin.query=state.viewSearch.users||'';userAdmin.offset=0;loadUsers();}
   else if(state.tab==='queue')renderQueuePane();
   else if(state.tab==='jobs'&&state.jobs){renderJobsNav();renderJobs();}
@@ -120,6 +116,14 @@ $('#b-auto').onclick = ()=>{
 };
 
 async function boot(){
+  try{
+    state.connection=await apiGet('/api/connection');
+    if(state.connection.mode!=='local'){
+      ['users','heartbeat','jobs','groups','telegram-relay'].forEach(id=>$('#tab-'+id)?.classList.add('hide'));
+      const foot=document.querySelector('.nav-foot');
+      if(foot)foot.textContent='通道管理 · 业务功能请使用对端管理台';
+    }
+  }catch{ /* Older log servers keep their original local navigation. */ }
   const narrow=window.matchMedia('(max-width:900px)');
   setListCollapsed(narrow.matches||readPreference('listCollapsed',false));
   narrow.addEventListener('change',event=>setListCollapsed(event.matches||readPreference('listCollapsed',false)));
@@ -134,6 +138,5 @@ renderGroupsPane=preservingPane(renderGroupsPane);
 renderHeartbeatPane=preservingPane(renderHeartbeatPane);
 renderQueuePane=preservingPane(renderQueuePane);
 renderConfigurationPane=preservingPane(renderConfigurationPane);
-renderRuntime=preservingPane(renderRuntime);
 if(workflowReady())renderWorkflow=preservingPane(renderWorkflow);
 boot();

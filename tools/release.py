@@ -7,11 +7,10 @@ import zipfile
 
 ROOT=Path(__file__).resolve().parents[1]
 VERSION='1.0.0'
-ROOT_FILES={'README.md','AGENTS.md','pyproject.toml','requirements.txt','uv.lock','.gitignore',
-            'config.butler.codex.example.toml','config.wxbot.example.toml','config.log.example.toml','config.telegram.example.toml','config.telegram-bot.example.toml'}
+ROOT_FILES={'README.md','AGENTS.md','pyproject.toml','requirements.txt','uv.lock','.gitignore'}
 SOURCE_DIRS={'butler','wxbot','log','common','tests','plugins'}
 SPECIAL={'.agents/plugins/marketplace.json','scripts/setup.ps1','tools/probe_codex.py','tools/release.py',
-         'docs/CODEX_INSTALL.md','docs/CODEX_PROTOCOL.md','docs/CODEX_VERIFICATION.md','docs/NEWS_DELIVERY.md','docs/TELEGRAM_NEWS.md','docs/TELEGRAM_BOT.md','README.wxbot.md'}
+         'docs/MESSAGE_API.md','docs/TELEGRAM_RELAY_SKILL.md','docs/USER_MEMORY.md','docs/CODEX_INSTALL.md','docs/CODEX_PROTOCOL.md','docs/CODEX_VERIFICATION.md','docs/NEWS_DELIVERY.md','docs/TELEGRAM_NEWS.md','docs/TELEGRAM_BOT.md','README.wxbot.md'}
 FORBIDDEN_PARTS={'.venv','__pycache__','.git','.idea','.pytest_cache','data','cache','dist','.superpowers'}
 
 
@@ -27,7 +26,7 @@ def source_files():
         if path.name.endswith('.session') or '.session-' in path.name or path.name.endswith('.session.relay.lock'):
             continue
         if rel.parts[0] not in SOURCE_DIRS and rel.as_posix() not in ROOT_FILES|SPECIAL:continue
-        if path.name.startswith('config.') and path.suffix=='.toml' and not path.name.endswith('.example.toml'):continue
+        if path.name.startswith('config.') and path.suffix=='.toml':continue
         if '.config-backup-' in path.name or path.name.endswith('.edit.lock'):continue
         if rel.parts[0]=='log' and path.name in ('wechat_inbox_restart.py','wechat_inbox_startup.bat'):continue
         if rel.parts[0]=='log' and 'launchers' in rel.parts:continue

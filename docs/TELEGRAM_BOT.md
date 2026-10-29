@@ -10,7 +10,7 @@
 .\.venv\Scripts\python.exe -m butler.telegram_bot init
 ```
 
-编辑项目根目录 `config.telegram-bot.toml`：
+`init` 从代码默认值生成配置，保留已有文件，不复制模板。编辑 `config.telegram-bot.toml`：
 
 ```toml
 [telegram_bot]

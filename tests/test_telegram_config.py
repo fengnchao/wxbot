@@ -39,10 +39,13 @@ def test_invalid_or_empty_source_and_missing_config_are_rejected(tmp_path):
         load(tmp_path / 'missing.toml')
 
 
-def test_template_is_disabled_and_contains_no_credentials():
+def test_generated_defaults_are_disabled_and_contain_no_credentials(tmp_path):
     from butler.telegram.config import load
-    root = Path(__file__).resolve().parents[1]
-    cfg = load(root / 'config.telegram.example.toml')
+    import tomlkit
+    from butler.defaults import telegram_defaults
+    path = tmp_path / 'config.telegram.toml'
+    path.write_text(tomlkit.dumps(telegram_defaults()), encoding='utf-8')
+    cfg = load(path)
     assert cfg.enabled is False
     assert not cfg.api_id and not cfg.api_hash
 

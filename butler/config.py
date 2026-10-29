@@ -25,6 +25,7 @@ class Config:
     codex_home: str = ''
     codex_plugin: str = ''
     codex_model: str = ''
+    codex_api_key: str = field(default='', repr=False)
     codex_timeout: int = 600
     codex_max_workers: int = 2
     codex_idle_seconds: int = 600
@@ -137,8 +138,8 @@ def load(path: str | os.PathLike | None = None) -> Config:
     p = Path(path) if path else DEFAULT_CONFIG
     raw: dict = {}
     if p.exists():
-        with open(p, "rb") as fh:
-            raw = tomllib.load(fh)
+        with open(p, "r", encoding="utf-8-sig") as fh:
+            raw = tomllib.loads(fh.read())
 
     srv = raw.get("server") or {}
     h = raw.get("hermes") or {}
@@ -162,6 +163,9 @@ def load(path: str | os.PathLike | None = None) -> Config:
         raise ValueError('context.group_messages must be an integer from 1 to 200')
     if type(context_characters)is not int or not 1<=context_characters<=30000:
         raise ValueError('context.group_characters must be an integer from 1 to 30000')
+    from .directory import DirectoryContactMap, directory_path, directory_enabled
+    contacts = (DirectoryContactMap(directory_path(p, raw))
+                if directory_enabled(p, raw) else load_contacts(raw.get("contacts")))
     return Config(
         reply_chunk_chars=chunk_chars,
         group_context_messages=context_messages,group_context_characters=context_characters,
@@ -169,6 +173,7 @@ def load(path: str | os.PathLike | None = None) -> Config:
         data_dir=str(agent.get('data_dir') or 'data'),
         codex_home=str(codex.get('home') or ''), codex_plugin=str(codex.get('plugin_root') or ''),
         codex_model=str(codex.get('model') or ''), codex_timeout=max(1,int(codex.get('timeout',600))),
+        codex_api_key=str(codex.get('api_key') or ''),
         codex_max_workers=max(1,min(8,int(codex.get('max_workers',2)))),
         codex_idle_seconds=max(1,int(codex.get('idle_seconds',600))),
         host=str(srv.get("host") or "127.0.0.1"),
@@ -194,7 +199,7 @@ def load(path: str | os.PathLike | None = None) -> Config:
         heartbeat_audit_file=str(hb.get("audit_file") or "").strip(),
         heartbeat_min_interval_minutes=max(1, int(hb.get("min_interval_minutes") or 180)),
         heartbeat_max_interval_minutes=max(1, int(hb.get("max_interval_minutes") or 360)),
-        contacts=load_contacts(raw.get("contacts")),
+        contacts=contacts,
     )
 
 

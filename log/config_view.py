@@ -194,11 +194,16 @@ class ConfigView:
         self._sources, self._raw, self._secrets = [], {}, set()
         wx = self._load('wxbot','wxbot 配置',self.wxbot_path)
         bt = self._load('butler','Butler 配置',self.butler_path)
+        from log.directory_view import load_directory, directory_section, MOVED_WX
+        directory=load_directory(self,wx,bt)
+        mode=(wx.get('installation') or {}).get('mode','local')
         model = wx.get('model') or {}
         backend = model.get('backend','ollama') if isinstance(model,dict) else 'ollama'
         model_defaults = {'backend':'ollama','max_history':10,'system_prompt':''}
-        if backend in ('openai','hermes'):
+        if backend in ('openai','hermes','responses','openclaw'):
             model_defaults.update(url='http://127.0.0.1:8642/v1/chat/completions',model='hermes-agent',timeout=300,api_key='')
+        elif backend=='cursor':
+            model_defaults.update(executable='agent',work_dir='data/cursor',model='',api_key='',timeout=600)
         elif backend not in ('butler','echo'):
             model_defaults.update(url='http://localhost:11434/api/chat',model='qwen2.5:7b',timeout=120)
         effective = merge(WX_DEFAULTS,{'model':model_defaults})
@@ -211,6 +216,9 @@ class ConfigView:
                 rows=[]
                 default_keys={key for key,value in leaves(merge(WX_DEFAULTS,{'model':model_defaults}) if source=='wxbot' else BT_DEFAULTS)}
                 for path,value in paths({group:values}):
+                    if directory is not None and ((source=='butler' and path==('contacts',)) or
+                        (source=='wxbot' and (path in MOVED_WX or path[:3]==('wechat','group_sender','member_names')))):
+                        continue
                     key='.'.join(path)
                     rows.append({'key':source+'.'+key,'value':self.sanitize(value,key),
                                  'origin':'file' if key in raw_keys else 'default',
@@ -222,6 +230,7 @@ class ConfigView:
                         rows[-1]['description']+=' 此值包含隐藏内容；修改时请填写完整的新值，不能保存星号占位。'
                 sections.append({'id':source+'.'+group,'title':('wxbot' if source=='wxbot' else 'Butler')+' · '+group,
                                  'source_id':source,'source':str(self.wxbot_path if source=='wxbot' else self.butler_path),'rows':rows})
+        if directory is not None:sections.append(directory_section(self,directory))
         sections.append({'id':'wxbot.typing','title':'微信输入与分句（代码固定规则）',
                          'source':str(self.root/'wxbot'/'wechat'/'typing.py'),
                          'rows':[{'key':'wxbot.typing.'+key,'value':value,'origin':'code','sensitive':False} for key,value in
@@ -272,7 +281,7 @@ class ConfigView:
                 data=self._load(name,title,path,kind='json')
                 dynamic_sources.append((name,title,path,data))
                 warnings.append(title+'与 Butler 来源不同，已分别列出，请核对服务的 home / 配置路径。')
-        for name,title,path,data in dynamic_sources:
+        for name,title,path,data in (dynamic_sources if mode=='local' else []):
             if not data:data={'users':{}} if name in {'policies','log_policies'} else {'groups':{}}
             rows=[]
             for key,value in paths(data):
@@ -316,6 +325,7 @@ class ConfigView:
                 if source and source['status']=='error':row['editable']=False
         # Run the final whole payload through the scrubber: a secret may also occur in a path or a harmless field.
         payload={'read_only':False,'runtime_verified':False,'at':time.time(),'sources':self._sources,'sections':sections,'warnings':warnings,
+                 'connection':{'mode':mode,'business_tools':mode=='local','local_butler':mode=='local'},
                  'note':'按来源文件保存修改；保存不等于运行服务已加载。页面逐项标明生效方式，不自动重启任何服务。密钥原值不会回显。'}
         self._catalog=deepcopy(payload)  # Writer authorization uses server metadata, never scrubbed display strings.
         safe=self.scrub(payload)
@@ -341,7 +351,7 @@ class ConfigView:
         queue = cfg.get('queue') or {}
         bot = cfg.get('bot') or {}
         name = str(queue.get('database','cache/wxbot_queue.sqlite3'))
-        path = name if name==':memory:' else str(Path(name) if Path(name).is_absolute() else self.root/name)
+        path = name if name==':memory:' else str(Path(name) if Path(name).is_absolute() else self.wxbot_path.resolve().parent/name)
         return {'path':path,'quiet':float(queue.get('quiet_seconds',3)),
                 'failure_timeout_seconds':queue.get('failure_discard_seconds',FAILURE_TIMEOUT_SECONDS),
                 'max_wait':float(queue.get('max_wait_seconds',10)),'prefix':bot.get('command_prefix','/')}

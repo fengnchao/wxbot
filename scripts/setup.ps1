@@ -13,8 +13,7 @@ try {
         & .\.venv\Scripts\python.exe -m pip install -r requirements.txt
     }
     if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
-    & .\.venv\Scripts\python.exe -m butler init
+    & .\.venv\Scripts\python.exe -m butler setup
     if ($LASTEXITCODE -ne 0) { throw 'Initialization failed.' }
-    Write-Output 'Next: .\.venv\Scripts\python.exe -m butler login'
-    Write-Output 'Then: .\.venv\Scripts\python.exe -m butler doctor'
+    Write-Output '使用上面安装向导提供的登录、诊断和启动命令。已有安装可运行 python -m butler migrate 升级用户目录。'
 } finally { Pop-Location }

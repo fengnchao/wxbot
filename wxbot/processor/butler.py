@@ -57,11 +57,11 @@ class ButlerProcessor(Processor):
         return data['seq']
 
     def handle_reply(self, contact: str, text: str, *, request_id=None, member_key="", member_name="",
-                     avatar='', group_context_seq=None) -> Reply:
+                     avatar='', group_context_seq=None,channel_type='dm') -> Reply:
         started = time.monotonic()
         record('wxbot_butler','started')
         try:
-            channel_type = "group" if member_key else "dm"
+            channel_type = "group" if member_key or channel_type=='group' else "dm"
             body = {"contact": contact, "text": text, "channel_type": channel_type}
             if member_key:
                 body["member_key"] = member_key

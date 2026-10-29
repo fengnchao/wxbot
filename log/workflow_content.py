@@ -43,6 +43,13 @@ def read_content(queue_path, telegram_config, record_id):
                 text = text.replace(token,'[密钥已隐藏]')
             return {'id':record_id, 'kind':'telegram',
                     'text':text, 'reply_text':''}
+        from wxbot.queue_history import has_history,read_record,deletable
+        if not inbox and has_history(db):
+            history=db.execute('SELECT finished_at FROM workflow_dismissed WHERE record_id=?',(record_id,)).fetchone()
+            if history:
+                history_kind,item,children=read_record(db,record_id)
+                if item is not None and deletable(history_kind,item,children) and history['finished_at']==(item['finished_at'] or item['created_at'] or 0):
+                    return None
         if inbox:
             row = db.execute('SELECT text FROM inbox WHERE id=?', numbers).fetchone()
             kind = 'inbox'

@@ -39,6 +39,8 @@ class Router:
         if context:
             text = f"{context}\n{text}"
         extra = {}
+        if context.startswith('[群聊发言人：') or member_key:
+            extra['channel_type']='group'
         if avatar:
             extra['avatar'] = avatar
         if group_context_seq is not None:

@@ -34,7 +34,7 @@ LABELS={
  'reply_delay_min':('最短回复等待（秒）','完整回复进入发件箱后的随机等待下限。'),
  'reply_delay_max':('最长回复等待（秒）','随机等待上限，不得小于下限。'),
  'command_prefix':('命令前缀','以此前缀开头的消息按命令处理。'),
- 'database':('收发队列文件','相对路径按项目目录解析；切换文件会切换查看和运行的队列。'),
+ 'database':('收发队列文件','相对路径按对应配置文件所在目录解析；切换文件会切换查看和运行的队列。'),
  'quiet_seconds':('连续消息合并间隔（秒）','最后一条消息后等待多久再合并提交。'),
  'max_wait_seconds':('最长合并等待（秒）','连续发言时单批允许等待的最长时间。'),
  'confirm_timeout':('发送确认等待（秒）','回车后等待新增自己消息气泡的时间。'),
@@ -45,7 +45,7 @@ LABELS={
  'chunk_size':('每批粘贴字数','每次输入到微信输入框的字符数。'),
  'chunk_interval':('分批粘贴间隔（秒）','两批正文输入之间的等待时间。'),
  'enabled':('启用','开启或关闭此功能。'),
- 'backend':('模型后端','butler、hermes、openai、ollama 或 echo。'),
+ 'backend':('模型后端','butler、hermes、openai、responses、openclaw、cursor、ollama 或 echo。更换协议时请同步设置对应连接字段。'),
  'max_history':('历史消息数量','提交模型时保留的历史条数。'),
  'system_prompt':('系统提示词','发送给模型的系统提示内容。'),
  'mode':('微信监听模式','main=主窗口，independent=独立聊天窗口。'),
@@ -106,7 +106,7 @@ def row_metadata(source,path,value,*,default_available=False):
             '保存后立即用于后续分组读取' if source in {'groups','log_groups'} else
             '保存后需自行重启 '+{'wxbot':'wxbot','butler':'Butler','log_config':'log'}.get(source,source))
     choices={('butler','agent','provider'):['codex','hermes'],
-             ('wxbot','model','backend'):['butler','hermes','openai','ollama','echo'],
+             ('wxbot','model','backend'):['butler','hermes','openai','responses','openclaw','cursor','ollama','echo'],
              ('wxbot','queue','restart_chat_policy'):['discard','resume'],
              ('wxbot','wechat','mode'):['main','independent']}.get((source,*path))
     widget='contacts' if source=='butler' and tuple(path)==('contacts',) else (
@@ -138,7 +138,7 @@ def validate_value(path,value,reference):
         if not valid:raise ValueError(name+' 必须是有效的HTTP/HTTPS地址，凭据请填独立密钥项')
     if key in {'bound_users','bound_groups','mention_names','allowed_skills'} or (path[0]=='groups' and isinstance(value,list)):
         if any(not isinstance(v,str) or not v.strip() for v in value):raise ValueError(name+' 必须是非空字符串列表')
-    if key=='backend' and value not in {'butler','hermes','openai','ollama','echo'}:raise ValueError('模型后端无效')
+    if key=='backend' and value not in {'butler','hermes','openai','responses','openclaw','cursor','ollama','echo'}:raise ValueError('模型后端无效')
     if key=='provider' and value not in {'codex','hermes'}:raise ValueError('模型运行时无效')
     if key=='max_workers' and not 1<=value<=8:raise ValueError('Codex 最大进程数范围为1–8')
     if key=='idle_seconds' and value<=0:raise ValueError('空闲回收时间必须为正数')

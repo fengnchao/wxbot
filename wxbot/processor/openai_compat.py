@@ -1,53 +1,122 @@
-"""
-OpenAI 兼容接口处理器：用于 Hermes Agent（hermes gateway 开启 API Server 后），
-也适用于任何 /v1/chat/completions 兼容的服务（LM Studio、vLLM、Ollama 的 /v1 等）。
-按联系人保存对话上下文（仅内存）。
-"""
+"""Non-streaming, complete-result-only OpenAI-compatible conversation transport."""
+import hashlib
+import uuid
+import sqlite3
+from pathlib import Path
 import requests
-
-from ..log import log
 from .base import Processor
+from ..reply import Reply
 
 
 class OpenAICompatProcessor(Processor):
     def __init__(self, mcfg: dict, *, raise_errors=False):
         self.raise_errors = raise_errors
-        self.url = mcfg.get("url", "http://127.0.0.1:8642/v1/chat/completions")
-        self.model = mcfg.get("model", "hermes-agent")
-        self.api_key = mcfg.get("api_key", "")
-        self.timeout = mcfg.get("timeout", 300)
-        self.max_history = mcfg.get("max_history", 10)
-        self.system_prompt = mcfg.get("system_prompt", "")
-        self.histories: dict[str, list[dict]] = {}
+        self.backend = mcfg.get('backend', 'openai')
+        self.url = mcfg.get('url', 'http://127.0.0.1:8642/v1/chat/completions')
+        self.model = mcfg.get('model', 'hermes-agent')
+        self.agent = mcfg.get('agent', 'default')
+        self.api_key = mcfg.get('api_key', '')
+        self.timeout = mcfg.get('timeout', 300)
+        self.max_history = max(1, int(mcfg.get('max_history', 10)))
+        self.system_prompt = mcfg.get('system_prompt', '')
+        self.histories = {}
+        self.epochs = {}
+        self.session_ids = {}
+        self.session_state = mcfg.get('session_state') if self.backend in ('hermes', 'openclaw') else None
 
-    def reset(self, contact: str, *, channel_type='dm', member_key="") -> None:
-        self.histories.pop(contact, None)
+    def _state_id(self, key):
+        return hashlib.sha256(repr((self.backend, self.url, self.agent, key)).encode('utf-8')).hexdigest()
 
-    def handle(self, contact: str, text: str) -> str | None:
-        history = self.histories.setdefault(contact, [])
-        history.append({"role": "user", "content": text})
-        messages = ([{"role": "system", "content": self.system_prompt}] if self.system_prompt else []) + history
-        headers = {"Content-Type": "application/json"}
+    def _state(self, key, *, save=False):
+        if not self.session_state:
+            return
+        path = Path(self.session_state)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with sqlite3.connect(path, timeout=30) as db:
+            db.execute('CREATE TABLE IF NOT EXISTS sessions (scope TEXT PRIMARY KEY, epoch TEXT NOT NULL, sid TEXT NOT NULL)')
+            if save:
+                db.execute('INSERT INTO sessions VALUES (?, ?, ?) ON CONFLICT(scope) DO UPDATE SET epoch=excluded.epoch,sid=excluded.sid',
+                           (self._state_id(key), self.epochs.get(key, ''), self.session_ids.get(key, '')))
+            else:
+                row = db.execute('SELECT epoch,sid FROM sessions WHERE scope=?', (self._state_id(key),)).fetchone()
+                if row:
+                    self.epochs[key] = row[0]
+                    if row[1]:
+                        self.session_ids[key] = row[1]
+                    else:
+                        self.session_ids.pop(key, None)
+
+    def _key(self, contact, channel_type):
+        return (channel_type, contact)
+
+    def _memory_scope(self, key):
+        digest = hashlib.sha256(key[1].encode('utf-8')).hexdigest()
+        return f'wxbot:{key[0]}:{digest}'
+
+    def _session(self, key):
+        self._state(key)
+        return self._memory_scope(key) + self.epochs.get(key, '')
+
+    def reset(self, contact, *, channel_type='dm', member_key='', **kwargs):
+        key = self._key(contact, channel_type)
+        self.histories.pop(key, None)
+        self.session_ids.pop(key, None)
+        self.epochs[key] = ':' + uuid.uuid4().hex
+        self._state(key, save=True)
+
+    def handle(self, contact, text):
+        return self.handle_reply(contact, text).text
+
+    def _request(self, messages, key, request_id):
+        headers = {'Content-Type': 'application/json'}
         if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        try:
-            resp = requests.post(
-                self.url,
-                headers=headers,
-                json={"model": self.model, "messages": messages, "stream": False},
-                timeout=self.timeout,
-            )
-            resp.raise_for_status()
-            reply = (resp.json()["choices"][0]["message"].get("content") or "").strip()
-        except Exception as e:
-            history.pop()
-            log.error("智能体调用失败: %s", e)
-            if self.raise_errors:
-                raise
-            return "抱歉，我这边暂时出了点问题，稍后再试。"
-        if not reply:
-            history.pop()
-            return None
-        history.append({"role": "assistant", "content": reply})
-        del history[:-self.max_history * 2]
-        return reply
+            headers['Authorization'] = f'Bearer {self.api_key}'
+        model = self.model
+        if self.backend == 'openclaw':
+            model = f'openclaw/{self.agent}'
+            headers.update({'x-openclaw-agent-id': self.agent,
+                            'x-openclaw-session-key': self._session(key)})
+        elif self.backend == 'hermes':
+            headers['X-Hermes-Session-Key'] = self._memory_scope(key)
+            headers['X-Hermes-Session-Id'] = self.session_ids.get(key, self._session(key))
+            if request_id is not None:
+                headers['Idempotency-Key'] = hashlib.sha256(
+                    (self._session(key) + ':' + str(request_id)).encode()).hexdigest()
+        body = {'model': model, 'messages': messages, 'stream': False}
+        if self.backend in ('hermes', 'openclaw'):
+            body['messages'] = [m for m in messages if m['role'] == 'system'] + [messages[-1]]
+        return headers, body
+
+    def _decode(self, data):
+        if not isinstance(data, dict) or data.get('error'):
+            raise ValueError('Model returned an error')
+        choices = data.get('choices')
+        if not isinstance(choices, list) or len(choices) != 1:
+            raise ValueError('Expected one complete model choice')
+        choice = choices[0]
+        if choice.get('finish_reason') != 'stop':
+            raise ValueError('Model reply is incomplete')
+        message = choice.get('message', {})
+        if message.get('tool_calls') or message.get('function_call'):
+            raise ValueError('Unresolved model tool request')
+        reply = message.get('content')
+        if not isinstance(reply, str) or not reply.strip():
+            raise ValueError('Model reply has no final text')
+        return reply.strip()
+
+    def handle_reply(self, contact, text, *, request_id=None, member_key='', member_name='', **kwargs):
+        key = self._key(contact, 'group' if member_key or kwargs.get('channel_type') == 'group' else 'dm')
+        history = self.histories.get(key, [])
+        messages = ([{'role':'system','content':self.system_prompt}] if self.system_prompt else []) + history + [{'role':'user','content':text}]
+        headers, body = self._request(messages, key, request_id)
+        # Errors propagate in every mode: a failed turn must never become a delivered reply.
+        response = requests.post(self.url, headers=headers, json=body, timeout=self.timeout)
+        response.raise_for_status()
+        reply = self._decode(response.json())
+        if self.backend == 'hermes':
+            echoed = getattr(response, 'headers', {}).get('X-Hermes-Session-Id')
+            if echoed:
+                self.session_ids[key] = echoed
+                self._state(key, save=True)
+        self.histories[key] = (history + [{'role':'user','content':text}, {'role':'assistant','content':reply}])[-self.max_history*2:]
+        return Reply.from_text(reply)

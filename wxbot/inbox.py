@@ -55,7 +55,8 @@ class MainInbox:
             queue_database(cfg), failure_timeout_seconds=qcfg.get('failure_discard_seconds', 180),
             retry_delay_seconds=qcfg.get('retry_delay_seconds',20),
             max_delivery_retries=qcfg.get('max_delivery_retries',2),
-            restart_chat_policy=qcfg.get('restart_chat_policy','discard'))
+            restart_chat_policy=qcfg.get('restart_chat_policy','discard'),
+            directory_path=cfg.get('_directory_path'))
         self.trace = FlowTrace(queue_trace_path(self.store.path),log.info)
         self.chats, self.snapshots, self.pending = {}, {}, {}
         self.session_previews = {}
@@ -422,6 +423,13 @@ class MainInbox:
         return max(0.1, float(self.bot.get('poll_interval', 1.5)))
 
     def poll(self, *, allow_switch=False):
+        if self.cfg.get('_directory_path'):
+            from butler.directory import DirectoryStore
+            projection = DirectoryStore(self.cfg['_directory_path']).channel_projection()
+            self.bot.update(projection.get('bot', {}))
+            self.groups = set(self.bot.get('bound_groups', []))
+            self.bound = set(self.bot.get('bound_users', [])) | self.groups
+            self.listen_all = projection.get('wechat', {}).get('main_window', {}).get('listen_all', True)
         connected = self.desktop.available()
         if connected != self._connected:
             self._connected = connected

@@ -27,8 +27,11 @@ from .inbox import mentioned_text as _mentioned_text, run_main_inbox
 
 
 def build_processor(cfg: dict) -> Router:
-    mcfg = cfg.get("model", {})
+    mcfg = dict(cfg.get("model", {}))
     backend = mcfg.get("backend", "ollama")
+    if cfg.get('_config_dir') and backend in ('hermes', 'openclaw'):
+        from pathlib import Path
+        mcfg.setdefault('session_state', str(Path(cfg['_config_dir']) / 'data' / 'agent_sessions.sqlite3'))
     raise_errors = cfg.get("wechat", {}).get("mode", "main") == "main"
     if backend == "echo":
         model = EchoProcessor()
@@ -36,6 +39,20 @@ def build_processor(cfg: dict) -> Router:
         model = ButlerProcessor(cfg.get("butler", {}), raise_errors=raise_errors)
     elif backend in ("hermes", "openai"):
         model = OpenAICompatProcessor(mcfg, raise_errors=raise_errors)
+    elif backend == "openclaw":
+        model = OpenAICompatProcessor(mcfg, raise_errors=raise_errors)
+    elif backend == "responses":
+        from .processor.responses import ResponsesProcessor
+        model = ResponsesProcessor(mcfg, raise_errors=raise_errors)
+    elif backend == "cursor":
+        from pathlib import Path
+        from .processor.cursor import CursorProcessor
+        cursor_cfg = dict(mcfg)
+        if cursor_cfg.get('work_dir') and not Path(cursor_cfg['work_dir']).is_absolute():
+            cursor_cfg['work_dir'] = str(Path(cfg.get('_config_dir', '.')) / cursor_cfg['work_dir'])
+        model = CursorProcessor(cursor_cfg, raise_errors=raise_errors)
+    elif backend != "ollama":
+        raise ValueError(f"Unsupported model backend: {backend}")
     else:
         model = OllamaProcessor(mcfg, raise_errors=raise_errors)
     return Router(model, cfg["bot"].get("command_prefix", "/"))
@@ -151,7 +168,14 @@ def run() -> None:
                 context = (f"[群聊发言人：{m.sender_name or '未知成员'}; "
                            f"member_id={m.sender_key or 'unknown'}]"
                            if name in group_names else "")
-                reply = router.handle(name, text, context=context)
+                try:
+                    reply = router.handle(name, text, context=context,
+                                          member_key=m.sender_key or '',member_name=m.sender_name or '')
+                except Exception as exc:
+                    # Keep polling other conversations; exception text can contain
+                    # remote response data or credentials and is not a chat reply.
+                    log.error('[独立窗口] 模型请求失败，跳过本条：%s',type(exc).__name__)
+                    continue
                 if not reply:
                     log.info("[%s] （本条判定不回复）", name)
                     continue

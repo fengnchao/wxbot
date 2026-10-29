@@ -54,7 +54,7 @@ Hermes 专属数据路径和重启说明仅适用于显式启用的旧后端。
 - 整数/数值、布尔、文本及JSON使用对应输入控件；列表、联系人与映射支持JSON编辑。联系人名称须无首尾空格且唯一，uid须ASCII。隐藏会话模板按原名称或唯一稳定身份保留，身份合并有歧义时要求明确新值。角色与工具修改会检查Hermes技能目录与butler-role标签，白名单不能加入角色Skill。
 - 每次仅保存一个来源文件，保留TOML注释和未改项。先校验类型、范围和关联参数，再在原文件旁生成 `原文件名.config-backup-时间-随机ID`，临时文件写好后原子替换。备份与配置含凭据，已加入Git忽略。版本过期返回409，原文件不被覆盖；校验失败返回400。保存动作不会调用模型或发送微信。
 - `wxbot` 文件参数需自行重启wxbot；`Butler` 文件参数（包括Hermes调用地址）需自行重启Butler；角色/工具白名单/心跳开关与分组在后续读取时使用。心跳间隔仍由Butler启动配置控制。不会自动重启任何服务。
-- log自己的设置保存在项目 `config.log.toml`，模板为 `config.log.example.toml`，可在 **log · 启动配置** 页首次保存创建。修改后自行重启log；`LOG_CONFIG`可指定其他位置。命令行 `--host/--port/--home`、环境变量 `HERMES_HOME/WXBOT_CONFIG/BUTLER_CONFIG/BUTLER_GROUP_FILE` 优先于文件，运行参数区可查看当前值。`start.bat`使用保存的默认设置，不再硬编码端口/home。
+- log自己的设置保存在项目 `config.log.toml`，由 `python -m butler setup`／`init` 从代码默认值生成，也可在 **log · 启动配置** 页首次保存创建。修改后自行重启log；`LOG_CONFIG`可指定其他位置。命令行 `--host/--port/--home`、环境变量 `HERMES_HOME/WXBOT_CONFIG/BUTLER_CONFIG/BUTLER_GROUP_FILE` 优先于文件，运行参数区可查看当前值。`start.bat`使用保存的默认设置，不再硬编码端口/home。
 - 新增运行参数：`wechat.typing.chunk_size`（1–100，默认5）、`wechat.typing.chunk_interval`（0.05–10秒，默认0.5）、`queue.failure_discard_seconds`（1–86400秒，默认180）。失败期限始终从首次failed_at计算，已失败任务在重启后也使用新的期限。
 - 保存接口为 `POST /api/configuration`：请求头 `X-Wxbot-Config-Action: 1` 与JSON；请求体 `{source, version, changes:[{path:[实际键路径], op:set|clear|default, value}], acknowledge:true}`。仅允许服务器已登记来源/字段，浏览器不能指定任意写入路径；受可信Host、同源与文件版本检查保护。`clear`只适用于敏感项，`default`只适用于有默认值的项。协议标识不参与值脱敏，防密钥恰好等于字段名称时改写保存路径。
 - 配置编辑依赖 `tomlkit`，统一依赖清单已包含。更新后用户自行重启log显示新页面；使用新的输入/失败参数前需自行重启wxbot。Hermes进程自身监听端口由Hermes启动配置管理，本页的Hermes地址是调用目标。

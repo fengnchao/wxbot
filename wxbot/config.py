@@ -95,9 +95,24 @@ def validate_runtime_config(cfg):
 def load_config(path: str | Path | None = None) -> dict:
     path = Path(path or os.environ.get('WXBOT_CONFIG') or ROOT / "config.wxbot.toml")
     if not path.exists():
-        raise FileNotFoundError(f"找不到配置文件 {path}，请先复制 config.wxbot.example.toml 为 config.wxbot.toml")
-    with open(path, "rb") as f:
-        cfg = tomllib.load(f)
+        raise FileNotFoundError(f"找不到配置文件 {path}，请先运行 python -m butler setup 安装引导")
+    with open(path, "r", encoding="utf-8-sig") as f:
+        cfg = tomllib.loads(f.read())
+    cfg['_config_path'] = str(path.resolve())
+    cfg['_config_dir'] = str(path.resolve().parent)
+    from butler.directory import DirectoryStore, directory_path, directory_enabled
+    if directory_enabled(path, cfg):
+        shared = DirectoryStore(directory_path(path, cfg))
+        projection = shared.channel_projection()
+        cfg['_directory_path'] = str(shared.path)
+        for section, values in projection.items():
+            target = cfg.setdefault(section, {})
+            for key, value in values.items():
+                if isinstance(value, dict):
+                    target.setdefault(key, {}).update(value)
+                else:
+                    target[key] = value
+        cfg.setdefault('wechat', {})['_directory_path'] = str(shared.path)
     validate_runtime_config(cfg)
     bot = cfg.setdefault("bot", {})
     qcfg = cfg.setdefault('queue', {})
@@ -114,6 +129,15 @@ def load_config(path: str | Path | None = None) -> dict:
     validate_group_reply_chance(bot["group_reply_chance"])
     validate_emoji_chance(bot["emoji_chance"])
     wechat = cfg.setdefault("wechat", {})
+    wechat.setdefault('window_class', 'mmui::ChatSingleWindow')
+    for key,default in {
+        'message_list': {'control_type':'ListControl','automation_id':'chat_message_list'},
+        'input': {'control_type':'EditControl','automation_id':'chat_input_field'},
+        'text_item': {'class_name':'mmui::ChatTextItemView'},
+    }.items():
+        # An explicit selector replaces the default as a whole; mixing selector
+        # fields could make a valid custom WeChat version impossible to match.
+        wechat.setdefault(key,default)
     mode = wechat.setdefault("mode", "main")
     if mode not in {"main", "independent"}:
         raise ValueError("[wechat].mode 必须是 main 或 independent")

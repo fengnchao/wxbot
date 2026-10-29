@@ -74,6 +74,8 @@ class WorkflowView:
                 UNION ALL SELECT 'batch',id,contact,COALESCE(finished_at,created_at),seq,state='done' FROM batches
                 UNION ALL SELECT 'push',id,contact,COALESCE(finished_at,created_at),seq,state IN ('sent','skipped')
                 FROM outbox WHERE batch_id IS NULL"""
+            from wxbot.queue_history import visible_selection
+            selection=visible_selection(db,selection)
             totals = dict(db.execute('SELECT terminal,COUNT(*) FROM ('+selection+') GROUP BY terminal'))
             rows = db.execute('SELECT * FROM ('+selection+') WHERE terminal=0 ORDER BY seq,kind,id LIMIT ?',
                               (self.ACTIVE_LIMIT,)).fetchall()
@@ -92,6 +94,11 @@ class WorkflowView:
                 issues=scalar("SELECT COUNT(*) FROM batches b WHERE state IN ('blocked','uncertain') AND NOT EXISTS (SELECT 1 FROM outbox o WHERE o.batch_id=b.id)")+
                        scalar("SELECT COUNT(*) FROM outbox WHERE state IN ('blocked','uncertain')"),
                 sent=scalar("SELECT COUNT(*) FROM outbox WHERE state='sent'"))
+            result['counts']['closed_issues']=scalar("""SELECT COUNT(*) FROM ("""+selection+""") q WHERE terminal=1 AND (
+                kind='push' AND EXISTS(SELECT 1 FROM outbox o WHERE o.id=q.id AND o.state='skipped') OR
+                kind='batch' AND EXISTS(SELECT 1 FROM batches b WHERE b.id=q.id AND (
+                    EXISTS(SELECT 1 FROM outbox o WHERE o.batch_id=b.id AND o.state='skipped') OR
+                    b.reply_complete=0 AND b.reply_mode NOT IN ('none','emoji') AND NOT EXISTS(SELECT 1 FROM outbox o WHERE o.batch_id=b.id))))""")
         except (sqlite3.Error, ValueError, OSError) as exc:
             result.update(status='error', error='工作流数据读取失败（'+type(exc).__name__+'）', messages=[], counts={})
         finally:
@@ -186,4 +193,8 @@ class WorkflowView:
                 flow[key] = reason.get(key)
         # Do not expose command paths or unrelated historical blockers on the overview.
         flow['reason'] = {k:v for k,v in flow.get('reason',{}).items() if k in ('code','message','record_id','error')}
+        from wxbot.queue_history import deletable,version
+        flow['can_delete']=deletable(kind,item,deliveries)
+        flow['delete_version']=version(kind,item,deliveries) if flow['can_delete'] else ''
+        flow['delete_reason']='消息仍在处理或投递，暂不能删除' if not flow['can_delete'] else ''
         return flow

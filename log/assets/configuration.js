@@ -114,7 +114,7 @@ async function saveConfigurationSource(sourceId){
   try{changes=configurationChanges(draft);}
   catch(error){state.cMessages.set(sourceId,{text:error.message,error:true});if(state.tab==='configuration')renderConfigurationPane();return;}
   const summary=Array.from(draft.changes.values(),c=>`${c.row.label||c.row.key}（${c.row.key}）：${c.op==='default'?'恢复默认':c.op==='clear'?'清空密钥':'修改'}\n  生效：${c.row.effect||'按来源服务的配置规则生效'}`).join('\n');
-  if(!confirm(`保存 ${source.title||source.id} · ${source.path||''}\n\n${summary}\n\n保存后的生效与重启要求见以上提示。确认保存本文件的 ${changes.length} 项更改？`))return;
+  if(!confirm(`保存 ${source.title||source.id}\n\n${summary}\n\n保存后的生效与重启要求见以上提示。确认保存 ${changes.length} 项更改？`))return;
   state.cBusy.add(sourceId);state.cMessages.delete(sourceId);
   if(state.tab==='configuration')renderConfigurationPane();
   let saved=false;
@@ -139,6 +139,7 @@ function configurationMatches(section,row){
   return !q||[section.title,section.source,row.key,row.label,row.description,row.effect,row.sensitive?'':JSON.stringify(row.value)].join(' ').toLowerCase().includes(q);
 }
 const CONFIG_CATEGORIES=[['basic','基础连接'],['wechat','微信收发'],['model','模型后端'],['contacts','联系人与策略'],['logging','日志'],['advanced','高级配置']];
+const CONFIG_HIDDEN_SECTIONS=new Set(['log','log.flow_trace','wxbot.typing','wxbot.failure_policy']);
 function configuredBackend(){
   const rows=(state.cdata?.sections||[]).flatMap(s=>s.rows);
   return rows.find(r=>r.key==='butler.agent.provider')?.value||'hermes';
@@ -151,7 +152,7 @@ function compatibilityConfiguration(section,row){
 function configurationCategory(section,row){
   const id=section.id||'',key=row.key||'';
   if(!row.editable||compatibilityConfiguration(section,row))return 'advanced';
-  if(['policies','log_policies','groups','log_groups'].includes(section.source_id)||key.startsWith('butler.contacts'))return 'contacts';
+  if(['directory','policies','log_policies','groups','log_groups'].includes(section.source_id)||key.startsWith('butler.contacts'))return 'contacts';
   if(id==='log_config'||id==='butler.log')return 'logging';
   if(['butler.codex','butler.hermes','wxbot.model'].includes(id))return 'model';
   if(['wxbot.butler','butler.server','butler.agent'].includes(id))return 'basic';
@@ -160,7 +161,7 @@ function configurationCategory(section,row){
   return 'advanced';
 }
 function configurationSections(){
-  const raw=state.cdata?.sections||[];
+  const raw=(state.cdata?.sections||[]).filter(s=>!CONFIG_HIDDEN_SECTIONS.has(s.id));
   return raw.map(s=>({...s,rows:s.rows.filter(r=>configurationMatches(s,r)&&(state.cSearch.trim()||state.cSection==='all'||state.cSection===s.id||configurationCategory(s,r)===state.cSection))})).filter(s=>s.rows.length);
 }
 function configurationStructuredControl(row,raw,index,jsonControl,disabled){
@@ -175,7 +176,7 @@ function configurationStructuredControl(row,raw,index,jsonControl,disabled){
     form=`<div class="list-editor">${values.map((v,i)=>`<div class="row"><input type="text" data-c-list="${index}" data-item="${i}" value="${esc(v)}" aria-label="${esc(row.label)} ${i+1}" ${disabled}><button data-c-remove="${index}" data-item="${i}" ${disabled}>移除</button></div>`).join('')}</div><button data-c-add="${index}" ${disabled}>添加一项</button>`;
   }else{
     const labels={name:'微信会话名称',uid:'唯一用户 ID',label:'显示名称',profile:'Profile',channel_type:'会话类型'};
-    form=`<div class="contact-editor">${values.map((contact,i)=>`<div class="contact-row">${Object.entries(labels).map(([key,label])=>`<label>${label}${key==='channel_type'?`<select data-c-contact="${index}" data-item="${i}" data-field="${key}" aria-label="联系人 ${i+1} ${label}" ${disabled}><option value="private" ${contact[key]!=='group'?'selected':''}>私聊</option><option value="group" ${contact[key]==='group'?'selected':''}>群聊</option></select>`:`<input type="text" data-c-contact="${index}" data-item="${i}" data-field="${key}" aria-label="联系人 ${i+1} ${label}" value="${esc(contact[key]||'')}" ${disabled}>`}</label>`).join('')}<div class="contact-actions"><button data-c-remove="${index}" data-item="${i}" ${disabled}>移除此联系人</button></div></div>`).join('')}</div><button data-c-add="${index}" ${disabled}>添加联系人</button>`;
+    form=`<div class="contact-editor">${values.map((contact,i)=>`<div class="contact-row">${Object.entries(labels).map(([key,label])=>`<label>${label}${key==='channel_type'?`<select data-c-contact="${index}" data-item="${i}" data-field="${key}" aria-label="联系人 ${i+1} ${label}" ${disabled}><option value="dm" ${contact[key]!=='group'?'selected':''}>私聊</option><option value="group" ${contact[key]==='group'?'selected':''}>群聊</option></select>`:`<input type="text" data-c-contact="${index}" data-item="${i}" data-field="${key}" aria-label="联系人 ${i+1} ${label}" value="${esc(contact[key]||'')}" ${disabled}>`}</label>`).join('')}<div class="contact-actions"><button data-c-remove="${index}" data-item="${i}" ${disabled}>移除此联系人</button></div></div>`).join('')}</div><button data-c-add="${index}" ${disabled}>添加联系人</button>`;
   }
   return form+`<details data-detail="json:${esc(row.key)}"><summary>高级 JSON 编辑</summary>${jsonControl}</details>`;
 }
@@ -195,11 +196,11 @@ function bindConfigurationStructuredControls(editors){
     el.oninput=handler;el.onchange=handler;
   });
   $('#pane').querySelectorAll('[data-c-remove]').forEach(el=>el.onclick=()=>change(Number(el.dataset.cRemove),values=>values.splice(Number(el.dataset.item),1),true));
-  $('#pane').querySelectorAll('[data-c-add]').forEach(el=>el.onclick=()=>change(Number(el.dataset.cAdd),(values,row)=>values.push(row.widget==='contacts'?{name:'',uid:'',profile:'default',channel_type:'private'}:''),true));
+  $('#pane').querySelectorAll('[data-c-add]').forEach(el=>el.onclick=()=>change(Number(el.dataset.cAdd),(values,row)=>values.push(row.widget==='contacts'?{name:'',uid:'',profile:'default',channel_type:'dm'}:''),true));
 }
 function renderConfigurationNav(){
-  const rows=(state.cdata?.sections||[]).flatMap(s=>s.rows.map(r=>({s,r})));
-  $('#list').innerHTML=CONFIG_CATEGORIES.concat([['all','全部参数']]).map(([id,title])=>`<div class="user ${state.cSection===id?'sel':''}" data-c-category="${id}"><div class="nm">${title}</div><div class="st">${rows.filter(({s,r})=>(id==='all'||configurationCategory(s,r)===id)&&configurationMatches(s,r)).length} 项${id==='advanced'?' · 兼容配置 / 运行诊断':''}</div></div>`).join('');
+  const rows=(state.cdata?.sections||[]).filter(s=>!CONFIG_HIDDEN_SECTIONS.has(s.id)).flatMap(s=>s.rows.map(r=>({s,r})));
+  $('#list').innerHTML=CONFIG_CATEGORIES.concat([['all','全部参数']]).map(([id,title])=>`<div class="user ${state.cSection===id?'sel':''}" data-c-category="${id}"><div class="nm">${title}</div><div class="st">${rows.filter(({s,r})=>(id==='all'||configurationCategory(s,r)===id)&&configurationMatches(s,r)).length} 项${id==='advanced'?' · 兼容配置':''}</div></div>`).join('');
   $('#list').querySelectorAll('[data-c-category]').forEach(el=>el.onclick=()=>{
     state.cSection=el.dataset.cCategory;panePositions.delete('configuration');renderConfigurationNav();renderConfigurationPane();$('#pane').scrollTop=0;
   });
@@ -214,10 +215,10 @@ function renderConfigurationPane(){
       const status=configurationStatus(s.id),editable=!!s.version;
       return `<div data-c-source="${i}" class="source-actions ${state.cDrafts.has(s.id)?'dirty':''} ${state.cMessages.has(s.id)?'has-message':''} ${s.status==='error'?'source-error':''}"><strong>${esc(s.title)}</strong>
         <div class="config-actions">${editable?`<button data-c-save="${i}" class="wx" ${s.status!=='error'&&state.cDrafts.has(s.id)&&!state.cBusy.has(s.id)?'':'disabled'}>保存此文件</button><button data-c-cancel="${i}" ${state.cDrafts.has(s.id)&&!state.cBusy.has(s.id)?'':'disabled'}>取消更改</button>`:''}<span data-c-status="${i}" class="config-status ${status.error?'warn':''}">${esc(s.status==='error'?s.error:status.text)}</span></div>
-        <details data-detail="source:${esc(s.id)}"><summary>来源文件</summary><code>${esc(s.path)}</code></details></div>`;
+        </div>`;
     }).join('');
   $('#pane').innerHTML=`<div class="head"><h2>${state.cSearch.trim()?'配置搜索结果':esc(CONFIG_CATEGORIES.find(([id])=>id===state.cSection)?.[1]||'全部配置')}</h2><div class="monitor-note">${esc(d.note)}</div>
-    <details data-detail="config-help"><summary>保存与生效说明</summary><div class="monitor-note">按来源文件保存。自动刷新会保留草稿；离开分类或标签页后仍可继续编辑。密钥原值不会回传，请明确选择替换或清空。环境变量与启动命令行可能覆盖文件值，实际生效以运行参数和下方提示为准。配置草稿只在当前页面内存中保存，刷新浏览器会丢失。</div></details>
+    <p class="monitor-note">修改后点击保存；生效方式见各项提示。刷新页面会丢失未保存的修改。</p>
     ${state.cSection==='contacts'?'<div class="hbnote">角色、允许的 Skill 与心跳统一在 <button data-open-role>角色与心跳</button> 维护；分组在 <button data-open-groups>用户分组</button> 维护。下方保留底层参数入口。</div>':''}
     <button id="c-reload" ${state.cBusy.size?'disabled':''}>重新载入配置</button><span class="monitor-source"> 有草稿时会确认放弃更改</span>
     ${state.cError?`<div class="monitor-note warn">${esc(state.cError)}</div>`:''}
@@ -254,7 +255,7 @@ function renderConfigurationPane(){
             if(draft?.op==='default')control+='<div class="monitor-source">待保存：恢复默认值</div>';
           }
           return `<div class="config-field"><div><div class="config-label">${esc(r.label||r.key.split('.').at(-1))}</div>${r.description?`<div class="monitor-note">${esc(r.description)}</div>`:''}${r.effect?`<div class="monitor-source">生效：${esc(r.effect)}</div>`:''}
-            <details data-detail="field:${esc(r.key)}"><summary>参数来源与默认值</summary><code>${esc(r.key)}</code><div class="monitor-source">${esc(s.source)} · ${esc(ORIGIN_LABELS[r.origin]||r.origin)}${!editable?' · 只读':''}</div>${r.default_available?'<div class="monitor-source">支持恢复默认，保存后由来源服务重新读取默认值。</div>':''}</details></div><div class="config-control">${control}${r.sensitive?'<div class="monitor-source">密钥已隐藏</div>':''}</div></div>`;
+</div><div class="config-control">${control}${r.sensitive?'<div class="monitor-source">密钥已隐藏</div>':''}</div></div>`;
         }).join('')+`</${advanced?'details':'div'}>`;
     }).join('');
   if(!sections.some(s=>s.rows.some(r=>configurationMatches(s,r)))){

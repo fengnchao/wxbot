@@ -96,3 +96,35 @@ body.workflow-page #pane{padding:20px 25px 45px;background:radial-gradient(ellip
 @media(max-width:950px){.wf-layout{grid-template-columns:1fr}.wf-sidebar{position:static}.wf-feed{grid-template-columns:repeat(2,minmax(0,1fr));max-height:500px}.wf-stats{gap:8px}.wf-inspect{max-height:none}}
 @media(max-width:600px){body.workflow-page #pane{padding:15px 10px 35px}.wf-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.wf-stats>div{padding:9px}.wf-stats span{font-size:10px}.wf-top>div{gap:6px}.wf-top{align-items:start}.wf-top button{font-size:10px}.wf-queue-pair{gap:10px}.wf-queue-pair .wf-service-icon{display:none}.wf-queue-pair .wf-node-label p{font-size:9px}.wf-queue-pair .wf-node-messages{padding:0 6px 8px}.wf-row-sub{display:block}.wf-row-sub>span{display:block}.wf-summary-row{padding:8px}.wf-hub-row>.wf-node{width:68%;min-width:210px}.wf-wire-label{font-size:9px;padding:0 2px}.wf-band-queues .left,.wf-band-wechat .left{right:77%}.wf-band-queues .right,.wf-band-wechat .right{left:77%}.wf-feed{grid-template-columns:1fr}.wf-legend>span{margin-left:0}.wf-section-heading>span{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.wf-node,.wf-packet{animation:none!important;transition:none}.wf-wire.wf-pulse .wf-wire-line{filter:none}}
+/* Message history is primary; the service graph is an optional overview. */
+.wf-stats{grid-template-columns:repeat(6,minmax(0,1fr))}
+.wf-overview{padding:0;border:1px solid #2b3d49;border-radius:10px;margin-bottom:18px;overflow:hidden;background:#14212a}
+#wf-overview{display:flex;gap:16px;align-items:center;width:100%;padding:12px 16px;text-align:left;background:transparent;border:0;color:#c1d4dd;font-size:12px}
+#wf-overview span{font-size:11px;color:#7897a8}
+.wf-overview .wf-canvas{padding:12px 20px 18px;max-width:1050px;margin:auto}
+.wf-overview .wf-service-model{min-height:0!important}
+.wf-overview .wf-service-model .wf-node-messages{min-height:0;max-height:140px}
+.wf-overview .wf-service-model .wf-service-empty{padding:8px}
+.wf-overview .wf-queue-pair>.wf-node{min-height:0}
+.wf-overview .wf-queue-pair .wf-node-messages{height:auto;min-height:35px;max-height:120px}
+.wf-overview .wf-entry-row{min-height:120px}
+.wf-overview .wf-wire-band{height:44px}
+.wf-sidebar{position:static;padding:18px 20px}
+.wf-sidebar .wf-section-heading{margin-bottom:12px;flex-wrap:wrap}
+.wf-sidebar .wf-section-heading>span{margin-right:auto}
+#wf-clear-failed{font-size:11px;color:#c5aa94}
+.wf-tabs{justify-content:flex-start;gap:8px}.wf-tabs button{flex:none;min-width:100px;padding:8px 12px}
+.wf-message-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:start}
+.wf-message-layout.has-selection{grid-template-columns:minmax(320px,1.1fr) minmax(360px,1fr)}
+.wf-feed{display:flex;flex-direction:column;gap:8px;max-height:70vh;overflow:auto;min-width:0}
+.wf-card{display:flex;min-width:0;align-items:stretch;gap:6px}
+.wf-message{flex:1;min-width:0;padding:10px 13px}
+.wf-message-head strong{font-size:13px}.wf-message-head>span{font-size:11px}
+.wf-preview{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-height:1.6;margin:4px 0 0;font-size:12px}
+.wf-message .wf-error{margin-top:4px;font-size:11px;white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.wf-delete{flex:none;align-self:center;padding:7px 9px;font-size:11px;background:transparent;color:#a78d7b;border-color:#4a3d34}
+.wf-delete:disabled,#wf-clear-failed:disabled{opacity:.45;cursor:default}
+.wf-inspect{margin:0;max-height:70vh;padding:15px;min-width:0}
+.wf-action-notice{font-size:12px;color:#d7bc98;margin:8px 0 12px}
+@media(max-width:950px){.wf-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.wf-message-layout.has-selection{grid-template-columns:minmax(0,1fr)}.wf-inspect{grid-row:1;max-height:55vh}.wf-feed{max-height:65vh}.wf-sidebar{padding:14px}.wf-tabs{flex-wrap:wrap}.wf-tabs button{min-width:0;flex:1}}
+@media(max-width:600px){#wf-overview{display:block}#wf-overview span{display:block;margin-top:5px}.wf-message-head{flex-wrap:wrap;gap:3px}.wf-overview .wf-canvas{padding:8px}.wf-overview .wf-node-label p{display:none}.wf-tabs{gap:3px}.wf-tabs button{padding:7px 5px}.wf-delete{padding:7px}.wf-stats strong{font-size:21px}}

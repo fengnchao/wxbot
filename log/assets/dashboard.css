@@ -276,8 +276,6 @@ details[open]>summary{color:var(--fg)}
 .flow-list li:before{content:'';position:absolute;left:-11px;top:19px;width:7px;height:7px;border-radius:50%;background:var(--fg3)}
 .flow-list li.ok:before{background:var(--wx)}.flow-list li.error:before{background:var(--warn)}
 .flow-list time{font-size:11px}.flow-meta{margin:4px 0}
-.diagnostic{background:#131a21;border-radius:8px;padding:9px 12px;margin-top:14px}
-.diagnostic summary{font-size:12px}
 .segmented{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 20px}
 .segmented button{padding:8px 16px}.segmented .on{background:#223b50;border-color:#43617d}
 .pagination{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:-7px 0 26px;font-size:12px;color:var(--fg3)}

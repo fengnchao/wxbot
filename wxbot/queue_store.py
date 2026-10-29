@@ -31,7 +31,8 @@ def queue_database(cfg):
     if value == ":memory:":
         return value
     path = Path(value)
-    return path if path.is_absolute() else ROOT / path
+    base = Path(cfg["_config_path"]).parent if cfg.get("_config_path") else ROOT
+    return path if path.is_absolute() else base / path
 
 
 @dataclass(frozen=True)
@@ -88,12 +89,14 @@ class Delivery:
 
 class QueueStore(DeliveryPolicy):
     def __init__(self, path, *, access="runtime", failure_timeout_seconds=FAILURE_TIMEOUT_SECONDS,
-                 retry_delay_seconds=RETRY_DELAY_SECONDS, max_delivery_retries=MAX_DELIVERY_RETRIES, restart_chat_policy='discard'):
+                 retry_delay_seconds=RETRY_DELAY_SECONDS, max_delivery_retries=MAX_DELIVERY_RETRIES, restart_chat_policy='discard', directory_path=None):
         from . import queue_schema
         if access not in {"runtime", "readonly", "admin"}:
             raise ValueError("无效队列访问模式")
         if restart_chat_policy not in {'discard', 'resume'}:
             raise ValueError('无效的聊天重启恢复策略')
+        from butler.directory import DirectoryStore
+        self.directory = DirectoryStore(directory_path) if directory_path else None
         self.restart_chat_policy = restart_chat_policy
         self.failure_timeout_seconds = validate_failure_timeout(failure_timeout_seconds)
         self.retry_delay_seconds = float(retry_delay_seconds)
@@ -169,6 +172,8 @@ class QueueStore(DeliveryPolicy):
                 self._owner_file = None
 
     def group_member_name(self, contact, member_key):
+        if self.directory is not None:
+            return self.directory.member_name(contact, member_key)
         with self._lock:
             row = self._db.execute(
                 "SELECT name FROM group_member_names WHERE contact=? AND member_key=?",
@@ -192,6 +197,9 @@ class QueueStore(DeliveryPolicy):
                 ORDER BY id DESC LIMIT 500''')]
 
     def remember_group_member(self, contact, member_key, name, *, now):
+        if self.directory is not None:
+            self.directory.observe_member(contact, member_key, name)
+            return
         with self._transaction() as db:
             db.execute("""INSERT INTO group_member_names VALUES(?,?,?,?)
                 ON CONFLICT(contact,member_key) DO UPDATE SET name=excluded.name,updated_at=excluded.updated_at""",
@@ -412,6 +420,10 @@ class QueueStore(DeliveryPolicy):
     def delete_unsent(self, *, now=None, source='log'):
         from .queue_cleanup import delete_unsent
         return delete_unsent(self, now=time.time() if now is None else now, source=source)
+
+    def delete_workflow_history(self,payload,*,now=None):
+        from .queue_history import delete
+        return delete(self,payload,now=now)
 
     def enqueue_delivery(self, contact, text, *, now, received_at=None):
         with self._transaction() as db:

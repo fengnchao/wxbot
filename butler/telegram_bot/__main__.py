@@ -61,7 +61,9 @@ def main():
             else:
                 path.parent.mkdir(parents=True, exist_ok=True)
                 with path.open('x', encoding='utf-8') as output:
-                    output.write((ROOT / 'config.telegram-bot.example.toml').read_text(encoding='utf-8'))
+                    import tomlkit
+                    from butler.defaults import telegram_bot_defaults
+                    output.write(tomlkit.dumps(telegram_bot_defaults()))
                 print('已生成配置，请在本机填写 token 和 allowed_user_ids：' + str(path))
         elif args.command == 'status':
             print(json.dumps(status(path), ensure_ascii=False, indent=2))

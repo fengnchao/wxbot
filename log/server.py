@@ -38,6 +38,7 @@ import argparse
 import datetime
 import hashlib
 import json
+from pathlib import Path
 import os
 import re
 import sqlite3
@@ -107,9 +108,20 @@ def butler_config_path():
 def _load_butler_config():
     try:
         with open(butler_config_path(), "rb") as fh:
-            return tomllib.load(fh)
+            config=tomllib.load(fh)
+        from butler.directory import DirectoryStore,directory_path,directory_enabled
+        if directory_enabled(butler_config_path(),config):
+            config['contacts']=DirectoryStore(directory_path(butler_config_path(),config)).contact_rows()
+        config['_connection']={'mode':dashboard_mode()}
+        return config
     except Exception as exc:
         raise RuntimeError(f"无法读取 Butler 配置（{type(exc).__name__}）") from None
+
+
+def dashboard_mode():
+    path=Path(wxbot_config_path())
+    wx=tomllib.loads(path.read_text(encoding='utf-8-sig')) if path.exists() else {}
+    return (wx.get('installation') or {}).get('mode','local')
 
 
 def load_butler_contacts():
@@ -146,6 +158,8 @@ def heartbeat_audit_path(home, config):
 
 def trigger_butler_heartbeat(contact, config):
     """Use Butler's server token locally; its credential never reaches the browser."""
+    if (config.get('_connection') or {}).get('mode','local')!='local':
+        raise ValueError('当前模式的心跳由对端管理台维护')
     server = config.get("server") or {}
     host = "127.0.0.1"  # The bearer token is sent only over the local loopback interface.
     port = int(server.get("port") or 8770)
@@ -310,6 +324,8 @@ def fetch_hermes_skills(contact, config):
 
 
 def fetch_butler_data(config,path):
+    if (config.get('_connection') or {}).get('mode','local')!='local':
+        raise ValueError('当前接入方式不提供本地 Butler 业务管理，请使用对端管理台')
     server=config.get('server') or {}
     request=Request(f"http://127.0.0.1:{int(server.get('port') or 8770)}"+path,
         headers={'Authorization':'Bearer '+str(server.get('token') or ''),'Accept':'application/json'})
@@ -797,6 +813,11 @@ def load_wxbot_contacts():
             cfg = tomllib.load(fh)
     except Exception:
         cfg = {}
+    from butler.directory import DirectoryStore,directory_path,directory_enabled
+    if directory_enabled(wxbot_config_path(),cfg):
+        store=DirectoryStore(directory_path(wxbot_config_path(),cfg))
+        cfg['contacts']=store.contact_rows()
+        cfg.setdefault('bot',{}).update(store.channel_projection().get('bot',{}))
     for c in (cfg.get("contacts") or []):
         name = str(c.get("name") or "").strip()
         if not name:
@@ -1421,6 +1442,16 @@ class Handler(BaseHTTPRequestHandler):
             return one(k, "") in ("1", "true", "yes", "on")
 
         try:
+            if p=='/api/connection':
+                mode=dashboard_mode()
+                self._json({'mode':mode,'local_butler':mode=='local','business_tools':mode=='local',
+                            'note':'外部服务的用户、记忆和心跳请在对端管理台维护' if mode!='local' else ''})
+                return
+            business_paths={'/api/users','/api/users/memory','/api/users/audit','/api/runtime',
+                            '/api/jobs','/api/groups','/api/heartbeat-config','/api/heartbeat-status','/api/skills','/api/telegram-relay'}
+            if p in business_paths and dashboard_mode()!='local':
+                self._json({'error':'当前接入方式的业务功能由对端管理台维护','available':False},503)
+                return
             if p == "/":
                 with open(os.path.join(HERE, "index.html"), "r", encoding="utf-8") as fh:
                     self._send(200, fh.read(), "text/html; charset=utf-8")
@@ -1429,7 +1460,7 @@ class Handler(BaseHTTPRequestHandler):
             if p.startswith('/assets/'):
                 name=p.removeprefix('/assets/')
                 allowed={'dashboard.css','common.js','messages.js','jobs.js','groups.js',
-                         'heartbeat.js','queue.js','configuration.js','runtime.js','workflow.js','workflow.css','users.js','telegram_relay.js','app.js'}
+                         'heartbeat.js','queue.js','configuration.js','workflow.js','workflow.css','users.js','telegram_relay.js','app.js'}
                 if name not in allowed:
                     self._send(404,'Not found','text/plain; charset=utf-8')
                     return
@@ -1647,6 +1678,31 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         p = u.path.rstrip("/") or "/"
         try:
+            business_paths={'/api/users','/api/jobs/delete','/api/heartbeat-trigger','/api/heartbeat-config','/api/groups',
+                            '/api/news-config','/api/telegram-relay','/api/telegram-relay/resolve'}
+            if p in business_paths and dashboard_mode()!='local':
+                self._json({'error':'当前接入方式的业务功能由对端管理台维护','available':False},503)
+                return
+            if p=='/api/workflow-delete':
+                if not self._confirmed_origin('X-Wxbot-Workflow-Action'):
+                    self._json({'error':'删除记录仅接受当前页面的确认请求'},403);return
+                from log.workflow_history import WorkflowHistory,WorkflowConflict
+                try:
+                    view=self._config_view();view.read()
+                    self._json(WorkflowHistory(view.queue_options()['path']).delete(self._body()))
+                except WorkflowConflict as exc:self._json({'error':str(exc)},409)
+                except (ValueError,TypeError) as exc:self._json({'error':str(exc)},400)
+                except (OSError,sqlite3.Error):self._json({'error':'工作流记录暂不可删除，请刷新后重试'},503)
+                return
+            if p=='/api/jobs/delete':
+                if not self._confirmed_origin('X-Wxbot-Job-Action'):
+                    self._json({'error':'任务删除仅接受当前页面的确认请求'},403);return
+                from log.job_admin import request_job_delete
+                try:
+                    status,payload=request_job_delete(_load_butler_config(),self._body())
+                    self._json(payload,status)
+                except (ValueError,TypeError):self._json({'error':'任务删除请求无效，请刷新列表后重试'},400)
+                return
             if p == '/api/telegram-relay/resolve':
                 if not self._confirmed_origin('X-Wxbot-Relay-Action'):
                     self._json({'error': '任务核对仅接受当前页面的确认请求'}, 403)

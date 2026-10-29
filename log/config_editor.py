@@ -2,6 +2,7 @@
 from contextlib import contextmanager
 from copy import deepcopy
 import json
+import hashlib
 import os
 from pathlib import Path
 import tempfile
@@ -23,11 +24,18 @@ class ConfigConflict(ValueError):
     """The browser's file version is no longer current."""
 
 
+def edit_lock_path(path):
+    target=Path(path).resolve()
+    identity=os.path.normcase(str(target))
+    digest=hashlib.sha256(identity.encode('utf-8')).hexdigest()
+    return target.parent/'data'/'cache'/'config-locks'/(digest+'.lock')
+
+
 @contextmanager
 def config_lock(path):
     """Serialize dashboard writers, including the existing role/group editors."""
     with _LOCK:
-        lockpath=Path(str(path)+'.edit.lock')
+        lockpath=edit_lock_path(path)
         lockpath.parent.mkdir(parents=True,exist_ok=True)
         with lockpath.open('a+b') as fh:
             if fh.tell()==0:fh.write(b'\0');fh.flush()
@@ -180,6 +188,9 @@ class ConfigEditor:
         source=payload.get('source');version=payload.get('version');changes=payload.get('changes')
         if not isinstance(source,str) or not isinstance(version,str) or not isinstance(changes,list) or not 1<=len(changes)<=200:
             raise ValueError('配置修改请求格式无效')
+        if source=='directory':
+            from log.directory_view import save_directory
+            return save_directory(self.view,payload)
         self.view.read()
         entry=next((s for s in self.view._sources if s['id']==source),None)
         if entry is None or entry['status']=='error' or not entry.get('path'):raise ValueError('配置来源不可编辑')

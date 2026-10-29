@@ -1,6 +1,6 @@
-# Butler + wxbot + Codex
+# Butler + wxbot
 
-Windows 微信机器人：wxbot 负责收发与持久队列，Butler 负责用户、权限、记忆、心跳和提醒，Codex 负责角色对话与工具调用。
+Windows 微信机器人：wxbot 负责收发与持久队列，Butler 负责用户、权限、记忆、心跳和提醒，可选择本机 Codex 或已有智能体／模型 API。
 
 ## 安装
 
@@ -12,23 +12,26 @@ codex plugin add butler-wechat@butler-wechat-plugins
 git clone <本仓库的Git地址> butler-wxbot
 cd butler-wxbot
 .\scripts\setup.ps1
-.\.venv\Scripts\python.exe -m butler login
 .\.venv\Scripts\python.exe -m butler doctor
 ```
 
-要求 Windows、Python 3.14+、已登录的微信和可用的 Codex 账户。登录在使用者自己的机器人环境完成。
-初始化生成本机 Token，默认空联系人、空绑定、关闭心跳；不会导入 Hermes 数据或覆盖现有配置。
+要求 Windows、Python 3.14+、已登录的微信；选择本机 Codex 时需要可用的本人账户，并按向导提示运行 `python -m butler login`。
+安装脚本进入 `python -m butler setup` 交互向导，选择接入方式、地址、端口和机器人昵称，确认后写入本机配置。
+支持 Codex、Hermes、OpenClaw、Cursor、DeepSeek、已有 Butler、自定义 Chat Completions／Responses。
+默认值来自代码，不需要复制配置模板。`python -m butler init` 保留为非交互、幂等初始化；两者均保留已有配置，不复制其他安装的数据。
 
 ## 运行
 
 ```powershell
-.\.venv\Scripts\python.exe -m log.server --open
-.\.venv\Scripts\python.exe -m butler.server
-.\.venv\Scripts\python.exe -m wxbot.main
+.\.venv\Scripts\python.exe -m butler start
 ```
 
-在 log 的「配置管理」设置机器人昵称、联系人，再在「角色与心跳」绑定角色和允许的 Skill。
-配置完成后按页面提示自行重启。全部服务停止时，也可用 `python -m butler start` 一次启动。
+`start` 按 `config.wxbot.toml` 的 `[installation].mode` 启动：`local` 启动 Butler、log、wxbot；
+`external` 和 `direct` 启动 log、wxbot。端口被占用时保留已有进程，不自动重启。
+在 log 的「配置管理」维护机器人昵称、监听名单、联系人和群昵称；共享目录保存在 `data/business.sqlite3`。
+本机 Codex 模式可绑定角色、允许的 Skill 和心跳；直接模型模式不提供 Butler 记忆、提醒及业务工具。
+外部 Butler 模式只通过配置的消息接口调用服务；本机管理台关闭远端账户、记忆与心跳管理，请使用远端自己的管理台。
+既有安装先备份配置与数据，运行 `python -m butler migrate`；[升级说明](docs/CODEX_INSTALL.md) 包含迁移和路径规则。
 
 ## 结构
 
@@ -60,7 +63,7 @@ cd butler-wxbot
 .\.venv\Scripts\python.exe tools\release.py
 ```
 
-发布包排除真实配置、认证、聊天数据和旧 Hermes 运维脚本。源码保留旧接口；当前配置没有
-`agent.provider` 时继续使用 Hermes，新增安装由 init 默认选择 Codex。
+发布包包含代码默认值、安装向导和接口文档，排除全部配置 TOML、认证、聊天数据和旧 Hermes 运维脚本。源码保留旧接口；当前配置没有
+`agent.provider` 时继续使用 Hermes，非交互 init 默认选择 Codex；setup 由使用者选择接入方式。
 
 微信 UI 自动化需要可访问的主窗口及未锁屏的电脑，不同版本可能需要校准控件。实际微信收发请由使用者确认后验证。

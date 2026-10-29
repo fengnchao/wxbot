@@ -8,7 +8,7 @@
 
 先确认现有 [Telegram Bot 接收器](TELEGRAM_BOT.md) 已按本机账号配置，使用同一个机器人和现有新闻消息分组。无需新增个人 Telegram API 凭据，也不启动第二个轮询接收器。
 
-在 Butler 配置所在目录，将 [config.telegram-relay.example.toml](../config.telegram-relay.example.toml) 复制为 `config.telegram-relay.toml`，或在 log 的「Telegram 转发」页面保存配置。示例的 `enabled=false`、`include_images=false`、空管理员和空频道不会开启监听或图片投递。配置文件缺失同样保持关闭。
+在 log 的「Telegram 转发」页面保存配置，在 Butler 配置所在目录创建 `config.telegram-relay.toml`，不需要复制模板。默认 `enabled=false`、`include_images=false`、空管理员和空频道，不开启监听或图片投递；配置文件缺失同样保持关闭。
 
 | 设置 | 用途 |
 |---|---|

@@ -10,6 +10,8 @@ class _NoRedirect(HTTPRedirectHandler):
         return None
 
 def request_user_admin(config, path, payload=None):
+    if (config.get('_connection') or {}).get('mode','local')!='local':
+        return 503, {'error':'此接入方式的用户和记忆管理请在对端管理台操作'}
     if urlsplit(path).path not in ('/v1/users', '/v1/users/memory', '/v1/users/audit'):
         return 400, {'error': '未知用户接口'}
     server = config.get('server') or {}

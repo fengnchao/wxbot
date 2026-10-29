@@ -32,8 +32,26 @@ function jobCard(j){
     <div class="t"><span class="nm">${esc(j.name)}</span><span class="jbadge ${st[1]}">${st[0]}</span></div>
     <div class="kv">${rows.map(r=>`<span class="l">${r[0]}</span><span class="v">${r[1]}</span>`).join('')}</div>
     ${j.prompt ? `<details><summary>prompt 摘要</summary><div class="pre">${esc(j.prompt)}</div></details>` : ''}
-    <details data-detail="job:${esc(j.job_id)}"><summary>任务详情</summary><div class="foot"><span>job ${esc(j.job_id)}</span><span>profile ${esc(j.profile)}</span></div></details>
+    <div class="queue-actions"><button class="discard" data-job-delete="${esc(j.job_id)}" data-job-profile="${esc(j.profile)}" ${!j.can_delete||state.jobDeleting?'disabled':''} title="${esc(j.can_delete?'删除后不再执行':j.delete_reason||'此任务由其他调度器管理，请到对应调度器删除')}">${state.jobDeleting===j.job_id?'删除中…':'删除'}</button></div>
   </div>`;
+}
+
+async function deleteJob(job){
+  if(state.jobDeleting)return;
+  if(!job.can_delete){state.jobError=job.delete_reason||'此任务请到对应调度器删除';renderJobs();return;}
+  if(!confirm(`删除定时任务“${job.name}”？\n删除后不再执行，已经发送的消息不会撤回。`))return;
+  state.jobDeleting=job.job_id;state.jobError='';state.jobMessage='';++state.jRequest;renderJobs();
+  let deleted=false;
+  try{
+    const response=await fetch('/api/jobs/delete',{method:'POST',headers:{'Content-Type':'application/json','X-Wxbot-Job-Action':'1'},
+      body:JSON.stringify({job_id:job.job_id,version:job.delete_version,acknowledge:true})});
+    const data=await response.json();
+    if(!response.ok||!data.ok)throw new Error(data.error||'删除失败，请刷新任务状态');
+    state.jobMessage=`已删除定时任务“${job.name}”`;deleted=true;
+  }catch(error){state.jobError=error.message||'删除请求失败，请刷新确认任务状态';}
+  finally{state.jobDeleting='';}
+  if(state.tab!=='jobs')return;
+  if(deleted)await loadJobs();else renderJobs();
 }
 
 const jVisible = j => (state.jobShowDone || j.ui_state !== 'done')&&matchesQuery(j.name,j.uid,j.deliver,j.ui_state,j.last_error,j.job_id);
@@ -48,7 +66,7 @@ const jStats = jobs => ({
 async function loadJobs(){
   const request=++state.jRequest;
   try{const data=await get('/api/jobs');if(request!==state.jRequest||state.tab!=='jobs')return;state.jobs=data;}
-  catch(error){if(state.tab==='jobs')$('#pane').innerHTML=`<div class="empty warn">${esc(error.message||error)}</div>`;return;}
+  catch(error){if(state.tab==='jobs'&&request===state.jRequest)$('#pane').innerHTML=`<div class="empty warn">${esc(error.message||error)}</div>`;return;}
   if(state.tab!=='jobs') return;
   renderJobsNav();
   renderJobs();
@@ -85,16 +103,17 @@ function renderJobsNav(){
 
 function renderJobs(){
   const d = state.jobs;
-  if(!d){ $('#pane').innerHTML='<div class="empty">载入中…</div>'; return; }
+  const feedback=`${state.jobError?`<p class="warn" role="alert">${esc(state.jobError)}</p>`:''}${state.jobMessage?`<p class="monitor-note" role="status">${esc(state.jobMessage)}</p>`:''}`;
+  if(!d){ $('#pane').innerHTML=feedback+'<div class="empty">载入中…</div>'; return; }
   const secs = (state.jobUid==='all' ? d.users : d.users.filter(u=>u.uid===state.jobUid)).slice().sort((a,b)=>a.name.localeCompare(b.name,'zh-CN'));
-  if(!secs.length){ $('#pane').innerHTML='<div class="empty">没有定时任务</div>'; return; }
+  if(!secs.length){ $('#pane').innerHTML=feedback+'<div class="empty">没有定时任务</div>'; return; }
   const hiddenIn = secs.reduce((a,u)=>a+u.jobs.filter(j=>!jVisible(j)).length, 0);
   if(secs.every(u=>!u.jobs.some(jVisible))){
-    $('#pane').innerHTML = `<div class="empty">没有可显示的任务${
+    $('#pane').innerHTML = feedback+`<div class="empty">没有可显示的任务${
       hiddenIn?` —— ${hiddenIn} 个已完成已隐藏（点上方「显示已完成」查看）`:''}</div>`;
     return;
   }
-  $('#pane').innerHTML = secs.map(u=>{
+  $('#pane').innerHTML = feedback+secs.map(u=>{
     const vjobs = u.jobs.filter(jVisible), st = jStats(vjobs);
     const hidden = u.jobs.length - vjobs.length;
     return `<div class="jsec">
@@ -107,4 +126,8 @@ function renderJobs(){
         : '<div class="empty" style="padding:12px">该组的任务全部已完成（已隐藏）</div>'}
     </div>`;
   }).join('');
+  $('#pane').querySelectorAll('[data-job-delete]').forEach(button=>button.onclick=()=>{
+    const job=d.users.flatMap(u=>u.jobs).find(j=>j.job_id===button.dataset.jobDelete&&j.profile===button.dataset.jobProfile);
+    if(job)deleteJob(job);
+  });
 }

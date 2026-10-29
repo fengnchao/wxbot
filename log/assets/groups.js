@@ -23,7 +23,7 @@ async function loadGroups(){
 function newsConfigCard(){
   const news=state.gdata?.news;
   if(!news)return '<div class="news-settings"><p class="muted">新闻配置接口尚未加载，请手动重启 log 服务后刷新。</p></div>';
-  if(news.error)return `<div class="news-settings"><p class="warn">${esc(news.error)}</p><code>${esc(news.file)}</code></div>`;
+  if(news.error)return `<div class="news-settings"><p class="warn">${esc(news.error)}</p></div>`;
   const values=state.gNewsDraft||news.settings;
   const choices=(items,key)=>items.map(item=>`<label class="news-choice">
     <input type="checkbox" data-news-field="${key}" value="${esc(item.id)}" ${values[key].includes(item.id)?'checked':''} ${state.gNewsBusy?'disabled':''}>
@@ -44,8 +44,7 @@ function newsConfigCard(){
       <span class="news-feedback" role="status">${state.gNewsDraft?'有未保存修改 · ':''}${esc(state.gNewsMessage)}</span></div>
     <p class="warn" id="news-error" role="alert">${esc(state.gNewsError)}</p>
     ${latest?`<div class="news-last">最近执行：${esc(latest.date)} · ${esc(status[latest.status]||latest.status)} · 新闻 ${Number(latest.article_count)||0} 条 · 已完成 ${Number(latest.sent)||0} 人</div>`:''}
-    <details class="diagnostic" data-detail="news-settings-file"><summary>配置文件与生效方式</summary>
-      <code>${esc(news.file)}</code><p>保存后下次任务读取，无需重启 Butler 或 wxbot；不会立即发送新闻。</p></details>
+    <p class="muted">保存后下次新闻任务生效，不会立即发送。</p>
   </section>`;
 }
 
@@ -144,7 +143,7 @@ function renderGroupsPane(){
   const total = d.message_types.reduce((a,t)=>a+t.count, 0);
   const head = `<div class="head">
     <h2>用户分组 · messageType → 绑定用户（群发按此字典投递）
-      </h2><details class="diagnostic" data-detail="groups-source"><summary>诊断详情 · 分组文件</summary><code>${esc(d.file)}</code></details>
+      </h2>
     <div class="kv">
       <span>类型 <b>${d.message_types.length}</b></span>
       <span>绑定合计 <b>${total}</b></span>
