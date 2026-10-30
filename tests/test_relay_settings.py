@@ -1,6 +1,6 @@
 import pytest
 
-from butler.telegram_relay.settings import Settings, SettingsConflict, load
+from butler.channels.telegram.relay.settings import Settings, SettingsConflict, load
 
 
 def test_missing_is_disabled_and_does_not_create_files(tmp_path):

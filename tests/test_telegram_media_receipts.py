@@ -9,8 +9,8 @@ def forwarded(mid=8, source_mid=50):
 
 
 def test_persisted_authorized_update_publishes_bounded_public_source_receipt(tmp_path):
-    from butler.telegram_bot.queue import Queue
-    from butler.telegram_bot.service import persist_update
+    from butler.channels.telegram.bot.queue import Queue
+    from butler.channels.telegram.bot.service import persist_update
     queue = Queue(tmp_path / 'q.db')
     state = tmp_path / 'receiver'
     # Seed public-only older entries; the actual new ingress uses the real queue.
@@ -32,8 +32,8 @@ def test_persisted_authorized_update_publishes_bounded_public_source_receipt(tmp
 
 
 def test_untrusted_and_legacy_updates_never_forge_receipts_and_write_failure_preserves_ingress(tmp_path, monkeypatch):
-    from butler.telegram_bot.queue import Queue
-    import butler.telegram_bot.service as module
+    from butler.channels.telegram.bot.queue import Queue
+    import butler.channels.telegram.bot.service as module
     queue = Queue(tmp_path / 'q.db')
     state = tmp_path / 'receiver'
     msg = forwarded()
@@ -54,8 +54,8 @@ def test_untrusted_and_legacy_updates_never_forge_receipts_and_write_failure_pre
 
 
 def test_duplicate_ingress_never_refreshes_old_forward_receipt_time_or_source(tmp_path):
-    from butler.telegram_bot.queue import Queue
-    from butler.telegram_bot.service import persist_update
+    from butler.channels.telegram.bot.queue import Queue
+    from butler.channels.telegram.bot.service import persist_update
     queue = Queue(tmp_path / 'q.db')
     state = tmp_path / 'receiver'
     msg = forwarded()

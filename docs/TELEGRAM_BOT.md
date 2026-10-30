@@ -7,7 +7,7 @@
 ## 本机配置
 
 ```powershell
-.\.venv\Scripts\python.exe -m butler.telegram_bot init
+.\.venv\Scripts\python.exe -m butler.channels.telegram.bot init
 ```
 
 `init` 从代码默认值生成配置，保留已有文件，不复制模板。编辑 `config.telegram-bot.toml`：
@@ -28,7 +28,7 @@ proxy_url = "" # 如需要，可填 http://127.0.0.1:本机HTTP代理端口
 ## IDE 启动
 
 1. 自行重启 Butler，加载新的 `/v1/telegram/inbox` 接口。wxbot / log 无需重启。
-2. 新建 Python 运行配置，选择 **模块名** `butler.telegram_bot`；参数 `run`；工作目录为项目根目录；解释器使用项目 `.venv`。
+2. 新建 Python 运行配置，选择 **模块名** `butler.channels.telegram.bot`；参数 `run`；工作目录为项目根目录；解释器使用项目 `.venv`。
 3. 环境变量可设置 `PYTHONIOENCODING=utf-8`。
 
 仅更新基础文字收件时，自行重载 Telegram 接收器。首次使用可选图文路径需自行重载 Butler、wxbot、接收器和 log；配置和校准见上述图文文档。启动后会为已有 `received` 且尚未生成新闻任务的记录补建投递任务。机器人命令（如 `/start`）跳过；图片功能关闭时纯媒体记录标注不支持，不发送空消息。不要手动重置数据库以补发。
@@ -36,7 +36,7 @@ proxy_url = "" # 如需要，可填 http://127.0.0.1:本机HTTP代理端口
 等价终端命令：
 
 ```powershell
-.\.venv\Scripts\python.exe -m butler.telegram_bot run
+.\.venv\Scripts\python.exe -m butler.channels.telegram.bot run
 ```
 
 有需要时在参数末尾添加 `--config 配置文件路径`。启动接收器不会启动 Butler 或 wxbot。Telegram 使用显式 HTTP 代理配置；不会自动读取系统代理环境变量。本机 Butler 请求不走代理。
@@ -56,7 +56,7 @@ proxy_url = "" # 如需要，可填 http://127.0.0.1:本机HTTP代理端口
 只读查看最近 20 条收件和提交状态：
 
 ```powershell
-.\.venv\Scripts\python.exe -m butler.telegram_bot status
+.\.venv\Scripts\python.exe -m butler.channels.telegram.bot status
 ```
 
 `status` 会在本机显示收到的正文/图片说明；不要公开分享包含私人内容的输出。`relay` 是收件提交队列，`butler_received` 是 Butler 真正落盘的消息，`news_plan` 显示新闻展开或跳过原因，`news_delivery` 显示逐人逐段的发送状态（最近 50 条）。收件的 received 不代表微信已发送，新闻任务的 sent 才表示 Butler 确认微信发送成功。

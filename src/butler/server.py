@@ -23,11 +23,11 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, parse_qs
 
-from . import skills
-from .config import Config, load, masked
-from .core import Butler
-from .heartbeat import HeartbeatScheduler
-from .groups import parse_int as _as_int
+from butler.agent import skills
+from butler.config import Config, load, masked
+from butler.agent.core import Butler
+from butler.runtime.heartbeat import HeartbeatScheduler
+from butler.identity.groups import parse_int as _as_int
 
 MAX_BODY = 1 << 20
 
@@ -83,7 +83,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
             path = urlsplit(self.path)
             if path.path=='/v1/telegram-relay/authorize':
                 if not self._authed():return
-                from .telegram.service import read_subscribers
+                from butler.channels.telegram.service import read_subscribers
                 query=parse_qs(path.query)
                 contact=query.get('contact',[''])[0]
                 if set(query)!={'contact'} or len(query['contact'])!=1 or not contact or len(contact)>200:
@@ -94,7 +94,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 self._send(200,{'contact':contact,'allowed':allowed});return
             if path.path.startswith('/v1/media/'):
                 if not self._authed():return
-                from .media import MediaStore
+                from butler.delivery.media import MediaStore
                 try:
                     data,metadata=MediaStore(cfg.data_path()/'media').read(path.path[len('/v1/media/'):])
                 except FileNotFoundError:
@@ -111,7 +111,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 registry = getattr(butler, 'registry', None)
                 if registry is None:
                     self._send(503, {'error': '用户管理仅在 Codex 后端可用'}); return
-                from .user_api import dispatch_user_get
+                from butler.identity.user_api import dispatch_user_get
                 try:
                     self._send(200, dispatch_user_get(registry, path.path, parse_qs(path.query)))
                 except (ValueError, TypeError) as exc:
@@ -150,7 +150,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 if not self._authed():return
                 if cfg.provider!='codex' or getattr(butler,'store',None) is None:
                     self._send(503,{'error':'此任务由其他调度器管理，请到对应调度器删除'});return
-                from .job_admin import delete_job,JobConflict,JobMissing
+                from butler.runtime.job_admin import delete_job,JobConflict,JobMissing
                 try:self._send(200,delete_job(butler.store,self._body()))
                 except JobConflict as exc:self._send(409,{'error':str(exc)})
                 except JobMissing as exc:self._send(404,{'error':str(exc)})
@@ -158,7 +158,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 return
             if self.path=='/v1/media':
                 if not self._authed():return
-                from .media import MediaStore,MAX_BYTES
+                from butler.delivery.media import MediaStore,MAX_BYTES
                 try:
                     length=int(self.headers.get('Content-Length','0'))
                     if not 0<length<=MAX_BYTES:raise ValueError('image size')
@@ -171,8 +171,8 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
             if self.path=='/v1/push/bundle':
                 if not self._authed():return
                 from common.media_bundle import validate_items,validate_request_id
-                from .media import MediaStore
-                from .push import push_bundle_to_wxbot
+                from butler.delivery.media import MediaStore
+                from butler.delivery.push import push_bundle_to_wxbot
                 try:
                     payload=self._body()
                     if not isinstance(payload,dict) or set(payload)!={'contact','items','request_id'}:raise ValueError('bundle fields')
@@ -183,7 +183,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                         if item['kind']=='image':MediaStore(cfg.data_path()/'media').read(item['media_id'])
                 except (ValueError,FileNotFoundError,OSError):
                     self._send(400,{'ok':False,'error':'图文包或图片无效，未提交'});return
-                from .telegram.service import read_subscribers
+                from butler.channels.telegram.service import read_subscribers
                 try:subscribed=contact in read_subscribers(cfg.group_file_path(),database=getattr(cfg,'contact_database',None))
                 except ValueError:
                     self._send(503,{'ok':False,'error':'新闻订阅策略暂不可用，未提交'});return
@@ -193,7 +193,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 self._send(200,{'ok':ok,'detail':detail,'contact':contact,'request_id':request_id});return
             if self.path=='/v1/telegram-relay/resolve':
                 if not self._authed():return
-                from .telegram_relay.store import RelayStore
+                from butler.channels.telegram.relay.store import RelayStore
                 try:
                     payload=self._body()
                     if (not isinstance(payload,dict) or set(payload)!={'id','action','acknowledge'}
@@ -233,8 +233,8 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 registry = getattr(butler, 'registry', None)
                 if registry is None:
                     self._send(503, {'error': '用户管理仅在 Codex 后端可用'}); return
-                from .user_api import dispatch_user_post
-                from .user_registry import VersionConflict
+                from butler.identity.user_api import dispatch_user_post
+                from butler.identity.user_registry import VersionConflict
                 try:
                     self._send(200, dispatch_user_post(registry, self._body()))
                 except VersionConflict as exc:
@@ -245,7 +245,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
             if self.path == '/v1/telegram/inbox':
                 if not self._authed():
                     return
-                from .telegram_bot.inbox import accept
+                from butler.channels.telegram.bot.inbox import accept
                 try:
                     result = accept(cfg.data_path() / 'telegram-bot' / 'inbox.sqlite3', self._body())
                 except (ValueError, TypeError):
@@ -263,7 +263,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 if butler.tools is None:
                     self._send(503,{'error':'Codex tools unavailable'}); return
                 try:
-                    from .mcp_gateway import dispatch
+                    from butler.runtime.mcp_gateway import dispatch
                     origin=self.headers.get('Origin')
                     if origin:
                         if urlsplit(origin).hostname not in ('127.0.0.1','localhost','::1'):
@@ -432,7 +432,7 @@ def serve(cfg: Config) -> int:
     heartbeat = HeartbeatScheduler(butler, cfg, log=_log)
     reminders=None
     if cfg.provider=='codex':
-        from .reminders import ReminderScheduler
+        from butler.delivery.reminders import ReminderScheduler
         reminders=ReminderScheduler(butler)
     _log("管家启动 → http://%s:%s  |  Profile: %s  |  后端: %s",
          cfg.host, cfg.port, ", ".join(sorted(cfg.contacts.profiles())) or "(无联系人)",

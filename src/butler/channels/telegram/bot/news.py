@@ -9,10 +9,10 @@ from pathlib import Path
 import sqlite3
 from urllib.parse import urlsplit
 
-from butler.push_client import push_news, push_news_bundle
-from butler.telegram.service import read_subscribers
+from butler.delivery.push_client import push_news, push_news_bundle
+from butler.channels.telegram.service import read_subscribers
 from common.media_bundle import validate_items
-from .media import MediaError
+from butler.channels.telegram.bot.media import MediaError
 
 
 class MediaRetryError(ValueError):

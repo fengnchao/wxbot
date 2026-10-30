@@ -162,8 +162,8 @@ class BaseHandler(BaseHTTPRequestHandler):
             cfg.data_path() / 'telegram-relay' / 'desktop-status.json')
 
     def _contact_admin(self):
-        from butler.contact_admin import ContactAdmin
-        from butler.directory import directory_path
+        from butler.identity.contact_admin import ContactAdmin
+        from butler.identity.directory import directory_path
 
         def validate(route, policy):
             skills = self._svc('fetch_hermes_skills')(route, self._svc('_load_butler_config')())

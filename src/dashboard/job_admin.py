@@ -3,7 +3,7 @@ import json
 from urllib.error import HTTPError
 from urllib.request import Request,build_opener,ProxyHandler
 
-from butler.job_admin import validate_delete_payload
+from butler.runtime.job_admin import validate_delete_payload
 from .user_admin import _NoRedirect
 
 

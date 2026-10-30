@@ -10,10 +10,10 @@ def view_for(root):
 
 
 def test_migrated_directory_edit_uses_contacts_without_recreating_toml_bindings(tmp_path):
-    from butler.install_wizard import install, Connection
+    from butler.runtime.install_wizard import install, Connection
     from dashboard.config_editor import ConfigEditor
-    from butler.contact_admin import ContactAdmin
-    from butler.directory import DirectoryStore
+    from butler.identity.contact_admin import ContactAdmin
+    from butler.identity.directory import DirectoryStore
     install(tmp_path,Connection(),nickname='Bot')
     view=view_for(tmp_path)
     info=view.read()
@@ -35,7 +35,7 @@ def test_migrated_directory_edit_uses_contacts_without_recreating_toml_bindings(
 
 
 def test_new_install_nickname_is_in_database(tmp_path):
-    from butler.install_wizard import install, Connection
+    from butler.runtime.install_wizard import install, Connection
     from wxbot.config import load_config
     install(tmp_path,Connection(),nickname='机器人')
     assert load_config(tmp_path/'config.wxbot.toml')['bot']['mention_names']==['机器人']
@@ -51,7 +51,7 @@ def test_dashboard_queue_path_follows_wxbot_config(tmp_path):
 
 
 def test_direct_mode_does_not_offer_butler_business_controls(tmp_path):
-    from butler.install_wizard import install, Connection
+    from butler.runtime.install_wizard import install, Connection
     install(tmp_path,Connection(provider='deepseek',model='test'))
     result=view_for(tmp_path).read()
     assert result['connection']['mode']=='direct'

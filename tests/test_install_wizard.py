@@ -6,7 +6,7 @@ import pytest
 
 
 def test_cancel_leaves_installation_empty(tmp_path):
-    from butler.install_wizard import run_wizard
+    from butler.runtime.install_wizard import run_wizard
     answers = iter(['codex', '', '', '', '', 'Bot', 'n'])
     result = run_wizard(tmp_path, input_fn=lambda _: next(answers), secret_fn=lambda _: '', output=lambda _: None)
     assert result['cancelled']
@@ -20,7 +20,7 @@ def test_cancel_leaves_installation_empty(tmp_path):
     ('butler', 'butler', 'external'),
 ])
 def test_connection_configs_and_idempotent_install(tmp_path, provider, backend, mode):
-    from butler.install_wizard import install, Connection
+    from butler.runtime.install_wizard import install, Connection
     conn = Connection(provider=provider, protocol='responses' if provider=='custom' else '',
                       url='https://agent.example/v1/responses' if provider=='custom' else '',
                       api_key='test-secret', model='test-model')
@@ -40,12 +40,12 @@ def test_connection_configs_and_idempotent_install(tmp_path, provider, backend, 
 @pytest.mark.parametrize('url', ['ftp://host', 'http://u:p@host', 'http://host:0', 'http://host:99999',
                                 'http://host/a?token=secret', 'http://host/a#x'])
 def test_reject_invalid_addresses(url):
-    from butler.install_wizard import normalize_url
+    from butler.runtime.install_wizard import normalize_url
     with pytest.raises(ValueError): normalize_url(url)
 
 
 def test_normalization_and_local_listener_validation():
-    from butler.install_wizard import normalize_url, listener
+    from butler.runtime.install_wizard import normalize_url, listener
     assert normalize_url('https://host/base/v1/handle/', suffix='/v1/handle') == 'https://host/base'
     assert listener('http://localhost:9876/send', suffix='/send') == ('localhost', 9876, 'http://localhost:9876')
     for url in ['https://localhost:8765', 'http://example.com:8765', 'http://127.0.0.1:8765/base']:
@@ -53,7 +53,7 @@ def test_normalization_and_local_listener_validation():
 
 
 def test_install_rollback_on_write_failure(tmp_path, monkeypatch):
-    from butler.install_wizard import install, Connection
+    from butler.runtime.install_wizard import install, Connection
     original = Path.open
     def fail(path, mode='r', *a, **kw):
         if path.name=='config.wxbot.toml' and mode=='x': raise OSError('disk failure')
@@ -64,8 +64,8 @@ def test_install_rollback_on_write_failure(tmp_path, monkeypatch):
 
 
 def test_direct_mode_does_not_require_codex_or_local_butler(tmp_path, monkeypatch):
-    from butler.install_wizard import install, Connection
-    from butler.setup import doctor
+    from butler.runtime.install_wizard import install, Connection
+    from butler.runtime.setup import doctor
     from butler.config import load
     install(tmp_path, Connection(provider='deepseek', api_key='test-key', model='test'))
     result = doctor(load(tmp_path/'config.butler.toml'), check_wechat=False)
@@ -74,8 +74,8 @@ def test_direct_mode_does_not_require_codex_or_local_butler(tmp_path, monkeypatc
 
 
 def test_codex_key_install_needs_no_chatgpt_login(tmp_path):
-    from butler.install_wizard import install,Connection
-    from butler.setup import doctor
+    from butler.runtime.install_wizard import install,Connection
+    from butler.runtime.setup import doctor
     from butler.config import load
     result=install(tmp_path,Connection(provider='codex',api_key='test-private-key'))
     cfg=load(tmp_path/'config.butler.toml')
@@ -86,7 +86,7 @@ def test_codex_key_install_needs_no_chatgpt_login(tmp_path):
 
 
 def test_minimal_install_supplies_wechat_locator_defaults(tmp_path):
-    from butler.install_wizard import install,Connection
+    from butler.runtime.install_wizard import install,Connection
     from wxbot.config import load_config
     install(tmp_path,Connection())
     cfg=load_config(tmp_path/'config.wxbot.toml')['wechat']
@@ -104,7 +104,7 @@ def test_minimal_install_supplies_wechat_locator_defaults(tmp_path):
     (['butler','https://api.example/v1/handle','','','Bot','y'],'butler'),
 ])
 def test_interactive_install_end_to_end_masks_secrets(tmp_path,answers,backend):
-    from butler.install_wizard import run_wizard
+    from butler.runtime.install_wizard import run_wizard
     values=iter(answers);shown=[]
     result=run_wizard(tmp_path,input_fn=lambda _:next(values),secret_fn=lambda _:'private-test-value',output=shown.append)
     assert result.get('ok'),result

@@ -9,9 +9,9 @@ from telegram_fakes import FakeClient, config, raw
 
 
 def setup_relay(tmp_path, push=None, fake=None):
-    from butler.telegram.client import TelegramSource
-    from butler.telegram.store import Store
-    from butler.telegram.service import Relay
+    from butler.channels.telegram.client import TelegramSource
+    from butler.channels.telegram.store import Store
+    from butler.channels.telegram.service import Relay
     cfg = config(tmp_path)
     group = tmp_path / 'groups.json'
     group.write_text(json.dumps({'groups': {'1': ['A', 'B']}}), encoding='utf-8')
@@ -204,7 +204,7 @@ def test_source_change_during_connected_session_stops_delivery(tmp_path, change)
 
 
 def test_single_instance_lock_rejects_second_owner(tmp_path):
-    from butler.telegram.service import instance_lock
+    from butler.channels.telegram.service import instance_lock
     with instance_lock(tmp_path / 'run.lock'):
         with pytest.raises(RuntimeError):
             with instance_lock(tmp_path / 'run.lock'):

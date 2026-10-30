@@ -11,8 +11,8 @@ from pathlib import Path
 
 from common.paths import REPO_ROOT
 
-from .contacts import ContactMap, load_contacts
-from .message_forwarding import MessageRoute, load_message_routes
+from butler.identity.contacts import ContactMap, load_contacts
+from butler.delivery.message_forwarding import MessageRoute, load_message_routes
 
 DEFAULT_CONFIG = REPO_ROOT / "config.butler.toml"
 
@@ -159,7 +159,7 @@ def load(path: str | os.PathLike | None = None) -> Config:
     if provider not in ('hermes','codex'):
         raise ValueError('agent.provider must be codex or hermes')
 
-    from .reply import validate_chunk_chars
+    from butler.agent.reply import validate_chunk_chars
     chunk_chars = validate_chunk_chars((raw.get('reply') or {}).get('chunk_chars', 500))
     context = raw.get('context') or {}
     context_messages = context.get('group_messages',30)
@@ -168,7 +168,7 @@ def load(path: str | os.PathLike | None = None) -> Config:
         raise ValueError('context.group_messages must be an integer from 1 to 200')
     if type(context_characters)is not int or not 1<=context_characters<=30000:
         raise ValueError('context.group_characters must be an integer from 1 to 30000')
-    from .directory import DirectoryContactMap, directory_path, directory_enabled
+    from butler.identity.directory import DirectoryContactMap, directory_path, directory_enabled
     contacts = (DirectoryContactMap(directory_path(p, raw))
                 if directory_enabled(p, raw) else load_contacts(raw.get("contacts")))
     return Config(

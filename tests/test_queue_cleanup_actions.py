@@ -44,7 +44,7 @@ def test_bulk_delete_handles_missing_queues_without_creating_databases(tmp_path)
 
 
 def test_bulk_delete_covers_telegram_using_server_configuration_and_preserves_cursor(tmp_path):
-    from butler.telegram_bot.queue import Queue
+    from butler.channels.telegram.bot.queue import Queue
     state = tmp_path/'telegram'
     queue = Queue(state/'relay.sqlite3')
     message = {'message_id': 1, 'from': {'id': 12}, 'chat': {'id': 12, 'type': 'private'}, 'text': 'news'}

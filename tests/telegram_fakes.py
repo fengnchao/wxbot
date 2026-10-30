@@ -53,6 +53,6 @@ class FakeClient:
 
 
 def config(tmp_path, enabled=True):
-    from butler.telegram.config import TelegramConfig
+    from butler.channels.telegram.config import TelegramConfig
     return TelegramConfig(enabled, ('zaobaosg',), tmp_path/'session/account', tmp_path/'state',
                           tmp_path/'config.butler.toml', 123, 'local-test-secret', None, 1)

@@ -1,7 +1,7 @@
 import json
 
 from butler.config import Config
-from butler.core import Butler
+from butler.agent.core import Butler
 from test_user_registry import avatar
 
 

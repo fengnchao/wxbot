@@ -18,8 +18,8 @@ import time
 import tomllib
 import uuid
 
-from .contact_store import ContactStore
-from .directory import directory_path, migration_source_name
+from butler.identity.contact_store import ContactStore
+from butler.identity.directory import directory_path, migration_source_name
 
 
 def _path(value, owner):
@@ -317,7 +317,7 @@ def _collect(root):
         c['needs_route'] = c['name'] not in known_routes
     state = dict(version=0, conversations=list(conversations.values()), settings=settings, aliases=aliases, person_policies={})
     ContactStore._validated(state)
-    from .contact_identity import normalize_name
+    from butler.identity.contact_identity import normalize_name
     named = {}
     for profile in profiles:
         name = normalize_name(profile['display_name'])
@@ -383,10 +383,10 @@ def _backup_database(source, target):
 
 
 def _stage_contacts(path, report):
-    from .business import BusinessStore
-    from .user_registry import UserRegistry
-    from .directory import DirectoryStore
-    from .contact_identity import ensure_schema, merge_same_named, normalize_name, adopt_legacy_notes
+    from butler.business import BusinessStore
+    from butler.identity.user_registry import UserRegistry
+    from butler.identity.directory import DirectoryStore
+    from butler.identity.contact_identity import ensure_schema, merge_same_named, normalize_name, adopt_legacy_notes
     # These constructors can perform additive upgrades: only call them on staging.
     DirectoryStore(path)
     business = BusinessStore(path)

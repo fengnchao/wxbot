@@ -12,7 +12,7 @@ import os
 import re
 import subprocess
 import sys
-from .concurrency import RuntimeLocks
+from butler.runtime.concurrency import RuntimeLocks
 
 _OWNER_FIELDS = frozenset({'contact', 'uid', 'user_id'})
 

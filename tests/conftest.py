@@ -20,9 +20,9 @@ for entry in (SRC, ROOT):
         sys.path.insert(0, str(entry))
 
 from butler.config import Config                    # noqa: E402
-from butler.contacts import load_contacts           # noqa: E402
-from butler.core import Butler                      # noqa: E402
-from butler.hermes import HermesClient              # noqa: E402
+from butler.identity.contacts import load_contacts           # noqa: E402
+from butler.agent.core import Butler                      # noqa: E402
+from butler.agent.hermes import HermesClient              # noqa: E402
 from butler.server import make_handler              # noqa: E402
 
 DEFAULT_CONTACT = {"name": "101", "profile": "wxbot-101", "uid": "101", "label": "微信联系人101"}

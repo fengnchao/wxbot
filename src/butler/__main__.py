@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 from common.paths import REPO_ROOT
-from .config import load
+from butler.config import load
 
 
 def main(argv=None):
@@ -19,14 +19,14 @@ def main(argv=None):
     parser.add_argument('--acknowledge-stopped',action='store_true',help='Confirm all legacy contact writers have been stopped')
     args=parser.parse_args(argv)
     if args.command=='init':
-        from .setup import initialize
+        from butler.runtime.setup import initialize
         print(json.dumps(initialize(args.directory),ensure_ascii=False,indent=2));return 0
     if args.command=='setup':
-        from .install_wizard import run_wizard
+        from butler.runtime.install_wizard import run_wizard
         result=run_wizard(args.directory)
         print(json.dumps(result,ensure_ascii=False,indent=2));return 0 if result.get('ok') else 1
     if args.command in {'contacts-preview','contacts-migrate'}:
-        from .contact_migration import preview_contacts, migrate_contacts
+        from butler.identity.contact_migration import preview_contacts, migrate_contacts
         root=Path(args.config).resolve().parent if args.config else Path(args.directory)
         try:
             result=(preview_contacts(root) if args.command=='contacts-preview' else
@@ -35,16 +35,16 @@ def main(argv=None):
             result=dict(ok=False,errors=[str(exc)])
         print(json.dumps(result,ensure_ascii=False,indent=2));return 0 if result.get('ok') else 1
     if args.command=='migrate':
-        from .upgrade import upgrade_installation
+        from butler.runtime.upgrade import upgrade_installation
         root=Path(args.config).resolve().parent if args.config else Path(args.directory)
         print(json.dumps(upgrade_installation(root),ensure_ascii=False,indent=2));return 0
     chosen=args.config or os.environ.get('BUTLER_CONFIG')
     if not chosen and args.directory!='.':chosen=str(Path(args.directory)/'config.butler.toml')
     cfg=load(chosen)
-    from .install_wizard import installation_mode
+    from butler.runtime.install_wizard import installation_mode
     mode=installation_mode(cfg.config_dir or REPO_ROOT)
     if args.command=='doctor':
-        from .setup import doctor
+        from butler.runtime.setup import doctor
         result=doctor(cfg,check_wechat=not args.no_wechat)
         print(json.dumps(result,ensure_ascii=False,indent=2));return 0 if result['ok'] else 1
     if args.command=='login':
@@ -56,13 +56,13 @@ def main(argv=None):
         return subprocess.call([str(bundled_codex_path()),'login'],env=env)
     if args.command=='serve':
         if mode!='local':parser.error('当前接入方式不运行本机 Butler；请使用 start 启动通道与管理台。')
-        from .server import serve
+        from butler.server import serve
         return serve(cfg)
     # Explicit user-invoked start only; never stop or restart existing services.
     root=REPO_ROOT
     config_root=Path(cfg.config_dir or root).resolve()
     config_path=Path(chosen).resolve() if chosen else config_root/'config.butler.toml'
-    from .setup import doctor
+    from butler.runtime.setup import doctor
     report=doctor(cfg,check_wechat=False)
     port_names=['wxbot_port','log_port']+(['butler_port'] if mode=='local' else [])
     if not all(report['checks'][name]['ok'] for name in port_names):
@@ -72,7 +72,7 @@ def main(argv=None):
                WXBOT_CONFIG=str(config_root/'config.wxbot.toml'),LOG_CONFIG=str(config_root/'config.log.toml'))
     processes=[]
     commands=[['-m','butler.server','--config',str(config_path)],
-              ['-m','log.server'],
+              ['-m','dashboard.server'],
               ['-m','wxbot.main']]
     if mode!='local':commands=commands[1:]
     try:

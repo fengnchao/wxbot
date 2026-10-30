@@ -8,10 +8,10 @@ import signal
 
 from butler.config import load as load_butler
 from common.paths import REPO_ROOT
-from .config import load
-from .client import FatalTelegramError, TelegramSource, login
-from .service import Relay, instance_lock, read_subscribers
-from .store import Store
+from butler.channels.telegram.config import load
+from butler.channels.telegram.client import FatalTelegramError, TelegramSource, login
+from butler.channels.telegram.service import Relay, instance_lock, read_subscribers
+from butler.channels.telegram.store import Store
 
 ROOT = REPO_ROOT
 
@@ -55,7 +55,7 @@ def main(argv=None):
         if args.command == 'init':
             import tomlkit
             from butler.defaults import telegram_defaults
-            from butler.setup import _new
+            from butler.runtime.setup import _new
             created=_new(Path(args.config).resolve(),tomlkit.dumps(telegram_defaults()))
             emit({'ok':True,'created':created,'config':str(Path(args.config).resolve())})
             return 0

@@ -5,8 +5,8 @@ import json
 
 import pytest
 
-from butler import router
-from butler.hermes import HermesError
+from butler.agent import router
+from butler.agent.hermes import HermesError
 from conftest import DEFAULT_PENDING
 
 

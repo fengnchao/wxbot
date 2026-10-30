@@ -5,10 +5,10 @@ import pytest
 
 
 def admin(tmp_path):
-    from butler.contact_admin import ContactAdmin
-    from butler.contact_store import ContactStore
+    from butler.identity.contact_admin import ContactAdmin
+    from butler.identity.contact_store import ContactStore
     from butler.business import BusinessStore
-    from butler.user_registry import UserRegistry
+    from butler.identity.user_registry import UserRegistry
     path = tmp_path / 'business.sqlite3'
     registry = UserRegistry(BusinessStore(path))
     store = ContactStore(path)
@@ -17,7 +17,7 @@ def admin(tmp_path):
 
 
 def test_inactive_read_is_pure_and_refuses_edits(tmp_path):
-    from butler.contact_admin import ContactAdmin
+    from butler.identity.contact_admin import ContactAdmin
     path = tmp_path / 'missing.sqlite3'
     service = ContactAdmin(path)
     assert service.read()['active'] is False
@@ -135,9 +135,9 @@ def test_unified_config_does_not_read_or_edit_retired_sources(tmp_path):
 
 @pytest.mark.parametrize('provider,mode',[('deepseek','direct'),('butler','external')])
 def test_nonlocal_install_can_edit_local_listening_without_local_identity(tmp_path,provider,mode):
-    from butler.install_wizard import install,Connection
-    from butler.contact_store import is_unified
-    from butler.directory import DirectoryStore
+    from butler.runtime.install_wizard import install,Connection
+    from butler.identity.contact_store import is_unified
+    from butler.identity.directory import DirectoryStore
     from dashboard.config_view import ConfigView
     from dashboard.config_editor import ConfigEditor
     from wxbot.config import load_config

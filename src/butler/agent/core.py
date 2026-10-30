@@ -20,18 +20,18 @@ from contextvars import ContextVar
 from common.flow_trace import FlowTrace, butler_trace_path, record
 from common.model_stream import bind,emit,answer
 
-from .config import Config
-from .contacts import Contact
-from .flowlog import FlowLog
-from .groups import GroupStore
-from .hermes import HermesClient, HermesError
-from .skill_policy import SkillPolicyStore
-from .pending import PendingQueue, EmptyPendingQueue
-from .push import push_to_wxbot
-from .reply import split_reply
-from .message_forwarding import ForwardingError, forward_message
-from .concurrency import RuntimeLocks
-from . import router, skills
+from butler.config import Config
+from butler.identity.contacts import Contact
+from butler.runtime.flowlog import FlowLog
+from butler.identity.groups import GroupStore
+from butler.agent.hermes import HermesClient, HermesError
+from butler.agent.skill_policy import SkillPolicyStore
+from butler.delivery.pending import PendingQueue, EmptyPendingQueue
+from butler.delivery.push import push_to_wxbot
+from butler.agent.reply import split_reply
+from butler.delivery.message_forwarding import ForwardingError, forward_message
+from butler.runtime.concurrency import RuntimeLocks
+from butler.agent import router, skills
 
 _stream_state=ContextVar('butler_public_stream',default=None)
 
@@ -82,24 +82,24 @@ class Butler:
         self.registry = self.group_context = None
         self._context_init_lock = Lock()
         if cfg.provider == 'codex':
-            from .plugin import validate_plugin
+            from butler.runtime.plugin import validate_plugin
             self.plugin_info=validate_plugin(cfg.plugin_path())
-            from .business import BusinessStore
-            from .catalogue import SkillCatalogue
-            from .tools import ToolService
-            from .backends import create_backend
-            from .contact_store import from_config
+            from butler.business import BusinessStore
+            from butler.agent.catalogue import SkillCatalogue
+            from butler.agent.tools import ToolService
+            from butler.backends import create_backend
+            from butler.identity.contact_store import from_config
             contacts=from_config(cfg)
             self.store = BusinessStore(contacts.path if contacts else cfg.data_path()/'business.sqlite3')
-            from .user_registry import UserRegistry
-            from .group_context import GroupContext
+            from butler.identity.user_registry import UserRegistry
+            from butler.identity.group_context import GroupContext
             self.registry = UserRegistry(self.store)
             self.group_context = GroupContext(self.store)
             self.catalogue = SkillCatalogue(cfg.plugin_path()/'skills')
             self.tools = ToolService(self.store,self.catalogue,policy_loader=self.policy_for_contact,
                 event_sink=lambda *args,**kw:self.trace.emit(*args,**kw))
-            from .telegram_relay.settings import Settings
-            from .telegram_relay.store import read_status
+            from butler.channels.telegram.relay.settings import Settings
+            from butler.channels.telegram.relay.store import read_status
             status_path=cfg.data_path()/'telegram-relay'/'desktop-status.json'
             self.tools.relay_settings=Settings(cfg.resolve_path('config.telegram-relay.toml'),
                 status_reader=lambda:read_status(status_path))
@@ -116,7 +116,7 @@ class Butler:
     def policy_for_contact(self,name):
         policy=self.skill_policies.for_contact(name)
         if self.cfg.provider=='codex':
-            from .backends.codex import DEFAULT_POLICY
+            from butler.backends.codex import DEFAULT_POLICY
             return self.catalogue.validate(policy or DEFAULT_POLICY)
         return policy
 
@@ -148,7 +148,7 @@ class Butler:
     def _resolved_contact(self, c):
         if not self.registry:
             return c
-        from .backends.codex import owner_key
+        from butler.backends.codex import owner_key
         legacy_owner = owner_key(c)
         resolved = self.registry.observe(c.name,c.channel_type,c.observed_member_key,c.avatar,c.label)
         if resolved['status']=='confirmed':
@@ -172,8 +172,8 @@ class Butler:
         # normal read-only startup does not create data in another installation.
         with self._context_init_lock:
             if self.group_context is None:
-                from .business import BusinessStore
-                from .group_context import GroupContext
+                from butler.business import BusinessStore
+                from butler.identity.group_context import GroupContext
                 base = Path(self.cfg.hermes_root) if self.cfg.hermes_root else self.cfg.data_path()
                 self.group_context = GroupContext(BusinessStore(base/'cache'/'group_context.sqlite3'))
         result = self.group_context.archive(contact,source_id,messages)

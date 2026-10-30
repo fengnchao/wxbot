@@ -1,4 +1,4 @@
-"""python -m butler.telegram_bot init|run|status|retry-media [--config PATH]."""
+"""python -m butler.channels.telegram.bot init|run|status|retry-media [--config PATH]."""
 import argparse
 from contextlib import closing
 import json
@@ -7,10 +7,10 @@ import sqlite3
 import tomllib
 
 from butler.config import load as load_butler
-from .config import DEFAULT, ROOT, load
-from .inbox import recent
-from .service import TelegramError
-from .news import MediaRetryError
+from butler.channels.telegram.bot.config import DEFAULT, ROOT, load
+from butler.channels.telegram.bot.inbox import recent
+from butler.channels.telegram.bot.service import TelegramError
+from butler.channels.telegram.bot.news import MediaRetryError
 
 
 def status(path):
@@ -68,12 +68,12 @@ def main():
         elif args.command == 'status':
             print(json.dumps(status(path), ensure_ascii=False, indent=2))
         elif args.command == 'retry-media':
-            from .news import retry_media_preparation
+            from butler.channels.telegram.bot.news import retry_media_preparation
             raw = tomllib.loads(path.read_text(encoding='utf-8-sig'))['telegram_bot']
             queue_path = (path.parent / raw.get('state_dir','data/telegram-bot') / 'relay.sqlite3').resolve()
             print(json.dumps(retry_media_preparation(queue_path,args.bot_id,args.package_key),ensure_ascii=False,indent=2))
         else:
-            from .service import run
+            from butler.channels.telegram.bot.service import run
             cfg = load(path)
             run(cfg, load_butler(cfg.butler_config))
     except KeyboardInterrupt:

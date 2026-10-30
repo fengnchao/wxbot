@@ -4,12 +4,12 @@ import json
 import pytest
 
 from butler.config import Config
-from butler.contacts import Contact
+from butler.identity.contacts import Contact
 from butler.business import BusinessStore
-from butler.catalogue import SkillCatalogue
-from butler.tools import ToolService
+from butler.agent.catalogue import SkillCatalogue
+from butler.agent.tools import ToolService
 from butler.backends.codex import CodexBackend
-from butler.hermes import HermesError
+from butler.agent.hermes import HermesError
 
 
 class FakeTurn:

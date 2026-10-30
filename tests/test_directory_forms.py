@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from butler.directory import DirectoryStore
+from butler.identity.directory import DirectoryStore
 from dashboard.config_view import ConfigView
 from dashboard.config_editor import ConfigEditor
 
@@ -66,8 +66,8 @@ def test_combined_editor_rejects_invalid_listening_without_partial_save(tmp_path
 
 
 def test_active_alias_list_edit_keeps_observation_permissions_and_versions(tmp_path):
-    from butler.contact_store import ContactStore
-    from butler.contact_admin import ContactAdmin
+    from butler.identity.contact_store import ContactStore
+    from butler.identity.contact_admin import ContactAdmin
     store=ContactStore(tmp_path/'contacts.db');store.activate(store.snapshot(),0)
     admin=ContactAdmin(store.path);data=admin.read()
     assert data['aliases']==[]

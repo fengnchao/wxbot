@@ -6,12 +6,12 @@ from pathlib import Path
 import re
 import requests
 
-from butler.telegram.service import instance_lock
-from .inbox import validate
-from .queue import Queue
-from .news import NewsRelay
-from .media import TelegramMedia, validate_file_path
-from butler.media import MAX_BYTES, _atomic
+from butler.channels.telegram.service import instance_lock
+from butler.channels.telegram.bot.inbox import validate
+from butler.channels.telegram.bot.queue import Queue
+from butler.channels.telegram.bot.news import NewsRelay
+from butler.channels.telegram.bot.media import TelegramMedia, validate_file_path
+from butler.delivery.media import MAX_BYTES, _atomic
 
 
 def log(message):
@@ -272,7 +272,7 @@ def run(cfg, butler_cfg):
                 log('机器人已有 Webhook；请先核对原接收服务，本程序不会删除它')
                 raise ValueError('机器人已有 Webhook；请先核对原接收服务，本程序不会删除它')
             log(f'机器人连接成功 bot_id={bot}；仅接收私聊；白名单人数={len(cfg.allowed_users)}')
-            from butler.telegram_relay.settings import load as load_relay
+            from butler.channels.telegram.relay.settings import load as load_relay
             relay_path = cfg.relay_config or cfg.butler_config.parent / 'config.telegram-relay.toml'
             media_api = BotAPI(cfg)  # Independent HTTP session; only the original api polls updates.
             news = NewsRelay(queue, bot, butler_cfg, cfg.allowed_users, log,

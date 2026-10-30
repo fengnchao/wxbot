@@ -199,7 +199,7 @@ class ChatWindow:
             return None, None
         sender_key = feature['hash']
         if self.wcfg.get('_directory_path'):
-            from butler.directory import DirectoryStore
+            from butler.identity.directory import DirectoryStore
             name = DirectoryStore(self.wcfg['_directory_path']).member_name(self.title, sender_key)
             return str(name or f'成员-{sender_key[:8]}'), sender_key
         member_names = self.group_sender_cfg.get('member_names', {})

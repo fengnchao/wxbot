@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import sqlite3
 
-from .news import NewsRelay
+from butler.channels.telegram.bot.news import NewsRelay
 
 
 DELETED_REASON = '未成功投递已删除；部分成功记录保留，其他投递已停止'

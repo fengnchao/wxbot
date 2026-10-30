@@ -20,17 +20,19 @@ Windows 上的个人微信机器人，Python 项目，拆成两个本地进程�
 - 主窗口默认无需绑定列表，群聊根据右侧人数标签识别；独立窗口/限定范围用 `[bot].bound_groups`。通过 `[bot].mention_names` 配置机器人昵称；仅处理包含 `@昵称` 的其他成员文字消息。WeChat UIA 不暴露群昵称，wxbot 用左侧头像感知哈希生成 member_id，可在 `[wechat.group_sender.member_names]` 配真实昵称；每批消息携 speaker/member_id 标签进入同一群聊会话。
 - butler HTTP 接口都要求 `Authorization: Bearer <token>`：`GET /health`、`GET /v1/catalogue`、`POST /v1/handle`、`POST /v1/reset`、`POST /v1/push`。默认仅绑定 loopback。处理接口形状见 `src/butler/server.py`。
 - Hermes 调用同时传 `X-Hermes-Session-Key`（长期身份/记忆归属）和 `X-Hermes-Session-Id`（同一段对话连续性）。只传前者可能每轮派生新会话。`/new` 或 `/重置` 会轮换会话 id。
-- 模型行动标记 `<<butler:action {"skill":"...","args":{...}}>>` 由 `src/butler/router.py` 去除并交 `src/butler/skills.py` 白名单执行；未知 skill 失败留痕。现有 catalog：`reminder.create/list/cancel`（本地实现）、`learn.card`、`quiz.next`（再委派 Hermes）。`<<butler:silent>>` 等标记用于静默。
+- 模型行动标记 `<<butler:action {"skill":"...","args":{...}}>>` 由 `src/butler/agent/router.py` 去除并交 `src/butler/agent/skills.py` 白名单执行；未知 skill 失败留痕。现有 catalog：`reminder.create/list/cancel`（本地实现）、`learn.card`、`quiz.next`（再委派 Hermes）。`<<butler:silent>>` 等标记用于静默。
 - 每条消息开始先认领补发队列，再调用模型；模型失败或静默时仍应送出已认领内容。队列 schema 复用 Hermes Profile 下的 `pending_delivery.py`。
 - 主动推送不调用模型且不改会话。`type=1` 指定联系人；`type=2` 按 `messageType` 从 groups JSON 逐人发送。分组文件默认在 Hermes root 的 `cache/butler_groups.json`，可由配置覆盖，每次推送重新读取。
 
 ## 重要路径
 
-- `src/butler/core.py`：主流程、补发、Hermes 调用、行动执行、出站推送。
+- `src/butler/` 内部分层：根目录只留 `__main__.py`、`config.py`、`defaults.py`、`runtime_config.py`、`business.py`、`server.py`；`agent/` 决策与执行、`identity/` 联系人身份、`delivery/` 投递、`runtime/` 安装迁移与运行支撑、`channels/telegram/`（含 `bot/`、`relay/`）、`news/`、`backends/`。
+- `src/butler/agent/core.py`：主流程、补发、Hermes 调用、行动执行、出站推送。
 - `src/butler/server.py`：HTTP 路由、Bearer 校验和状态探活。
-- `src/butler/config.py`、`contacts.py`、`hermes.py`：配置、身份映射和 Hermes wire/session 语义。
-- `src/butler/router.py`、`skills.py`、`pending.py`：路由/标记协议、skill 白名单、补发。
-- `src/butler/groups.py`、`push.py`、`flowlog.py`：分组推送与流水日志。
+- `src/butler/config.py`、`src/butler/identity/contacts.py`、`src/butler/agent/hermes.py`：配置、身份映射和 Hermes wire/session 语义。
+- `src/butler/agent/router.py`、`src/butler/agent/skills.py`、`src/butler/delivery/pending.py`：路由/标记协议、skill 白名单、补发。
+- `src/butler/identity/groups.py`、`src/butler/delivery/push.py`、`src/butler/runtime/flowlog.py`：分组推送与流水日志。
+- Telegram 入口：`python -m butler.channels.telegram`（收信转发）、`python -m butler.channels.telegram.bot`（Bot API 入库）；`python -m butler` / `butler.server` 不变。
 - `src/wxbot/main.py`、`state.py`、`wechat/chat_window.py`：主轮询、消息差分、窗口读写。
 - `src/wxbot/outbound.py`：接收主动推送的 HTTP 队列服务；`src/wxbot/processor/` 是各后端适配器。
 - `src/dashboard/server.py`、`web/`：看板服务与 Vue 管理台；构建产物由 `/app/` 提供，根路径 `/` 302 到 `/app/`，看板直接读取配置/日志/任务数据。
@@ -51,8 +53,8 @@ Windows 上的个人微信机器人，Python 项目，拆成两个本地进程�
 - 服务启停偏好（2026-10-21）：Butler、wxbot 和 log 均由用户在 IDE 中手动启动。Codex 不代为启动或重启；改动需要重启时明确告知用户。
 - 此仓库的 UI 自动化是非官方方式，存在账号风险；当前发送使用每 5 字、间隔 0.5 秒的 Unicode 模拟按键，绕过输入法转换，仍依赖窗口焦点。
 - `config.*.example.toml` 是安全文档/示例来源；运行时配置可能含真实密钥，不要在日志、记忆或提交里复制秘密。
-- `src/butler/README.md` 的示例含旧机器路径和过期目录/文件名（例如旧的根目录、`config.example.toml`、`kmg/`），实际操作请以根目录 README、当前代码和 `config.*.example.toml` 为准。
-- `src/butler/skills.py` 的 `HERMES_HINT` 提供行动协议，但 README 记录提示词仍需由 Hermes Profile 的 SOUL/skill 引导模型发标记。
+- `src/butler/README.md` 的请求流转/协议章节记录设计意图，目录树已按 `agent/ identity/ delivery/ runtime/ channels/` 更新；最新启动参数仍以根目录 README 与 `config.*.example.toml` 为准。
+- `src/butler/agent/skills.py` 的 `HERMES_HINT` 提供行动协议，但 README 记录提示词仍需由 Hermes Profile 的 SOUL/skill 引导模型发标记。
 - `reminder.cancel` 直接更新 Hermes Profile 下 `reminders.json`，再原子替换 cron `jobs.json`；维护时注意提醒记录与调度任务要保持一致。
 
 ## 扫描时工作区状态
@@ -100,8 +102,8 @@ Windows 上的个人微信机器人，Python 项目，拆成两个本地进程�
 
 ## 完整回复分句与界面调度（2026-10-18）
 
-- Butler 在行动/补发整理后调用纯函数 `src/butler/reply.py:split_reply`，HTTP 新增 `reply_parts` 和 `meta.reply_complete=true`，全部 handle 路径回显 `msg_id`；保留完整 `reply`。Hermes 继续完整生成，不接流式。
-- `src/butler/concurrency.py` 按 endpoint/Profile/稳定 key/kind 提供可重入会话锁，Core 整轮和 reset 串行；Hermes SID 状态另按 policy 指纹隔离，别名共享实际身份状态。心跳独立 kind。Profile 锁覆盖补发 take/filter/flush 和本地 reminder 文件/子进程操作，不覆盖模型或 delegate 等待；delegate 透传策略。锁仅限当前 Butler 进程。
+- Butler 在行动/补发整理后调用纯函数 `src/butler/agent/reply.py:split_reply`，HTTP 新增 `reply_parts` 和 `meta.reply_complete=true`，全部 handle 路径回显 `msg_id`；保留完整 `reply`。Hermes 继续完整生成，不接流式。
+- `src/butler/runtime/concurrency.py` 按 endpoint/Profile/稳定 key/kind 提供可重入会话锁，Core 整轮和 reset 串行；Hermes SID 状态另按 policy 指纹隔离，别名共享实际身份状态。心跳独立 kind。Profile 锁覆盖补发 take/filter/flush 和本地 reminder 文件/子进程操作，不覆盖模型或 delegate 等待；delegate 透传策略。锁仅限当前 Butler 进程。
 - 明确字符串 contact/uid/user_id 必须全部匹配；无归属旧补发仅明确唯一 Profile 用户可认领，同 UID 别名算一人；归属/认领不明的保留。假脚本已实际移除认领项以验证并发去重。
 - wxbot 使用不可变 `Reply(text,parts)` 连接后端和队列。Butler 适配器一次请求读取全部数组，坏数组整体退回完整正文；明确未完成或请求 ID 错配抛异常并保留 uncertain。其他后端/命令/主动推送保留单条，独立模式返回完整正文；群 reset 传 channel_type=group。
 - `[queue].max_model_requests` 默认2，须正整数且不接受 bool；固定 daemon 线程只处理纯数据，停止使用统一 join 截止时间，未停止不关闭 store/运行锁。同会话整轮所有分句终结前不提交下一批。

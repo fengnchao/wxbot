@@ -35,7 +35,7 @@ def test_router_callback_optional_legacy_and_fallback():
 
 def test_hermes_progress_never_exposes_raw_draft():
     from common.model_stream import bind
-    from butler.hermes_stream import read_complete
+    from butler.agent.hermes_stream import read_complete
     events=[]
     def frame(kind,data):
         return ('event: '+kind+'\ndata: '+json.dumps(data)+'\n\n').encode()
@@ -73,7 +73,7 @@ def test_butler_sse_client_requires_result_and_no_retry(monkeypatch):
 def test_codex_public_events_only_final_phase(tmp_path,monkeypatch):
     from common.model_stream import bind
     from test_codex_backend import make_backend,FakeThread
-    from butler.contacts import Contact
+    from butler.identity.contacts import Contact
     class Turn:
         def stream(self):
             for method,payload in [
@@ -138,7 +138,7 @@ def test_butler_client_rejects_final_prefix_change(monkeypatch):
 
 
 def test_composition_filter_split_markers_and_silent():
-    from butler.core import _FinalCompositionStream
+    from butler.agent.core import _FinalCompositionStream
     f=_FinalCompositionStream()
     emitted=[f.feed(t) for t in ['  hello ','<','<butler:act','ion {"skill":"x"}', '>> world ']]
     assert ''.join(emitted)=='hello  world'
@@ -148,7 +148,7 @@ def test_composition_filter_split_markers_and_silent():
 
 def test_sse_endpoint_auth_and_normal_result_envelope():
     from butler.server import make_handler
-    from butler.core import Result
+    from butler.agent.core import Result
     class Bot:
         def handle(self,contact,text,**kw):
             kw['on_event']({'type':'backend','provider':'fake','streaming':False})

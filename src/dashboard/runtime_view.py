@@ -3,7 +3,7 @@ from datetime import datetime,timezone
 
 
 def reminder_jobs(runtime):
-    from butler.job_admin import job_version
+    from butler.runtime.job_admin import job_version
     users={}
     stats={'active':0,'paused':0,'error':0,'done':0}
     for row in sorted(runtime.get('reminders',[]),key=lambda r:(r['due'],r['id'])):

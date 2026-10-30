@@ -13,7 +13,7 @@ def write_config(tmp_path, enabled=False):
 def test_help_does_not_require_telethon(monkeypatch, capsys):
     import sys
     monkeypatch.setitem(sys.modules, 'telethon', None)
-    from butler.telegram.__main__ import main
+    from butler.channels.telegram.__main__ import main
     with pytest.raises(SystemExit) as result:
         main(['--help'])
     assert result.value.code == 0
@@ -21,7 +21,7 @@ def test_help_does_not_require_telethon(monkeypatch, capsys):
 
 
 def test_status_without_state_does_not_create_session_or_database(tmp_path, capsys):
-    from butler.telegram.__main__ import main
+    from butler.channels.telegram.__main__ import main
     p = write_config(tmp_path)
     assert main(['status', '--config', str(p)]) == 0
     result = json.loads(capsys.readouterr().out)
@@ -30,7 +30,7 @@ def test_status_without_state_does_not_create_session_or_database(tmp_path, caps
 
 
 def test_disabled_run_does_not_start_or_create_runtime(tmp_path, capsys):
-    from butler.telegram.__main__ import main
+    from butler.channels.telegram.__main__ import main
     p = write_config(tmp_path)
     assert main(['run', '--config', str(p)]) == 1
     assert not (tmp_path / 'data').exists()
@@ -38,9 +38,9 @@ def test_disabled_run_does_not_start_or_create_runtime(tmp_path, capsys):
 
 
 def test_status_existing_store_is_readonly_and_never_connects(tmp_path, monkeypatch, capsys):
-    from butler.telegram.__main__ import main
-    from butler.telegram.store import Store
-    from butler.telegram.client import TelegramSource
+    from butler.channels.telegram.__main__ import main
+    from butler.channels.telegram.store import Store
+    from butler.channels.telegram.client import TelegramSource
     p = write_config(tmp_path)
     state = tmp_path / 'data/telegram/relay.sqlite3'
     db = Store(state)
@@ -56,7 +56,7 @@ def test_status_existing_store_is_readonly_and_never_connects(tmp_path, monkeypa
 
 
 def test_login_only_invokes_local_authorization(tmp_path, monkeypatch, capsys):
-    import butler.telegram.__main__ as cli
+    import butler.channels.telegram.__main__ as cli
     p = write_config(tmp_path)
     called = []
     async def fake_login(cfg):
@@ -70,7 +70,7 @@ def test_login_only_invokes_local_authorization(tmp_path, monkeypatch, capsys):
 
 
 def test_unexpected_error_is_redacted(tmp_path, monkeypatch, capsys):
-    import butler.telegram.__main__ as cli
+    import butler.channels.telegram.__main__ as cli
     p = write_config(tmp_path)
     async def broken(cfg):
         raise RuntimeError('do-not-print-this')

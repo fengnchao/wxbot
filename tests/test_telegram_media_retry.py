@@ -5,8 +5,8 @@ import pytest
 
 
 def failed_package(tmp_path):
-    from butler.telegram_bot.queue import Queue
-    from butler.telegram_bot.news import NewsRelay
+    from butler.channels.telegram.bot.queue import Queue
+    from butler.channels.telegram.bot.news import NewsRelay
     queue = Queue(tmp_path / 'relay.sqlite3')
     group = tmp_path / 'groups.json'
     group.write_text('{"groups":{"1":["A"]}}', encoding='utf-8')
@@ -28,7 +28,7 @@ def failed_package(tmp_path):
 
 
 def test_explicit_retry_clears_only_unsubmitted_failed_package_and_service_rebuilds(tmp_path):
-    from butler.telegram_bot.news import retry_media_preparation
+    from butler.channels.telegram.bot.news import retry_media_preparation
     queue, relay, key, calls = failed_package(tmp_path)
     result = retry_media_preparation(queue.path,99,key)
     assert result['status']=='retry_ready' and result['reset_updates']==[1]
@@ -45,7 +45,7 @@ def test_explicit_retry_clears_only_unsubmitted_failed_package_and_service_rebui
 
 @pytest.mark.parametrize('state', ['pending','sending','sent','uncertain','blocked','not_submitted','cancelled'])
 def test_retry_refuses_any_existing_delivery_even_when_package_says_media_failed(tmp_path,state):
-    from butler.telegram_bot.news import retry_media_preparation
+    from butler.channels.telegram.bot.news import retry_media_preparation
     queue, relay, key, calls = failed_package(tmp_path)
     with queue.db() as db:
         db.execute('INSERT INTO news_bundle_delivery(bot,package_key,contact,request_id,state) VALUES(99,?,?,?,?)',
@@ -58,7 +58,7 @@ def test_retry_refuses_any_existing_delivery_even_when_package_says_media_failed
 
 @pytest.mark.parametrize('state', ['preparing','ready','skipped','uncertain'])
 def test_retry_refuses_nonfailed_or_unknown_package_without_mutation(tmp_path,state):
-    from butler.telegram_bot.news import retry_media_preparation
+    from butler.channels.telegram.bot.news import retry_media_preparation
     queue, relay, key, calls = failed_package(tmp_path)
     with queue.db() as db: db.execute('UPDATE news_package SET state=?',(state,))
     before = queue.path.read_bytes()
@@ -69,7 +69,7 @@ def test_retry_refuses_nonfailed_or_unknown_package_without_mutation(tmp_path,st
 
 
 def test_retry_preserves_other_package_aliases_and_plans(tmp_path):
-    from butler.telegram_bot.news import retry_media_preparation
+    from butler.channels.telegram.bot.news import retry_media_preparation
     queue, relay, key, calls = failed_package(tmp_path)
     with queue.db() as db:
         db.execute("INSERT INTO news_package(bot,package_key,uid,sender,state) VALUES(99,'other',2,12,'media_failed')")
@@ -83,7 +83,7 @@ def test_retry_preserves_other_package_aliases_and_plans(tmp_path):
 
 
 def test_retry_command_requires_existing_queue_and_performs_no_network(tmp_path,monkeypatch,capsys):
-    from butler.telegram_bot.__main__ import main
+    from butler.channels.telegram.bot.__main__ import main
     queue, relay, key, calls = failed_package(tmp_path)
     cfg = tmp_path/'bot.toml'
     cfg.write_text('[telegram_bot]\nstate_dir="."\n',encoding='utf-8')
@@ -91,7 +91,7 @@ def test_retry_command_requires_existing_queue_and_performs_no_network(tmp_path,
     assert main()==0
     result = json.loads(capsys.readouterr().out)
     assert result['status']=='retry_ready' and calls==[]
-    from butler.telegram_bot.news import retry_media_preparation
+    from butler.channels.telegram.bot.news import retry_media_preparation
     missing=tmp_path/'missing.sqlite3'
     with pytest.raises((ValueError,FileNotFoundError)):
         retry_media_preparation(missing,99,key)

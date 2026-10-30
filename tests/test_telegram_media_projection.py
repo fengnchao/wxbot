@@ -6,7 +6,7 @@ import pytest
 
 
 def fixture(tmp_path, package_state='ready', deliveries=('pending',), *, legacy=False):
-    from butler.telegram_bot.queue import Queue
+    from butler.channels.telegram.bot.queue import Queue
     cfg = tmp_path / 'config.telegram-bot.toml'
     cfg.write_text('[telegram_bot]\nstate_dir="state"\nbutler_config="butler.toml"\n', encoding='utf-8')
     butler = tmp_path / 'butler.toml'
@@ -80,7 +80,7 @@ def test_bundle_recipient_filter_uses_members_package_identity(tmp_path):
 
 
 def test_cli_exposes_media_preparation_and_actual_package_delivery(tmp_path):
-    from butler.telegram_bot.__main__ import status
+    from butler.channels.telegram.bot.__main__ import status
     cfg, butler, path = fixture(tmp_path, 'ready', ('sent',))
     before = path.read_bytes()
     result = status(cfg)
@@ -91,7 +91,7 @@ def test_cli_exposes_media_preparation_and_actual_package_delivery(tmp_path):
 
 
 def test_legacy_database_projection_and_cli_remain_read_only(tmp_path):
-    from butler.telegram_bot.__main__ import status
+    from butler.channels.telegram.bot.__main__ import status
     from dashboard.telegram_view import TelegramView
     cfg, butler, path = fixture(tmp_path, legacy=True)
     before = path.read_bytes()

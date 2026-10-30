@@ -37,7 +37,7 @@ def test_standalone_push_content_is_complete_and_missing_records_do_not_create_a
 
 def test_telegram_full_caption_is_loaded_by_exact_bot_and_update_id(tmp_path):
     from dashboard.workflow_content import read_content
-    from butler.telegram_bot.queue import Queue
+    from butler.channels.telegram.bot.queue import Queue
     queue = Queue(tmp_path/'telegram'/'relay.sqlite3')
     caption = '图片说明🙂\n' * 80 + '说明末尾 fake-telegram-token'
     queue.ingest(99, {'update_id':7}, {'message_id':1, 'from':{'id':12},

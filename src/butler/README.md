@@ -157,31 +157,64 @@ timeout = 660
 ## 目录
 
 ```
-src/butler/       编排层 Python 包（wxbot ⇄ Hermes 之间那一层）
-  config.py     配置读入（tomllib）      contacts.py  联系人 → Profile/uid + 身份模板
-  hermes.py     Hermes 客户端（会话语义、存活探测）
-  pending.py    补发队列（认领式）        router.py    决策层：/命令、静默、行动标记解析
-  skills.py     可调 skill 白名单 + 执行器 core.py      编排：把上面几块按顺序串起来
-  server.py     HTTP 接口（stdlib，无第三方依赖）
-kmg/          看门狗（看门狗=kmg）：wxbot_watchdog.py / wechat_inbox_watchdog.py / sidecar_spawn.py
-src/dashboard/          日志服务（8788 管理台）：server.py + web/（Vue 构建产物）+ 启动/重启 + launchers/
-scripts/      运维脚本：投递（wxbot_deliver）/ 提醒（butler_reminder_*）/ 栈启停（wechat_stack_*）
-              / wxbot 启停与自启 / wxbot_channel.json（投递映射）
-tests/        conftest.py（夹具）+ test_pipeline.py（主流程不变量）+ test_transport.py（线格式/HTTP）
+src/butler/                编排层 Python 包（wxbot ⇄ Hermes 之间那一层）
+  __main__.py              入口：init / setup / migrate / doctor / login / serve / start
+  config.py                配置读入（tomllib）      defaults.py       各配置文件默认值
+  runtime_config.py        运行期覆盖            business.py       业务库
+  server.py                HTTP 接口（stdlib，无第三方依赖）
+  agent/                   决策与执行
+    core.py                编排：把下面几块按顺序串起来
+    router.py              决策层：/命令、静默、行动标记解析
+    skills.py              可调 skill 白名单 + 执行器      skill_policy.py  角色/白名单策略
+    catalogue.py           技能目录              tools.py          Hermes 工具目录
+    hermes.py              Hermes 客户端（会话语义、存活探测）  hermes_stream.py  SSE 解析
+    reply.py               完整回复分句
+  identity/                联系人身份
+    contacts.py            联系人 → Profile/uid + 身份模板     contact_store.py  统一联系人存储
+    contact_identity.py    身份归一与合并          contact_migration.py  旧数据迁移
+    contact_admin.py       联系人管理视图          user_registry.py      用户注册表
+    user_api.py            用户 API 分发            directory.py          联系人目录
+    groups.py              用户分组字典            group_context.py      群归档上下文
+  delivery/                投递
+    push.py push_client.py 主动推送              pending.py            补发队列（认领式）
+    message_forwarding.py  消息转发              media.py              媒体暂存
+    reminders.py           提醒调度
+  runtime/                 运行支撑
+    setup.py doctor        安装与诊断            install_wizard.py     交互式安装向导
+    migration.py upgrade.py 数据迁移与升级        plugin.py             插件校验
+    mcp_gateway.py         MCP 网关              concurrency.py        会话锁
+    heartbeat.py           心跳调度              flowlog.py            流水日志
+    job_admin.py           队列任务删除
+  channels/telegram/       Telegram 通道
+    client.py config.py formatting.py service.py store.py   收信与转发
+    bot/                   原 telegram_bot（Bot API 入库）
+    relay/                 原 telegram_relay（Desktop 中继配置与状态）
+  news/                    每日新闻采集与投递
+tools/                     模型/后端探活脚本（probe_codex.py 等）
+src/dashboard/             日志服务（8788 管理台）：server.py + http/routes/api + web/（Vue 构建产物）
+scripts/                   运维脚本：投递 / 提醒（butler_reminder_*）/ 栈启停（wechat_stack_*）
+tests/                     conftest.py（夹具）+ test_pipeline.py（主流程不变量）+ test_transport.py（线格式/HTTP）
 ```
 
-整个 `D:\bot` 树都可以整体搬走：脚本里对自身位置一律**自定位**（`__file__` 往上推），
+整个仓库都可以整体搬走：脚本里对自身位置一律**自定位**（`common/paths.py` 的 `REPO_ROOT`），
 只有"数据根"（`$HERMES_HOME`，即档案/补发队列/日志所在）和 cron 入口是写死的。
 
 **cron 入口为什么要留在 Hermes 那边**：调度器只允许执行 `$HERMES_HOME/scripts/` 里
 resolve 得进来的脚本（`hermes-agent/cron/scheduler.py::_run_job_script`，符号链接也会被
 resolve 掉），所以 `$HERMES_HOME/scripts/` 里保留了 `wxbot_watchdog.py` /
-`wechat_inbox_watchdog.py` 两个**转发 shim**（8 行 runpy），真身在 `kmg/`。
+`wechat_inbox_watchdog.py` 两个**转发 shim**（8 行 runpy），真身在 `scripts/`。
+
+Telegram 入口：
+
+```bash
+python -m butler.channels.telegram init|login|run|status
+python -m butler.channels.telegram.bot init|run|status|retry-media
+```
 
 测试（唯一命令，全离线；真机探活用 `--status`）：
 
 ```bash
-cd D:\bot && python -m pytest
+\.venv\Scripts\python -m pytest
 ```
 
 ## 还没做（下一步，按需要再动）

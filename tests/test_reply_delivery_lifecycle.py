@@ -1,4 +1,4 @@
-from butler.reply import split_reply
+from butler.agent.reply import split_reply
 from wxbot.queue_store import Incoming, QueueStore
 
 
@@ -149,7 +149,7 @@ def test_input_default_is_twice_as_fast():
 
 def test_chunk_size_validation_and_custom_contract():
     import pytest
-    from butler.core import Result
+    from butler.agent.core import Result
     assert len(Result('a'*240).as_dict(reply_chunk_chars=100)['reply_parts'])==3
     for value in (0,True,99,2001,'500'):
         with pytest.raises(ValueError):split_reply('test',value)

@@ -48,7 +48,7 @@ class Registry:
 
     def change_memory(self, binding_id, key, value, version, delete=False):
         if version != 1:
-            from butler.user_registry import VersionConflict
+            from butler.identity.user_registry import VersionConflict
             raise VersionConflict('stale version')
         return {'binding_id': binding_id, 'key': key, 'value': value, 'version': 2, 'delete': delete}
 
@@ -60,7 +60,7 @@ class Registry:
 
 
 def test_admin_dispatch_filters_typed_actions_and_pagination():
-    from butler.user_api import dispatch_user_get, dispatch_user_post
+    from butler.identity.user_api import dispatch_user_get, dispatch_user_post
     registry = Registry()
     rows = dispatch_user_get(registry, '/v1/users', {'query': ['Alex'], 'offset': ['50'], 'limit': ['20']})
     assert rows['filters'] == {'query': 'Alex', 'contact': '', 'offset': 50, 'limit': 20}
@@ -78,7 +78,7 @@ def test_admin_dispatch_filters_typed_actions_and_pagination():
     {'action': 'link', 'binding_id': 'b', 'target_id': 'c', 'version': 1, 'resolutions': {'x': 'replace'}},
     {'action': 'create', 'channel_type': 'dm', 'contact': 'A', 'nickname': 'A', 'avatar': 'x', 'owner': 'victim'}])
 def test_invalid_admin_payload_never_reaches_registry(payload):
-    from butler.user_api import dispatch_user_post
+    from butler.identity.user_api import dispatch_user_post
     with pytest.raises(ValueError):
         dispatch_user_post(object(), payload)
 
@@ -121,7 +121,7 @@ def test_log_admin_proxy_requires_same_origin_and_keeps_credentials_server_side(
 
 
 def test_avatar_and_binding_edit_can_be_applied_atomically():
-    from butler.user_api import dispatch_user_post
+    from butler.identity.user_api import dispatch_user_post
     result = dispatch_user_post(Registry(), {'action': 'update', 'binding_id': 'b', 'version': 1,
         'nickname': 'Alex2', 'avatar': 'normalized-image'})
     assert result['nickname'] == 'Alex2' and result['avatar'] == 'normalized-image'
@@ -130,7 +130,7 @@ def test_avatar_and_binding_edit_can_be_applied_atomically():
 def test_real_user_admin_create_memory_link_and_stale_confirmation(tmp_path):
     from butler.business import BusinessStore
     from butler.server import make_handler
-    from butler.user_registry import UserRegistry
+    from butler.identity.user_registry import UserRegistry
     from test_user_registry import avatar
     registry = UserRegistry(BusinessStore(tmp_path / 'business.sqlite3'))
     bot = SimpleNamespace(registry=registry)

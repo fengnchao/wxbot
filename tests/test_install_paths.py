@@ -37,7 +37,7 @@ def test_edit_lock_lives_in_cache_and_keeps_stable_identity(tmp_path):
 
 def test_upgrade_relativizes_same_targets_and_removes_only_edit_locks(tmp_path):
     import tomlkit
-    from butler.upgrade import upgrade_installation
+    from butler.runtime.upgrade import upgrade_installation
     from dashboard.settings import load_settings
     (tmp_path/'config.butler.toml').write_text('[agent]\nprovider="codex"\n',encoding='utf-8')
     (tmp_path/'config.wxbot.toml').write_text('[model]\nbackend="echo"\n',encoding='utf-8')
@@ -59,7 +59,7 @@ def test_busy_edit_lock_is_preserved(tmp_path):
     import pytest
     if os.name!='nt':pytest.skip('Windows locking contract')
     import msvcrt
-    from butler.upgrade import clean_legacy_locks
+    from butler.runtime.upgrade import clean_legacy_locks
     path=tmp_path/'config.wxbot.toml.edit.lock'
     path.write_bytes(b'\0')
     with path.open('r+b') as fh:

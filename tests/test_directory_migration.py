@@ -34,8 +34,8 @@ hash="Manual"
 
 
 def test_migrate_preserves_scope_routes_identity_and_comments(tmp_path):
-    from butler.directory import DirectoryStore, directory_path
-    from butler.migration import migrate_installation
+    from butler.identity.directory import DirectoryStore, directory_path
+    from butler.runtime.migration import migrate_installation
     db = legacy(tmp_path)
     result = migrate_installation(tmp_path)
     assert result['database'] == str(db.resolve())
@@ -62,8 +62,8 @@ def test_migrate_preserves_scope_routes_identity_and_comments(tmp_path):
 
 
 def test_scoped_learning_manual_precedence_and_runtime(tmp_path):
-    from butler.directory import DirectoryStore
-    from butler.migration import migrate_installation
+    from butler.identity.directory import DirectoryStore
+    from butler.runtime.migration import migrate_installation
     from wxbot.config import load_config
     from butler.config import load
     db = legacy(tmp_path)
@@ -87,8 +87,8 @@ def test_scoped_learning_manual_precedence_and_runtime(tmp_path):
     assert load(tmp_path/'config.butler.toml').contacts.get('Alice').uid == 'old-uid'
 
 def test_import_rollback_and_retry_after_file_replace_interruption(tmp_path, monkeypatch):
-    from butler.directory import DirectoryStore
-    import butler.migration as migration
+    from butler.identity.directory import DirectoryStore
+    import butler.runtime.migration as migration
     db = legacy(tmp_path)
     original = (tmp_path/'config.wxbot.toml').read_text('utf-8')
     real_replace = migration._replace
@@ -106,7 +106,7 @@ def test_import_rollback_and_retry_after_file_replace_interruption(tmp_path, mon
 
 
 def test_shared_queue_and_dynamic_names_and_relative_paths(tmp_path, monkeypatch):
-    from butler.directory import DirectoryStore, directory_path
+    from butler.identity.directory import DirectoryStore, directory_path
     from wxbot.queue_store import QueueStore, queue_database
     from wxbot.config import load_config
     path = tmp_path/'config.wxbot.toml'
@@ -129,7 +129,7 @@ def test_shared_queue_and_dynamic_names_and_relative_paths(tmp_path, monkeypatch
 
 
 def test_bad_source_does_not_remove_legacy_fields(tmp_path):
-    from butler.migration import migrate_installation
+    from butler.runtime.migration import migrate_installation
     legacy(tmp_path)
     path = tmp_path/'config.wxbot.toml'
     path.write_text('[bot]\nbound_users="wrong"\n',encoding='utf-8')
@@ -139,8 +139,8 @@ def test_bad_source_does_not_remove_legacy_fields(tmp_path):
 
 def test_loaded_butler_routes_refresh_without_rebuilding_identity(tmp_path):
     from butler.config import load
-    from butler.directory import DirectoryStore
-    from butler.migration import migrate_installation
+    from butler.identity.directory import DirectoryStore
+    from butler.runtime.migration import migrate_installation
     db = legacy(tmp_path)
     migrate_installation(tmp_path)
     cfg = load(tmp_path/'config.butler.toml')
@@ -151,7 +151,7 @@ def test_loaded_butler_routes_refresh_without_rebuilding_identity(tmp_path):
     assert cfg.contacts.get('Alice').uid == 'old-uid'
 
 def test_conflicting_explicit_database_is_rejected_before_removing_fields(tmp_path):
-    from butler.migration import migrate_installation
+    from butler.runtime.migration import migrate_installation
     legacy(tmp_path)
     path = tmp_path/'config.wxbot.toml'
     path.write_text(path.read_text('utf-8')+'\n[directory]\ndatabase="other/business.sqlite3"\n',encoding='utf-8')
@@ -160,7 +160,7 @@ def test_conflicting_explicit_database_is_rejected_before_removing_fields(tmp_pa
     assert '[[contacts]]' in (tmp_path/'config.butler.toml').read_text('utf-8')
 
 def test_ledger_does_not_copy_secrets_and_preserves_utf8_bom(tmp_path):
-    from butler.migration import migrate_installation
+    from butler.runtime.migration import migrate_installation
     db = legacy(tmp_path)
     path = tmp_path/'config.butler.toml'
     path.write_bytes(b'\xef\xbb\xbf'+path.read_bytes())
@@ -173,7 +173,7 @@ def test_ledger_does_not_copy_secrets_and_preserves_utf8_bom(tmp_path):
 
 @pytest.mark.parametrize('field,value', [('uid',[]),('profile',123),('session_key',{}),('name',False)])
 def test_directory_rejects_malformed_contact_routes(tmp_path, field, value):
-    from butler.directory import DirectoryStore
+    from butler.identity.directory import DirectoryStore
     store = DirectoryStore(tmp_path/'business.db')
     snap = store.snapshot()
     row = dict(name='Alice',uid='stable',profile='default',session_key='route')
@@ -184,7 +184,7 @@ def test_directory_rejects_malformed_contact_routes(tmp_path, field, value):
 
 
 def test_directory_rejects_duplicate_contacts_and_malformed_aliases(tmp_path):
-    from butler.directory import DirectoryStore
+    from butler.identity.directory import DirectoryStore
     store = DirectoryStore(tmp_path/'business.db')
     snap = store.snapshot()
     snap['contacts'] = [dict(name='Alice'),dict(name='Alice')]
@@ -196,7 +196,7 @@ def test_directory_rejects_duplicate_contacts_and_malformed_aliases(tmp_path):
         store.save(snap,expected_version=snap['version'])
 
 def test_failed_migration_keeps_legacy_loaders_active(tmp_path):
-    from butler.migration import migrate_installation
+    from butler.runtime.migration import migrate_installation
     from butler.config import load
     from wxbot.config import load_config
     legacy(tmp_path)
@@ -214,8 +214,8 @@ def test_failed_migration_keeps_legacy_loaders_active(tmp_path):
 @pytest.mark.parametrize('absolute_legacy_key', [False,True])
 def test_moved_install_does_not_reimport_or_clean_old_root(tmp_path,monkeypatch,absolute_legacy_key):
     import shutil
-    import butler.migration as migration
-    from butler.directory import DirectoryStore
+    import butler.runtime.migration as migration
+    from butler.identity.directory import DirectoryStore
     original = tmp_path/'old'
     original.mkdir()
     db = legacy(original)
@@ -242,7 +242,7 @@ def test_moved_install_does_not_reimport_or_clean_old_root(tmp_path,monkeypatch,
         assert set(row[0] for row in con.execute('select source from directory_migrations')) == {'config.butler.toml','config.wxbot.toml'}
 
 def test_route_private_compatibility_and_template_validation(tmp_path):
-    from butler.directory import DirectoryStore
+    from butler.identity.directory import DirectoryStore
     store = DirectoryStore(tmp_path/'directory.db')
     state = store.snapshot()
     state['contacts'] = [dict(name='Alice',uid='old',channel_type='private',session_key='{profile}:{uid}')]

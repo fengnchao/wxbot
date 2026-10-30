@@ -7,9 +7,9 @@ from types import SimpleNamespace
 import pytest
 
 from butler.config import Config
-from butler.core import Butler
+from butler.agent.core import Butler
 from butler.server import make_handler
-from butler.reminders import ReminderScheduler
+from butler.delivery.reminders import ReminderScheduler
 from test_codex_backend import FakeCodex, FakeThread, FakeTurn
 
 

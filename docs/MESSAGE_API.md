@@ -671,16 +671,16 @@ Butler 参数错误通常为 `{"error":"..."}`，wxbot 通常为 `{"ok":false,"d
 | 文件 | 核对内容 |
 |---|---|
 | [src/butler/server.py](../butler/server.py) | Butler 路由、鉴权、HTTP 参数及状态码 |
-| [src/butler/core.py](../butler/core.py) | 处理结果结构、身份观测、单发和群发业务 |
+| [src/butler/agent/core.py](../butler/agent/core.py) | 处理结果结构、身份观测、单发和群发业务 |
 | [src/wxbot/outbound.py](../wxbot/outbound.py) | `/send`、`/send-bundle`、等待语义及鉴权 |
 | [src/wxbot/processor/butler.py](../wxbot/processor/butler.py) | 实际 wxbot → Butler 请求和回复解析 |
 | [src/wxbot/delivery.py](../wxbot/delivery.py)、[src/wxbot/queue_store.py](../wxbot/queue_store.py) | 持久入队、图文幂等和本地发送回执 |
-| [src/common/media_bundle.py](../common/media_bundle.py)、[src/butler/media.py](../butler/media.py) | 图文和图片格式限制 |
-| [src/common/avatar_identity.py](../common/avatar_identity.py)、[src/butler/user_registry.py](../butler/user_registry.py) | 头像编码与身份观测约束 |
-| [src/butler/group_context.py](../butler/group_context.py) | 群归档格式、序号及幂等 |
-| [src/butler/telegram_bot/inbox.py](../butler/telegram_bot/inbox.py) | Telegram 收件校验和持久化回执 |
-| [src/butler/telegram_bot/service.py](../butler/telegram_bot/service.py) | Telegram 桥接筛选和保留字段 |
-| [src/butler/push.py](../butler/push.py)、[src/butler/groups.py](../butler/groups.py) | 发件转发、超时和订阅分组 |
+| [src/common/media_bundle.py](../common/media_bundle.py)、[src/butler/delivery/media.py](../butler/delivery/media.py) | 图文和图片格式限制 |
+| [src/common/avatar_identity.py](../common/avatar_identity.py)、[src/butler/identity/user_registry.py](../butler/identity/user_registry.py) | 头像编码与身份观测约束 |
+| [src/butler/identity/group_context.py](../butler/identity/group_context.py) | 群归档格式、序号及幂等 |
+| [src/butler/channels/telegram/bot/inbox.py](../butler/channels/telegram/bot/inbox.py) | Telegram 收件校验和持久化回执 |
+| [src/butler/channels/telegram/bot/service.py](../butler/channels/telegram/bot/service.py) | Telegram 桥接筛选和保留字段 |
+| [src/butler/delivery/push.py](../butler/delivery/push.py)、[src/butler/identity/groups.py](../butler/identity/groups.py) | 发件转发、超时和订阅分组 |
 | [src/dashboard/server.py](../src/dashboard/server.py)、[src/dashboard/queue_view.py](../src/dashboard/queue_view.py)、[src/dashboard/flow_view.py](../src/dashboard/flow_view.py)、[src/dashboard/workflow_content.py](../src/dashboard/workflow_content.py) | 本机查询接口 |
 | [src/butler/defaults.py](../butler/defaults.py)、[安装引导](CODEX_INSTALL.md) | 代码默认值、接入模式和本机配置生成 |
 

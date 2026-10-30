@@ -11,7 +11,7 @@ def conversation(name='A',kind='dm'):
 
 
 def test_unified_source_requires_explicit_activation_and_never_creates_on_read(tmp_path):
-    from butler.contact_store import ContactStore,is_unified
+    from butler.identity.contact_store import ContactStore,is_unified
     path=tmp_path/'business.sqlite3'
     assert not is_unified(path) and not path.exists()
     store=ContactStore(path)
@@ -22,7 +22,7 @@ def test_unified_source_requires_explicit_activation_and_never_creates_on_read(t
 
 
 def test_routes_listening_policies_and_subscribers_share_one_record(tmp_path):
-    from butler.contact_store import ContactStore
+    from butler.identity.contact_store import ContactStore
     store=ContactStore(tmp_path/'b.db');state=store.snapshot()
     state['conversations']=[conversation(),conversation('G','group')]
     state['settings']={'bot':{'mention_names':['Bot']},'wechat':{'main_window':{'listen_all':True}}}
@@ -43,7 +43,7 @@ def test_routes_listening_policies_and_subscribers_share_one_record(tmp_path):
 
 
 def test_version_conflict_and_invalid_update_leave_state_unchanged(tmp_path):
-    from butler.contact_store import ContactStore
+    from butler.identity.contact_store import ContactStore
     store=ContactStore(tmp_path/'b.db');state=store.snapshot();state['conversations']=[conversation()]
     saved=store.activate(state,state['version'])
     with pytest.raises(ValueError,match='version'):
@@ -54,8 +54,8 @@ def test_version_conflict_and_invalid_update_leave_state_unchanged(tmp_path):
 
 
 def test_legacy_directory_projection_does_not_store_another_list(tmp_path):
-    from butler.contact_store import ContactStore
-    from butler.directory import DirectoryStore
+    from butler.identity.contact_store import ContactStore
+    from butler.identity.directory import DirectoryStore
     store=ContactStore(tmp_path/'b.db');state=store.snapshot();state['conversations']=[conversation()]
     store.activate(state,state['version'])
     directory=DirectoryStore(store.path)
@@ -67,9 +67,9 @@ def test_legacy_directory_projection_does_not_store_another_list(tmp_path):
 
 
 def test_runtime_policy_and_groups_ignore_retired_json(tmp_path):
-    from butler.contact_store import ContactStore
-    from butler.skill_policy import SkillPolicyStore
-    from butler.groups import GroupStore
+    from butler.identity.contact_store import ContactStore
+    from butler.agent.skill_policy import SkillPolicyStore
+    from butler.identity.groups import GroupStore
     store=ContactStore(tmp_path/'b.db');state=store.snapshot();state['conversations']=[conversation()]
     store.activate(state,state['version'])
     policies=SkillPolicyStore(str(tmp_path/'retired.json'),database=store.path)
@@ -82,8 +82,8 @@ def test_runtime_policy_and_groups_ignore_retired_json(tmp_path):
 
 
 def test_news_and_telegram_subscribers_read_active_database(tmp_path):
-    from butler.contact_store import ContactStore
-    from butler.telegram.service import read_subscribers
+    from butler.identity.contact_store import ContactStore
+    from butler.channels.telegram.service import read_subscribers
     from butler.news.delivery import subscribers
     store=ContactStore(tmp_path/'b.db');state=store.snapshot();state['conversations']=[conversation()]
     store.activate(state,state['version'])
@@ -97,9 +97,9 @@ def test_news_and_telegram_subscribers_read_active_database(tmp_path):
 
 def test_business_memory_tools_preserve_merged_conflict_variants(tmp_path):
     from butler.business import BusinessStore
-    from butler.user_registry import UserRegistry
-    from butler.contact_identity import merge_users
-    from butler.contact_store import ContactStore
+    from butler.identity.user_registry import UserRegistry
+    from butler.identity.contact_identity import merge_users
+    from butler.identity.contact_store import ContactStore
     business=BusinessStore(tmp_path/'b.db');registry=UserRegistry(business)
     with business.transaction() as db:
         a=registry._create(db,'group','G1','A')
@@ -118,9 +118,9 @@ def test_business_memory_tools_preserve_merged_conflict_variants(tmp_path):
 
 def test_editing_uncontested_merged_memory_does_not_resurrect_old_value(tmp_path):
     from butler.business import BusinessStore
-    from butler.user_registry import UserRegistry
-    from butler.contact_identity import merge_users
-    from butler.contact_store import ContactStore
+    from butler.identity.user_registry import UserRegistry
+    from butler.identity.contact_identity import merge_users
+    from butler.identity.contact_store import ContactStore
     business=BusinessStore(tmp_path/'b.db');registry=UserRegistry(business)
     with business.transaction() as db:
         a=registry._create(db,'group','G1','A');b=registry._create(db,'group','G2','B');c=registry._create(db,'group','G3','C')
@@ -135,8 +135,8 @@ def test_editing_uncontested_merged_memory_does_not_resurrect_old_value(tmp_path
 
 def test_runtime_identity_store_uses_active_canonical_database(tmp_path):
     from butler.config import Config
-    from butler.core import Butler
-    from butler.contact_store import ContactStore
+    from butler.agent.core import Butler
+    from butler.identity.contact_store import ContactStore
     path=tmp_path/'custom'/'contacts.sqlite3'
     unified=ContactStore(path);unified.activate(unified.snapshot(),0)
     cfg=Config(provider='codex',data_dir=str(tmp_path/'runtime'),contact_database=str(path))
@@ -147,9 +147,9 @@ def test_runtime_identity_store_uses_active_canonical_database(tmp_path):
 
 def contact_service(tmp_path):
     from butler.business import BusinessStore
-    from butler.user_registry import UserRegistry
-    from butler.contact_store import ContactStore
-    from butler.contact_admin import ContactAdmin
+    from butler.identity.user_registry import UserRegistry
+    from butler.identity.contact_store import ContactStore
+    from butler.identity.contact_admin import ContactAdmin
     business=BusinessStore(tmp_path/'b.db');registry=UserRegistry(business)
     store=ContactStore(business.path);store.activate(store.snapshot(),0)
     return ContactAdmin(business.path),registry
@@ -194,7 +194,7 @@ def test_discovered_private_person_can_reuse_existing_private_binding(tmp_path):
 
 def test_inferred_destination_is_pending_until_its_route_is_reviewed(tmp_path):
     service,registry=contact_service(tmp_path)
-    from butler.contact_store import ContactStore
+    from butler.identity.contact_store import ContactStore
     store=ContactStore(service.path);state=store.snapshot()
     c=conversation('OnlySubscriber');c['needs_route']=True;c['person_id']=''
     state['conversations']=[c];store.save(state,state['version'])
@@ -205,7 +205,7 @@ def test_inferred_destination_is_pending_until_its_route_is_reviewed(tmp_path):
 
 
 def test_group_listening_requires_global_bot_nickname(tmp_path):
-    from butler.contact_store import ContactStore
+    from butler.identity.contact_store import ContactStore
     store=ContactStore(tmp_path/'b.db');state=store.snapshot();state['conversations']=[conversation('G','group')]
     with pytest.raises(ValueError,match='昵称|mention'):
         store.activate(state,0)

@@ -10,9 +10,9 @@ from PIL import Image
 import requests
 
 from butler.config import Config
-from butler.core import Butler
+from butler.agent.core import Butler
 from butler.server import make_handler
-from butler.telegram_relay.store import RelayStore
+from butler.channels.telegram.relay.store import RelayStore
 
 
 @contextmanager
@@ -30,7 +30,7 @@ def server(tmp_path):
 
 
 def test_media_http_auth_image_bytes_and_bundle_receipt(tmp_path,monkeypatch):
-    from butler import push
+    from butler.delivery import push
     seen=[]
     monkeypatch.setattr(push,'push_bundle_to_wxbot',lambda cfg,contact,items,request_id,log=None:
                         (seen.append((contact,items,request_id)) is None,'sent'))

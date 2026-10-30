@@ -19,8 +19,8 @@ from pathlib import Path
 import pytest
 
 from butler.config import Config
-from butler.flowlog import FlowLog
-from butler.push import push_to_wxbot
+from butler.runtime.flowlog import FlowLog
+from butler.delivery.push import push_to_wxbot
 from wxbot.outbound import OutboundQueue, start_server
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -208,7 +208,7 @@ def _call_push(base, payload, token="t0ken"):
 
 def test_push_endpoint(make_home, start_server, monkeypatch):
     """POST /v1/push：鉴权 + 校验 + 转发 + 写外发流水（把 wxbot 那一步替掉）。"""
-    import butler.core as core
+    import butler.agent.core as core
     monkeypatch.setattr(core, "push_to_wxbot",
                         lambda cfg, contact, text, log=None: (True, "sent"))
     home = make_home()

@@ -9,8 +9,8 @@ import time
 
 import uiautomation as auto
 
-from butler.telegram_relay.settings import load
-from butler.telegram_relay.store import RelayStore
+from butler.channels.telegram.relay.settings import load
+from butler.channels.telegram.relay.store import RelayStore
 from .wechat.locator import find_all
 from .wechat.mentions import literal_keys, window_owner
 

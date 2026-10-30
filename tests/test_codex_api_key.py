@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 import pytest
 from butler.config import Config, load
-from butler.contacts import Contact
-from butler.hermes import HermesError
+from butler.identity.contacts import Contact
+from butler.agent.hermes import HermesError
 from test_codex_backend import make_backend, FakeCodex
 
 

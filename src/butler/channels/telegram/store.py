@@ -6,7 +6,7 @@ from pathlib import Path
 import sqlite3
 import threading
 
-from .formatting import Message
+from butler.channels.telegram.formatting import Message
 
 
 @dataclass(frozen=True)

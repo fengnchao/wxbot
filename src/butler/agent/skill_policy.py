@@ -12,7 +12,7 @@ class SkillPolicyStore:
         self.log = log or (lambda *a, **k: None)
 
     def load(self) -> dict[str, dict]:
-        from .contact_store import ContactStore,is_unified
+        from butler.identity.contact_store import ContactStore,is_unified
         if self.database and is_unified(self.database):
             return ContactStore(self.database).policies()
         if self.path is None:

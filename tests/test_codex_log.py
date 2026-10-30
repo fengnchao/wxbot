@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from butler.setup import initialize
+from butler.runtime.setup import initialize
 from dashboard.config_view import ConfigView
 
 

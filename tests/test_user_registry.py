@@ -17,7 +17,7 @@ def avatar(seed=0):
 
 
 def registry(tmp_path):
-    from butler.user_registry import UserRegistry
+    from butler.identity.user_registry import UserRegistry
     return UserRegistry(BusinessStore(tmp_path / 'business.sqlite3'))
 
 
@@ -45,7 +45,7 @@ def test_avatar_normalization_and_strict_scoped_resolution(tmp_path):
 
 
 def test_bad_upload_and_stale_edit_rejected(tmp_path):
-    from butler.user_registry import VersionConflict
+    from butler.identity.user_registry import VersionConflict
     r = registry(tmp_path)
     with pytest.raises(ValueError): r.create('dm', 'alice', 'Alice', 'not-base64')
     with pytest.raises(ValueError): r.create('dm', 'alice', 'Alice', base64.b64encode(b'<svg/>').decode())
@@ -157,7 +157,7 @@ def test_missing_nickname_cannot_inherit_automatic_avatar_identity_memory(tmp_pa
 
 def test_shared_memory_does_not_share_conversation_scope_and_revision_invalidates_thread(tmp_path):
     from dataclasses import replace
-    from butler.contacts import Contact
+    from butler.identity.contacts import Contact
     from butler.backends.codex import owner_key, CodexBackend
     from types import SimpleNamespace
     r = registry(tmp_path)
@@ -174,8 +174,8 @@ def test_shared_memory_does_not_share_conversation_scope_and_revision_invalidate
 
 
 def test_unknown_identity_cannot_call_memory_even_when_group_skill_enabled(tmp_path):
-    from butler.catalogue import SkillCatalogue
-    from butler.tools import ToolService
+    from butler.agent.catalogue import SkillCatalogue
+    from butler.agent.tools import ToolService
     from pathlib import Path
     service = ToolService(BusinessStore(tmp_path/'business.sqlite3'), SkillCatalogue(Path(__file__).resolve().parents[1]/'plugins'/'butler-wechat'/'skills'))
     policy = {'role_skill':'butler-companion','allowed_skills':['butler-memory']}
@@ -199,7 +199,7 @@ def test_admin_audit_is_not_mislabeled_as_model_and_link_copies_all_notes(tmp_pa
 
 
 def test_stale_link_preview_is_rejected_without_partial_merge(tmp_path):
-    from butler.user_registry import VersionConflict
+    from butler.identity.user_registry import VersionConflict
     r=registry(tmp_path)
     a=r.create('group','群','甲',avatar());b=r.create('dm','alice','Alice',avatar(8))
     r.change_memory(a['binding_id'],'same','source',0)

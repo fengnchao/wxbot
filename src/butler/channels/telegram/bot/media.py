@@ -3,7 +3,7 @@ import re
 
 import requests
 
-from butler.media import MAX_BYTES, validate_image
+from butler.delivery.media import MAX_BYTES, validate_image
 from common.media_bundle import validate_media_id
 
 

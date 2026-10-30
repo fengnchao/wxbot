@@ -18,7 +18,7 @@ uv sync --locked --extra dev --extra telegram
 .\.venv\Scripts\python.exe -m pip install "Telethon==1.45.0" "python-socks[asyncio]>=2.7,<3"
 ```
 
-首次运行 `python -m butler.telegram init`，由代码默认值生成 `config.telegram.toml`；已有本机配置保留，不覆盖。生成配置默认关闭、凭据为空。
+首次运行 `python -m butler.channels.telegram init`，由代码默认值生成 `config.telegram.toml`；已有本机配置保留，不覆盖。生成配置默认关闭、凭据为空。
 
 在 [Telegram API development tools](https://my.telegram.org/apps) 为自己的账号申请 `api_id`、`api_hash`，在本机配置中填写，并设置 `enabled = true`。不把密钥、验证码、二次验证密码或 `.session` 文件发到聊天中。
 
@@ -40,13 +40,13 @@ uv sync --locked --extra dev --extra telegram
 
 ```powershell
 $env:PYTHONIOENCODING = 'utf-8'
-.\.venv\Scripts\python.exe -m butler.telegram login
+.\.venv\Scripts\python.exe -m butler.channels.telegram login
 ```
 
 确认 Butler 和 wxbot 已由安装者启动后，再运行接收程序：
 
 ```powershell
-.\.venv\Scripts\python.exe -m butler.telegram run
+.\.venv\Scripts\python.exe -m butler.channels.telegram run
 ```
 
 按 Ctrl+C 停止新增接收及任务领取；已有 HTTP 请求等待其回执或超时后退出。不自动停止或重启 Butler、wxbot、log。
@@ -54,7 +54,7 @@ $env:PYTHONIOENCODING = 'utf-8'
 另一个终端可只读查看保存的状态：
 
 ```powershell
-.\.venv\Scripts\python.exe -m butler.telegram status
+.\.venv\Scripts\python.exe -m butler.channels.telegram status
 ```
 
 `status` 不登录 Telegram、不发送消息、不创建会话或数据库；它显示最近保存的快照，不能单凭 `running`/`connected` 字段判定进程仍活着。请结合扫描时间和终端状态检查。

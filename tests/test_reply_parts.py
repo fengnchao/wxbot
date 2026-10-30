@@ -1,6 +1,6 @@
 import pytest
 
-from butler.reply import split_reply
+from butler.agent.reply import split_reply
 
 
 @pytest.mark.parametrize('text,expected', [
@@ -33,7 +33,7 @@ def test_complete_reply_contract_on_all_handle_paths(make_home, text, reply):
 
 
 def test_error_and_reset_contract(make_home):
-    from butler.hermes import HermesError
+    from butler.agent.hermes import HermesError
     home = make_home(replies=[HermesError('fail')])
     data = home.butler.handle('101', 'hi', msg_id='err').as_dict()
     assert data['meta']['msg_id'] == 'err'

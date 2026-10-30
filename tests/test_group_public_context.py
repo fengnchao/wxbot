@@ -14,7 +14,7 @@ from wxbot.reply import Reply
 
 
 def context_store(tmp_path):
-    from butler.group_context import GroupContext
+    from butler.identity.group_context import GroupContext
     return GroupContext(BusinessStore(tmp_path / 'business.sqlite3'))
 
 

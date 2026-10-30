@@ -4,8 +4,8 @@ import json
 
 from butler.config import load
 from common.news_config import read_settings
-from .collector import collect
-from .delivery import run
+from butler.news.collector import collect
+from butler.news.delivery import run
 
 
 def main():

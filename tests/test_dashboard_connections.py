@@ -5,7 +5,7 @@ import pytest
 
 
 def test_external_dashboard_routes_credentials_to_configured_service(tmp_path,monkeypatch):
-    from butler.install_wizard import install,Connection
+    from butler.runtime.install_wizard import install,Connection
     import dashboard.server as server
     install(tmp_path,Connection(provider='butler',url='https://remote.example/prefix/v1/handle',api_key='remote-secret'))
     monkeypatch.setattr(server,'butler_config_path',lambda:str(tmp_path/'config.butler.toml'))
@@ -18,7 +18,7 @@ def test_external_dashboard_routes_credentials_to_configured_service(tmp_path,mo
 
 
 def test_direct_dashboard_never_falls_back_to_local_butler(tmp_path,monkeypatch):
-    from butler.install_wizard import install,Connection
+    from butler.runtime.install_wizard import install,Connection
     import dashboard.server as server
     install(tmp_path,Connection(provider='deepseek',model='test'))
     monkeypatch.setattr(server,'butler_config_path',lambda:str(tmp_path/'config.butler.toml'))
@@ -28,8 +28,8 @@ def test_direct_dashboard_never_falls_back_to_local_butler(tmp_path,monkeypatch)
 
 
 def test_dashboard_contacts_use_shared_directory(tmp_path,monkeypatch):
-    from butler.install_wizard import install,Connection
-    from butler.directory import DirectoryStore
+    from butler.runtime.install_wizard import install,Connection
+    from butler.identity.directory import DirectoryStore
     import dashboard.server as server
     install(tmp_path,Connection())
     store=DirectoryStore(tmp_path/'data/business.sqlite3')

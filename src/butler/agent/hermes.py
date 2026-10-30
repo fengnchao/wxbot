@@ -16,10 +16,10 @@ import time
 from urllib.parse import quote
 
 from common.flow_trace import record, tracing
-from .hermes_stream import read_complete
+from butler.agent.hermes_stream import read_complete
 
-from .contacts import Contact
-from .concurrency import RuntimeLocks
+from butler.identity.contacts import Contact
+from butler.runtime.concurrency import RuntimeLocks
 
 
 def header_value(value: str) -> str:

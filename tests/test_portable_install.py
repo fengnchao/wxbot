@@ -1,7 +1,7 @@
 import json
 import tomllib
 
-from butler.setup import initialize, doctor
+from butler.runtime.setup import initialize, doctor
 from butler.config import load
 
 
@@ -14,7 +14,7 @@ def test_fresh_install_is_idempotent_and_does_not_copy_personal_data(tmp_path):
     assert cfg.provider=='codex'
     assert cfg.contacts.names()==[]
     assert cfg.token and cfg.wxbot_token and cfg.token!=cfg.wxbot_token
-    from butler.contact_store import ContactStore, is_unified
+    from butler.identity.contact_store import ContactStore, is_unified
     database=root/'data/business.sqlite3'
     assert is_unified(database)
     assert ContactStore(database).policies()=={}
@@ -42,7 +42,7 @@ def test_plugin_references_and_protocol_are_self_contained():
 
 def test_incompatible_plugin_fails_before_runtime_start(tmp_path):
     import pytest
-    from butler.core import Butler
+    from butler.agent.core import Butler
     root=tmp_path/'plugin';root.mkdir()
     (root/'protocol.json').write_text('{"protocol_version":99,"minimum_application_version":"1.0.0"}')
     from butler.config import Config
@@ -52,7 +52,7 @@ def test_incompatible_plugin_fails_before_runtime_start(tmp_path):
 
 def test_start_normalizes_relative_config_before_changing_child_cwd(tmp_path,monkeypatch):
     import butler.__main__ as entry
-    import butler.setup as setup
+    import butler.runtime.setup as setup
     root=tmp_path/'中文 安装';root.mkdir()
     initialize(root)
     monkeypatch.chdir(tmp_path)
@@ -85,7 +85,7 @@ def test_doctor_checks_configured_service_ports(tmp_path,monkeypatch):
         def __enter__(self):return self
         def __exit__(self,*args):pass
         def bind(self,address):checked.append(address[1])
-    monkeypatch.setattr('butler.setup.socket.socket',Socket)
+    monkeypatch.setattr('butler.runtime.setup.socket.socket',Socket)
     report=doctor(load(tmp_path/'config.butler.toml'),check_wechat=False)
     assert checked==[8770,8865,8888]
     assert report['checks']['wxbot_port']['port']==8865

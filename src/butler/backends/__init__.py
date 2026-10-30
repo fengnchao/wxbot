@@ -11,7 +11,7 @@ class ModelBackend(Protocol):
 
 def create_backend(cfg, log=None, *, locks=None, store=None, tools=None):
     if cfg.provider == 'codex':
-        from .codex import CodexBackend
+        from butler.backends.codex import CodexBackend
         return CodexBackend(cfg,log,locks=locks,store=store,tools=tools)
-    from ..hermes import HermesClient
+    from butler.agent.hermes import HermesClient
     return HermesClient(cfg,log,locks=locks)

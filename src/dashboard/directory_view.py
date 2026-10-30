@@ -2,7 +2,7 @@
 from copy import deepcopy
 from pathlib import Path
 
-from butler.directory import DirectoryStore, directory_path, directory_enabled
+from butler.identity.directory import DirectoryStore, directory_path, directory_enabled
 from dashboard.config_schema import row_metadata, validate_value
 
 

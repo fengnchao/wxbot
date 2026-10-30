@@ -37,7 +37,7 @@ class QueueActions:
                 config = tomllib.loads(config_path.read_text(encoding='utf-8-sig'))['telegram_bot']
                 path = (config_path.parent / config.get('state_dir', 'data/telegram-bot') / 'relay.sqlite3').resolve()
                 if path.is_file():
-                    from butler.telegram_bot.cleanup import delete_unsent
+                    from butler.channels.telegram.bot.cleanup import delete_unsent
                     directory = path.parent / 'backups'
                     directory.mkdir(parents=True, exist_ok=True)
                     backup_path = directory / ('delete-unsent-' + uuid.uuid4().hex + '.sqlite3')

@@ -43,7 +43,7 @@ def files(root):
 
 
 def test_preview_is_read_only_even_when_database_does_not_exist(tmp_path):
-    from butler.contact_migration import preview_contacts
+    from butler.identity.contact_migration import preview_contacts
     database = legacy(tmp_path)
     before = files(tmp_path)
     report = preview_contacts(tmp_path)
@@ -54,11 +54,11 @@ def test_preview_is_read_only_even_when_database_does_not_exist(tmp_path):
 
 
 def test_union_preserves_routes_settings_destinations_and_passive_disabled_identity(tmp_path):
-    from butler.contact_migration import migrate_contacts, preview_contacts
+    from butler.identity.contact_migration import migrate_contacts, preview_contacts
     from butler.business import BusinessStore
-    from butler.directory import DirectoryStore
-    from butler.user_registry import UserRegistry
-    from butler.contact_store import ContactStore
+    from butler.identity.directory import DirectoryStore
+    from butler.identity.user_registry import UserRegistry
+    from butler.identity.contact_store import ContactStore
     database = legacy(tmp_path)
     registry = UserRegistry(BusinessStore(database))
     with registry.store.transaction() as db:
@@ -97,7 +97,7 @@ def test_union_preserves_routes_settings_destinations_and_passive_disabled_ident
 
 
 def test_migration_requires_stop_acknowledgement_and_refuses_occupied_port(tmp_path):
-    from butler.contact_migration import migrate_contacts
+    from butler.identity.contact_migration import migrate_contacts
     legacy(tmp_path)
     before = files(tmp_path)
     with pytest.raises(ValueError, match='acknowledge'):
@@ -115,7 +115,7 @@ def test_migration_requires_stop_acknowledgement_and_refuses_occupied_port(tmp_p
 
 @pytest.mark.parametrize('body', ['{broken', '{"users": []}', '{"users":{"Alice":{"role_skill":"paimon"}}}'])
 def test_malformed_policy_fails_preview_and_migration_before_any_writes(tmp_path, body):
-    from butler.contact_migration import preview_contacts, migrate_contacts
+    from butler.identity.contact_migration import preview_contacts, migrate_contacts
     legacy(tmp_path)
     (tmp_path / 'state/cache/butler_heartbeat.json').write_text(body, encoding='utf-8')
     before = files(tmp_path)
@@ -127,7 +127,7 @@ def test_malformed_policy_fails_preview_and_migration_before_any_writes(tmp_path
 
 
 def test_log_relative_group_override_is_preserved_and_conflicts_are_reported(tmp_path):
-    from butler.contact_migration import preview_contacts
+    from butler.identity.contact_migration import preview_contacts
     legacy(tmp_path)
     logpath = tmp_path / 'config.log.toml'
     logpath.write_text(logpath.read_text('utf-8').replace('state/cache/butler_groups.json', 'overrides/groups.json'), encoding='utf-8')
@@ -144,8 +144,8 @@ def test_log_relative_group_override_is_preserved_and_conflicts_are_reported(tmp
 
 
 def test_backup_precedes_initial_schema_and_idempotence_keeps_new_edits(tmp_path):
-    from butler.contact_migration import migrate_contacts
-    from butler.contact_store import ContactStore
+    from butler.identity.contact_migration import migrate_contacts
+    from butler.identity.contact_store import ContactStore
     database = legacy(tmp_path)
     with sqlite3.connect(database) as db:
         db.execute('CREATE TABLE original(value TEXT)')
@@ -168,8 +168,8 @@ def test_backup_precedes_initial_schema_and_idempotence_keeps_new_edits(tmp_path
 
 
 def test_failed_activation_preserves_original_database_and_source_files(tmp_path, monkeypatch):
-    from butler.contact_migration import migrate_contacts
-    from butler.contact_store import ContactStore
+    from butler.identity.contact_migration import migrate_contacts
+    from butler.identity.contact_store import ContactStore
     database = legacy(tmp_path)
     with sqlite3.connect(database) as db:
         db.execute('CREATE TABLE original(value TEXT)')
@@ -187,8 +187,8 @@ def test_failed_activation_preserves_original_database_and_source_files(tmp_path
 
 
 def test_new_install_is_empty_active_canonical_without_legacy_json(tmp_path):
-    from butler.install_wizard import install
-    from butler.contact_store import ContactStore, is_unified
+    from butler.runtime.install_wizard import install
+    from butler.identity.contact_store import ContactStore, is_unified
     assert install(tmp_path, nickname='Robot')['ok']
     database = tmp_path / 'data/business.sqlite3'
     assert is_unified(database)
@@ -201,7 +201,7 @@ def test_new_install_is_empty_active_canonical_without_legacy_json(tmp_path):
 
 def test_cli_preview_and_migrate_have_explicit_separate_cutover(tmp_path, capsys):
     from butler.__main__ import main
-    from butler.contact_store import is_unified
+    from butler.identity.contact_store import is_unified
     database = legacy(tmp_path)
     assert main(['contacts-preview', '--directory', str(tmp_path)]) == 0
     assert json.loads(capsys.readouterr().out)['ok']
@@ -214,10 +214,10 @@ def test_cli_preview_and_migrate_have_explicit_separate_cutover(tmp_path, capsys
 
 
 def test_preview_reports_same_name_memory_conflicts_and_migration_retains_variants(tmp_path):
-    from butler.contact_migration import preview_contacts, migrate_contacts
-    from butler.contact_identity import conflict_memories
+    from butler.identity.contact_migration import preview_contacts, migrate_contacts
+    from butler.identity.contact_identity import conflict_memories
     from butler.business import BusinessStore
-    from butler.user_registry import UserRegistry
+    from butler.identity.user_registry import UserRegistry
     database = legacy(tmp_path)
     registry = UserRegistry(BusinessStore(database))
     with registry.store.transaction() as db:
@@ -238,9 +238,9 @@ def test_preview_reports_same_name_memory_conflicts_and_migration_retains_varian
 
 
 def test_existing_directory_ledger_keeps_current_routes_and_historical_listen_names(tmp_path):
-    from butler.contact_migration import preview_contacts
-    from butler.migration import migrate_installation
-    from butler.directory import DirectoryStore
+    from butler.identity.contact_migration import preview_contacts
+    from butler.runtime.migration import migrate_installation
+    from butler.identity.directory import DirectoryStore
     database = legacy(tmp_path)
     migrate_installation(tmp_path)
     directory = DirectoryStore(database)
@@ -256,7 +256,7 @@ def test_existing_directory_ledger_keeps_current_routes_and_historical_listen_na
 
 
 def test_same_destination_private_group_conflict_is_not_guessed(tmp_path):
-    from butler.contact_migration import preview_contacts
+    from butler.identity.contact_migration import preview_contacts
     legacy(tmp_path)
     config = tmp_path / 'config.wxbot.toml'
     config.write_text(config.read_text('utf-8').replace('bound_groups=["Team"]', 'bound_groups=["Team","Alice"]'), encoding='utf-8')
@@ -264,9 +264,9 @@ def test_same_destination_private_group_conflict_is_not_guessed(tmp_path):
 
 
 def test_preview_uses_committed_wal_and_never_imports_or_changes_database(tmp_path):
-    from butler.contact_migration import preview_contacts
+    from butler.identity.contact_migration import preview_contacts
     from butler.business import BusinessStore
-    from butler.directory import DirectoryStore
+    from butler.identity.directory import DirectoryStore
     database = legacy(tmp_path)
     BusinessStore(database)
     directory = DirectoryStore(database)
@@ -287,17 +287,17 @@ def _logical_database(database):
 
 
 def test_ordinary_upgrade_does_not_activate_legacy_contacts(tmp_path):
-    from butler.upgrade import upgrade_installation
-    from butler.contact_store import is_unified
+    from butler.runtime.upgrade import upgrade_installation
+    from butler.identity.contact_store import is_unified
     database = legacy(tmp_path)
     assert upgrade_installation(tmp_path)['ok']
     assert not is_unified(database)
 
 
 def test_legacy_upgrade_is_safe_after_canonical_activation(tmp_path):
-    from butler.contact_migration import migrate_contacts
-    from butler.upgrade import upgrade_installation
-    from butler.contact_store import ContactStore
+    from butler.identity.contact_migration import migrate_contacts
+    from butler.runtime.upgrade import upgrade_installation
+    from butler.identity.contact_store import ContactStore
     database = legacy(tmp_path)
     migrate_contacts(tmp_path, acknowledge_stopped=True)
     before = ContactStore(database).snapshot()
@@ -306,9 +306,9 @@ def test_legacy_upgrade_is_safe_after_canonical_activation(tmp_path):
 
 
 def test_known_old_identity_route_and_memory_are_passive_but_preserved(tmp_path):
-    from butler.contact_migration import preview_contacts, migrate_contacts
+    from butler.identity.contact_migration import preview_contacts, migrate_contacts
     from butler.business import BusinessStore
-    from butler.contact_store import ContactStore
+    from butler.identity.contact_store import ContactStore
     database = legacy(tmp_path)
     business = BusinessStore(database)
     with business.transaction() as db:
@@ -325,9 +325,9 @@ def test_known_old_identity_route_and_memory_are_passive_but_preserved(tmp_path)
 
 
 def test_scoped_aliases_become_observed_memberships_without_granting_identity(tmp_path):
-    from butler.contact_migration import migrate_contacts
-    from butler.directory import DirectoryStore
-    from butler.user_registry import UserRegistry
+    from butler.identity.contact_migration import migrate_contacts
+    from butler.identity.directory import DirectoryStore
+    from butler.identity.user_registry import UserRegistry
     from butler.business import BusinessStore
     database = legacy(tmp_path)
     directory = DirectoryStore(database)
@@ -346,11 +346,11 @@ def test_scoped_aliases_become_observed_memberships_without_granting_identity(tm
 
 
 def test_inferred_destinations_need_route_and_retired_people_are_not_reused(tmp_path):
-    from butler.contact_migration import preview_contacts, migrate_contacts
+    from butler.identity.contact_migration import preview_contacts, migrate_contacts
     from butler.business import BusinessStore
-    from butler.user_registry import UserRegistry
-    from butler.contact_identity import ensure_schema
-    from butler.contact_store import ContactStore
+    from butler.identity.user_registry import UserRegistry
+    from butler.identity.contact_identity import ensure_schema
+    from butler.identity.contact_store import ContactStore
     database = legacy(tmp_path)
     registry = UserRegistry(BusinessStore(database))
     with registry.store.transaction() as db:
@@ -366,7 +366,7 @@ def test_inferred_destinations_need_route_and_retired_people_are_not_reused(tmp_
 
 
 def test_custom_directory_database_refuses_separate_existing_business_data(tmp_path):
-    from butler.contact_migration import preview_contacts, migrate_contacts
+    from butler.identity.contact_migration import preview_contacts, migrate_contacts
     from butler.business import BusinessStore
     legacy(tmp_path)
     for name in ['config.butler.toml', 'config.wxbot.toml']:
@@ -389,8 +389,8 @@ def test_custom_directory_database_refuses_separate_existing_business_data(tmp_p
 
 
 def test_custom_directory_database_is_supported_when_secondary_business_file_absent(tmp_path):
-    from butler.contact_migration import preview_contacts, migrate_contacts
-    from butler.contact_store import is_unified
+    from butler.identity.contact_migration import preview_contacts, migrate_contacts
+    from butler.identity.contact_store import is_unified
     legacy(tmp_path)
     for name in ['config.butler.toml', 'config.wxbot.toml']:
         config = tmp_path / name
@@ -403,10 +403,10 @@ def test_custom_directory_database_is_supported_when_secondary_business_file_abs
 
 @pytest.mark.parametrize('provider', ['deepseek', 'butler'])
 def test_nonlocal_install_preserves_channel_management_and_rejects_cutover(tmp_path, provider):
-    from butler.install_wizard import install, Connection
-    from butler.contact_store import is_unified
-    from butler.directory import DirectoryStore
-    from butler.contact_migration import migrate_contacts
+    from butler.runtime.install_wizard import install, Connection
+    from butler.identity.contact_store import is_unified
+    from butler.identity.directory import DirectoryStore
+    from butler.identity.contact_migration import migrate_contacts
     install(tmp_path, Connection(provider=provider, model='test-model'), nickname='Robot')
     database = tmp_path / 'data/business.sqlite3'
     assert not is_unified(database)
@@ -418,6 +418,6 @@ def test_nonlocal_install_preserves_channel_management_and_rejects_cutover(tmp_p
     with pytest.raises(ValueError, match='local Butler'):
         migrate_contacts(tmp_path, acknowledge_stopped=True)
     assert files(tmp_path) == before
-    from butler.upgrade import upgrade_installation
+    from butler.runtime.upgrade import upgrade_installation
     upgrade_installation(tmp_path)
     assert directory.snapshot()['channel']['bot']['mention_names'] == ['Robot']

@@ -86,7 +86,7 @@ def load_wxbot_contacts():
             cfg = tomllib.load(fh)
     except Exception:
         cfg = {}
-    from butler.directory import DirectoryStore,directory_path,directory_enabled
+    from butler.identity.directory import DirectoryStore,directory_path,directory_enabled
     if directory_enabled(wxbot_config(),cfg):
         store=DirectoryStore(directory_path(wxbot_config(),cfg))
         cfg['contacts']=store.contact_rows()
@@ -108,7 +108,7 @@ def load_wxbot_contacts():
 
 # ---------------------------------------------------------------- 用户分组（订阅字典）
 
-# 与 src/butler/groups.py 保持同步（看板是独立进程，不 import butler 包，只认同一份文件）
+# 与 src/butler/identity/groups.py 保持同步（看板是独立进程，不 import butler 包，只认同一份文件）
 GROUP_MESSAGE_TYPES = {1: "新闻消息", 2: "问候消息", 3: "其他"}
 
 

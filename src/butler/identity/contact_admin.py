@@ -6,12 +6,12 @@ import sqlite3
 import uuid
 import json
 
-from butler.contact_store import ContactStore, clean_policy, is_unified
+from butler.identity.contact_store import ContactStore, clean_policy, is_unified
 
 
 def configured_store(config_path, raw=None):
     """Return the active canonical store without activating or importing anything."""
-    from butler.directory import directory_path
+    from butler.identity.directory import directory_path
     path = directory_path(config_path, raw)
     return ContactStore(path) if is_unified(path) else None
 
@@ -102,7 +102,7 @@ class ContactAdmin:
                 picture=db.execute('SELECT image FROM user_avatars WHERE binding_id IN (SELECT binding_id FROM user_bindings WHERE user_id=?) ORDER BY created_at DESC LIMIT 1',(p['user_id'],)).fetchone()
                 row['avatar']='data:image/png;base64,'+picture[0] if picture else ''
             if 'user_memory_variants' in tables:
-                from butler.contact_identity import conflict_memories
+                from butler.identity.contact_identity import conflict_memories
                 row['memory_conflicts'] = conflict_memories(db,p['user_id'])
                 row['memory_count']=count-len({r['key'] for r in row['memory_conflicts']})+len(row['memory_conflicts'])
             rows.append(row)
@@ -145,7 +145,7 @@ class ContactAdmin:
         store = ContactStore(self.path)
         # Schema creation belongs to an explicit administration write, never GET.
         from butler.business import BusinessStore
-        from butler.user_registry import UserRegistry
+        from butler.identity.user_registry import UserRegistry
         registry = UserRegistry(BusinessStore(self.path))
         with store.transaction() as db:
             state = store._snapshot(db)
@@ -172,13 +172,13 @@ class ContactAdmin:
                 pid = person['user_id']
                 if 'name' in payload:
                     name = self._name(payload['name'])
-                    from butler.contact_identity import normalize_name, _people, _priority
+                    from butler.identity.contact_identity import normalize_name, _people, _priority
                     matches=sorted((p for p in _people(db).values() if p['user_id']!=pid and normalize_name(name) in p['names']),key=_priority)
                     if matches:
                         if payload.get('confirm_merge') is not True: raise ValueError('同名联系人将合并并共享记忆，请核对后确认归并')
                         pid = self._merge(db,state,pid,matches[0]['user_id'])
                     db.execute('UPDATE user_profiles SET display_name=? WHERE user_id=?',(name,pid))
-                    from butler.contact_identity import ensure_schema, remember_name
+                    from butler.identity.contact_identity import ensure_schema, remember_name
                     ensure_schema(db)
                     remember_name(db,pid,person['display_name'])
                     remember_name(db,pid,name)
@@ -200,7 +200,7 @@ class ContactAdmin:
                 if c is None: raise ValueError('会话不存在')
                 updates = {k:v for k,v in payload.items() if k not in {'action','version','id'}}
                 if 'person_id' in updates and updates['person_id']:
-                    from butler.contact_identity import canonical_user
+                    from butler.identity.contact_identity import canonical_user
                     updates['person_id']=canonical_user(db,updates['person_id'])
                     if c['channel_type']!='dm' or not db.execute('SELECT 1 FROM user_profiles WHERE user_id=?',(updates['person_id'],)).fetchone(): raise ValueError('联系人关联无效')
                     if c.get('person_id') and c['person_id'] != updates['person_id']:
@@ -234,7 +234,7 @@ class ContactAdmin:
             elif action == 'settings':
                 state['settings'] = deepcopy(payload.get('settings'))
             elif action in {'memory_set','memory_delete'}:
-                from butler.contact_identity import canonical_user,ensure_schema
+                from butler.identity.contact_identity import canonical_user,ensure_schema
                 ensure_schema(db)
                 pid=canonical_user(db,payload.get('id'))
                 person=db.execute('SELECT * FROM user_profiles WHERE user_id=?',(pid,)).fetchone()
@@ -251,18 +251,18 @@ class ContactAdmin:
 
     @staticmethod
     def _name(value):
-        from butler.contact_identity import normalize_name
+        from butler.identity.contact_identity import normalize_name
         name = normalize_name(value)
         if not name or len(name)>200: raise ValueError('名称不能为空、占位名称或过长')
         return name
 
     @staticmethod
     def _merge(db,state,source,target):
-        from butler.contact_identity import canonical_user
+        from butler.identity.contact_identity import canonical_user
         target=canonical_user(db,target)
         if not isinstance(target,str) or not db.execute('SELECT 1 FROM user_profiles WHERE user_id=?',(target,)).fetchone(): raise ValueError('目标联系人不存在')
         if source == target: return target
-        from butler.contact_identity import merge_users
+        from butler.identity.contact_identity import merge_users
         report=merge_users(db,source,target)
         # Identity redirects can freeze inherited policies and advance this same
         # transaction's canonical version. The initial client version was checked

@@ -3,9 +3,9 @@ from pathlib import Path
 import pytest
 
 from butler.business import BusinessStore
-from butler.catalogue import SkillCatalogue
-from butler.telegram_relay.settings import Settings
-from butler.tools import ToolService
+from butler.agent.catalogue import SkillCatalogue
+from butler.channels.telegram.relay.settings import Settings
+from butler.agent.tools import ToolService
 
 
 @pytest.fixture

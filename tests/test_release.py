@@ -18,14 +18,14 @@ def test_release_excludes_runtime_and_contains_plugin(tmp_path):
         assert 'plugins/butler-wechat/.codex-plugin/plugin.json' in archive.namelist()
         assert '.agents/plugins/marketplace.json' in archive.namelist()
         assert 'scripts/wechat_stack_ctl.py' not in archive.namelist()
-        for required in ('src/butler/defaults.py', 'src/butler/install_wizard.py', 'docs/MESSAGE_API.md'):
+        for required in ('src/butler/defaults.py', 'src/butler/runtime/install_wizard.py', 'docs/MESSAGE_API.md'):
             assert required in archive.namelist()
         assert not any(Path(name).name.startswith('config.') and name.endswith('.toml') for name in archive.namelist())
 
 
 def test_invalid_plugin_names_cannot_escape_workspace(tmp_path):
     import pytest
-    from butler.catalogue import SkillCatalogue
+    from butler.agent.catalogue import SkillCatalogue
     p=tmp_path/'evil/SKILL.md';p.parent.mkdir()
     p.write_text('---\nname: ../../escape\ndescription: bad\nmetadata:\n  butler:\n    tags: [butler-role]\n---\ntext',encoding='utf-8')
     with pytest.raises(ValueError):SkillCatalogue(tmp_path).list()

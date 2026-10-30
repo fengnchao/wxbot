@@ -10,7 +10,7 @@ def cfg():
 
 
 def transport(monkeypatch, status=200, payload=None, error=None):
-    import butler.push_client as module
+    import butler.delivery.push_client as module
     calls = []
     class Session:
         trust_env = True
@@ -39,7 +39,7 @@ def transport(monkeypatch, status=200, payload=None, error=None):
     (b'not-json-with-private-test-token', 'uncertain'),
 ])
 def test_only_confirmed_matching_recipient_is_sent(monkeypatch, payload, state):
-    from butler.push_client import push_news
+    from butler.delivery.push_client import push_news
     calls = transport(monkeypatch, payload=payload)
     result = push_news(cfg(), 'A', 'original')
     assert result['state'] == state
@@ -53,13 +53,13 @@ def test_only_confirmed_matching_recipient_is_sent(monkeypatch, payload, state):
 
 @pytest.mark.parametrize('status,state', [(400, 'not_submitted'), (401, 'not_submitted'), (403, 'not_submitted'), (404, 'not_submitted'), (429, 'uncertain'), (500, 'uncertain'), (302, 'uncertain')])
 def test_http_rejection_vs_unknown(monkeypatch, status, state):
-    from butler.push_client import push_news
+    from butler.delivery.push_client import push_news
     transport(monkeypatch, status, {'meta': {'ok': True, 'contact': 'A'}})
     assert push_news(cfg(), 'A', 'body')['state'] == state
 
 
 def test_missing_token_does_not_submit_and_timeout_does_not_retry(monkeypatch):
-    from butler.push_client import push_news
+    from butler.delivery.push_client import push_news
     calls = transport(monkeypatch, error=requests.Timeout('private-test-token'))
     empty = cfg()
     empty.token = ''

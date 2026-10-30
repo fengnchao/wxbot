@@ -4,7 +4,7 @@ from pathlib import Path
 
 import tomlkit
 
-from .migration import migrate_installation, _replace
+from butler.runtime.migration import migrate_installation, _replace
 from common.config_lock import config_lock
 
 
@@ -53,8 +53,8 @@ def relative_log_sources(root):
 
 def upgrade_installation(root):
     root=Path(root).resolve()
-    from .contact_store import ContactStore, is_unified
-    from .directory import directory_path
+    from butler.identity.contact_store import ContactStore, is_unified
+    from butler.identity.directory import directory_path
     database=directory_path(root/'config.butler.toml')
     if is_unified(database):
         result=dict(database=str(database),version=ContactStore(database).snapshot()['version'],cleaned=[],contacts_active=True)

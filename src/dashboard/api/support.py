@@ -63,7 +63,7 @@ def _load_butler_config():
     try:
         with open(bp(), "rb") as fh:
             config=tomllib.load(fh)
-        from butler.directory import DirectoryStore,directory_path,directory_enabled
+        from butler.identity.directory import DirectoryStore,directory_path,directory_enabled
         if directory_enabled(bp(),config):
             config['contacts']=DirectoryStore(directory_path(bp(),config)).contact_rows()
         config['_connection']={'mode':services.get('dashboard_mode',dashboard_mode)()}
@@ -95,7 +95,7 @@ def load_butler_contacts():
 
 
 def unified_contact_store():
-    from butler.contact_admin import configured_store
+    from butler.identity.contact_admin import configured_store
     return configured_store(services.get('butler_config_path',butler_config_path)())
 
 

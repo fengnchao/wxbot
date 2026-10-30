@@ -9,7 +9,7 @@ from contextlib import closing
 from threading import RLock
 
 from common.avatar_identity import avatar_distance, decode_avatar, normalize_avatar
-from . import contact_identity
+from butler.identity import contact_identity
 
 
 class VersionConflict(ValueError):

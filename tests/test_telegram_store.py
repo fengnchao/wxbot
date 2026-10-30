@@ -5,12 +5,12 @@ import pytest
 
 
 def msg(number=1, text='同一新闻'):
-    from butler.telegram.formatting import Message
+    from butler.channels.telegram.formatting import Message
     return Message(-100123, number, text, datetime(2026, 10, 22, tzinfo=timezone.utc), '早报', 'zaobaosg')
 
 
 def store(tmp_path):
-    from butler.telegram.store import Store
+    from butler.channels.telegram.store import Store
     s = Store(tmp_path / 'relay.sqlite3')
     s.bind(9, -100123, 'zaobaosg', 0)
     return s
@@ -29,7 +29,7 @@ def test_binding_rejects_account_and_source_change_and_preserves_cursor(tmp_path
 
 
 def test_dedupe_uses_message_id_not_text_and_survives_reopen(tmp_path):
-    from butler.telegram.store import Store
+    from butler.channels.telegram.store import Store
     s = store(tmp_path)
     s.ingest(-100123, [msg(), msg(2)], 2)
     s.ingest(-100123, [msg(2)], 2)
@@ -101,7 +101,7 @@ def test_empty_group_is_not_reexpanded_and_removed_user_is_skipped(tmp_path):
 
 
 def test_status_readonly_does_not_modify_database(tmp_path):
-    from butler.telegram.store import Store
+    from butler.channels.telegram.store import Store
     s = store(tmp_path)
     s.close()
     path = tmp_path / 'relay.sqlite3'

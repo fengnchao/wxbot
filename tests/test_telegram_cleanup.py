@@ -3,12 +3,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from butler.telegram_bot.news import NewsRelay
-from butler.telegram_bot.queue import Queue
+from butler.channels.telegram.bot.news import NewsRelay
+from butler.channels.telegram.bot.queue import Queue
 
 
 def test_backup_of_deleted_telegram_work_uses_the_same_write_reservation(tmp_path, monkeypatch):
-    import butler.telegram_bot.cleanup as cleanup
+    import butler.channels.telegram.bot.cleanup as cleanup
     queue, _, _ = setup(tmp_path)
     ingest(queue)
     original = sqlite3.connect
@@ -67,7 +67,7 @@ def ingest(queue, uid=1, *, image=False, album=None):
 
 
 def test_delete_unsent_physically_removes_messages_and_all_failed_delivery_states(tmp_path):
-    from butler.telegram_bot.cleanup import delete_unsent
+    from butler.channels.telegram.bot.cleanup import delete_unsent
     queue, relay, calls = setup(tmp_path)
     ingest(queue)
     assert relay.expand_once()
@@ -87,7 +87,7 @@ def test_delete_unsent_physically_removes_messages_and_all_failed_delivery_state
 
 
 def test_partial_sent_history_is_preserved_and_failed_siblings_cannot_be_reexpanded(tmp_path):
-    from butler.telegram_bot.cleanup import delete_unsent
+    from butler.channels.telegram.bot.cleanup import delete_unsent
     queue, relay, calls = setup(tmp_path)
     ingest(queue)
     assert relay.expand_once() and relay.deliver_once()
@@ -102,7 +102,7 @@ def test_partial_sent_history_is_preserved_and_failed_siblings_cannot_be_reexpan
 
 
 def test_sending_is_protected_while_queued_siblings_are_deleted(tmp_path):
-    from butler.telegram_bot.cleanup import delete_unsent
+    from butler.channels.telegram.bot.cleanup import delete_unsent
     queue, relay, calls = setup(tmp_path)
     ingest(queue)
     assert relay.expand_once()
@@ -116,7 +116,7 @@ def test_sending_is_protected_while_queued_siblings_are_deleted(tmp_path):
 
 
 def test_bundle_cleanup_preserves_success_and_aliases_without_claiming_full_success(tmp_path):
-    from butler.telegram_bot.cleanup import delete_unsent
+    from butler.channels.telegram.bot.cleanup import delete_unsent
     queue, relay, calls = setup(tmp_path, images=True)
     ingest(queue, image=True, album='album')
     assert relay.expand_once() and relay.deliver_once()
@@ -129,7 +129,7 @@ def test_bundle_cleanup_preserves_success_and_aliases_without_claiming_full_succ
 
 
 def test_unsuccessful_album_source_rows_plans_packages_and_aliases_are_deleted_together(tmp_path):
-    from butler.telegram_bot.cleanup import delete_unsent
+    from butler.channels.telegram.bot.cleanup import delete_unsent
     queue, relay, calls = setup(tmp_path, images=True)
     ingest(queue, image=True, album='album')
     ingest(queue, 2, image=True, album='album')
@@ -142,7 +142,7 @@ def test_unsuccessful_album_source_rows_plans_packages_and_aliases_are_deleted_t
 
 
 def test_cleanup_cancels_preparing_album_and_late_media_completion_cannot_publish(tmp_path):
-    from butler.telegram_bot.cleanup import delete_unsent
+    from butler.channels.telegram.bot.cleanup import delete_unsent
     queue, relay, calls = setup(tmp_path, images=True)
     ingest(queue, image=True, album='album')
     def prepare_then_delete(_):
@@ -158,7 +158,7 @@ def test_cleanup_cancels_preparing_album_and_late_media_completion_cannot_publis
 
 
 def test_late_album_member_does_not_inherit_the_original_members_success(tmp_path):
-    from butler.telegram_bot.cleanup import delete_unsent
+    from butler.channels.telegram.bot.cleanup import delete_unsent
     queue, relay, calls = setup(tmp_path, images=True)
     ingest(queue, image=True, album='album')
     assert relay.expand_once() and relay.deliver_once() and relay.deliver_once()
@@ -172,7 +172,7 @@ def test_late_album_member_does_not_inherit_the_original_members_success(tmp_pat
 
 
 def test_sending_only_retained_source_does_not_claim_partial_success(tmp_path):
-    from butler.telegram_bot.cleanup import delete_unsent
+    from butler.channels.telegram.bot.cleanup import delete_unsent
     queue, relay, calls = setup(tmp_path)
     ingest(queue)
     assert relay.expand_once()
@@ -185,7 +185,7 @@ def test_sending_only_retained_source_does_not_claim_partial_success(tmp_path):
 
 
 def test_already_complete_history_is_unchanged(tmp_path):
-    from butler.telegram_bot.cleanup import delete_unsent
+    from butler.channels.telegram.bot.cleanup import delete_unsent
     queue, relay, calls = setup(tmp_path, images=True)
     ingest(queue, image=True)
     assert relay.expand_once() and relay.deliver_once() and relay.deliver_once()
@@ -195,7 +195,7 @@ def test_already_complete_history_is_unchanged(tmp_path):
 
 
 def test_deleted_update_cannot_be_ingested_again_but_new_updates_and_other_bots_work(tmp_path):
-    from butler.telegram_bot.cleanup import delete_unsent
+    from butler.channels.telegram.bot.cleanup import delete_unsent
     queue, relay, calls = setup(tmp_path)
     ingest(queue, 7)
     delete_unsent(queue.path)
@@ -208,7 +208,7 @@ def test_deleted_update_cannot_be_ingested_again_but_new_updates_and_other_bots_
 
 
 def test_cleanup_requires_existing_supported_database_without_initializing_or_migrating(tmp_path):
-    from butler.telegram_bot.cleanup import delete_unsent
+    from butler.channels.telegram.bot.cleanup import delete_unsent
     path = tmp_path / 'missing.sqlite3'
     with pytest.raises((ValueError, FileNotFoundError)):
         delete_unsent(path)
@@ -223,8 +223,8 @@ def test_cleanup_requires_existing_supported_database_without_initializing_or_mi
 
 
 def test_slow_text_expansion_cannot_recreate_tasks_after_cleanup(tmp_path, monkeypatch):
-    from butler.telegram_bot.cleanup import delete_unsent
-    import butler.telegram_bot.news as news_module
+    from butler.channels.telegram.bot.cleanup import delete_unsent
+    import butler.channels.telegram.bot.news as news_module
     queue, relay, calls = setup(tmp_path)
     ingest(queue)
     original = news_module.format_news
@@ -241,8 +241,8 @@ def test_slow_text_expansion_cannot_recreate_tasks_after_cleanup(tmp_path, monke
 
 
 def test_slow_bundle_selection_cannot_recreate_deleted_source(tmp_path, monkeypatch):
-    from butler.telegram_bot.cleanup import delete_unsent
-    import butler.telegram_bot.news as news_module
+    from butler.channels.telegram.bot.cleanup import delete_unsent
+    import butler.channels.telegram.bot.news as news_module
     queue, relay, calls = setup(tmp_path, images=True)
     ingest(queue, image=True)
     original = news_module.read_subscribers
@@ -261,7 +261,7 @@ def test_slow_bundle_selection_cannot_recreate_deleted_source(tmp_path, monkeypa
 
 @pytest.mark.parametrize('images', [False, True])
 def test_projection_shows_partial_success_and_deleted_remainder_instead_of_all_sent(tmp_path, images):
-    from butler.telegram_bot.cleanup import delete_unsent
+    from butler.channels.telegram.bot.cleanup import delete_unsent
     from dashboard.telegram_view import TelegramView
     queue, relay, calls = setup(tmp_path, images=images)
     ingest(queue, image=images)

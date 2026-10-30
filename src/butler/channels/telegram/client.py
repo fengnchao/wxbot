@@ -5,7 +5,7 @@ from datetime import timezone
 from getpass import getpass
 from pathlib import Path
 
-from .formatting import Message
+from butler.channels.telegram.formatting import Message
 
 
 class FatalTelegramError(ValueError):

@@ -101,13 +101,13 @@ def validate_document(source,data,view,changes,policy_validator=None):
         if q['max_wait_seconds']<=0 or q['confirm_timeout']<=0:raise ValueError('合并及发送确认等待必须大于0')
     elif source=='butler':
         cfg=merge(BT_DEFAULTS,data)
-        from butler.message_forwarding import load_message_routes
+        from butler.delivery.message_forwarding import load_message_routes
         load_message_routes(cfg['message_routes'])
         context=cfg['context']
         for key,high in (('group_messages',200),('group_characters',30000)):
             if type(context[key])is not int or not 1<=context[key]<=high:
                 raise ValueError('群上下文配置超出允许范围')
-        from butler.reply import validate_chunk_chars
+        from butler.agent.reply import validate_chunk_chars
         validate_chunk_chars(cfg['reply']['chunk_chars'])
         hb=cfg['heartbeat']
         if hb['max_interval_minutes']<hb['min_interval_minutes']:raise ValueError('心跳最长间隔不得小于最短间隔')
@@ -159,7 +159,7 @@ class ConfigEditor:
         if not isinstance(source,str) or not isinstance(version,str) or not isinstance(changes,list) or not 1<=len(changes)<=200:
             raise ValueError('配置修改请求格式无效')
         if source=='directory':
-            from butler.contact_admin import configured_store
+            from butler.identity.contact_admin import configured_store
             if configured_store(self.view.butler_path):raise ValueError('已迁移的联系人来源只读，请使用联系人页面')
             from dashboard.directory_view import save_directory
             return save_directory(self.view,payload)

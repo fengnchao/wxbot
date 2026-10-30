@@ -12,7 +12,7 @@ def picture(fmt='PNG'):
 
 
 def test_store_validates_real_images_and_detects_cache_corruption(tmp_path):
-    from butler.media import MediaStore
+    from butler.delivery.media import MediaStore
     store = MediaStore(tmp_path)
     meta = store.put(picture())
     assert re.fullmatch('[0-9a-f]{32}', meta['media_id'])
@@ -26,7 +26,7 @@ def test_store_validates_real_images_and_detects_cache_corruption(tmp_path):
 
 @pytest.mark.parametrize('data', [b'not image', b'x' * (20 * 1024 * 1024 + 1), picture('GIF')], ids=['corrupt', 'oversize', 'gif'])
 def test_store_rejects_corrupt_large_and_unsupported_images(tmp_path, data):
-    from butler.media import MediaStore
+    from butler.delivery.media import MediaStore
     with pytest.raises(ValueError):
         MediaStore(tmp_path).put(data)
     assert list(tmp_path.iterdir()) == []
@@ -34,7 +34,7 @@ def test_store_rejects_corrupt_large_and_unsupported_images(tmp_path, data):
 
 @pytest.mark.parametrize('value', ['../auth', 'https://example/a', 'A' * 32, 'a' * 31, None])
 def test_store_rejects_non_server_ids(tmp_path, value):
-    from butler.media import MediaStore
+    from butler.delivery.media import MediaStore
     with pytest.raises(ValueError):
         MediaStore(tmp_path).read(value)
 

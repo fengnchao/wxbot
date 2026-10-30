@@ -434,7 +434,7 @@ class MainInbox:
 
     def poll(self, *, allow_switch=False):
         if self.cfg.get('_directory_path'):
-            from butler.directory import DirectoryStore
+            from butler.identity.directory import DirectoryStore
             projection = DirectoryStore(self.cfg['_directory_path']).channel_projection()
             self.bot.update(projection.get('bot', {}))
             self.groups = set(self.bot.get('bound_groups', []))

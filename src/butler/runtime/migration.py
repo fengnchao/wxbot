@@ -6,7 +6,7 @@ from pathlib import Path
 import sqlite3
 import tempfile
 import tomlkit
-from .directory import DirectoryStore, directory_path, migration_source_name
+from butler.identity.directory import DirectoryStore, directory_path, migration_source_name
 
 
 def _replace(path, text):

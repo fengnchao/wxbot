@@ -9,7 +9,7 @@ import sqlite3
 import requests
 
 from common.news_config import atomic_json, read_settings, runtime_path
-from .collector import CST, collect
+from butler.news.collector import CST, collect
 
 
 @contextmanager
@@ -40,7 +40,7 @@ def run_lock(folder):
 
 
 def subscribers(path, *, database=None):
-    from butler.contact_store import ContactStore,is_unified
+    from butler.identity.contact_store import ContactStore,is_unified
     if database and is_unified(database):
         return ContactStore(database).groups().get('1',[])
     raw = json.loads(Path(path).read_text(encoding='utf-8-sig'))

@@ -5,8 +5,8 @@ from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 
 import pytest
 
-from butler.contacts import load_contacts
-from butler.hermes import HermesClient, HermesError
+from butler.identity.contacts import load_contacts
+from butler.agent.hermes import HermesClient, HermesError
 
 
 def read_events(path):
@@ -58,7 +58,7 @@ def final_frame(text,completion_id='chatcmpl-test'):
 
 def test_hermes_records_tool_progress_but_returns_only_complete_text(make_home,tmp_path,monkeypatch):
     from common.flow_trace import FlowTrace
-    from butler import hermes as module
+    from butler.agent import hermes as module
     data=(frame({'tool':'skill_view','status':'running','toolCallId':'tc-1','label':'secret-label'},'hermes.tool.progress')+
           frame({'choices':[{'index':0,'delta':{'reasoning_content':'private-reasoning'},'finish_reason':None}]})+
           frame(chunk('你好'))+
@@ -93,7 +93,7 @@ def test_hermes_records_tool_progress_but_returns_only_complete_text(make_home,t
                                    frame(chunk(finish='stop'))+frame('[DONE]')])
 def test_incomplete_or_failed_hermes_stream_never_becomes_a_partial_reply(make_home,tmp_path,monkeypatch,ending):
     from common.flow_trace import FlowTrace
-    from butler import hermes as module
+    from butler.agent import hermes as module
     calls=[]
     def open_request(req,timeout=None):
         calls.append(req)
@@ -229,7 +229,7 @@ def test_live_tool_event_is_visible_before_full_reply_is_released(make_home,tmp_
 
 def test_json_fallback_rejects_explicitly_incomplete_hermes_result(make_home,tmp_path,monkeypatch):
     from common.flow_trace import FlowTrace
-    from butler import hermes as module
+    from butler.agent import hermes as module
     class JsonResponse(StreamResponse):
         headers={'Content-Type':'application/json'}
     body={'choices':[{'message':{'content':'partial answer'},'finish_reason':'length'}],
@@ -243,8 +243,8 @@ def test_json_fallback_rejects_explicitly_incomplete_hermes_result(make_home,tmp
 @pytest.mark.parametrize('canonical_id',['chatcmpl-test','wrong-request'])
 def test_canonical_reply_replaces_interim_text_and_removed_actions(make_home,tmp_path,monkeypatch,canonical_id):
     from common.flow_trace import FlowTrace
-    from butler import hermes as module
-    from butler.router import parse_actions
+    from butler.agent import hermes as module
+    from butler.agent.router import parse_actions
     raw='interim '+ '<<butler:action {"skill":"reminder.list","args":{}}>>'
     payload=(frame(chunk(raw))+frame(chunk('rewritten text'))+final_frame('safe final answer',canonical_id)+
              frame(chunk(finish='stop'))+frame('[DONE]'))

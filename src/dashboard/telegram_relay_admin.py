@@ -5,7 +5,7 @@ import re
 from urllib.error import HTTPError
 from urllib.request import Request, HTTPRedirectHandler, ProxyHandler, build_opener
 
-from butler.telegram_relay.settings import Settings
+from butler.channels.telegram.relay.settings import Settings
 
 
 def read_status(path):

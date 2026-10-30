@@ -11,7 +11,7 @@ from .clipboard import ImageClipboardLease, failure_details
 class ImageSession:
     def __init__(self, chat, win, edit, path, *, clock=time.monotonic,
                  clipboard_factory=ImageClipboardLease, send_keys=auto.SendKeys):
-        from butler.media import validate_image, MAX_BYTES
+        from butler.delivery.media import validate_image, MAX_BYTES
         path=Path(path)
         if path.stat().st_size>MAX_BYTES:
             raise ValueError('图片超过大小上限')

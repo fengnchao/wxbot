@@ -93,7 +93,7 @@ class BusinessStore:
         if db is None:
             with self.transaction() as conn:
                 return self.memories(owner, query, db=conn)
-        from . import contact_identity
+        from butler.identity import contact_identity
         if owner.startswith('user:') and contact_identity.is_active(db):
             items=contact_identity.memory_items(db,owner[5:])
             query=query.casefold()
@@ -108,7 +108,7 @@ class BusinessStore:
         if db is None:
             with self.transaction() as conn:
                 return self.set_memory(owner,key,value,db=conn,source=source,source_label=source_label)
-        from . import contact_identity
+        from butler.identity import contact_identity
         active=owner.startswith('user:') and contact_identity.is_active(db)
         if active:
             owner='user:'+contact_identity.canonical_user(db,owner[5:])
@@ -138,7 +138,7 @@ class BusinessStore:
         if db is None:
             with self.transaction() as conn:
                 return self.delete_memory(owner,key,db=conn,source=source)
-        from . import contact_identity
+        from butler.identity import contact_identity
         if owner.startswith('user:') and contact_identity.is_active(db):
             owner='user:'+contact_identity.canonical_user(db,owner[5:])
             contact_identity.ensure_schema(db)

@@ -100,10 +100,10 @@ Desktop 默认持久库为 `data/telegram-relay/desktop.sqlite3`，运行快照�
 
 ### 仅重试尚未投递的图片准备
 
-临时下载或图片注册失败会保留 `media_failed`，不会自动重复准备。修复网络等原因后，先从 `python -m butler.telegram_bot status --config config.telegram-bot.toml` 的 `news_package` 读取准确 `bot` 和 `package_key`，再显式执行：
+临时下载或图片注册失败会保留 `media_failed`，不会自动重复准备。修复网络等原因后，先从 `python -m butler.channels.telegram.bot status --config config.telegram-bot.toml` 的 `news_package` 读取准确 `bot` 和 `package_key`，再显式执行：
 
 ```powershell
-python -m butler.telegram_bot retry-media --bot-id 123456 --package-key "source:album:从状态页复制的完整键" --config config.telegram-bot.toml
+python -m butler.channels.telegram.bot retry-media --bot-id 123456 --package-key "source:album:从状态页复制的完整键" --config config.telegram-bot.toml
 ```
 
 命令只重置指定包的失败准备记录、相关原始消息计划和归属该包的来源别名，保留原始入站消息。它在同一事务中两次检查包仍为 `media_failed` 且**没有任何图文投递记录**；已有 pending、sending、sent、uncertain、blocked、取消等投递记录都拒绝重置，关联文字投递存在时也拒绝。未知包、非失败状态或缺少的数据库不会被创建或改写。

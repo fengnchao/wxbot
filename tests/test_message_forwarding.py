@@ -87,7 +87,7 @@ def test_matching_route_bypasses_butler_reset_command(make_home, tmp_path):
 def test_forwarding_bypasses_unrelated_legacy_memory_conflict(make_home, tmp_path):
     from butler.backends.codex import owner_key
     from butler.business import BusinessStore
-    from butler.user_registry import UserRegistry
+    from butler.identity.user_registry import UserRegistry
     home = make_home()
     registry = UserRegistry(BusinessStore(tmp_path / 'business.sqlite3'))
     user = registry.resolve('101', 'dm')

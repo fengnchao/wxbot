@@ -4,7 +4,7 @@ from types import SimpleNamespace
 from datetime import datetime,timezone
 import time
 
-from butler.telegram_relay.store import RelayStore
+from butler.channels.telegram.relay.store import RelayStore
 
 
 def observation(key):
@@ -109,7 +109,7 @@ def test_recovery_claims_persisted_ui_hold_before_either_app_runs(tmp_path):
 
 
 def test_reusing_channel_key_baselines_new_source_and_does_not_false_dedup(tmp_path):
-    from butler.telegram_relay.settings import Channel
+    from butler.channels.telegram.relay.settings import Channel
     store=RelayStore(tmp_path/'relay.db')
     first=Channel('a','first',username='first');second=Channel('a','second',username='second')
     store.sync_channels([first]);store.capture('a',[]);store.capture('a',[observation('old')])
@@ -122,7 +122,7 @@ def test_reusing_channel_key_baselines_new_source_and_does_not_false_dedup(tmp_p
 
 
 def relay_config(tmp_path,channels=None):
-    from butler.telegram_relay.settings import Settings
+    from butler.channels.telegram.relay.settings import Settings
     path=tmp_path/'relay.toml';settings=Settings(path)
     settings.update({'enabled':True,'bot_id':123,'bot_username':'Test_bot','channels':channels or
                     [{'key':'a','name':'Source','username':'source','enabled':True}]},settings.read()['version'])
@@ -193,7 +193,7 @@ def test_crash_after_native_result_before_cleanup_uses_resolvable_desktop_hold(t
 
 def test_scan_never_clears_preexisting_human_query_or_unreadable_owned_query(monkeypatch):
     from wxbot.telegram_desktop import _Scan
-    from butler.telegram_relay.settings import Channel,RelaySettings
+    from butler.channels.telegram.relay.settings import Channel,RelaySettings
     from wxbot import telegram_desktop as module
     calls=[];monkeypatch.setattr(module.auto,'SendKeys',lambda *a,**kw:calls.append(a))
     scan=_Scan(SimpleNamespace(guard=lambda win:True),Channel('a','Source',username='source'),RelaySettings())

@@ -14,8 +14,8 @@ from urllib.request import getproxies
 
 from common.flow_trace import record,current_request_id
 from common.model_stream import emit,answer
-from ..concurrency import RuntimeLocks
-from ..hermes import HermesError
+from butler.runtime.concurrency import RuntimeLocks
+from butler.agent.hermes import HermesError
 
 
 DEFAULT_POLICY={'role_skill':'butler-companion','allowed_skills':[]}
@@ -117,7 +117,7 @@ class CodexBackend:
             'mcp_servers':{'butler':{'url':f'http://127.0.0.1:{self.cfg.port}/mcp',
                 'bearer_token_env_var':'BUTLER_TOOL_CAPABILITY','required':True,
                 'default_tools_approval_mode':'approve',
-                'tool_timeout_sec':30,'enabled_tools':list(__import__('butler.tools',fromlist=['TOOL_SCHEMAS']).TOOL_SCHEMAS)}}}
+                'tool_timeout_sec':30,'enabled_tools':list(__import__('butler.agent.tools',fromlist=['TOOL_SCHEMAS']).TOOL_SCHEMAS)}}}
 
     def _workspace(self,scope,policy):
         workspace=self.cfg.data_path()/'workspaces'/scope
@@ -164,7 +164,7 @@ class CodexBackend:
         self._credentials[credential]=capability
         options=self._options(workspace)
         # Thread overrides and startup overrides both constrain tool discovery.
-        from ..runtime_config import sdk_overrides
+        from butler.runtime_config import sdk_overrides
         environment={'CODEX_HOME':str(self.cfg.codex_home_path()),
              'BUTLER_TOOL_CAPABILITY':credential,
              'NO_PROXY':os.environ.get('NO_PROXY','')+',127.0.0.1,localhost,::1',
@@ -178,7 +178,7 @@ class CodexBackend:
              config_overrides=sdk_overrides(options))
         record('hermes_status','running',backend='codex',error_code='worker_initializing')
         self.store.event(contact_name,'model_initializing','started',backend='codex')
-        from .codex_runtime import CallDeadline,DeadlineCodex
+        from butler.backends.codex_runtime import CallDeadline,DeadlineCodex
         startup=CallDeadline(min(60,deadline.remaining()))
         client=None
         try:
@@ -267,7 +267,7 @@ class CodexBackend:
         limit=timeout or self.cfg.codex_timeout
         self.store.identify(owner_key(contact),contact)
         with self.session_guard(contact,session_kind=session_kind):
-            from .codex_runtime import CallDeadline
+            from butler.backends.codex_runtime import CallDeadline
             worker=None;submitted=False;acquired=False
             deadline=CallDeadline(limit)
             try:

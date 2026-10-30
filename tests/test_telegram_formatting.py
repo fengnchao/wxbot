@@ -2,12 +2,12 @@ from datetime import datetime, timezone
 
 
 def message(text):
-    from butler.telegram.formatting import Message
+    from butler.channels.telegram.formatting import Message
     return Message(-100123, 15, text, datetime(2026, 10, 22, 10, tzinfo=timezone.utc), 'zaobao.sg 早报', 'zaobaosg')
 
 
 def test_text_preserves_original_and_has_time_source_and_permalink():
-    from butler.telegram.formatting import parts
+    from butler.channels.telegram.formatting import parts
     result = parts(message('新闻原文。\nhttps://example.com/story'))
     assert len(result) == 1
     assert '新闻原文。\nhttps://example.com/story' in result[0]
@@ -17,7 +17,7 @@ def test_text_preserves_original_and_has_time_source_and_permalink():
 
 
 def test_long_body_preserves_order_and_does_not_split_url():
-    from butler.telegram.formatting import parts
+    from butler.channels.telegram.formatting import parts
     url = 'https://example.com/' + 'x' * 600
     result = parts(message('甲' * 700 + '\n' + url + '\n' + '乙' * 200))
     assert len(result) > 2
@@ -31,7 +31,7 @@ def test_long_body_preserves_order_and_does_not_split_url():
 
 def test_blank_text_is_ignored_and_naive_dates_are_rejected():
     import pytest
-    from butler.telegram.formatting import Message, parts
+    from butler.channels.telegram.formatting import Message, parts
     assert parts(message(' \n ')) == []
     with pytest.raises(ValueError):
         Message(-100123, 1, 'x', datetime(2026, 10, 22), 'source', 'source')

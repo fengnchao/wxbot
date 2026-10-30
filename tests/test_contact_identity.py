@@ -2,7 +2,7 @@
 import pytest
 
 from butler.business import BusinessStore
-from butler.user_registry import UserRegistry
+from butler.identity.user_registry import UserRegistry
 from test_user_registry import avatar
 
 
@@ -27,7 +27,7 @@ def test_active_cross_group_named_people_share_memory_and_keep_bindings(tmp_path
 
 
 def test_name_normalization_excludes_placeholders_and_does_not_casefold():
-    from butler.contact_identity import normalize_name
+    from butler.identity.contact_identity import normalize_name
     assert normalize_name('  e\u0301  ') == 'é'
     assert normalize_name('Alice') != normalize_name('alice')
     for name in ('', '  ', '成员-123', '待命名-abc', 'unknown-123'):
@@ -46,7 +46,7 @@ def test_placeholder_people_stay_separate_and_disabled_binding_stays_disabled(tm
 
 
 def test_migration_merges_current_names_private_first_and_preserves_all_evidence(tmp_path):
-    from butler.contact_identity import ensure_schema, merge_same_named, reuse_person
+    from butler.identity.contact_identity import ensure_schema, merge_same_named, reuse_person
     r = registry(tmp_path, active=False)
     a = r.create('group', '甲群', ' 小王 ', avatar())
     b = r.create('group', '乙群', '小王', avatar(8))
@@ -68,7 +68,7 @@ def test_migration_merges_current_names_private_first_and_preserves_all_evidence
 
 
 def test_same_key_conflicts_are_visible_with_sources_in_admin_and_recall(tmp_path):
-    from butler.contact_identity import merge_same_named, conflict_memories
+    from butler.identity.contact_identity import merge_same_named, conflict_memories
     r = registry(tmp_path, active=False)
     a = r.create('group', '甲群', '小王', avatar())
     b = r.create('dm', '王的窗口', '小王', avatar(8))
@@ -116,7 +116,7 @@ def test_rename_collision_merges_but_old_names_only_participate_in_search(tmp_pa
 
 
 def test_old_user_id_redirects_to_shared_memory_and_transitive_merge_keeps_variants(tmp_path):
-    from butler.contact_identity import merge_users, conflict_memories
+    from butler.identity.contact_identity import merge_users, conflict_memories
     r = registry(tmp_path, active=False)
     rows = [r.create('group', '群' + str(i), str(i), avatar(i * 8)) for i in range(3)]
     for row, value in zip(rows, ('茶', '咖啡', '水')):
@@ -131,7 +131,7 @@ def test_old_user_id_redirects_to_shared_memory_and_transitive_merge_keeps_varia
 
 
 def test_nonconflicting_memory_retains_original_source_for_a_later_conflict(tmp_path):
-    from butler.contact_identity import merge_users, conflict_memories
+    from butler.identity.contact_identity import merge_users, conflict_memories
     r = registry(tmp_path, active=False)
     a = r.create('group', '甲群', '王工', avatar())
     b = r.create('dm', '小王窗口', '小王', avatar(8))
@@ -161,8 +161,8 @@ def test_same_group_duplicate_name_retains_each_member_key_and_true_nickname(tmp
 
 
 def test_merge_redirects_canonical_routes_and_freezes_original_default_policies(tmp_path):
-    from butler.contact_identity import merge_users
-    from butler.contact_store import ContactStore
+    from butler.identity.contact_identity import merge_users
+    from butler.identity.contact_store import ContactStore
     r = registry(tmp_path, active=False)
     a = r.create('group', '项目群', '王工', avatar())
     b = r.create('dm', '小王窗口', '小王', avatar(8))
@@ -188,8 +188,8 @@ def test_merge_redirects_canonical_routes_and_freezes_original_default_policies(
 
 
 def test_merge_keeps_no_policy_route_from_inheriting_targets_policy(tmp_path):
-    from butler.contact_identity import merge_users
-    from butler.contact_store import ContactStore
+    from butler.identity.contact_identity import merge_users
+    from butler.identity.contact_store import ContactStore
     r = registry(tmp_path, active=False)
     a = r.create('group', '项目群', '王工', avatar())
     b = r.create('dm', '小王窗口', '小王', avatar(8))
@@ -205,7 +205,7 @@ def test_merge_keeps_no_policy_route_from_inheriting_targets_policy(tmp_path):
 
 
 def test_conflicting_values_deduplicate_sources_and_recall_includes_every_variant(tmp_path):
-    from butler.contact_identity import merge_users, conflict_memories
+    from butler.identity.contact_identity import merge_users, conflict_memories
     r = registry(tmp_path, active=False)
     people = [r.create('group', '群' + str(i), str(i), avatar()) for i in range(12)]
     for i, row in enumerate(people):
@@ -241,7 +241,7 @@ def test_active_legacy_import_exposes_both_values_and_preserves_reminder_destina
 
 
 def test_migration_can_stage_duplicate_real_names_before_activation(tmp_path):
-    from butler.contact_identity import merge_same_named
+    from butler.identity.contact_identity import merge_same_named
     r = registry(tmp_path, active=False)
     a = r.create('group', '项目群', '小王', avatar())
     with r.store.transaction() as db:

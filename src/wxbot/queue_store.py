@@ -96,7 +96,7 @@ class QueueStore(StreamQueue, DeliveryPolicy):
             raise ValueError("无效队列访问模式")
         if restart_chat_policy not in {'discard', 'resume'}:
             raise ValueError('无效的聊天重启恢复策略')
-        from butler.directory import DirectoryStore
+        from butler.identity.directory import DirectoryStore
         self.directory = DirectoryStore(directory_path) if directory_path else None
         self.restart_chat_policy = restart_chat_policy
         self.failure_timeout_seconds = validate_failure_timeout(failure_timeout_seconds)

@@ -7,7 +7,7 @@ from telegram_fakes import FakeClient, config, raw
 
 
 def test_unauthorized_run_does_not_prompt_or_start_login(tmp_path):
-    from butler.telegram.client import TelegramSource, FatalTelegramError
+    from butler.channels.telegram.client import TelegramSource, FatalTelegramError
     fake = FakeClient()
     fake.authorized = False
     async def scenario():
@@ -20,7 +20,7 @@ def test_unauthorized_run_does_not_prompt_or_start_login(tmp_path):
 
 
 def test_login_only_authorizes_and_disconnects(tmp_path):
-    from butler.telegram.client import login
+    from butler.channels.telegram.client import login
     fake = FakeClient()
     fake.authorized = False
     asyncio.run(login(config(tmp_path), factory=lambda *a, **kw: fake))
@@ -30,7 +30,7 @@ def test_login_only_authorizes_and_disconnects(tmp_path):
 
 
 def test_scan_is_ascending_preserves_captions_and_embedded_links(tmp_path):
-    from butler.telegram.client import TelegramSource
+    from butler.channels.telegram.client import TelegramSource
     fake = FakeClient()
     fake.items = [raw(12, ''), raw(11, '图片说明', entities=[SimpleNamespace(url='https://example.com/hidden')])]
     async def scenario():
@@ -49,7 +49,7 @@ def test_scan_is_ascending_preserves_captions_and_embedded_links(tmp_path):
 
 
 def test_unjoined_or_non_channel_source_is_rejected(tmp_path):
-    from butler.telegram.client import TelegramSource, FatalTelegramError
+    from butler.channels.telegram.client import TelegramSource, FatalTelegramError
     async def scenario():
         for attr in ('left', 'broadcast'):
             fake = FakeClient()
@@ -63,7 +63,7 @@ def test_unjoined_or_non_channel_source_is_rejected(tmp_path):
 
 
 def test_new_message_only_wakes_allowed_source_without_history_calls(tmp_path):
-    from butler.telegram.client import TelegramSource
+    from butler.channels.telegram.client import TelegramSource
     async def scenario():
         fake = FakeClient()
         source = TelegramSource(config(tmp_path), factory=lambda *a, **kw: fake)
@@ -80,7 +80,7 @@ def test_new_message_only_wakes_allowed_source_without_history_calls(tmp_path):
 
 
 def test_page_boundary_is_not_the_live_event_id(tmp_path):
-    from butler.telegram.client import TelegramSource
+    from butler.channels.telegram.client import TelegramSource
     async def scenario():
         fake = FakeClient()
         fake.items = [raw(i) for i in range(1, 206)]

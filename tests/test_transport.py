@@ -9,9 +9,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from butler import hermes as H
-from butler.contacts import load_contacts
-from butler.hermes import HermesClient
+from butler.agent import hermes as H
+from butler.identity.contacts import load_contacts
+from butler.agent.hermes import HermesClient
 
 CONTACT = {"name": "101", "profile": "wxbot-101", "uid": "101"}
 

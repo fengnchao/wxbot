@@ -115,7 +115,7 @@ def load_config(path: str | Path | None = None) -> dict:
         cfg = tomllib.loads(f.read())
     cfg['_config_path'] = str(path.resolve())
     cfg['_config_dir'] = str(path.resolve().parent)
-    from butler.directory import DirectoryStore, directory_path, directory_enabled
+    from butler.identity.directory import DirectoryStore, directory_path, directory_enabled
     if directory_enabled(path, cfg):
         shared = DirectoryStore(directory_path(path, cfg))
         projection = shared.channel_projection()

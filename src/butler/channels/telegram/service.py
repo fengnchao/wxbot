@@ -6,9 +6,9 @@ import os
 from pathlib import Path
 import threading
 
-from butler.push_client import push_news
-from .client import fatal_error
-from .formatting import parts
+from butler.delivery.push_client import push_news
+from butler.channels.telegram.client import fatal_error
+from butler.channels.telegram.formatting import parts
 
 
 @contextmanager
@@ -40,7 +40,7 @@ def instance_lock(path):
 
 
 def read_subscribers(path, *, database=None):
-    from butler.contact_store import ContactStore,is_unified
+    from butler.identity.contact_store import ContactStore,is_unified
     if database and is_unified(database):
         return ContactStore(database).groups().get('1',[])
     try:

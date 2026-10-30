@@ -25,8 +25,8 @@ def message(mid=1, group=None, caption=None):
 
 
 def setup(tmp_path, *, push=None):
-    from butler.telegram_bot.queue import Queue
-    from butler.telegram_bot.news import NewsRelay
+    from butler.channels.telegram.bot.queue import Queue
+    from butler.channels.telegram.bot.news import NewsRelay
     groups = tmp_path / 'groups.json'
     groups.write_text('{"groups":{"1":["A","A","B"]}}', encoding='utf-8')
     queue = Queue(tmp_path / 'queue.sqlite3')
@@ -108,7 +108,7 @@ def test_failed_album_image_creates_no_partial_deliveries(tmp_path):
 
 
 def test_media_getfile_checks_path_bytes_and_uploads_only_validated_image():
-    from butler.telegram_bot.media import TelegramMedia
+    from butler.channels.telegram.bot.media import TelegramMedia
     calls = []
     class API:
         def call(self, method, **params):
@@ -124,7 +124,7 @@ def test_media_getfile_checks_path_bytes_and_uploads_only_validated_image():
 
 @pytest.mark.parametrize('path', ['../secret', 'http://evil/x', '/absolute', 'photos/../secret', 'photos\\secret'])
 def test_media_getfile_rejects_untrusted_paths_before_download(path):
-    from butler.telegram_bot.media import TelegramMedia
+    from butler.channels.telegram.bot.media import TelegramMedia
     class API:
         def call(self, *args, **kwargs):
             return {'file_path': path}
@@ -135,7 +135,7 @@ def test_media_getfile_rejects_untrusted_paths_before_download(path):
 
 
 def test_bundle_push_requires_recipient_and_package_receipt_and_never_retries(monkeypatch):
-    from butler.push_client import push_news_bundle
+    from butler.delivery.push_client import push_news_bundle
     calls = []
     class Session:
         def __enter__(self): return self
@@ -143,14 +143,14 @@ def test_bundle_push_requires_recipient_and_package_receipt_and_never_retries(mo
         def post(self, url, **kwargs):
             calls.append(kwargs['json'])
             raise requests.Timeout('private-token')
-    monkeypatch.setattr('butler.push_client.requests.Session', Session)
+    monkeypatch.setattr('butler.delivery.push_client.requests.Session', Session)
     cfg = SimpleNamespace(token='private-token', host='127.0.0.1', port=8770, wxbot_timeout=120)
     assert push_news_bundle(cfg, 'A', [{'kind': 'image', 'media_id': 'a' * 32}], 'source1')['state'] == 'uncertain'
     assert calls == [{'contact': 'A', 'items': [{'kind': 'image', 'media_id': 'a' * 32}], 'request_id': 'source1'}]
 
 
 def test_identity_snapshot_contains_only_confirmed_public_bot_identity(tmp_path):
-    from butler.telegram_bot.service import publish_identity
+    from butler.channels.telegram.bot.service import publish_identity
     publish_identity(tmp_path, {'id': 99, 'is_bot': True, 'username': 'CurrentBot', 'token': 'private'})
     result = json.loads((tmp_path / 'bot-identity.json').read_text(encoding='utf-8'))
     assert set(result) == {'bot_id', 'username', 'at'}
@@ -193,8 +193,8 @@ def test_recovery_holds_preparing_packages_and_sending_receipts(tmp_path):
 
 
 def test_missing_media_setting_retains_legacy_text_path(tmp_path):
-    from butler.telegram_bot.news import NewsRelay
-    from butler.telegram_bot.queue import Queue
+    from butler.channels.telegram.bot.news import NewsRelay
+    from butler.channels.telegram.bot.queue import Queue
     group = tmp_path / 'groups.json'
     group.write_text('{"groups":{"1":["A"]}}', encoding='utf-8')
     queue = Queue(tmp_path / 'queue.db')
@@ -210,7 +210,7 @@ def test_missing_media_setting_retains_legacy_text_path(tmp_path):
 
 
 def test_forward_header_uses_original_channel_publish_time():
-    from butler.telegram_bot.news import format_news
+    from butler.channels.telegram.bot.news import format_news
     msg = message(caption='news')
     msg['forward_origin'] = {'type': 'channel', 'date': 0,
         'chat': {'id': -1001, 'title': 'Source', 'username': 'source'}, 'message_id': 8}
@@ -227,7 +227,7 @@ def test_forward_header_uses_original_channel_publish_time():
     ([], 'uncertain'),
 ])
 def test_bundle_receipt_matches_recipient_and_stable_package(monkeypatch, payload, state):
-    from butler.push_client import push_news_bundle
+    from butler.delivery.push_client import push_news_bundle
     class Session:
         def __enter__(self): return self
         def __exit__(self, *args): pass
@@ -238,14 +238,14 @@ def test_bundle_receipt_matches_recipient_and_stable_package(monkeypatch, payloa
             response.status_code = 200
             response._content = json.dumps(payload).encode()
             return response
-    monkeypatch.setattr('butler.push_client.requests.Session', Session)
+    monkeypatch.setattr('butler.delivery.push_client.requests.Session', Session)
     cfg = SimpleNamespace(token='private-token', host='127.0.0.1', port=8770, wxbot_timeout=120)
     assert push_news_bundle(cfg, 'A', [{'kind': 'image', 'media_id': 'a' * 32}], 'source1')['state'] == state
 
 
 def test_download_stops_stream_at_size_limit_and_never_exposes_token():
-    from butler.telegram_bot.service import BotAPI, TelegramError
-    from butler.media import MAX_BYTES
+    from butler.channels.telegram.bot.service import BotAPI, TelegramError
+    from butler.delivery.media import MAX_BYTES
     api = BotAPI(SimpleNamespace(token='private-secret', proxy_url=''))
     class Response:
         status_code = 200
@@ -268,7 +268,7 @@ def test_download_stops_stream_at_size_limit_and_never_exposes_token():
 
 
 def test_push_bundle_waits_for_whole_matching_wxbot_receipt(monkeypatch):
-    from butler.push import push_bundle_to_wxbot
+    from butler.delivery.push import push_bundle_to_wxbot
     calls = []
     class Response:
         def __enter__(self): return self
@@ -278,14 +278,14 @@ def test_push_bundle_waits_for_whole_matching_wxbot_receipt(monkeypatch):
         calls.append(json.loads(request.data))
         assert request.full_url == 'http://127.0.0.1:8765/send-bundle'
         return Response()
-    monkeypatch.setattr('butler.push.urllib.request.urlopen', opening)
+    monkeypatch.setattr('butler.delivery.push.urllib.request.urlopen', opening)
     cfg = SimpleNamespace(wxbot_url='http://127.0.0.1:8765', wxbot_token='secret', wxbot_timeout=120)
     assert push_bundle_to_wxbot(cfg, 'A', [{'kind': 'image', 'media_id': 'a' * 32}], 'source1') == (True, 'sent')
     assert calls[0]['wait'] is True and calls[0]['request_id'] == 'source1'
 
 
 def test_disabled_text_does_not_send_header_for_text_only_message(tmp_path):
-    from butler.telegram_bot.news import format_news
+    from butler.channels.telegram.bot.news import format_news
     msg = message()
     del msg['photo']
     msg['text'] = 'disabled text'
@@ -294,7 +294,7 @@ def test_disabled_text_does_not_send_header_for_text_only_message(tmp_path):
 
 
 def test_unsupported_media_has_explicit_operator_reason(tmp_path):
-    from butler.telegram_bot.media import TelegramMedia
+    from butler.channels.telegram.bot.media import TelegramMedia
     relay, queue, ingest, clock, calls, prepared, groups = setup(tmp_path)
     relay.media = TelegramMedia(None, None)
     msg = message()
@@ -308,7 +308,7 @@ def test_unsupported_media_has_explicit_operator_reason(tmp_path):
 
 
 def test_binary_registration_is_authenticated_local_and_redacts_network_errors(monkeypatch):
-    from butler.telegram_bot.media import TelegramMedia
+    from butler.channels.telegram.bot.media import TelegramMedia
     class Response:
         status_code = 200
         def __enter__(self): return self
@@ -326,13 +326,13 @@ def test_binary_registration_is_authenticated_local_and_redacts_network_errors(m
     class API:
         def call(self, *args, **kwargs): return {'file_path': 'photos/1.png'}
         def download(self, path): return image_bytes()
-    monkeypatch.setattr('butler.telegram_bot.media.requests.Session', Session)
+    monkeypatch.setattr('butler.channels.telegram.bot.media.requests.Session', Session)
     cfg = SimpleNamespace(token='private-token', host='127.0.0.1', port=8770)
     assert TelegramMedia(API(), cfg).prepare(message()) == [{'kind': 'image', 'media_id': 'a' * 32}]
 
 
 def test_bot_config_uses_shared_settings_beside_explicit_bot_config(tmp_path):
-    from butler.telegram_bot.config import load
+    from butler.channels.telegram.bot.config import load
     path = tmp_path / 'bot.toml'
     path.write_text('[telegram_bot]\ntoken="123456:abcdefghijklmnopqrstuvwx"\nallowed_user_ids=[12]\n', encoding='utf-8')
     assert load(path).relay_config == tmp_path / 'config.telegram-relay.toml'

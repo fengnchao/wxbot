@@ -197,7 +197,7 @@ class ConfigView:
         bt = self._load('butler','Butler 配置',self.butler_path)
         from dashboard.directory_view import load_directory, directory_section, MOVED_WX
         directory=load_directory(self,wx,bt)
-        from butler.contact_admin import configured_store
+        from butler.identity.contact_admin import configured_store
         unified = configured_store(self.butler_path,bt)
         mode=(wx.get('installation') or {}).get('mode','local')
         model = wx.get('model') or {}

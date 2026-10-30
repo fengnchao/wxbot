@@ -3,9 +3,9 @@ import time
 
 import pytest
 
-from butler.catalogue import SkillCatalogue
+from butler.agent.catalogue import SkillCatalogue
 from butler.business import BusinessStore
-from butler.tools import ToolService
+from butler.agent.tools import ToolService
 
 
 def catalogue(tmp_path):

@@ -24,7 +24,7 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, quote, urlparse
 from urllib.request import Request, urlopen
 
-from butler.telegram_relay.settings import SettingsConflict
+from butler.channels.telegram.relay.settings import SettingsConflict
 from common import news_config
 from common.paths import REPO_ROOT
 from dashboard.api.support import (EXPORT_DIR, HERMES_HOME, WXBOT_CHANNEL,

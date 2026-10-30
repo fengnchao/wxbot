@@ -41,7 +41,7 @@ def migration_source_name(source):
 
 def directory_enabled(config_path, raw):
     path = directory_path(config_path, raw)
-    from .contact_store import is_unified
+    from butler.identity.contact_store import is_unified
     if is_unified(path):
         return True
     if (raw.get('directory') or {}).get('database'):
@@ -60,7 +60,7 @@ class DirectoryStore:
     def __init__(self, path):
         self.path = Path(path).resolve()
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        from .contact_store import is_unified
+        from butler.identity.contact_store import is_unified
         if is_unified(self.path):
             return
         if self.path.exists():
@@ -92,7 +92,7 @@ class DirectoryStore:
         return dict(json.loads(row['payload']), version=row['version'])
 
     def snapshot(self):
-        from .contact_store import ContactStore,is_unified
+        from butler.identity.contact_store import ContactStore,is_unified
         if is_unified(self.path):
             return ContactStore(self.path).directory_snapshot()
         with closing(sqlite3.connect(f"{self.path.as_uri()}?mode=ro", uri=True, timeout=30)) as db:
@@ -168,14 +168,14 @@ class DirectoryStore:
         return DirectoryStore._snapshot(db)
 
     def save(self, payload, expected_version):
-        from .contact_store import ContactStore,is_unified
+        from butler.identity.contact_store import ContactStore,is_unified
         if is_unified(self.path):
             return ContactStore(self.path).save_directory(payload,expected_version)
         with self.transaction() as db:
             return self._save(db, payload, expected_version)
 
     def initialize_channel(self, nickname=''):
-        from .contact_store import ContactStore,is_unified
+        from butler.identity.contact_store import ContactStore,is_unified
         if is_unified(self.path):
             store=ContactStore(self.path);state=store.snapshot()
             if not state['settings']:
@@ -203,7 +203,7 @@ class DirectoryStore:
         return rows[0]['name'] if rows else ''
 
     def observe_member(self, group, member_key, name):
-        from .contact_store import ContactStore,is_unified
+        from butler.identity.contact_store import ContactStore,is_unified
         if is_unified(self.path):
             return ContactStore(self.path).observe_member(group,member_key,name)
         if not group or not member_key or not name:
@@ -226,7 +226,7 @@ class DirectoryContactMap:
         self.path = path
 
     def _current(self):
-        from .contacts import load_contacts
+        from butler.identity.contacts import load_contacts
         return load_contacts(DirectoryStore(self.path).contact_rows())
 
     @property

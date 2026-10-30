@@ -1,4 +1,4 @@
-"""用户分组：字典读写（butler/groups.py）+ /v1/push 的 type/messageType 路由 + 看板 /api/groups。
+"""用户分组：字典读写（butler/identity/groups.py）+ /v1/push 的 type/messageType 路由 + 看板 /api/groups。
 
 对齐 Hermes 侧约定：
   type: 1=指定用户发送（contact）/ 2=群发（按 messageType 查字典）
@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from butler.groups import GroupStore, parse_int
+from butler.identity.groups import GroupStore, parse_int
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -47,7 +47,7 @@ def _call_push(base, payload, token="t0ken"):
     return _req(base + "/v1/push", payload, headers=headers)
 
 
-# ---------------------------------------------------------------- 字典（butler/groups.py）
+# ---------------------------------------------------------------- 字典（butler/identity/groups.py）
 
 def test_parse_int():
     assert parse_int(1) == 1 and parse_int(" 2 ") == 2 and parse_int(3.0) == 3
@@ -95,7 +95,7 @@ def test_group_store_keeps_unknown_types(tmp_path):
 @pytest.fixture
 def push_home(make_home, start_server, monkeypatch):
     """临时 HERMES_HOME + 真 HTTP；wxbot 代发已被替换，calls 记录逐条外发。"""
-    import butler.core as core
+    import butler.agent.core as core
 
     calls = []
     monkeypatch.setattr(core, "push_to_wxbot",

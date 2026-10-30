@@ -2,8 +2,8 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from threading import Event
 
-from butler.contacts import Contact, load_contacts
-from butler.hermes import HermesClient
+from butler.identity.contacts import Contact, load_contacts
+from butler.agent.hermes import HermesClient
 
 
 def test_different_users_concurrent_alias_and_reset_serial(make_home):
@@ -92,8 +92,8 @@ def test_pending_unique_owner_and_alias_never_double_claim(make_home):
 
 
 def test_delegate_preserves_policy_and_releases_profile_lock(make_home,monkeypatch):
-    from butler import skills
-    from butler.skills import Ctx
+    from butler.agent import skills
+    from butler.agent.skills import Ctx
     h=make_home(pending_items=[])
     entered,release,acquired=Event(),Event(),Event()
     policy={'role_skill':'paimon','allowed_skills':['tool']}
@@ -120,7 +120,7 @@ def test_delegate_preserves_policy_and_releases_profile_lock(make_home,monkeypat
 
 
 def test_local_actions_serialize_profile_without_model_guard(make_home,monkeypatch):
-    from butler import skills
+    from butler.agent import skills
     h=make_home(pending_items=[])
     entered,release,second,other=Event(),Event(),Event(),Event()
     def local(ctx,args):

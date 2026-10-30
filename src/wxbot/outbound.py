@@ -59,7 +59,7 @@ class BundleMediaCache:
 
     def resolve(self, items):
         from common.media_bundle import validate_items
-        from butler.media import validate_image
+        from butler.delivery.media import validate_image
         items=validate_items(items)
         paths={}
         for item in items:

@@ -10,7 +10,7 @@ import tomllib
 import tomlkit
 
 from common.paths import REPO_ROOT
-from .config import Config,load
+from butler.config import Config,load
 
 REPO=REPO_ROOT
 
@@ -27,18 +27,18 @@ def _new(path,text):
 
 def initialize(root):
     """Noninteractive, idempotent first installation using built-in defaults."""
-    from .install_wizard import install, Connection
+    from butler.runtime.install_wizard import install, Connection
     return install(root, Connection(provider='codex'))
 
 
 def doctor(cfg,*,check_wechat=True):
     checks={}
-    from .install_wizard import installation_mode
+    from butler.runtime.install_wizard import installation_mode
     mode=installation_mode(cfg.config_dir or REPO)
     try:
-        from .plugin import validate_plugin
+        from butler.runtime.plugin import validate_plugin
         protocol=validate_plugin(cfg.plugin_path())
-        from .catalogue import SkillCatalogue
+        from butler.agent.catalogue import SkillCatalogue
         count=len(SkillCatalogue(cfg.plugin_path()/'skills').list())
         checks['plugin']={'ok':protocol.get('protocol_version')==1,'skills':count,'protocol_version':protocol.get('protocol_version')}
     except Exception as exc:

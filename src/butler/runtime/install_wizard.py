@@ -11,7 +11,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import tomlkit
 
-from .defaults import butler_defaults, wxbot_defaults, log_defaults
+from butler.defaults import butler_defaults, wxbot_defaults, log_defaults
 
 PRESETS = {
     'codex': ('本机 Codex（本人登录）', '', ''),
@@ -101,12 +101,12 @@ def connection_model(conn):
 
 
 def _finish_data(root, nickname=''):
-    from .config import load
-    from .setup import _new
-    from .business import BusinessStore
+    from butler.config import load
+    from butler.runtime.setup import _new
+    from butler.business import BusinessStore
     cfg = load(root/'config.butler.toml')
-    from .directory import directory_path
-    from .contact_store import ContactStore
+    from butler.identity.directory import directory_path
+    from butler.identity.contact_store import ContactStore
     database = directory_path(root/'config.butler.toml')
     BusinessStore(database)
     if installation_mode(root)=='local':
@@ -117,8 +117,8 @@ def _finish_data(root, nickname=''):
     else:
         # These modes manage only local channel settings; remote identities and
         # business data belong to the selected remote service.
-        from .directory import DirectoryStore
-        from .migration import migrate_installation
+        from butler.identity.directory import DirectoryStore
+        from butler.runtime.migration import migrate_installation
         migrate_installation(root)
         directory = DirectoryStore(database)
         state = directory.initialize_channel()
