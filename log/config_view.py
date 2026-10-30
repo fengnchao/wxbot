@@ -196,6 +196,8 @@ class ConfigView:
         bt = self._load('butler','Butler 配置',self.butler_path)
         from log.directory_view import load_directory, directory_section, MOVED_WX
         directory=load_directory(self,wx,bt)
+        from butler.contact_admin import configured_store
+        unified = configured_store(self.butler_path,bt)
         mode=(wx.get('installation') or {}).get('mode','local')
         model = wx.get('model') or {}
         backend = model.get('backend','ollama') if isinstance(model,dict) else 'ollama'
@@ -230,7 +232,13 @@ class ConfigView:
                         rows[-1]['description']+=' 此值包含隐藏内容；修改时请填写完整的新值，不能保存星号占位。'
                 sections.append({'id':source+'.'+group,'title':('wxbot' if source=='wxbot' else 'Butler')+' · '+group,
                                  'source_id':source,'source':str(self.wxbot_path if source=='wxbot' else self.butler_path),'rows':rows})
-        if directory is not None:sections.append(directory_section(self,directory))
+        if directory is not None and not unified:sections.append(directory_section(self,directory))
+        if unified:
+            self._sources.append({'id':'contacts','title':'统一联系人数据库','path':str(unified.path),
+                'status':'ok','version':str(unified.snapshot()['version']),'error':'','modified_at':None,'read_only':True})
+            sections.append({'id':'contacts','title':'联系人 · 唯一来源','source_id':'contacts','source':str(unified.path),
+                'contacts_href':'/app/?tab=contacts','rows':[{'key':'contacts.source','value':'联系人、监听、角色、心跳与订阅统一在「联系人」维护。',
+                'origin':'database','editable':False,'sensitive':False}]})
         sections.append({'id':'wxbot.typing','title':'微信输入与分句（代码固定规则）',
                          'source':str(self.root/'wxbot'/'wechat'/'typing.py'),
                          'rows':[{'key':'wxbot.typing.'+key,'value':value,'origin':'code','sensitive':False} for key,value in
@@ -251,7 +259,12 @@ class ConfigView:
         def resolved_path(value, fallback):
             if value is None or value=='':
                 return fallback
-            return Path(value) if isinstance(value,str) else None
+            if not isinstance(value,str):
+                return None
+            if (bt.get('agent') or {}).get('provider') != 'codex':
+                return Path(value)
+            path = Path(value).expanduser()
+            return (path if path.is_absolute() else self.butler_path.resolve().parent/path).resolve()
         home = resolved_path(hermes.get('root'),self.home) if isinstance(hermes,dict) else None
         if (bt.get('agent') or {}).get('provider')=='codex':
             from butler.config import load as load_butler
@@ -262,8 +275,8 @@ class ConfigView:
         if not isinstance(groups,dict): groups={}
         policy_path = resolved_path(heartbeat.get('config_file'),home/'cache'/'butler_heartbeat.json' if home else None)
         group_path = resolved_path(groups.get('file'),home/'cache'/'butler_groups.json' if home else None)
-        policies = self._load('policies','用户角色 / Skill / 心跳开关',policy_path,kind='json')
-        group_data = self._load('groups','用户分组',group_path,kind='json')
+        policies = {} if unified else self._load('policies','用户角色 / Skill / 心跳开关',policy_path,kind='json')
+        group_data = {} if unified else self._load('groups','用户分组',group_path,kind='json')
         dynamic_sources = [('policies','Butler 用户角色 / Skill / 心跳开关',policy_path,policies),
                            ('groups','Butler 用户分组',group_path,group_data)]
         warnings=[]
@@ -277,11 +290,11 @@ class ConfigView:
         for name,title,path,other in (
                 ('log_policies','log 页面当前使用的角色 / 心跳策略',log_policy_path,policy_path),
                 ('log_groups','log 页面当前使用的用户分组',log_group_path,group_path)):
-            if not same_path(path,other):
+            if not unified and not same_path(path,other):
                 data=self._load(name,title,path,kind='json')
                 dynamic_sources.append((name,title,path,data))
                 warnings.append(title+'与 Butler 来源不同，已分别列出，请核对服务的 home / 配置路径。')
-        for name,title,path,data in (dynamic_sources if mode=='local' else []):
+        for name,title,path,data in (dynamic_sources if mode=='local' and not unified else []):
             if not data:data={'users':{}} if name in {'policies','log_policies'} else {'groups':{}}
             rows=[]
             for key,value in paths(data):
@@ -322,6 +335,13 @@ class ConfigView:
             source=next((s for s in self._sources if s['id']==section.get('source_id')),None)
             for row in section['rows']:
                 row.setdefault('editable',False)
+                if unified:
+                    keys=tuple(row.get('path',[]));sid=section.get('source_id')
+                    if (sid in {'directory','contacts','policies','groups','log_policies','log_groups'} or
+                        sid=='butler' and (keys[:1] in {('contacts',),('directory',)} or keys in {('heartbeat','config_file'),('groups','file')}) or
+                        sid=='wxbot' and (keys[:1]==('directory',) or keys in MOVED_WX or keys[:3]==('wechat','group_sender','member_names')) or
+                        sid=='log_config' and keys==('sources','groups_file')):
+                        row['editable']=False
                 if source and source['status']=='error':row['editable']=False
         # Run the final whole payload through the scrubber: a secret may also occur in a path or a harmless field.
         payload={'read_only':False,'runtime_verified':False,'at':time.time(),'sources':self._sources,'sections':sections,'warnings':warnings,

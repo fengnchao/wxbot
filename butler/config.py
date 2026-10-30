@@ -23,6 +23,7 @@ class Config:
     provider: str = 'hermes'  # Existing files keep their backend; init creates Codex configs.
     data_dir: str = 'data'
     config_dir: str = ''
+    contact_database: str = ''
     codex_home: str = ''
     codex_plugin: str = ''
     codex_model: str = ''
@@ -172,6 +173,7 @@ def load(path: str | os.PathLike | None = None) -> Config:
         reply_chunk_chars=chunk_chars,
         group_context_messages=context_messages,group_context_characters=context_characters,
         provider=provider, config_dir=str(p.resolve().parent),
+        contact_database=str(directory_path(p,raw)) if directory_enabled(p,raw) else '',
         data_dir=str(agent.get('data_dir') or 'data'),
         codex_home=str(codex.get('home') or ''), codex_plugin=str(codex.get('plugin_root') or ''),
         codex_model=str(codex.get('model') or ''), codex_timeout=max(1,int(codex.get('timeout',600))),

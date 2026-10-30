@@ -88,7 +88,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 contact=query.get('contact',[''])[0]
                 if set(query)!={'contact'} or len(query['contact'])!=1 or not contact or len(contact)>200:
                     self._send(400,{'error':'无效联系人'});return
-                try:allowed=contact in read_subscribers(cfg.group_file_path())
+                try:allowed=contact in read_subscribers(cfg.group_file_path(),database=getattr(cfg,'contact_database',None))
                 except ValueError:
                     self._send(503,{'error':'新闻订阅策略暂不可用'});return
                 self._send(200,{'contact':contact,'allowed':allowed});return
@@ -184,7 +184,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 except (ValueError,FileNotFoundError,OSError):
                     self._send(400,{'ok':False,'error':'图文包或图片无效，未提交'});return
                 from .telegram.service import read_subscribers
-                try:subscribed=contact in read_subscribers(cfg.group_file_path())
+                try:subscribed=contact in read_subscribers(cfg.group_file_path(),database=getattr(cfg,'contact_database',None))
                 except ValueError:
                     self._send(503,{'ok':False,'error':'新闻订阅策略暂不可用，未提交'});return
                 if not subscribed:

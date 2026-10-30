@@ -9,21 +9,27 @@ def view_for(root):
                       repo_root=root,log_config_path=root/'config.log.toml')
 
 
-def test_directory_edit_does_not_recreate_toml_bindings(tmp_path):
+def test_migrated_directory_edit_uses_contacts_without_recreating_toml_bindings(tmp_path):
     from butler.install_wizard import install, Connection
-    from log.config_editor import ConfigEditor, ConfigConflict
+    from log.config_editor import ConfigEditor
+    from butler.contact_admin import ContactAdmin
     from butler.directory import DirectoryStore
     install(tmp_path,Connection(),nickname='Bot')
     view=view_for(tmp_path)
     info=view.read()
-    source=next(s for s in info['sources'] if s['id']=='directory')
+    source=next(s for s in info['sources'] if s['id']=='contacts')
     before=(tmp_path/'config.wxbot.toml').read_bytes()
     payload={'source':'directory','version':source['version'],'acknowledge':True,
              'changes':[{'path':['channel','bot','bound_users'],'op':'set','value':['Alice']}]}
-    assert ConfigEditor(view).save(payload)['ok']
+    with pytest.raises(ValueError,match='联系人'):ConfigEditor(view).save(payload)
+    service=ContactAdmin(tmp_path/'data/business.sqlite3')
+    created=service.save({'action':'create','version':int(source['version']),'name':'Alice'})
+    route=next(r for p in created['rows'] for r in p['conversations'] if r['name']=='Alice')
+    request={'action':'conversation','version':created['version'],'id':route['id'],'listening':True}
+    service.save(request)
     assert DirectoryStore(tmp_path/'data/business.sqlite3').channel_projection()['bot']['bound_users']==['Alice']
     assert (tmp_path/'config.wxbot.toml').read_bytes()==before
-    with pytest.raises(ConfigConflict):ConfigEditor(view).save(payload)
+    with pytest.raises(ValueError,match='version'):service.save(request)
     assert not any(row.get('editable') for sec in info['sections'] if sec.get('source_id')=='wxbot'
                    for row in sec['rows'] if row.get('path')==['bot','bound_users'])
 

@@ -76,7 +76,7 @@ class Butler:
         self.log = log or (lambda *a, **k: None)
         self.runtime_locks = RuntimeLocks(cfg.hermes_url)
         self.hermes = HermesClient(cfg, self.log, locks=self.runtime_locks)
-        self.skill_policies = SkillPolicyStore(cfg.heartbeat_config_path(), self.log)
+        self.skill_policies = SkillPolicyStore(cfg.heartbeat_config_path(), self.log, database=cfg.contact_database)
         self.pending = PendingQueue(cfg.hermes_root, self.log, locks=self.runtime_locks)
         self.store = self.tools = None
         self.registry = self.group_context = None
@@ -88,7 +88,9 @@ class Butler:
             from .catalogue import SkillCatalogue
             from .tools import ToolService
             from .backends import create_backend
-            self.store = BusinessStore(cfg.data_path()/'business.sqlite3')
+            from .contact_store import from_config
+            contacts=from_config(cfg)
+            self.store = BusinessStore(contacts.path if contacts else cfg.data_path()/'business.sqlite3')
             from .user_registry import UserRegistry
             from .group_context import GroupContext
             self.registry = UserRegistry(self.store)
@@ -105,7 +107,7 @@ class Butler:
             self.pending = EmptyPendingQueue()
         self.flow = FlowLog(cfg.flow_log_path(), self.log)
         self.trace = FlowTrace(butler_trace_path(cfg.flow_log_path()), self.log)
-        self.groups = GroupStore(cfg.group_file_path(), self.log)
+        self.groups = GroupStore(cfg.group_file_path(), self.log, database=cfg.contact_database)
 
     @property
     def backend(self):

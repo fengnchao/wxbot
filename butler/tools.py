@@ -158,7 +158,7 @@ class ToolService:
             elif name in ('memory_get','memory_search'):
                 result={'items':self.store.memories(memory_owner,args.get('query',''),db=db)}
             elif name=='memory_set':
-                result=self.store.set_memory(memory_owner,args.get('key'),args.get('value'),db=db)
+                result=self.store.set_memory(memory_owner,args.get('key'),args.get('value'),db=db,source_label=c['contact'])
             elif name=='memory_delete':
                 result=self.store.delete_memory(memory_owner,args.get('key'),db=db)
             elif name=='reminder_list':

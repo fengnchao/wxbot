@@ -74,7 +74,7 @@ def main():
                 super().do_GET()
         handler=PreviewHandler
         server=ThreadingHTTPServer(('127.0.0.1',0),handler)
-        print('PREVIEW_URL=http://127.0.0.1:'+str(server.server_port)+'/',flush=True)
+        print('PREVIEW_URL=http://127.0.0.1:'+str(server.server_port)+'/app/',flush=True)
         try:server.serve_forever()
         except KeyboardInterrupt:pass
         finally:server.server_close()

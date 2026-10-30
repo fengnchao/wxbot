@@ -1,10 +1,5 @@
 """Existing flow details expose only bounded identity and context summaries."""
 import json
-from pathlib import Path
-import shutil
-import subprocess
-
-import pytest
 
 from common.flow_trace import FlowTrace
 from log.flow_view import FlowView
@@ -116,36 +111,6 @@ def test_mention_plain_fallback_survives_delivery_log_without_claiming_an_at(tmp
     store.close()
 
 
-def test_workflow_script_renders_metadata_labels_and_archive_status():
-    script = (Path(__file__).resolve().parents[1]/'log/assets/workflow.js').read_text(encoding='utf-8')
-    for expected in ('workflowMetadata', 'user_id', 'binding_id', 'memory_count', 'context_count',
-                     'mention_stage', "archived:'已归档 / 静默'", '冷却中', '预算已用完'):
-        assert expected in script
-
-
-def test_workflow_metadata_html_escapes_identifiers_and_omits_private_fields():
-    node = shutil.which('node')
-    if not node:
-        pytest.skip('Node.js is needed for optional workflow rendering verification')
-    script = (Path(__file__).resolve().parents[1]/'log/assets/workflow.js').read_text(encoding='utf-8')
-    harness = r'''
-const vm=require('vm'),fs=require('fs');
-const context={document:{addEventListener:()=>{}},FLOW_STAGE_LABELS:{},FLOW_STATUS_LABELS:{},
-  esc:s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),
-  input:{user_id:'<img src=x onerror=alert(1)>',binding_id:'binding',identity_status:'unknown',
-         memory_count:2,context_count:3,context_from:10,context_to:20,decision:'budget',
-         mention_stage:'object_verified',memory_body:'PRIVATE_MEMORY',avatar:'PRIVATE_AVATAR'}};
-vm.createContext(context);vm.runInContext(fs.readFileSync(0,'utf8'),context);
-process.stdout.write(vm.runInContext('workflowMetadata(input)',context));
-'''
-    result = subprocess.run([node, '-e', harness], input=script, capture_output=True,
-                            text=True, encoding='utf-8', timeout=10)
-    assert result.returncode == 0, result.stderr
-    assert '&lt;img' in result.stdout and '<img' not in result.stdout
-    assert '预算已用完' in result.stdout and '提及对象已核验' in result.stdout
-    assert 'PRIVATE_MEMORY' not in result.stdout and 'PRIVATE_AVATAR' not in result.stdout
-
-
 def test_persisted_budget_reason_survives_silent_worker_and_missing_trace(tmp_path):
     path, trace = tmp_path/'q.db', tmp_path/'trace.jsonl'
     store = QueueStore(path)
@@ -161,48 +126,3 @@ def test_persisted_budget_reason_survives_silent_worker_and_missing_trace(tmp_pa
     assert row['decision']=='budget' and row['status']=='archived'
     assert not any(e['stage']=='wxbot_model' for e in row['events'])
     store.close()
-
-
-def test_default_workflow_includes_silent_archives_and_separates_issues():
-    node = shutil.which('node')
-    if not node:
-        pytest.skip('Node.js is needed for optional workflow rendering verification')
-    script = (Path(__file__).resolve().parents[1]/'log/assets/workflow.js').read_text(encoding='utf-8')
-    harness = r'''
-const vm=require('vm'),fs=require('fs'),assert=require('assert');
-const context={document:{addEventListener:()=>{}},FLOW_STAGE_LABELS:{},FLOW_STATUS_LABELS:{}};
-vm.createContext(context);vm.runInContext(fs.readFileSync(0,'utf8'),context);
-assert.equal(vm.runInContext("workflowInScope({terminal:true,scope:'complete',status:'archived'})",context),true);
-assert.equal(vm.runInContext("workflowInScope({terminal:true,scope:'complete'},'active')",context),false);
-assert.equal(vm.runInContext("workflowInScope({terminal:false,scope:'issues'},'issues')",context),true);
-'''
-    result = subprocess.run([node, '-e', harness], input=script, capture_output=True,
-                            text=True, encoding='utf-8', timeout=10)
-    assert result.returncode == 0, result.stderr
-
-
-def test_workflow_diagram_does_not_park_old_issues_in_service_nodes():
-    node = shutil.which('node')
-    if not node:
-        pytest.skip('Node.js is needed for optional workflow rendering verification')
-    script = (Path(__file__).resolve().parents[1]/'log/assets/workflow.js').read_text(encoding='utf-8')
-    harness = r'''
-const vm=require('vm'),fs=require('fs'),assert=require('assert');
-const context={document:{addEventListener:()=>{}},FLOW_STAGE_LABELS:{},FLOW_STATUS_LABELS:{},esc:String};
-vm.createContext(context);vm.runInContext(fs.readFileSync(0,'utf8'),context);
-vm.runInContext(`
-const base={uid:'101',members:[],events:[],request_id:'',contact:'101',reply_preview:'',part_count:0,sent_parts:0,order:1};
-const old={...base,id:'old',preview:'OLD_BLOCKED_NEWS',stage:2,status:'blocked',scope:'issues',terminal:false};
-const active={...base,id:'active',preview:'CURRENT_REQUEST',stage:3,status:'processing',scope:'active',terminal:false};
-const archived={...base,id:'archived',preview:'RECENT_ARCHIVE',stage:2,status:'archived',scope:'complete',terminal:true};
-const rows=[old,active,archived],recent=new Set(['archived']);
-const markup=workflowDiagram({backend:'codex',counts:{}},rows,null,recent);
-`,context);
-assert.equal(vm.runInContext("markup.includes('OLD_BLOCKED_NEWS')",context),false);
-assert.equal(vm.runInContext("markup.includes('CURRENT_REQUEST')&&markup.includes('RECENT_ARCHIVE')",context),true);
-assert.equal(vm.runInContext("workflowInScope(old,'issues')",context),true);
-assert.equal(vm.runInContext("workflow.selected='old';workflowDiagram({backend:'codex',counts:{}},rows,old,recent).includes('OLD_BLOCKED_NEWS')",context),true);
-'''
-    result = subprocess.run([node,'-e',harness],input=script,capture_output=True,
-                            text=True,encoding='utf-8',timeout=10)
-    assert result.returncode == 0, result.stderr

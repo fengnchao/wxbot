@@ -191,6 +191,8 @@ class ConfigEditor:
         if not isinstance(source,str) or not isinstance(version,str) or not isinstance(changes,list) or not 1<=len(changes)<=200:
             raise ValueError('配置修改请求格式无效')
         if source=='directory':
+            from butler.contact_admin import configured_store
+            if configured_store(self.view.butler_path):raise ValueError('已迁移的联系人来源只读，请使用联系人页面')
             from log.directory_view import save_directory
             return save_directory(self.view,payload)
         self.view.read()

@@ -69,7 +69,7 @@ def main(argv=None):
             if not cfg.butler_config.is_file():
                 raise FatalTelegramError('指定的 Butler 配置文件不存在')
             bc = load_butler(cfg.butler_config)
-            read_subscribers(bc.group_file_path())
+            read_subscribers(bc.group_file_path(),database=getattr(bc,'contact_database',None))
         session = str(cfg.session_path)
         if not session.endswith('.session'):
             session += '.session'

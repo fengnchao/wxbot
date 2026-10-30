@@ -11,10 +11,11 @@ from .config import load
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description='Portable Butler/wxbot')
-    parser.add_argument('command',choices=['init','setup','migrate','doctor','login','serve','start'])
+    parser.add_argument('command',choices=['init','setup','migrate','contacts-preview','contacts-migrate','doctor','login','serve','start'])
     parser.add_argument('--config',default=None)
     parser.add_argument('--directory',default='.')
     parser.add_argument('--no-wechat',action='store_true')
+    parser.add_argument('--acknowledge-stopped',action='store_true',help='Confirm all legacy contact writers have been stopped')
     args=parser.parse_args(argv)
     if args.command=='init':
         from .setup import initialize
@@ -22,6 +23,15 @@ def main(argv=None):
     if args.command=='setup':
         from .install_wizard import run_wizard
         result=run_wizard(args.directory)
+        print(json.dumps(result,ensure_ascii=False,indent=2));return 0 if result.get('ok') else 1
+    if args.command in {'contacts-preview','contacts-migrate'}:
+        from .contact_migration import preview_contacts, migrate_contacts
+        root=Path(args.config).resolve().parent if args.config else Path(args.directory)
+        try:
+            result=(preview_contacts(root) if args.command=='contacts-preview' else
+                    migrate_contacts(root,acknowledge_stopped=args.acknowledge_stopped))
+        except (ValueError, OSError) as exc:
+            result=dict(ok=False,errors=[str(exc)])
         print(json.dumps(result,ensure_ascii=False,indent=2));return 0 if result.get('ok') else 1
     if args.command=='migrate':
         from .upgrade import upgrade_installation

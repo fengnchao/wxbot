@@ -14,8 +14,12 @@ def test_fresh_install_is_idempotent_and_does_not_copy_personal_data(tmp_path):
     assert cfg.provider=='codex'
     assert cfg.contacts.names()==[]
     assert cfg.token and cfg.wxbot_token and cfg.token!=cfg.wxbot_token
-    policies=json.loads((root/'data/cache/butler_heartbeat.json').read_text(encoding='utf-8'))
-    assert policies['users']=={}
+    from butler.contact_store import ContactStore, is_unified
+    database=root/'data/business.sqlite3'
+    assert is_unified(database)
+    assert ContactStore(database).policies()=={}
+    assert not (root/'data/cache/butler_heartbeat.json').exists()
+    assert not (root/'data/cache/butler_groups.json').exists()
     wx=tomllib.loads((root/'config.wxbot.toml').read_text(encoding='utf-8'))
     assert wx['butler']['token']==cfg.token
     assert wx['outbound']['token']==cfg.wxbot_token

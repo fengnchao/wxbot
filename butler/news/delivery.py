@@ -39,7 +39,10 @@ def run_lock(folder):
                 fcntl.flock(file, fcntl.LOCK_UN)
 
 
-def subscribers(path):
+def subscribers(path, *, database=None):
+    from butler.contact_store import ContactStore,is_unified
+    if database and is_unified(database):
+        return ContactStore(database).groups().get('1',[])
     raw = json.loads(Path(path).read_text(encoding='utf-8-sig'))
     if not isinstance(raw, dict):
         raise ValueError('分组文件格式无效')
@@ -109,7 +112,7 @@ def run(cfg):
     with run_lock(folder):
         try:
             settings, _ = read_settings(groups)
-            users = subscribers(groups)
+            users = subscribers(groups,database=getattr(cfg,'contact_database',None))
             if not users:
                 report['status'] = 'no_subscribers'
                 return report

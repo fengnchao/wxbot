@@ -1,0 +1,8 @@
+/* 布局基线：历史样式表随旧版一并迁入，作为 Vue 管理台的唯一来源。 */
+@import './dashboard.css';
+@import './workflow.css';
+/* 主题层：统一令牌、控件与组件皮肤。 */
+@import './theme.css';
+
+/* Vue 根节点不参与布局，让 .primary-nav 与 .workspace 保持 body 的直接子元素。 */
+#app{display:contents}

@@ -28,10 +28,14 @@ cd butler-wxbot
 
 `start` 按 `config.wxbot.toml` 的 `[installation].mode` 启动：`local` 启动 Butler、log、wxbot；
 `external` 和 `direct` 启动 log、wxbot。端口被占用时保留已有进程，不自动重启。
-在 log 的「配置管理」维护机器人昵称、监听名单、联系人和群昵称；共享目录保存在 `data/business.sqlite3`。
+本机 Butler 新安装在 log 的「联系人」统一维护监听、群昵称、角色／心跳、订阅和记忆；联系人唯一来源为 `data/business.sqlite3`。
 本机 Codex 模式可绑定角色、允许的 Skill 和心跳；直接模型模式不提供 Butler 记忆、提醒及业务工具。
 外部 Butler 模式只通过配置的消息接口调用服务；本机管理台关闭远端账户、记忆与心跳管理，请使用远端自己的管理台。
-既有安装先备份配置与数据，运行 `python -m butler migrate`；[升级说明](docs/CODEX_INSTALL.md) 包含迁移和路径规则。
+直接模型／外部 Butler 模式继续在「配置管理」维护本机监听和昵称，远端身份与业务在远端管理。
+既有本机 Butler 安装不会自动启用统一联系人。先运行 `python -m butler contacts-preview` 只读核对；
+自行停止旧服务和后台写入者后，再运行 `python -m butler contacts-migrate --acknowledge-stopped`。
+迁移保留原 uid／会话、监听开关、策略、订阅目的地和停用状态，同名联系人共享个人记忆并保留冲突来源。
+[升级说明](docs/CODEX_INSTALL.md#升级现有安装) 包含备份、手动切换和回退步骤。
 
 ## 结构
 

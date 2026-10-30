@@ -1,5 +1,4 @@
 """Dashboard projections use temporary stores; never touch live services."""
-from pathlib import Path
 from contextlib import closing
 
 from log.queue_view import QueueView
@@ -56,15 +55,6 @@ def test_reminders_sorted_by_next_due_stably():
         return dict(id=id, due=due, status='scheduled', contact='A', text=id, schedule='once', detail='')
     data = reminder_jobs({'backend':'codex', 'reminders':[reminder('c',30),reminder('b',10),reminder('a',10)]})
     assert [j['job_id'] for j in data['users'][0]['jobs']] == ['a','b','c']
-
-
-def test_static_dashboard_assets_are_modular():
-    root = Path(__file__).resolve().parents[1] / 'log'
-    html = (root/'index.html').read_text(encoding='utf-8')
-    assert 'assets/dashboard.css' in html
-    assert 'assets/configuration.js' in html
-    assert 'nav-group' in html
-    assert 'id="b-contacts"' in html
 
 
 def test_issue_sort_uses_failure_time_and_queue_remains_unchanged(tmp_path):

@@ -33,7 +33,7 @@ Windows 上的个人微信机器人，Python 项目，拆成两个本地进程�
 - `butler/groups.py`、`push.py`、`flowlog.py`：分组推送与流水日志。
 - `wxbot/main.py`、`state.py`、`wechat/chat_window.py`：主轮询、消息差分、窗口读写。
 - `wxbot/outbound.py`：接收主动推送的 HTTP 队列服务；`wxbot/processor/` 是各后端适配器。
-- `log/server.py`、`log/index.html`：看板服务和前端；看板直接读取配置/日志/任务数据。
+- `log/server.py`、`log/web/`：看板服务与 Vue 管理台；构建产物由 `/app/` 提供，根路径 `/` 302 到 `/app/`，看板直接读取配置/日志/任务数据。
 - `scripts/wechat_stack_ctl.py`：栈启停状态；`scripts/butler_reminder_*.py`：提醒创建/投递；`heartbeat/`：进程监控。
 - `tests/`：离线测试，包括主流程不变量、HTTP/Hermes 传输、消息状态、分组、推送和任务归属。
 
@@ -217,7 +217,7 @@ Windows 上的个人微信机器人，Python 项目，拆成两个本地进程�
 - 行为：所有群消息（@与非@）都入 inbox 并调用模型（进成员独立 session 上下文）。回复方式 `reply_mode`（text/emoji/none）在采集层随机决定：@ 必回 text；非@ 按 `group_reply_chance` 抽中后按 `emoji_chance` 二选一（text/emoji），未抽中 none。批次合并时取优先级 text > emoji > none（`merge_reply_mode`）。
 - worker：emoji 批次丢弃模型文字并 `enqueue_sticker` 发图；none 批次丢弃模型文字静默（`finish_batch_parts(id, ())`）；text 批次正常发文字并 @。所有批次仍调模型，故「每条进上下文」成立；token 成本随消息量与历史长度增长（用户已接受）。
 - 队列 schema 升到 VERSION 5：inbox/batches 加 `reply_mode`，自动迁移。配置新增 `bot.emoji_chance`（默认 0.2）。
-- log 流转：`record('wxbot_reply_mode', ...)` 写入决策阶段；`log/flow_view.py` 的 STAGES 与 `log/assets/messages.js` 的 FLOW_STAGE_LABELS / FLOW_STATUS_LABELS 加 wxbot_reply_mode 及 text/emoji/none 标签。
+- log 流转：`record('wxbot_reply_mode', ...)` 写入决策阶段；`log/flow_view.py` 的 STAGES 与 `log/assets/messages.js` 的 FLOW_STAGE_LABELS / FLOW_STATUS_LABELS 加 wxbot_reply_mode 及 text/emoji/none 标签（该文件已于 2026-10-30 随旧版下线删除，现为 `log/web/src` 内的 Vue 实现）。
 - 验证：离线全套 pytest 通过（exit 0），`git diff --check` 干净。未操作真实微信、未重启服务；表情面板定位仍待用户按本机微信校准，@真实昵称需配置 member_names。
 
 ## 发送失败自动重试 + 剪贴板降级 + 表情自动降级（2026-10-22）
@@ -228,3 +228,11 @@ Windows 上的个人微信机器人，Python 项目，拆成两个本地进程�
 - 表情自动降级：`inbox._reply_mode` 在 `[wechat.emoji]` 未配置（button/item 为空）时不再返回 emoji，改发文字，避免表情面板未校准导致的 blocked 报错；校准后自动恢复发图。
 - 配置：`queue.failure_discard_seconds`（默认 60）、`retry_delay_seconds`（默认 20）、`max_delivery_retries`（默认 2）；`bot.emoji_chance`（默认 0.2）。
 - 验证：离线全套 pytest 通过（exit 0），`git diff --check` 干净；新增剪贴板降级与 delivery pump 自动重试回归。未重启服务；实机发送（用户授权可给 101 发消息）待用户重启 wxbot 后验证。
+
+## 管理台旧版下线（2026-10-30）
+
+- 删除 `log/index.html` 与 `log/assets/` 下 13 个 JS；`dashboard.css`、`workflow.css` 迁入 `log/web/src/styles/`，`base.css` 改为相对导入，`dist/` 成为唯一前端产物。
+- `log/server.py`：根路径 `/` 返回 302 到 `/app/`（保留 query），删除 `/assets/` 固定白名单路由；`/app/assets/` 仍保留路径穿越校验。
+- 前端删除 `LegacyView.vue`、旧版链接与 `TABS.migrated` 字段；导航、标题和页脚不再出现「旧版」入口。
+- 测试：删除依赖旧版 JS 的 5 个 vm 脚本、`test_log_frontend.py`、`test_relay_admin_frontend.py`，裁掉读 `index.html` 的断言，`test_log_webapp.py` 改为验证 302。
+- 维护：改前端后必须 `cd log/web && npm run build` 并提交 `dist/`；`npm run smoke` 是唯一前端冒烟。

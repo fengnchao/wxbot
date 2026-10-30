@@ -59,11 +59,13 @@ class GroupStore:
 
     VERSION = 1
 
-    def __init__(self, path: str, log=None):
+    def __init__(self, path: str, log=None, *, database=None):
+        self.database = database
         self.log = log or (lambda *a, **k: None)
         self._lock = threading.Lock()
         self.path = (path or "").strip()
-        if self.path:
+        from .contact_store import is_unified
+        if self.path and not (self.database and is_unified(self.database)):
             d = os.path.dirname(self.path)
             try:
                 if d:
@@ -75,6 +77,9 @@ class GroupStore:
     # ---------- 读 ----------
     def load(self) -> dict[str, list[str]]:
         """完整字典 {messageType(str): [user,...]}；文件缺失/坏掉时按空处理。"""
+        from .contact_store import ContactStore,is_unified
+        if self.database and is_unified(self.database):
+            return ContactStore(self.database).groups()
         groups: dict[str, list[str]] = {}
         if not self.path or not os.path.exists(self.path):
             return groups
@@ -112,6 +117,10 @@ class GroupStore:
 
     # ---------- 写 ----------
     def _save(self, groups: dict[str, list[str]]) -> None:
+        from .contact_store import ContactStore,is_unified
+        if self.database and is_unified(self.database):
+            ContactStore(self.database).set_groups(groups)
+            return
         if not self.path:
             raise RuntimeError("分组字典未配置（[groups].file 与 hermes.root 都为空）")
         payload = {"version": self.VERSION,

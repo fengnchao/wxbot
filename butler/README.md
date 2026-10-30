@@ -164,7 +164,7 @@ butler/       编排层 Python 包（wxbot ⇄ Hermes 之间那一层）
   skills.py     可调 skill 白名单 + 执行器 core.py      编排：把上面几块按顺序串起来
   server.py     HTTP 接口（stdlib，无第三方依赖）
 kmg/          看门狗（看门狗=kmg）：wxbot_watchdog.py / wechat_inbox_watchdog.py / sidecar_spawn.py
-log/          日志服务（8788 看板）：server.py + index.html + 启动/重启 + launchers/
+log/          日志服务（8788 管理台）：server.py + web/（Vue 构建产物）+ 启动/重启 + launchers/
 scripts/      运维脚本：投递（wxbot_deliver）/ 提醒（butler_reminder_*）/ 栈启停（wechat_stack_*）
               / wxbot 启停与自启 / wxbot_channel.json（投递映射）
 tests/        conftest.py（夹具）+ test_pipeline.py（主流程不变量）+ test_transport.py（线格式/HTTP）

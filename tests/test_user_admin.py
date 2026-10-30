@@ -1,8 +1,6 @@
 """Offline user administration transport and browser security contracts."""
 import importlib.util
 import json
-import shutil
-import subprocess
 import threading
 from contextlib import contextmanager
 from http.server import ThreadingHTTPServer
@@ -122,16 +120,6 @@ def test_log_admin_proxy_requires_same_origin_and_keeps_credentials_server_side(
         assert calls[-1][1] == '/v1/users?query=Alex&offset=50'
 
 
-def test_dashboard_user_page_contract():
-    root = Path(__file__).resolve().parents[1] / 'log'
-    html = (root / 'index.html').read_text(encoding='utf-8')
-    script = (root / 'assets' / 'users.js').read_text(encoding='utf-8')
-    assert 'tab-users' in html and '/assets/users.js' in html
-    assert 'X-Wxbot-User-Action' in script and 'FileReader' in script
-    assert '共享' in script and 'resolutions' in script and '/api/users/audit' in script
-    assert 'localStorage' not in script and 'Bearer' not in script
-
-
 def test_avatar_and_binding_edit_can_be_applied_atomically():
     from butler.user_api import dispatch_user_post
     result = dispatch_user_post(Registry(), {'action': 'update', 'binding_id': 'b', 'version': 1,
@@ -211,19 +199,3 @@ def test_proxy_never_forwards_admin_credential_on_redirect():
         with running(Redirect) as base:
             status, _ = request_user_admin({'server': {'port': int(base.rsplit(':', 1)[1]), 'token': 'fixture-secret'}}, '/v1/users')
             assert status >= 400 and not received
-
-
-def test_link_preview_shows_every_affected_channel_and_escapes_memory_contents():
-    node = shutil.which('node')
-    if not node:
-        pytest.skip('Node.js is required for dashboard rendering checks')
-    script = r'''
-const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
-const context=vm.createContext({document:{querySelector(){return null}}});
-vm.runInContext(fs.readFileSync('log/assets/common.js','utf8')+'\n'+fs.readFileSync('log/assets/users.js','utf8'),context);
-const html=vm.runInContext(`userLinkScope({binding:{user_id:'source',contact:'source group',nickname:'A',channel_type:'group'},items:[{key:'preference',value:'<script>secret</script>'}]},{binding:{user_id:'target',contact:'private',nickname:'B',channel_type:'dm'},items:[{key:'drink',value:'tea'}]},[{binding_id:'target1',contact:'private',nickname:'B',channel_type:'dm'},{binding_id:'target2',contact:'other group',nickname:'C',channel_type:'group'}])`,context);
-assert.match(html,/other group/);assert.match(html,/private/);assert.match(html,/preference/);assert.match(html,/drink/);
-assert.match(html,/&lt;script&gt;secret&lt;\/script&gt;/);assert.doesNotMatch(html,/<script>/);
-'''
-    result = subprocess.run([node, '-e', script], cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True, encoding='utf-8', timeout=15)
-    assert result.returncode == 0, result.stderr

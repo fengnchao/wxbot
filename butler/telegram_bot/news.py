@@ -168,7 +168,7 @@ class NewsRelay:
                 include_text=getattr(settings, 'include_text', True),
                 include_source=getattr(settings, 'include_source', True),
                 include_time=getattr(settings, 'include_time', True))
-        users = read_subscribers(self.cfg.group_file_path()) if parts else []
+        users = read_subscribers(self.cfg.group_file_path(),database=getattr(self.cfg,'contact_database',None)) if parts else []
         if parts and not users:
             reason = '新闻消息分组没有接收人，本条跳过'
         with self.queue.db() as db:
@@ -190,7 +190,7 @@ class NewsRelay:
         if self._deliver_bundle():
             return True
         # Subscription changes are read again immediately before delivery.
-        users = read_subscribers(self.cfg.group_file_path())
+        users = read_subscribers(self.cfg.group_file_path(),database=getattr(self.cfg,'contact_database',None))
         with self.queue.db() as db:
             db.execute('BEGIN IMMEDIATE')
             row = db.execute('''SELECT d.id,d.uid,d.contact,d.part,d.text,p.payload
@@ -310,7 +310,7 @@ class NewsRelay:
                 return True
             if found:
                 hold_reason = '原来源消息与已有图文包部分重叠，保留待人工核对，不重复投递'
-        users = list(dict.fromkeys(read_subscribers(self.cfg.group_file_path())))
+        users = list(dict.fromkeys(read_subscribers(self.cfg.group_file_path(),database=getattr(self.cfg,'contact_database',None))))
         sender = members[0][1]['from']['id']
         reason = ''
         if any(m['from']['id'] not in self.allowed_users for _, m, _ in members):
@@ -381,7 +381,7 @@ class NewsRelay:
             exists = db.execute("SELECT 1 FROM news_bundle_delivery WHERE bot=? AND state='pending' LIMIT 1", (self.bot,)).fetchone()
         if exists is None:
             return False
-        users = read_subscribers(self.cfg.group_file_path())
+        users = read_subscribers(self.cfg.group_file_path(),database=getattr(self.cfg,'contact_database',None))
         settings = self._settings()
         with self.queue.db() as db:
             db.execute('BEGIN IMMEDIATE')

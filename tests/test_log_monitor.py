@@ -14,6 +14,13 @@ from log.queue_view import QueueView
 from wxbot.queue_store import Incoming, QueueStore
 
 
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """首页改为 302 到 /app/：测试直接读跳转头，不跟随到前端产物。"""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
 def test_queue_explains_previous_block_and_reads_without_changing_running_tasks(tmp_path):
     path=tmp_path/'queue.db'
     store=QueueStore(path, failure_timeout_seconds=180)
@@ -209,18 +216,11 @@ def test_monitor_http_endpoints_and_html_routes(tmp_path,monkeypatch):
         with urllib.request.urlopen(base+'/api/wxbot',timeout=3) as response:
             payload=json.load(response)
         assert payload['flow']['read_only'] and payload['flow']['status']=='ok'
-        with urllib.request.urlopen(base+'/?tab=queue',timeout=3) as response:
-            html=response.read().decode('utf-8')
-        assert 'tab-queue' in html and 'tab-configuration' in html
-        for asset,mime in (('dashboard.css','text/css'),('configuration.js','text/javascript'),
-                           ('workflow.css','text/css'),('workflow.js','text/javascript')):
-            with urllib.request.urlopen(base+'/assets/'+asset,timeout=3) as response:
-                assert response.headers['Content-Type'].startswith(mime)
-                assert response.read()
-        for asset in ('../config.butler.toml','%2e%2e/config.butler.toml','not-found.js'):
+        opener=urllib.request.build_opener(NoRedirect)
+        for target,expected in (('/', '/app/'), ('/?tab=queue', '/app/?tab=queue')):
             with pytest.raises(urllib.error.HTTPError) as error:
-                urllib.request.urlopen(base+'/assets/'+asset,timeout=3)
-            assert error.value.code==404
+                opener.open(base+target,timeout=3)
+            assert error.value.code==302 and error.value.headers['Location']==expected
         def bad_workflow(*args,**kwargs):
             raise ValueError('hermes-secret-000 private-config-path')
         monkeypatch.setattr(mod,'WorkflowView',bad_workflow)

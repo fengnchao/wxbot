@@ -39,7 +39,10 @@ def instance_lock(path):
                 fcntl.flock(handle, fcntl.LOCK_UN)
 
 
-def read_subscribers(path):
+def read_subscribers(path, *, database=None):
+    from butler.contact_store import ContactStore,is_unified
+    if database and is_unified(database):
+        return ContactStore(database).groups().get('1',[])
     try:
         raw = json.loads(Path(path).read_text(encoding='utf-8-sig'))
     except (OSError, ValueError):
@@ -101,11 +104,11 @@ class Relay:
             return False
         group_path = self.butler_cfg.group_file_path()
         for message in self.store.unexpanded(source_ids=self.active_sources):
-            users = read_subscribers(group_path)
+            users = read_subscribers(group_path,database=getattr(self.butler_cfg,'contact_database',None))
             self.store.expand(message, users, parts(message))
         if self.stopping.is_set():
             return False
-        users = read_subscribers(group_path)
+        users = read_subscribers(group_path,database=getattr(self.butler_cfg,'contact_database',None))
         item = self.store.claim(users, source_ids=self.active_sources)
         if item is None:
             return False

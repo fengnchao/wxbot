@@ -11,11 +11,12 @@
 称呼：$HERMES_HOME/butler_profiles/{uid}.json 的 answers["0"]（管家档案里的用户称呼）
 
 用法:
-    python server.py                 # http://127.0.0.1:8788
+    python server.py                 # http://127.0.0.1:8788/app/
     python server.py --port 9000
 
 接口:
-    GET /                        按用户分组的收件日志页面（含「wxbot 通道」标签页）
+    GET /                        302 到 /app/（保留查询参数）
+    GET /app/                    管理台（Vue 构建产物）
     GET /api/users               用户列表（含称呼、消息数、首末时间）
     GET /api/messages?uid=&q=&limit=&with_reply=1
     GET /api/stats
@@ -140,20 +141,40 @@ def load_butler_contacts():
     return contacts, config
 
 
+def unified_contact_store():
+    from butler.contact_admin import configured_store
+    return configured_store(butler_config_path())
+
+
+def effective_heartbeat_policies(path):
+    store = unified_contact_store()
+    return store.policies() if store else load_heartbeat_config(path)
+
+
+def _heartbeat_path(home, config, key, filename):
+    path = str((config.get("heartbeat") or {}).get(key) or "").strip()
+    if not path:
+        return os.path.join(home, "cache", filename)
+    # Legacy Hermes resolves these paths in its process working directory.
+    if (config.get('agent') or {}).get('provider') != 'codex':
+        return path
+    target = Path(path).expanduser()
+    if not target.is_absolute():
+        target = Path(butler_config_path()).resolve().parent / target
+    return str(target.resolve())
+
+
 def heartbeat_config_path(home, config=None):
     config = config if config is not None else _load_butler_config()
-    path = str((config.get("heartbeat") or {}).get("config_file") or "").strip()
-    return path or os.path.join(home, "cache", "butler_heartbeat.json")
+    return _heartbeat_path(home, config, "config_file", "butler_heartbeat.json")
 
 
 def heartbeat_state_path(home, config):
-    path = str((config.get("heartbeat") or {}).get("state_file") or "").strip()
-    return path or os.path.join(home, "cache", "butler_heartbeat_state.json")
+    return _heartbeat_path(home, config, "state_file", "butler_heartbeat_state.json")
 
 
 def heartbeat_audit_path(home, config):
-    path = str((config.get("heartbeat") or {}).get("audit_file") or "").strip()
-    return path or os.path.join(home, "cache", "butler_heartbeat_audit.jsonl")
+    return _heartbeat_path(home, config, "audit_file", "butler_heartbeat_audit.jsonl")
 
 
 def trigger_butler_heartbeat(contact, config):
@@ -918,7 +939,8 @@ def build_groups_payload(home):
     1/2/3 三个已知类型总在列表里（哪怕空），文件里多出来的未知类型原样带上。
     """
     path = group_file_path(home)
-    groups, updated = load_groups_file(path)
+    store = unified_contact_store()
+    groups, updated = (store.groups(), '') if store else load_groups_file(path)
     contacts = load_wxbot_contacts()
     known = {c["name"]: c for c in contacts}
 
@@ -939,7 +961,8 @@ def build_groups_payload(home):
                       "users": users, "count": len(users),
                       "members": [member(u) for u in users]})
     return {
-        "ok": True, "file": path, "exists": os.path.exists(path),
+        "ok": True, "file": str(store.path) if store else path, "exists": bool(store) or os.path.exists(path),
+        "version": store.snapshot()['version'] if store else None,
         "updated_at": updated, "message_types": types,
         "news": news_config.payload(path),
         "contacts": [{"name": c["name"], "label": c.get("label") or "",
@@ -1423,6 +1446,47 @@ class Handler(BaseHTTPRequestHandler):
         return TelegramRelayAdmin(cfg.resolve_path('config.telegram-relay.toml'),
                                   cfg.data_path()/'telegram-relay'/'desktop-status.json')
 
+    WEBAPP_DIR = os.path.join(HERE, 'web', 'dist')
+    WEBAPP_TYPES = {'.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+                    '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml',
+                    '.png': 'image/png', '.jpg': 'image/jpeg', '.ico': 'image/x-icon',
+                    '.woff2': 'font/woff2', '.map': 'application/json; charset=utf-8'}
+
+    def _serve_webapp(self, relative):
+        """管理台挂在 /app/；未构建时只给出构建提示。"""
+        index = os.path.join(self.WEBAPP_DIR, 'index.html')
+        if not os.path.isfile(index):
+            self._send(200, '<!doctype html><meta charset="utf-8"><title>管理台尚未构建</title>'
+                            '<body style="font:14px/1.8 system-ui;padding:40px;max-width:720px;background:#101419;color:#e4eaf0">'
+                            '<h1>管理台尚未构建</h1>'
+                            '<p>在 <code>log/web</code> 执行 <code>npm install &amp;&amp; npm run build</code> 后刷新此页。</p></body>',
+                       'text/html; charset=utf-8')
+            return
+        if relative.startswith('assets/'):
+            root = os.path.join(self.WEBAPP_DIR, 'assets') + os.sep
+            target = os.path.normpath(os.path.join(self.WEBAPP_DIR, relative))
+            if not target.startswith(root) or not os.path.isfile(target):
+                self._send(404, 'Not found', 'text/plain; charset=utf-8')
+                return
+            with open(target, 'rb') as fh:
+                body = fh.read()
+            self._send(200, body, self.WEBAPP_TYPES.get(os.path.splitext(target)[1].lower(),
+                                                       'application/octet-stream'))
+            return
+        with open(index, 'rb') as fh:
+            self._send(200, fh.read(), 'text/html; charset=utf-8')
+
+    def _contact_admin(self):
+        from butler.contact_admin import ContactAdmin
+        from butler.directory import directory_path
+        def validate(route, policy):
+            skills = fetch_hermes_skills(route, _load_butler_config())
+            roles = {s['name'] for s in skills if is_butler_role_skill(s)}
+            tools = {s['name'] for s in skills if not is_butler_role_skill(s)}
+            if policy['role_skill'] not in roles: raise ValueError('角色 Skill 不存在或缺少 butler-role 标签')
+            if not set(policy['allowed_skills']) <= tools: raise ValueError('工具白名单包含目录中不存在的 Skill')
+        return ContactAdmin(directory_path(butler_config_path()), policy_validator=validate)
+
     def do_GET(self):
         u = urlparse(self.path)
         qs = parse_qs(u.query)
@@ -1447,25 +1511,18 @@ class Handler(BaseHTTPRequestHandler):
                 self._json({'mode':mode,'local_butler':mode=='local','business_tools':mode=='local',
                             'note':'外部服务的用户、记忆和心跳请在对端管理台维护' if mode!='local' else ''})
                 return
-            business_paths={'/api/users','/api/users/memory','/api/users/audit','/api/runtime',
+            business_paths={'/api/contacts','/api/contacts/memory','/api/contacts/audit','/api/users','/api/users/memory','/api/users/audit','/api/runtime',
                             '/api/jobs','/api/groups','/api/heartbeat-config','/api/heartbeat-status','/api/skills','/api/telegram-relay'}
             if p in business_paths and dashboard_mode()!='local':
                 self._json({'error':'当前接入方式的业务功能由对端管理台维护','available':False},503)
                 return
             if p == "/":
-                with open(os.path.join(HERE, "index.html"), "r", encoding="utf-8") as fh:
-                    self._send(200, fh.read(), "text/html; charset=utf-8")
+                target = '/app/' + ('?' + u.query if u.query else '')
+                self._send(302, '', 'text/plain; charset=utf-8', {'Location': target})
                 return
 
-            if p.startswith('/assets/'):
-                name=p.removeprefix('/assets/')
-                allowed={'dashboard.css','common.js','messages.js','jobs.js','groups.js',
-                         'heartbeat.js','queue.js','configuration.js','workflow.js','workflow.css','users.js','telegram_relay.js','app.js'}
-                if name not in allowed:
-                    self._send(404,'Not found','text/plain; charset=utf-8')
-                    return
-                with open(os.path.join(HERE,'assets',name),encoding='utf-8') as fh:
-                    self._send(200,fh.read(),('text/css' if name.endswith('.css') else 'text/javascript')+'; charset=utf-8')
+            if p == '/app' or p.startswith('/app/'):
+                self._serve_webapp(p[len('/app/'):] if p.startswith('/app/') else '')
                 return
 
             if p == '/api/telegram-relay':
@@ -1473,6 +1530,17 @@ class Handler(BaseHTTPRequestHandler):
                     self._json(self._relay_admin().read())
                 except (OSError, ValueError, RuntimeError):
                     self._json({'error': 'Telegram 转发配置暂不可读，请检查本机配置'}, 503)
+                return
+            if p == '/api/contacts':
+                try:
+                    self._json(self._contact_admin().read(id=one('id'),query=one('query'),kind=one('kind')))
+                except ValueError as exc: self._json({'error':str(exc)},400)
+                return
+            if p in {'/api/contacts/memory','/api/contacts/audit'}:
+                try:
+                    service=self._contact_admin()
+                    self._json(service.memory(one('id')) if p.endswith('/memory') else service.audit(one('id'),num('offset',0),num('limit',20)))
+                except ValueError as exc:self._json({'error':str(exc)},400)
                 return
             if p in ('/api/users', '/api/users/memory', '/api/users/audit'):
                 status, payload = request_user_admin(_load_butler_config(), '/v1' + p.removeprefix('/api') + ('?' + u.query if u.query else ''))
@@ -1652,13 +1720,14 @@ class Handler(BaseHTTPRequestHandler):
                 contacts, config = load_butler_contacts()
                 path = heartbeat_config_path(self.home, config)
                 with _HEARTBEAT_CONFIG_LOCK:
-                    users = load_heartbeat_config(path)
+                    users = effective_heartbeat_policies(path)
                 names = {item["name"] for item in contacts}
                 policies = {name: users[name] for name in names if name in users}
                 heartbeat = config.get("heartbeat") or {}
                 interval_min = max(1, int(heartbeat.get("min_interval_minutes") or 180))
                 interval_max = max(interval_min, int(heartbeat.get("max_interval_minutes") or 360))
                 self._json({
+                    "version": unified_contact_store().snapshot()['version'] if unified_contact_store() else None,
                     "contacts": contacts,
                     "policies": policies,
                     "interval_minutes": {
@@ -1672,7 +1741,7 @@ class Handler(BaseHTTPRequestHandler):
                 contacts, config = load_butler_contacts()
                 path = heartbeat_config_path(self.home, config)
                 with _HEARTBEAT_CONFIG_LOCK:
-                    users = load_heartbeat_config(path)
+                    users = effective_heartbeat_policies(path)
                 status = load_heartbeat_status(self.home, config, max(1, min(100, num("limit", 30))))
                 names = {item["name"] for item in contacts}
                 status["enabled_contacts"] = sum(
@@ -1685,6 +1754,9 @@ class Handler(BaseHTTPRequestHandler):
                 contact_name = one("contact")
                 contacts, config = load_butler_contacts()
                 contact = next((item for item in contacts if item["name"] == contact_name), None)
+                if one('id'):
+                    row=self._contact_admin().read(id=one('id'))['row']
+                    contact=next(iter(row['conversations']),{'name':row['name'],'profile':'default'})
                 if contact is None:
                     self._json({"error": "未知的 Butler 联系人"}, 400)
                     return
@@ -1700,10 +1772,18 @@ class Handler(BaseHTTPRequestHandler):
         u = urlparse(self.path)
         p = u.path.rstrip("/") or "/"
         try:
-            business_paths={'/api/users','/api/jobs/delete','/api/heartbeat-trigger','/api/heartbeat-config','/api/groups',
+            business_paths={'/api/contacts','/api/users','/api/jobs/delete','/api/heartbeat-trigger','/api/heartbeat-config','/api/groups',
                             '/api/news-config','/api/telegram-relay','/api/telegram-relay/resolve'}
             if p in business_paths and dashboard_mode()!='local':
                 self._json({'error':'当前接入方式的业务功能由对端管理台维护','available':False},503)
+                return
+            if p == '/api/contacts':
+                if not self._confirmed_origin('X-Wxbot-Contact-Action'):
+                    self._json({'error':'需要本机页面确认联系人操作'},403)
+                    return
+                try: self._json(self._contact_admin().save(self._body()))
+                except ValueError as exc:
+                    self._json({'error':str(exc)},409 if 'version conflict' in str(exc) else 400)
                 return
             if p=='/api/workflow-delete':
                 if not self._confirmed_origin('X-Wxbot-Workflow-Action'):
@@ -1830,6 +1910,23 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if p == "/api/groups":       # 用户分组：绑定/解绑（只写字典文件）
                 b = self._body()
+                store = unified_contact_store()
+                if store:
+                    if not self._confirmed_origin('X-Wxbot-Contact-Action'):
+                        self._json({'error':'请从联系人页面确认订阅修改'},403);return
+                    try:
+                        conversation = next((c for c in store.snapshot()['conversations'] if c['name']==b.get('user')),None)
+                        if conversation is None or b.get('action') not in {'bind','unbind'} or _as_pos_int(b.get('type')) is None:
+                            raise ValueError('订阅会话或类型无效')
+                        subscriptions = set(conversation['subscriptions'])
+                        mt = _as_pos_int(b['type'])
+                        if b['action']=='bind': subscriptions.add(mt)
+                        else: subscriptions.discard(mt)
+                        self._contact_admin().save({'action':'conversation','version':b.get('version'),
+                            'id':conversation['id'],'subscriptions':sorted(subscriptions)})
+                        self._json(build_groups_payload(self.home))
+                    except ValueError as exc:self._json({'error':str(exc)},409 if 'version conflict' in str(exc) else 400)
+                    return
                 mt = _as_pos_int(b.get("type"))
                 action = str(b.get("action") or "").strip()
                 user = str(b.get("user") or "").strip()
@@ -1857,6 +1954,18 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if p == "/api/heartbeat-config":
                 b = self._body()
+                store = unified_contact_store()
+                if store:
+                    if not self._confirmed_origin('X-Wxbot-Contact-Action'):
+                        self._json({'error':'请从联系人页面确认角色修改'},403);return
+                    try:
+                        conversation=next((c for c in store.snapshot()['conversations'] if c['name']==b.get('contact')),None)
+                        if conversation is None:raise ValueError('联系人会话不存在')
+                        policy={k:b.get(k) for k in ('role_skill','allowed_skills','heartbeat_enabled')}
+                        saved=self._contact_admin().save({'action':'conversation','version':b.get('version'),'id':conversation['id'],'policy':policy})
+                        self._json({'ok':True,'version':saved['version'],'contact':conversation['name'],'policy':policy})
+                    except ValueError as exc:self._json({'error':str(exc)},409 if 'version conflict' in str(exc) else 400)
+                    return
                 contact_name = str(b.get("contact") or "").strip()
                 contacts, config = load_butler_contacts()
                 contact = next((item for item in contacts if item["name"] == contact_name), None)
@@ -1923,13 +2032,13 @@ def main():
     print(f"[wechat-inbox] HERMES_HOME = {args.home}")
     for pr, path in discover_dbs(args.home):
         print(f"  - {pr:<42} {path}")
-    print(f"[wechat-inbox] 页面: http://{args.host}:{args.port}/   (Ctrl+C 退出)")
+    print(f"[wechat-inbox] 页面: http://{args.host}:{args.port}/app/   (Ctrl+C 退出)")
     try:
         server=ThreadingHTTPServer((args.host,args.port),Handler)
         if args.open:
             import webbrowser
             host='127.0.0.1' if args.host=='0.0.0.0' else args.host
-            webbrowser.open(f'http://{host}:{server.server_port}/')
+            webbrowser.open(f'http://{host}:{server.server_port}/app/')
         try:server.serve_forever()
         finally:server.server_close()
     except KeyboardInterrupt:

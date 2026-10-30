@@ -88,14 +88,3 @@ def test_workflow_handler_direct_mode_does_not_require_butler_config(tmp_path,mo
     handler.do_GET()
     assert result[0][0]==200 and result[0][1]['model']['label']=='DeepSeek'
     assert not (tmp_path/'missing-butler.toml').exists()
-
-
-def test_model_stream_frontend_races_and_text_escaping():
-    import shutil,subprocess
-    from pathlib import Path
-    node=shutil.which('node')
-    if not node:pytest.skip('Node.js required for frontend checks')
-    root=Path(__file__).resolve().parents[1]
-    result=subprocess.run([node,str(root/'tests/model_stream_frontend_checks.js')],cwd=root,
-                          capture_output=True,text=True,encoding='utf-8',timeout=15)
-    assert result.returncode==0,result.stderr

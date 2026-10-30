@@ -105,22 +105,30 @@ def _finish_data(root, nickname=''):
     from .setup import _new
     from .business import BusinessStore
     cfg = load(root/'config.butler.toml')
-    BusinessStore(cfg.data_path()/'business.sqlite3')
-    for name, body in [('butler_heartbeat.json', {'version':1,'users':{}}),
-                       ('butler_groups.json', {'version':1,'groups':{}})]:
-        _new(cfg.data_path()/'cache'/name, json.dumps(body)+'\n')
+    from .directory import directory_path
+    from .contact_store import ContactStore
+    database = directory_path(root/'config.butler.toml')
+    BusinessStore(database)
+    if installation_mode(root)=='local':
+        contacts = ContactStore(database)
+        contacts.activate(dict(conversations=[], aliases=[], person_policies={},
+            settings=dict(bot=dict(mention_names=[nickname] if nickname else []),
+                          wechat=dict(main_window=dict(listen_all=True)))))
+    else:
+        # These modes manage only local channel settings; remote identities and
+        # business data belong to the selected remote service.
+        from .directory import DirectoryStore
+        from .migration import migrate_installation
+        migrate_installation(root)
+        directory = DirectoryStore(database)
+        state = directory.initialize_channel()
+        if nickname:
+            state['channel']['bot']['mention_names'] = [nickname]
+            directory.save(state, state['version'])
     if installation_mode(root)=='local' and cfg.provider=='codex':
         _new(cfg.codex_home_path()/'config.toml',
              '# Dedicated bot state; no personal configuration is imported.\n'
              '[features]\nmemories = false\nplugins = false\nshell_tool = false\n')
-    from .migration import migrate_installation
-    migrate_installation(root)
-    if nickname:
-        from .directory import DirectoryStore, directory_path
-        store = DirectoryStore(directory_path(root/'config.wxbot.toml'))
-        state=store.initialize_channel()
-        state['channel']['bot']['mention_names']=[nickname]
-        store.save(state,state['version'])
 
 
 def install(root, connection=None, *, nickname='', wxbot_url='http://127.0.0.1:8765',

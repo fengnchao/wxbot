@@ -1,0 +1,229 @@
+/* 管理台主题层：令牌、配色与交互反馈，不改各页面的布局结构。 */
+
+:root{
+  color-scheme:dark;
+  --bg:#0b1016;
+  --bg2:#111922;
+  --bg3:#172230;
+  --line:#243141;
+  --line-2:#31465a;
+  --fg:#e9f0f7;
+  --fg2:#afbdcc;
+  --fg3:#8294a8;
+  --wx:#4fd8ae;
+  --bot:#82b4ff;
+  --warn:#ffa077;
+  --ok:#4fd8ae;
+  --asst:#82b4ff;
+  --radius-sm:8px;
+  --radius:11px;
+  --radius-lg:16px;
+  --shadow-sm:0 1px 2px #0006,0 10px 24px -20px #000c;
+  --shadow-md:0 18px 40px -26px #000d,0 2px 10px #0006;
+  --ring:0 0 0 3px color-mix(in srgb,var(--wx) 26%,transparent);
+  --surface:linear-gradient(180deg,#131d27,#101821);
+  --surface-raised:linear-gradient(160deg,#16222e,#111a24);
+  --t:140ms ease;
+}
+
+html{background:var(--bg)}
+body{
+  font:14px/1.65 "Segoe UI Variable Text","Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+  background:
+    radial-gradient(1100px 520px at 12% -12%,#12312a3d,transparent 62%),
+    radial-gradient(900px 460px at 104% -4%,#1a2b4433,transparent 58%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+::selection{background:#2f6f5e;color:#fff}
+
+/* 滚动条统一变细，悬停时提亮。 */
+*{scrollbar-width:thin;scrollbar-color:#2c3b4e transparent}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#2c3b4e;border:2px solid transparent;border-radius:8px;background-clip:padding-box}
+::-webkit-scrollbar-thumb:hover{background:#3b4f64;border:2px solid transparent;background-clip:padding-box}
+::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}
+
+/* ---------- 侧边导航 ---------- */
+.primary-nav{background:linear-gradient(180deg,#101923,#0c131b);border-right:1px solid var(--line);padding:22px 12px;gap:20px}
+.brand{padding:2px 8px 15px;border-bottom:1px solid #1c2734;margin-bottom:2px}
+.brand-mark{
+  background:linear-gradient(150deg,#1f4c40,#142e28);color:var(--wx);
+  border:1px solid #2f5b4d;border-radius:12px;
+  box-shadow:inset 0 1px 0 #ffffff14,0 8px 18px -10px #1fae8a66;
+}
+.brand small{letter-spacing:.22em;font-size:10px;color:var(--fg3)}
+.nav-group h2{font-size:10px;letter-spacing:.16em;color:#6b7f94;margin:0 12px 8px}
+.nav-group button{
+  position:relative;border-radius:9px;color:var(--fg2);font-size:13.5px;
+  padding:9px 12px;transition:background var(--t),color var(--t),border-color var(--t);
+}
+.nav-group button:before{
+  content:"";position:absolute;left:0;top:50%;width:3px;height:0;transform:translateY(-50%);
+  border-radius:0 3px 3px 0;background:var(--wx);transition:height var(--t);
+}
+.nav-group button:hover{background:#16202b;color:var(--fg)}
+.nav-group button.on{
+  background:linear-gradient(90deg,#1b3831,#152520);
+  border-color:#2f5247;color:#aef0da;font-weight:600;
+}
+.nav-group button.on:before{height:18px}
+.nav-foot{
+  white-space:pre-line;background:#0d151d;border:1px solid #1b2634;border-radius:10px;
+  padding:10px 12px;font-size:10.5px;line-height:1.8;color:#6d7f92;
+}
+
+/* ---------- 页头与工具栏 ---------- */
+header{padding:18px 26px 14px;background:#0d141bd9;border-bottom:1px solid var(--line);box-shadow:0 14px 28px -28px #000}
+h1{font-size:19px;letter-spacing:.2px}
+.toolbar{margin-top:8px}
+/* Teleport 容器不占位，页面按钮与工具栏保持同一行。 */
+.page-tools{display:contents}
+#refresh-status{
+  display:inline-flex;align-items:center;gap:7px;padding:4px 11px;
+  background:#111b24;border:1px solid #1f2c3b;border-radius:999px;
+  font-size:11px;color:#8fa3b6;
+}
+#refresh-status:before{
+  content:"";width:6px;height:6px;border-radius:50%;flex:none;
+  background:var(--wx);box-shadow:0 0 8px #4fd8ae80;animation:ui-pulse 2.6s ease-in-out infinite;
+}
+@keyframes ui-pulse{50%{opacity:.4}}
+
+/* ---------- 按钮 ---------- */
+button{
+  display:inline-flex;align-items:center;justify-content:center;
+  font-weight:500;border-radius:var(--radius-sm);
+  transition:background var(--t),border-color var(--t),color var(--t),box-shadow var(--t),transform var(--t);
+}
+/* 工具栏里的按钮、下拉框与搜索框高度对齐。 */
+button,select,input[type=text],input[type=search],input[type=number],input[type=password]{min-height:34px}
+/* 节点内的小按钮保持紧凑。 */
+.wf-more,.wf-inspect>.row button,.gchip .gx{min-height:0}
+button:hover:not(:disabled){border-color:#3f5c58;background:#1d2937;color:#fff}
+button:active:not(:disabled){transform:translateY(1px)}
+button.on{background:linear-gradient(180deg,#23445e,#1b3548);border-color:#3f6d8d;color:#d6ecff}
+button.wx{background:linear-gradient(180deg,#214a3d,#183a30);border-color:#356a55;color:#b8f5e0}
+button:disabled{opacity:.45}
+.contact-section button,.head button{margin:4px}
+
+/* ---------- 输入控件 ---------- */
+select,input[type=text],input[type=search],input[type=number],input[type=password],textarea{
+  background:#0f1720;border:1px solid var(--line);border-radius:var(--radius-sm);
+  transition:border-color var(--t),box-shadow var(--t),background var(--t);
+}
+select:hover,input[type=text]:hover,input[type=search]:hover,input[type=number]:hover,
+input[type=password]:hover,textarea:hover{border-color:#33465a}
+select:focus,input[type=text]:focus,input[type=search]:focus,input[type=number]:focus,
+input[type=password]:focus,textarea:focus,
+.config-editor:focus,.user-filters input:focus,.user-form input:focus,.user-form textarea:focus{
+  outline:none;border-color:var(--wx);box-shadow:var(--ring);
+}
+input::placeholder,textarea::placeholder{color:#5f7186}
+option{background:#111922;color:var(--fg)}
+button:focus-visible,a:focus-visible,summary:focus-visible{
+  outline:none;box-shadow:var(--ring);border-color:var(--wx);
+}
+#view-search,#c-search{
+  padding-left:30px;background-repeat:no-repeat;background-position:10px 50%;background-size:14px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237b8da2' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");
+}
+
+/* ---------- 表格 ---------- */
+.monitor-table-wrap{background:var(--bg2);border-color:var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.monitor-table{background:transparent}
+.monitor-table th{background:#16212d;color:#94a8bb;font-weight:500;border-bottom:1px solid var(--line)}
+.monitor-table td{border-top-color:#1e2b39}
+.monitor-table tbody tr:hover{background:#16222e}
+.alias-editor th{background:#16212d}
+
+/* ---------- 卡片与容器 ---------- */
+.head{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm)}
+.chip{background:#141e28;border-color:var(--line);border-radius:999px;color:var(--fg2)}
+.chip b{color:var(--fg)}
+.sbadge,.jbadge{border-radius:6px;padding:1px 7px}
+code{background:#0b131b;border:1px solid #1c2836;border-radius:5px;color:#9fc4d4}
+details>summary{padding:4px 0}
+details>summary:hover{color:var(--fg)}
+summary::marker{color:#566c81}
+.empty{
+  border:1px dashed var(--line-2);background:#0d151d80;border-radius:var(--radius);
+  padding:34px 20px;color:var(--fg3);font-size:12.5px;
+}
+.flow-card{background:var(--surface);border-color:var(--line);border-left-color:#357a68;border-radius:var(--radius)}
+.flow-card.error{border-left-color:var(--warn)}
+.queue-reason{border-radius:var(--radius);background:var(--surface)}
+.hbform,.hbstatus,.contact-section,.user-dialog{background:var(--surface);border-color:var(--line);border-radius:var(--radius-lg)}
+.hbnote{background:#0f1822}
+.jcard{
+  background:var(--surface);border-radius:var(--radius);border-color:var(--line);
+  transition:transform var(--t),border-color var(--t),box-shadow var(--t);
+}
+.jcard:hover{border-color:#35505f;box-shadow:var(--shadow-md);transform:translateY(-1px)}
+.jcard .foot{border-top-color:#1c2a37}
+.gcard{background:var(--surface);border-radius:var(--radius-lg)}
+.gcard .gh:hover,.gcard.open .gh{background:#15212c}
+.gcard .gb{border-top-color:#1d2a37}
+.gchip{background:#141e28}
+.hbskill{background:#0f1822;border-color:var(--line);border-radius:8px}
+.config-field{background:var(--surface);border-color:var(--line);padding:16px 18px}
+.config-editor{background:#0f1720}
+.config-savebar{
+  background:#13241fe6;border-color:#3a6355;border-radius:var(--radius-lg);
+  backdrop-filter:blur(10px);box-shadow:0 -18px 40px -22px #000;
+}
+.config-default{border-color:var(--line-2)}
+.user-avatar{background:#0f1822;border:1px solid var(--line);border-radius:10px}
+.user-warning{border-left-color:#d4a457;background:#5844232e;border-radius:8px}
+
+/* ---------- 列表与分段控件 ---------- */
+aside{background:#0e161e;border-right:1px solid var(--line);padding:12px 10px}
+.user,.contact-row{border-radius:9px;transition:background var(--t),border-color var(--t)}
+.user:hover,.contact-row:hover{background:#15202b}
+.user.sel,.contact-row.sel{background:linear-gradient(90deg,#18362e,#132420);border-left-color:var(--wx)}
+.segmented button{border-radius:999px}
+.segmented .on{background:#1f3a35;border-color:#38695b;color:#b9ecdd}
+.pagination button{border-radius:7px}
+.pagination button.on{background:#1f3a35;border-color:#38695b;color:#b9ecdd}
+.wf-tabs{
+  background:#0e1720;border:1px solid #223040;border-radius:11px;padding:3px;gap:4px;flex-wrap:wrap;
+}
+.wf-tabs button{border:0;background:transparent;color:#869cad;border-radius:8px;flex:1 1 calc(50% - 4px);min-width:0;padding:7px 8px}
+.wf-tabs button:hover:not(:disabled){background:#1a2733;color:var(--fg)}
+.wf-tabs button.on{background:#1f3a35;color:#b9ecdd;box-shadow:inset 0 0 0 1px #2f5a4e}
+.wf-tabs b{color:#7f9fb0}
+
+/* ---------- 实时工作流 ---------- */
+.wf-stats>div{background:var(--surface-raised);border-color:var(--line);border-radius:var(--radius);box-shadow:var(--shadow-sm)}
+.wf-stats strong{letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.wf-stats .attention{border-color:#7a4f38;background:linear-gradient(140deg,#33241d,#1a2028)}
+.wf-sidebar{background:var(--surface);border-color:var(--line);border-radius:var(--radius-lg)}
+.wf-overview{background:#101b24;border-color:var(--line);border-radius:var(--radius)}
+#wf-overview{transition:background var(--t)}
+#wf-overview:hover{background:#15232e}
+.wf-node{border-color:#2c3f4c;border-radius:12px}
+.wf-message{border-radius:9px}
+.wf-summary-row{border-radius:8px}
+.wf-inspect{background:#0f1a23;border-color:#2f4b55;border-radius:10px}
+.wf-delete{color:#d8a08c;border-color:#544239;border-radius:7px}
+.wf-delete:hover:not(:disabled){background:#2a1d1a;border-color:#8a5a44;color:#ffc7ae}
+.wf-recent{border-top-color:#22323f}
+.wf-action-notice{background:#221d15;border:1px solid #4a3d28;border-radius:8px;padding:8px 12px}
+.wf-alert{background:#2b1f19;border-color:#6d4834;border-radius:9px}
+.wf-legend i{box-shadow:0 0 8px #85d7c866}
+.wf-live:before{animation:ui-pulse 2.4s ease-in-out infinite}
+.wf-live.stale:before{animation:none;opacity:.7}
+
+/* ---------- 动效与可访问性 ---------- */
+@media(prefers-reduced-motion:reduce){
+  *,*:before,*:after{transition-duration:.001ms!important;animation-duration:.001ms!important;animation-iteration-count:1!important}
+  .jcard:hover{transform:none}
+  button:active:not(:disabled){transform:none}
+}
+
+@media(max-width:600px){
+  .nav-group button.on:before{display:none}
+  #refresh-status{font-size:10px}
+  .toolbar{gap:6px}
+}

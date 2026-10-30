@@ -41,6 +41,9 @@ def migration_source_name(source):
 
 def directory_enabled(config_path, raw):
     path = directory_path(config_path, raw)
+    from .contact_store import is_unified
+    if is_unified(path):
+        return True
     if (raw.get('directory') or {}).get('database'):
         return True
     if not path.exists():
@@ -57,6 +60,9 @@ class DirectoryStore:
     def __init__(self, path):
         self.path = Path(path).resolve()
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        from .contact_store import is_unified
+        if is_unified(self.path):
+            return
         if self.path.exists():
             with closing(sqlite3.connect(f'{self.path.as_uri()}?mode=ro', uri=True)) as db:
                 if db.execute("SELECT 1 FROM sqlite_master WHERE name='directory_state'").fetchone():
@@ -86,6 +92,9 @@ class DirectoryStore:
         return dict(json.loads(row['payload']), version=row['version'])
 
     def snapshot(self):
+        from .contact_store import ContactStore,is_unified
+        if is_unified(self.path):
+            return ContactStore(self.path).directory_snapshot()
         with closing(sqlite3.connect(f"{self.path.as_uri()}?mode=ro", uri=True, timeout=30)) as db:
             db.row_factory = sqlite3.Row
             return self._snapshot(db)
@@ -159,10 +168,20 @@ class DirectoryStore:
         return DirectoryStore._snapshot(db)
 
     def save(self, payload, expected_version):
+        from .contact_store import ContactStore,is_unified
+        if is_unified(self.path):
+            return ContactStore(self.path).save_directory(payload,expected_version)
         with self.transaction() as db:
             return self._save(db, payload, expected_version)
 
     def initialize_channel(self, nickname=''):
+        from .contact_store import ContactStore,is_unified
+        if is_unified(self.path):
+            store=ContactStore(self.path);state=store.snapshot()
+            if not state['settings']:
+                state['settings']={'bot':{'mention_names':[nickname] if nickname else []},'wechat':{'main_window':{'listen_all':True}}}
+                store.save(state,state['version'])
+            return self.snapshot()
         with self.transaction() as db:
             state = self._snapshot(db)
             if not state['channel']:
@@ -184,6 +203,9 @@ class DirectoryStore:
         return rows[0]['name'] if rows else ''
 
     def observe_member(self, group, member_key, name):
+        from .contact_store import ContactStore,is_unified
+        if is_unified(self.path):
+            return ContactStore(self.path).observe_member(group,member_key,name)
         if not group or not member_key or not name:
             return
         with self.transaction() as db:
