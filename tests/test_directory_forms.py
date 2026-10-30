@@ -4,8 +4,8 @@ import json
 import pytest
 
 from butler.directory import DirectoryStore
-from log.config_view import ConfigView
-from log.config_editor import ConfigEditor
+from dashboard.config_view import ConfigView
+from dashboard.config_editor import ConfigEditor
 
 
 def legacy_directory(tmp_path):

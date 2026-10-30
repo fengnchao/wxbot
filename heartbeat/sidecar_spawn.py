@@ -9,7 +9,7 @@
   WMI 创建的进程挂在 WmiPrvSE.exe 下、不属于任何调用者的 job，因此能活过会话结束。
 
 用法:
-  sidecar_spawn.py "D:\\ai\\hermes\\scripts\\wxbot_startup.bat"     # 打印新进程 PID
+  sidecar_spawn.py "<repo>\\scripts\\wxbot_startup.bat"     # 打印新进程 PID
 """
 import argparse
 import subprocess

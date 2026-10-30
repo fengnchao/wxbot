@@ -15,9 +15,11 @@ import urllib.error
 import urllib.request
 
 # 项目根 = 本脚本上级目录（scripts 的上一级），拉起的就是含 8765 外发服务的合并版 wxbot
-WX = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # D:\work\code\wxbot
+WX = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # <repo>
 PY = os.path.join(WX, ".venv", "Scripts", "python.exe")            # 本项目 uv 管理的解释器
-LOG = r"D:\ai\hermes\cache\wxbot.log"                              # 看板默认读取路径，保持不变
+# 数据家目录与看门狗/管理台保持同一套推导规则
+HERMES_HOME = os.environ.get("HERMES_HOME") or os.path.join(WX, "data")
+LOG = os.path.join(HERMES_HOME, "cache", "wxbot.log")               # 看板默认读取路径，保持不变
 PORT = 8765
 DETACHED = 0x00000008 | 0x00000200          # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
 
@@ -57,7 +59,7 @@ def start():
     os.makedirs(os.path.dirname(LOG), exist_ok=True)
     fh = open(LOG, "ab")
     env = dict(os.environ)
-    env["HERMES_HOME"] = r"D:\ai\hermes"
+    env["HERMES_HOME"] = HERMES_HOME
     env["PYTHONIOENCODING"] = "utf-8"   # 否则中文日志按 cp936 写进文件变乱码
     env["PYTHONUTF8"] = "1"
     p = subprocess.Popen([PY, "-m", "wxbot.main"], cwd=WX,

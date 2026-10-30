@@ -6,6 +6,9 @@ another installation. `python -m butler init` preserves existing configurations.
 
 Business operations belong in Butler services; model backends implement the
 shared backend interface; wxbot owns Windows UI interaction and the delivery queue.
+Importable packages live under src/ (butler, wxbot, dashboard, common); the Vue
+admin front end lives in web/ and the HTTP service in src/dashboard. Do not add
+sys.path hacks: use `from common.paths import REPO_ROOT` for repository paths.
 Role and skill instructions are under plugins/butler-wechat. Tool execution must
 validate the service-issued identity and permissions; prompts are not authority.
 

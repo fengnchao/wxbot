@@ -9,7 +9,7 @@ import requests
 import tomlkit
 
 from butler.config import load
-from log.config_view import ConfigView
+from dashboard.config_view import ConfigView
 
 
 @contextmanager
@@ -168,7 +168,7 @@ def test_invalid_routes_are_rejected_on_load(tmp_path, rows):
 
 
 def test_dashboard_offers_json_routes_and_validates_before_saving(tmp_path):
-    from log.config_editor import ConfigEditor
+    from dashboard.config_editor import ConfigEditor
     wx, bt = tmp_path / 'wx.toml', tmp_path / 'bt.toml'
     wx.write_text('[model]\nbackend="butler"\n', encoding='utf-8')
     bt.write_text('[agent]\nprovider="hermes"\n', encoding='utf-8')

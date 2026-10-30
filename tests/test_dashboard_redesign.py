@@ -1,10 +1,10 @@
 """Dashboard projections use temporary stores; never touch live services."""
 from contextlib import closing
 
-from log.queue_view import QueueView
-from log.flow_view import FlowView
-from log.config_schema import row_metadata
-from log.runtime_view import reminder_jobs
+from dashboard.queue_view import QueueView
+from dashboard.flow_view import FlowView
+from dashboard.config_schema import row_metadata
+from dashboard.runtime_view import reminder_jobs
 from wxbot.queue_store import QueueStore, Incoming
 
 

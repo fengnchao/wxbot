@@ -3,7 +3,7 @@ import json
 import sqlite3
 from contextlib import closing
 
-from log.workflow_view import WorkflowView
+from dashboard.workflow_view import WorkflowView
 from wxbot.queue_store import QueueStore, Incoming
 
 

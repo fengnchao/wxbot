@@ -2,8 +2,8 @@
 import json
 
 from common.flow_trace import FlowTrace
-from log.flow_view import FlowView
-from log.workflow_view import WorkflowView
+from dashboard.flow_view import FlowView
+from dashboard.workflow_view import WorkflowView
 from wxbot.queue_store import Incoming, QueueStore
 from wxbot.queue_worker import ModelWorker
 

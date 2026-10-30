@@ -28,9 +28,9 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent                          # D:\bot\scripts
-# 数据（档案/补发队列/日志）仍在 Hermes 家里；本脚本自己搬到了 D:\bot\scripts
-HOME = Path(os.environ.get("HERMES_HOME") or r"D:\ai\hermes")
+HERE = Path(__file__).resolve().parent                          # <repo>/scripts
+# 数据（档案/补发队列/日志）在 HERMES_HOME，默认落到仓库 data/，可用环境变量覆盖。
+HOME = Path(os.environ.get("HERMES_HOME") or (HERE.parent / "data"))
 CONF = HERE / "wxbot_channel.json"
 
 

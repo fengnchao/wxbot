@@ -8,7 +8,7 @@ from wxbot.processor.openai_compat import OpenAICompatProcessor
 from wxbot.processor.router import Router
 from wxbot.queue_worker import ModelWorker
 from wxbot.queue_store import QueueStore,Incoming
-from log.model_stream_view import read_stream
+from dashboard.model_stream_view import read_stream
 
 
 @pytest.mark.parametrize('interrupt',[False,True])

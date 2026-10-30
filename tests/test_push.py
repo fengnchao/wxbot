@@ -27,8 +27,8 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def _load_dashboard():
-    """log 不是包（无 __init__.py），按文件路径加载看板模块，只为复用 parse_wxbot_log。"""
-    spec = importlib.util.spec_from_file_location("_dash_server", ROOT / "log" / "server.py")
+    """看板已是常规包，按文件路径加载以便隔离配置，只为复用 parse_wxbot_log。"""
+    spec = importlib.util.spec_from_file_location("_dash_server", ROOT / "src" / "dashboard" / "server.py")
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     return mod

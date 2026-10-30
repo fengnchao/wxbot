@@ -62,7 +62,7 @@ def test_heartbeat_is_read_only(admin_service):
 
 def test_local_admin_view_safe_defaults_version_and_status(tmp_path):
     import json
-    from log.telegram_relay_admin import TelegramRelayAdmin
+    from dashboard.telegram_relay_admin import TelegramRelayAdmin
     snapshot = tmp_path / 'desktop-status.json'
     snapshot.write_text(json.dumps({'counts': {'pending': 2}, 'token': 'never-return'}), encoding='utf-8')
     admin = TelegramRelayAdmin(tmp_path / 'relay.toml', snapshot)
@@ -78,7 +78,7 @@ def test_local_admin_view_safe_defaults_version_and_status(tmp_path):
 
 def test_status_projects_task_identity_without_message_content(tmp_path):
     import json
-    from log.telegram_relay_admin import read_status
+    from dashboard.telegram_relay_admin import read_status
     path = tmp_path / 'desktop-status.json'
     path.write_text(json.dumps({'ui_hold': True, 'tasks': [{'id': 'a' * 32, 'channel': 'news', 'state': 'uncertain',
         'source_id': '123', 'submitted': 1, 'updated': 42, 'error': 'review',
@@ -93,7 +93,7 @@ def test_resolution_proxy_uses_local_authenticated_request_and_scrubs_token():
     import json
     import threading
     from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-    from log.telegram_relay_admin import request_resolution
+    from dashboard.telegram_relay_admin import request_resolution
     received = []
 
     class FakeButler(BaseHTTPRequestHandler):
@@ -136,8 +136,8 @@ def test_http_admin_blocks_cross_origin_and_requires_action_header(tmp_path, mon
     import threading
     from http.server import ThreadingHTTPServer
     import requests
-    import log.server as dashboard
-    from log.telegram_relay_admin import TelegramRelayAdmin
+    import dashboard.server as dashboard
+    from dashboard.telegram_relay_admin import TelegramRelayAdmin
     admin = TelegramRelayAdmin(tmp_path / 'relay.toml', tmp_path / 'desktop-status.json')
     monkeypatch.setattr(dashboard.Handler, '_relay_admin', lambda self: admin, raising=False)
     monkeypatch.setattr(dashboard, '_load_butler_config', lambda: {'server': {'token': 'local-secret'}})

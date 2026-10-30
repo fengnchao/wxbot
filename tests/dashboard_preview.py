@@ -8,7 +8,7 @@ import time
 import sqlite3
 from http.server import ThreadingHTTPServer
 
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from butler.setup import initialize
 from wxbot.queue_store import QueueStore,Incoming
 
@@ -42,7 +42,7 @@ def main():
             db.execute("INSERT INTO outbox(id,contact,text,state,created_at,not_before) VALUES('push-demo','提醒用户 C','该出门了，记得带伞。','pending',?,?)",(now-5,now-5))
             db.execute("INSERT INTO outbox(id,contact,text,state,created_at,not_before,finished_at) VALUES('sent-demo','示例用户 D','收到，已经记下了。','sent',?,?,?)",(now-20,now-20,now-2))
         store.close()
-        import log.server as dashboard
+        import dashboard.server as dashboard
         runtime={'backend':'codex','protocol_version':1,
                  'memory':[{'contact':'示例用户 A','key':'偏好','value':'喜欢简洁回复。'*25,'updated':now}],
                  'events':[{'id':1,'at':now,'contact':'示例用户 A','stage':'model_tool','status':'completed','details':'工具执行完成，结果已记录。'}],
@@ -61,7 +61,7 @@ def main():
                     if mode=='offline':
                         self._json({'error':'simulated offline'},503);return
                     view=self._config_view();view.read()
-                    from log.workflow_view import WorkflowView
+                    from dashboard.workflow_view import WorkflowView
                     payload=WorkflowView(**view.flow_options(),contacts=[{'name':'项目讨论群','uid':'group-demo','channel_type':'group'}]).read()
                     # Synthetic model progress only in this disposable preview, never a real send.
                     model=next(m for m in payload['messages'] if m['id']=='model-demo')

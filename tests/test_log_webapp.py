@@ -17,7 +17,7 @@ def _load_server(tmp_path, monkeypatch):
     monkeypatch.setenv('LOG_CONFIG', str(tmp_path / 'log.toml'))
     monkeypatch.setenv('WXBOT_CONFIG', str(tmp_path / 'wxbot.toml'))
     monkeypatch.setenv('BUTLER_CONFIG', str(tmp_path / 'butler.toml'))
-    spec = importlib.util.spec_from_file_location('_log_webapp_server', ROOT / 'log' / 'server.py')
+    spec = importlib.util.spec_from_file_location('_log_webapp_server', ROOT / 'src' / 'dashboard' / 'server.py')
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -108,9 +108,9 @@ def test_unbuilt_webapp_explains_how_to_build(tmp_path, monkeypatch):
 def test_vue_shell_renders_without_a_browser():
     """jsdom 回归；未安装前端依赖时跳过，不阻塞纯后端环境。"""
     node = shutil.which('node')
-    web = Path(__file__).resolve().parents[1] / 'log' / 'web'
+    web = Path(__file__).resolve().parents[1] / 'web'
     if not node or not (web / 'node_modules').is_dir():
-        pytest.skip('需要先在 log/web 执行 npm install 与 npm run build')
+        pytest.skip('需要先在 web 执行 npm install 与 npm run build')
     result = subprocess.run([node, str(web / 'scripts' / 'smoke.mjs')], cwd=web,
                             capture_output=True, text=True, encoding='utf-8', timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr

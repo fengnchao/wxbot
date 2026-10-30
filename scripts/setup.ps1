@@ -11,6 +11,7 @@ try {
             if ($LASTEXITCODE -ne 0) { throw 'Python 3.14 is required. Install it or use uv.' }
         }
         & .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+        if ($LASTEXITCODE -eq 0) { & .\.venv\Scripts\python.exe -m pip install -e . --no-deps }
     }
     if ($LASTEXITCODE -ne 0) { throw 'Dependency installation failed.' }
     & .\.venv\Scripts\python.exe -m butler setup

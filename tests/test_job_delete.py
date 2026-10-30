@@ -49,7 +49,7 @@ def test_delete_requires_valid_admin_payload_and_snapshot(tmp_path):
 
 @pytest.mark.parametrize('status',['scheduled','failed','cancelled','sent','delivering'])
 def test_projection_marks_deletable_tasks_and_tracks_changes(status):
-    from log.runtime_view import reminder_jobs
+    from dashboard.runtime_view import reminder_jobs
     row={'id':'a'*32,'owner':'owner','contact':'Alice','text':'hi','schedule':'in 5m','due':1234,
          'status':status,'detail':'','delivery_id':None,'created':1,'recurring':0}
     job=reminder_jobs({'backend':'codex','reminders':[row]})['users'][0]['jobs'][0]
@@ -72,8 +72,8 @@ def test_butler_delete_endpoint_requires_service_token_and_handles_races(tmp_pat
 
 
 def test_log_delete_requires_confirmed_same_origin(monkeypatch):
-    import log.server as server
-    import log.job_admin as proxy
+    import dashboard.server as server
+    import dashboard.job_admin as proxy
     from test_user_admin import running,request
     monkeypatch.setattr(server,'dashboard_mode',lambda:'local')
     monkeypatch.setattr(server,'_load_butler_config',lambda:{'server':{'token':'private-test-secret'}})
@@ -95,7 +95,7 @@ def test_log_delete_requires_confirmed_same_origin(monkeypatch):
 def test_log_proxy_deletes_only_the_selected_task(tmp_path):
     from butler.server import make_handler
     from butler.job_admin import job_version
-    from log.job_admin import request_job_delete
+    from dashboard.job_admin import request_job_delete
     from test_user_admin import running
     store=BusinessStore(tmp_path/'business.sqlite3');item=reminder(store);keep=reminder(store,'keep')
     row=next(r for r in store.reminders() if r['id']==item['id'])

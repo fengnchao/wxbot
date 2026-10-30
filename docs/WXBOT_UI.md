@@ -10,12 +10,12 @@
 ## 目录结构
 
 ```
-wxbot/
+src/wxbot/
 ├── config.wxbot.toml      # 安装向导生成的本机配置（不分发）
 ├── requirements.txt
 ├── tools/
 │   └── probe.py            # 控件树探测（默认脱敏），用来校准控件定位
-└── wxbot/
+└── src/wxbot/
     ├── main.py             # 启动收发服务与后端处理器
     ├── inbox.py            # UI 线程采集、快照、群提及过滤和发送调度
     ├── queue_store.py      # SQLite 收件、合并批次、发件、恢复与运行锁
@@ -159,7 +159,7 @@ Butler 完整生成、处理行动与补发后一次返回全部分句，wxbot �
 
 文字行被裁剪、暂时无法确认发送方时，采集会保留快照和待重读任务，发送流程独立核验目标会话及自己的新增气泡。读取发送目标的消息列表失败或会话对象无法确认时，仍停止发送。
 
-「wxbot 通道」还提供 **「只看消息流转」**：wxbot 收件入库 → 合并/阻塞 → Butler 接收 → Hermes 工具进度与最终结果 → 分句发送。联系人与批次 ID 精确关联，未到 Butler 的消息也会显示；阶段缺失标记未确认。该链路记录功能同时改动了 wxbot、Butler、log 及 Hermes 的可选最终正文事件，需先停 wxbot，重启更新后的 Hermes、Butler、log，再启动 wxbot；旧异常任务仍保留。详见 [log 说明](log/README.md)。
+「wxbot 通道」还提供 **「只看消息流转」**：wxbot 收件入库 → 合并/阻塞 → Butler 接收 → Hermes 工具进度与最终结果 → 分句发送。联系人与批次 ID 精确关联，未到 Butler 的消息也会显示；阶段缺失标记未确认。该链路记录功能同时改动了 wxbot、Butler、log 及 Hermes 的可选最终正文事件，需先停 wxbot，重启更新后的 Hermes、Butler、log，再启动 wxbot；旧异常任务仍保留。详见 [log 说明](docs/DASHBOARD.md)。
 
 | 状态 | 含义与处理 |
 |---|---|
@@ -195,7 +195,7 @@ Butler 完整生成、处理行动与补发后一次返回全部分句，wxbot �
 - log → **收发队列** → 选择用户：异常任务旁有三个操作按钮及倒计时，下方 **发送失败与人工核对记录** 展示最近50条记录。操作只允许异常任务，页面状态过期会拒绝并提示刷新。
 - 本次需由用户自行重启 **wxbot → log**；wxbot 取得运行锁后升级为队列版本3，旧失败任务按已有失败时间补记，已经超过180秒的任务会自动丢弃。无需为本次改动重启 Butler 或 Hermes。
 
-输入节奏也可在log的「全部配置 → wxbot · wechat」修改：`wechat.typing.chunk_size` 默认5字（1–100），`chunk_interval` 默认0.5秒（0.05–10）；发送前仍校验内容、目标及焦点。参数保存到wxbot配置后自行重启生效，现有实际参数不会因代码更新而被改写。Hermes调用地址在「Butler · hermes」，修改后自行重启Butler；更多保存及备份规则见 [log说明](log/README.md#配置编辑与生效)。
+输入节奏也可在log的「全部配置 → wxbot · wechat」修改：`wechat.typing.chunk_size` 默认5字（1–100），`chunk_interval` 默认0.5秒（0.05–10）；发送前仍校验内容、目标及焦点。参数保存到wxbot配置后自行重启生效，现有实际参数不会因代码更新而被改写。Hermes调用地址在「Butler · hermes」，修改后自行重启Butler；更多保存及备份规则见 [log说明](docs/DASHBOARD.md#配置编辑与生效)。
 
 数据库自动增加 `submitted_text` 字段，保留原模型正文 `text`，记录回车前核对过的实际输入正文；恢复优先按实际输入确认。旧版因输入法导致实际正文改变、但用户已确认发送的任务，可登记实际正文并保持 `uncertain`，等待新版本重启后只读核对。登记本身不释放旧进程队列，也不重发消息。
 

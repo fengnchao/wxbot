@@ -5,7 +5,7 @@ from wxbot.queue_store import Incoming,QueueStore
 
 
 def test_flow_shows_received_messages_and_exact_old_blocker_without_claiming_butler_received(tmp_path):
-    from log.flow_view import FlowView
+    from dashboard.flow_view import FlowView
     path=tmp_path/'q.db'
     s=QueueStore(path)
     s.capture('A',[],[Incoming('old')],now=0)
@@ -31,7 +31,7 @@ def test_flow_shows_received_messages_and_exact_old_blocker_without_claiming_but
 
 def test_flow_correlates_by_both_contact_and_batch_id_and_keeps_sources_readonly(tmp_path):
     from common.flow_trace import FlowTrace
-    from log.flow_view import FlowView
+    from dashboard.flow_view import FlowView
     path=tmp_path/'q.db'
     s=QueueStore(path)
     s.capture('A',[],[Incoming('hi')],now=0)
@@ -56,7 +56,7 @@ def test_flow_correlates_by_both_contact_and_batch_id_and_keeps_sources_readonly
 
 
 def test_flow_missing_database_is_not_created(tmp_path):
-    from log.flow_view import FlowView
+    from dashboard.flow_view import FlowView
     path=tmp_path/'missing.db'
     data=FlowView({'path':path},[]).read()
     assert data['status']=='missing' and data['read_only']
@@ -65,7 +65,7 @@ def test_flow_missing_database_is_not_created(tmp_path):
 
 def test_flow_configuration_uses_actual_queue_and_butler_log_paths(tmp_path):
     from test_log_monitor import configs
-    from log.config_view import ConfigView
+    from dashboard.config_view import ConfigView
     from common.flow_trace import queue_trace_path,butler_trace_path
     wx,bt,home=configs(tmp_path)
     explicit=tmp_path/'custom.log'
@@ -81,7 +81,7 @@ def test_flow_configuration_uses_actual_queue_and_butler_log_paths(tmp_path):
 
 
 def test_historical_finished_batch_without_a_trace_does_not_claim_a_reply_was_enqueued(tmp_path):
-    from log.flow_view import FlowView
+    from dashboard.flow_view import FlowView
     path=tmp_path/'legacy-done.db'
     s=QueueStore(path)
     s.capture('A',[],[Incoming('old')],now=0)

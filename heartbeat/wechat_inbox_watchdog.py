@@ -7,8 +7,8 @@
 no_agent 模式不会给任何人发消息 —— 静默是设计，不是 bug）。
 
 用法（手动）:
-    python D:\\bot\\kmg\\wechat_inbox_watchdog.py
-    python D:\\bot\\kmg\\wechat_inbox_watchdog.py --status
+    python heartbeat\\wechat_inbox_watchdog.py
+    python heartbeat\\wechat_inbox_watchdog.py --status
 
 cron 跑的是 $HERMES_HOME/scripts/wechat_inbox_watchdog.py（一层转发 shim）——
 调度器只允许 scripts/ 目录内的脚本，真身在这里。
@@ -22,18 +22,16 @@ import time
 
 HOST = "127.0.0.1"
 PORT = 8788
-HERMES_HOME = os.environ.get("HERMES_HOME", r"D:\ai\hermes")
-PAUSE_FLAG = os.path.join(HERMES_HOME, "cache", "wechat_stack_paused.flag")
-PYW = os.path.join(HERMES_HOME, "hermes-agent", "venv", "Scripts", "pythonw.exe")
 
-# 本项目自身的位置（2026-10-11 从 $HERMES_HOME/scripts 与 $HERMES_HOME/tools/wechat-inbox 搬来）。
-# 一律**自定位**：整个 D:\bot 树以后再搬，这些常量都不用改。
-HERE = os.path.dirname(os.path.abspath(__file__))        # D:\bot\kmg
-BOT_ROOT = os.path.dirname(HERE)                         # D:\bot
-LOG_SVC = os.path.join(BOT_ROOT, "log")                  # 日志服务（wechat-inbox）
-SERVER = os.path.join(LOG_SVC, "server.py")
+# 一律**自定位**：整个仓库换机器/换目录都不用改这些常量。
+HERE = os.path.dirname(os.path.abspath(__file__))        # <repo>/heartbeat
+BOT_ROOT = os.path.dirname(HERE)                         # <repo>
+HERMES_HOME = os.environ.get("HERMES_HOME") or os.path.join(BOT_ROOT, "data")
+PAUSE_FLAG = os.path.join(HERMES_HOME, "cache", "wechat_stack_paused.flag")
+VENV_PYW = os.path.join(BOT_ROOT, ".venv", "Scripts", "pythonw.exe")
+SERVER = os.path.join(BOT_ROOT, "src", "dashboard", "server.py")
 SPAWNER = os.path.join(HERE, "sidecar_spawn.py")
-LAUNCHER = os.path.join(LOG_SVC, "wechat_inbox_startup.bat")
+LAUNCHER = os.path.join(BOT_ROOT, "scripts", "dashboard_startup.bat")
 
 # Windows: 脱离父进程 + 独立进程组，父进程死了它也不受牵连
 CREATE_NEW_PROCESS_GROUP = 0x00000200
@@ -67,18 +65,17 @@ def spawn() -> bool:
         except Exception:
             pass
     # 兜底：老办法（DETACHED_PROCESS）
-    if not os.path.exists(PYW):
-        pyw = sys.executable
-    else:
-        pyw = PYW
-    if not os.path.exists(SERVER):
-        return False
+    pyw = VENV_PYW if os.path.exists(VENV_PYW) else sys.executable
     env = dict(os.environ)
     env["HERMES_HOME"] = HERMES_HOME
+    # src 布局：管理台以 `-m dashboard.server` 启动，靠仓库 src/ 在 sys.path 上
+    # （可编辑安装会处理好；兜底再显式补一份，免得裸解释器找不到包）。
+    src_dir = os.path.dirname(os.path.dirname(SERVER))
+    env["PYTHONPATH"] = src_dir + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
     flags = DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP
     subprocess.Popen(
-        [pyw, SERVER, "--host", HOST, "--port", str(PORT)],
-        cwd=os.path.dirname(SERVER),
+        [pyw, "-m", "dashboard.server", "--host", HOST, "--port", str(PORT)],
+        cwd=BOT_ROOT,
         env=env,
         creationflags=flags,
         close_fds=True,

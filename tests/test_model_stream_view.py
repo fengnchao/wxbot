@@ -8,7 +8,7 @@ from wxbot.queue_store import QueueStore, Incoming
 
 
 def test_model_identity_uses_direct_selection_and_optional_display_name():
-    from log.model_stream_view import resolve_model
+    from dashboard.model_stream_view import resolve_model
     info=resolve_model({'installation':{'mode':'direct','provider':'deepseek'},
         'model':{'backend':'openai','model':'selected-model'}},{'agent':{'provider':'codex'}})
     assert info=={'provider':'deepseek','label':'DeepSeek','model':'selected-model','via_butler':False}
@@ -17,7 +17,7 @@ def test_model_identity_uses_direct_selection_and_optional_display_name():
 
 
 def test_model_identity_local_and_unknown_external_are_truthful():
-    from log.model_stream_view import resolve_model
+    from dashboard.model_stream_view import resolve_model
     assert resolve_model({'model':{'backend':'butler'}}, {'agent':{'provider':'hermes'},'hermes':{'model':'agent'}})=={
         'provider':'hermes','label':'Hermes','model':'agent','via_butler':True}
     info=resolve_model({'installation':{'mode':'external'},'model':{'backend':'butler'}},{'agent':{'provider':'codex'}})
@@ -25,7 +25,7 @@ def test_model_identity_local_and_unknown_external_are_truthful():
 
 
 def test_stream_read_is_bounded_readonly_and_excludes_private_events(tmp_path):
-    from log.model_stream_view import read_stream
+    from dashboard.model_stream_view import read_stream
     path=tmp_path/'queue.db'
     with closing(QueueStore(path)) as store:
         store.capture('A',[],[Incoming('question')],now=1)
@@ -47,7 +47,7 @@ def test_stream_read_is_bounded_readonly_and_excludes_private_events(tmp_path):
 
 
 def test_stream_read_missing_database_or_table_never_initializes_it(tmp_path):
-    from log.model_stream_view import read_stream
+    from dashboard.model_stream_view import read_stream
     missing=tmp_path/'missing.db'
     assert not read_stream(missing,'batch-id')['available']
     assert not missing.exists()
@@ -59,12 +59,12 @@ def test_stream_read_missing_database_or_table_never_initializes_it(tmp_path):
 
 @pytest.mark.parametrize('rid,after',[('../file',0),('batch',-1),('batch',True),('batch','1')])
 def test_stream_rejects_invalid_cursor_and_id(tmp_path,rid,after):
-    from log.model_stream_view import read_stream
+    from dashboard.model_stream_view import read_stream
     with pytest.raises(ValueError):read_stream(tmp_path/'no.db',rid,after=after)
 
 
 def test_reply_mode_has_editor_choices_and_validation():
-    from log.config_schema import row_metadata,validate_value
+    from dashboard.config_schema import row_metadata,validate_value
     meta=row_metadata('wxbot',['wechat','typing','mode'],'chunked')
     assert meta['choices']==['full','chunked','streaming'] and meta['label']=='回复方式'
     validate_value(['wechat','typing','mode'],'streaming','chunked')
@@ -72,8 +72,8 @@ def test_reply_mode_has_editor_choices_and_validation():
 
 
 def test_workflow_handler_direct_mode_does_not_require_butler_config(tmp_path,monkeypatch):
-    from log.config_view import ConfigView
-    from log import server
+    from dashboard.config_view import ConfigView
+    from dashboard import server
     from types import SimpleNamespace
     path=tmp_path/'queue.db'
     with closing(QueueStore(path)) as store:store.capture('A',[],[Incoming('question')],now=1)

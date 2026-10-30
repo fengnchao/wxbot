@@ -10,8 +10,8 @@ wxbot 看门狗（cron no_agent 任务用）。
 正常时**不输出任何东西** —— cron no_agent 模式下 stdout 为空 = 不投递任何消息（静默是设计）。
 
 用法（手动）:
-    python D:\\bot\\kmg\\wxbot_watchdog.py
-    python D:\\bot\\kmg\\wxbot_watchdog.py --status
+    python heartbeat\\wxbot_watchdog.py
+    python heartbeat\\wxbot_watchdog.py --status
 
 注意：cron 跑的是 $HERMES_HOME/scripts/wxbot_watchdog.py（一层转发 shim），
 因为调度器只允许 scripts/ 目录内的脚本（scheduler.py::_run_job_script）。
@@ -26,9 +26,12 @@ import time
 import urllib.error
 import urllib.request
 
-HERMES_HOME = os.environ.get("HERMES_HOME", r"D:\ai\hermes")
-WX = r"D:\ai\wxbot"
-PY = os.path.join(HERMES_HOME, "hermes-agent", "venv", "Scripts", "python.exe")
+# 一律**自定位**：仓库根 = heartbeat/ 的上一层；换机器/换目录都不用改常量。
+HERE = os.path.dirname(os.path.abspath(__file__))        # <repo>/heartbeat
+WX = os.path.dirname(HERE)                               # <repo>
+HERMES_HOME = os.environ.get("HERMES_HOME") or os.path.join(WX, "data")
+VENV_PY = os.path.join(WX, ".venv", "Scripts", "python.exe")
+PY = VENV_PY if os.path.exists(VENV_PY) else sys.executable
 LOG = os.path.join(HERMES_HOME, "cache", "wxbot.log")
 STATE = os.path.join(HERMES_HOME, "cache", "wxbot_watchdog_state.json")
 PAUSE_FLAG = os.path.join(HERMES_HOME, "cache", "wechat_stack_paused.flag")
@@ -97,10 +100,9 @@ def spawn():
     优先经 WMI（sidecar_spawn.py → wxbot_startup.bat）创建，脱离调用者的 Job Object ——
     实测从 agent 终端 / cron tick 里用 Popen(DETACHED) 起的进程会在几分钟内无声消失。
     """
-    launcher = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                            "scripts", "wxbot_startup.bat")     # D:\bot\scripts\wxbot_startup.bat
-    # sidecar_spawn 跟本脚本同一个目录（2026-10-11 一起搬到 D:\bot\kmg）→ 自定位
-    spawner = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sidecar_spawn.py")
+    launcher = os.path.join(WX, "scripts", "wxbot_startup.bat")
+    # sidecar_spawn 跟本脚本同一个目录（heartbeat/）→ 自定位
+    spawner = os.path.join(HERE, "sidecar_spawn.py")
     if os.path.exists(launcher) and os.path.exists(spawner):
         try:
             subprocess.run([PY, spawner, launcher], capture_output=True, text=True, timeout=90)

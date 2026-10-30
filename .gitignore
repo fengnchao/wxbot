@@ -39,5 +39,5 @@ auth.json
 *.db-wal
 *.db-shm
 
-# Vue 版管理台：node_modules 不入库，log/web/dist 构建产物随仓库发布以便免 Node 部署
-/log/web/node_modules/
+# Vue 版管理台：node_modules 不入库，web/dist 构建产物随仓库发布以便免 Node 部署
+/web/node_modules/

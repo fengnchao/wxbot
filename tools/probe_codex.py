@@ -7,7 +7,7 @@ import tempfile
 import threading
 from http.server import ThreadingHTTPServer
 
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from butler.config import Config
 from butler.core import Butler
 from butler.server import make_handler

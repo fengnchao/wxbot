@@ -41,13 +41,16 @@ cd butler-wxbot
 
 | 模块 | 职责 |
 |---|---|
+| `src/butler` | 用户、权限、记忆、提醒、心跳和消息接口 |
+| `src/wxbot` | 微信主窗口监听、群聊 @ 判断、收发队列和分批输入 |
+| `src/dashboard` | 管理台 HTTP 服务：配置、角色、队列、模型工具进度、记忆与提醒记录 |
+| `src/common` | 跨包共用：仓库根定位（`paths.py`）与跨进程配置锁（`config_lock.py`） |
+| `web/` | Vue 3 + Vite 管理台源码，构建产物 `web/dist` 由管理台在 `/app/` 提供 |
 | `plugins/butler-wechat` | 独立插件：安装引导、角色、功能 Skill、MCP 连接 |
-| `butler/backends` | Codex SDK 适配、隔离 worker、会话恢复；保留 Hermes 手动回退 |
-| `butler/business.py`、`butler/tools.py` | SQLite 业务记录和身份权限边界 |
-| `butler/reminders.py`、`butler/heartbeat.py` | 提醒投递、随机心跳 |
-| `wxbot` | 微信主窗口监听、群聊 @ 判断、收发队列和分批输入 |
-| `log` | 可编辑配置、角色、队列、模型工具进度、记忆与提醒记录 |
 | `data/` | 本机认证和运行数据，禁止提交 Git |
+
+包都在 `src/` 下，靠 `pyproject.toml` 的可编辑安装导入；`python -m butler`、
+`python -m dashboard.server`、`python -m wxbot.main` 均可在仓库外运行。
 
 ## 文档与验证
 
@@ -60,7 +63,7 @@ cd butler-wxbot
 - [Telegram 联合早报文字转发到新闻分组](docs/TELEGRAM_NEWS.md)
 - [Telegram 机器人收件到 Butler](docs/TELEGRAM_BOT.md)
 - [Telegram 频道窗口转发 Skill、图文投递与人工核对](docs/TELEGRAM_RELAY_SKILL.md)
-- [原 Butler/Hermes 接口说明](butler/README.md)：仅用于旧后端兼容。
+- [原 Butler/Hermes 接口说明](src/butler/README.md)：仅用于旧后端兼容。
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest

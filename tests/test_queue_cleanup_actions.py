@@ -2,7 +2,7 @@ import sqlite3
 
 import pytest
 
-from log.queue_actions import QueueActions
+from dashboard.queue_actions import QueueActions
 from wxbot.queue_store import QueueStore
 
 
@@ -84,7 +84,7 @@ def test_bulk_delete_http_route_checks_origin_json_and_explicit_confirmation(tmp
     from io import BytesIO
     import json
     from types import SimpleNamespace
-    from log.server import Handler
+    from dashboard.server import Handler
 
     path = tmp_path/'q.db'
     store = QueueStore(path)

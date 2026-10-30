@@ -97,7 +97,7 @@ def test_butler_admin_routes_require_server_token_not_tool_capability():
 
 
 def test_log_admin_proxy_requires_same_origin_and_keeps_credentials_server_side(monkeypatch):
-    source = Path(__file__).resolve().parents[1] / 'log' / 'server.py'
+    source = Path(__file__).resolve().parents[1] / 'src' / 'dashboard' / 'server.py'
     spec = importlib.util.spec_from_file_location('_user_admin_http', source)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -161,7 +161,7 @@ def test_real_user_admin_create_memory_link_and_stale_confirmation(tmp_path):
 
 
 def test_proxy_adds_admin_credential_and_scrubs_upstream_echoes():
-    from log.user_admin import request_user_admin
+    from dashboard.user_admin import request_user_admin
     class Echo(BaseHTTPRequestHandler):
         def log_message(self, *args):
             pass
@@ -178,7 +178,7 @@ def test_proxy_adds_admin_credential_and_scrubs_upstream_echoes():
 
 
 def test_proxy_never_forwards_admin_credential_on_redirect():
-    from log.user_admin import request_user_admin
+    from dashboard.user_admin import request_user_admin
     received = []
     class Sink(BaseHTTPRequestHandler):
         def log_message(self, *args):

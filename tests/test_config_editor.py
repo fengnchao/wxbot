@@ -4,11 +4,11 @@ import tomllib
 
 import pytest
 
-from log.config_view import ConfigView
+from dashboard.config_view import ConfigView
 
 
 def setup_editor(tmp_path):
-    from log.config_editor import ConfigEditor
+    from dashboard.config_editor import ConfigEditor
     wx=tmp_path/'wx.toml';bt=tmp_path/'bt.toml';home=tmp_path/'hermes'
     home.mkdir()
     wx.write_text('# 我的配置\n[bot]\nmention_names = ["Bot"] # 保留\n[model]\nbackend="butler"\n',encoding='utf-8')
@@ -85,7 +85,7 @@ def test_default_reset_and_new_runtime_settings_are_written_to_the_real_sources(
 def test_missing_log_config_can_be_saved_and_read_on_next_start(tmp_path):
     editor,view,wx,bt=setup_editor(tmp_path)
     result=editor.save(payload(view,'log_config',[{'path':['server','port'],'op':'set','value':9898}]))
-    from log.settings import load_settings
+    from dashboard.settings import load_settings
     assert result['restart']==['log']
     assert load_settings(tmp_path/'log.toml')['server']['port']==9898
 
@@ -104,7 +104,7 @@ def test_groups_save_preserves_other_json_fields_and_validates_members(tmp_path)
 
 def test_concurrent_saves_use_one_original_version(tmp_path):
     from concurrent.futures import ThreadPoolExecutor
-    from log.config_editor import ConfigEditor
+    from dashboard.config_editor import ConfigEditor
     editor,view,wx,bt=setup_editor(tmp_path)
     a=payload(view,'butler',[{'path':['hermes','timeout'],'op':'set','value':900}])
     b=payload(view,'butler',[{'path':['hermes','timeout'],'op':'set','value':901}])
@@ -119,7 +119,7 @@ def test_concurrent_saves_use_one_original_version(tmp_path):
 
 
 def test_failed_atomic_replace_keeps_original_and_backup(tmp_path,monkeypatch):
-    import log.config_editor as module
+    import dashboard.config_editor as module
     editor,view,wx,bt=setup_editor(tmp_path)
     before=bt.read_bytes()
     def fail(*args):raise OSError('simulated write failure')
@@ -142,7 +142,7 @@ def test_nested_hidden_credentials_survive_reordered_contact_edit(tmp_path):
 
 
 def test_policy_uses_skill_validator_and_keeps_tool_role_boundary(tmp_path):
-    from log.config_editor import ConfigEditor
+    from dashboard.config_editor import ConfigEditor
     editor,view,wx,bt=setup_editor(tmp_path)
     with bt.open('a',encoding='utf-8') as fh:fh.write('\n[[contacts]]\nname="A"\nuid="A"\n')
     body=payload(view,'policies',[{'path':['users'],'op':'set','value':{'A':{'role_skill':'role','allowed_skills':['tool'],'heartbeat_enabled':True}}}])
@@ -157,7 +157,7 @@ def test_policy_uses_skill_validator_and_keeps_tool_role_boundary(tmp_path):
 
 
 def test_queue_countdown_uses_the_saved_timeout_without_mutating_queue(tmp_path):
-    from log.queue_view import QueueView
+    from dashboard.queue_view import QueueView
     from wxbot.queue_store import QueueStore
     editor,view,wx,bt=setup_editor(tmp_path)
     path=tmp_path/'queue.db';store=QueueStore(path)
@@ -177,7 +177,7 @@ def test_configuration_http_save_is_confirmed_local_and_secret_free(tmp_path,mon
     editor,view,wx,bt=setup_editor(tmp_path)
     for key,path in (('WXBOT_CONFIG',wx),('BUTLER_CONFIG',bt),('LOG_CONFIG',tmp_path/'log.toml')):
         monkeypatch.setenv(key,str(path))
-    spec=importlib.util.spec_from_file_location('_config_editor_http',Path(__file__).resolve().parents[1]/'log'/'server.py')
+    spec=importlib.util.spec_from_file_location('_config_editor_http',Path(__file__).resolve().parents[1]/'src'/'dashboard'/'server.py')
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     server=ThreadingHTTPServer(('127.0.0.1',0),type('TestHandler',(module.Handler,),{'home':str(tmp_path/'hermes')}))
     thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()

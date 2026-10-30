@@ -133,7 +133,7 @@ def test_deleted_draft_is_reported_without_operating_wechat():
 
 
 def test_partial_reply_history_does_not_claim_deleted_parts_were_sent():
-    from log.queue_view import QueueView
+    from dashboard.queue_view import QueueView
     store = QueueStore(':memory:')
     try:
         store.capture('A', [], [Incoming('question')], now=0)
@@ -143,7 +143,7 @@ def test_partial_reply_history_does_not_claim_deleted_parts_were_sent():
         sent = store.claim_delivery(now=1)
         store.finish_delivery(sent.id, 'sent', now=1)
         store.delete_unsent(now=2)
-        from log.reply_rounds import read_rounds
+        from dashboard.reply_rounds import read_rounds
         rows, _ = read_rounds(store._db, QueueView._row, contact='', state='all', scope='history',
                               limit=50, offset=0, now=3, timeout=180)
         assert rows[0]['display_state'] == 'partial_deleted'

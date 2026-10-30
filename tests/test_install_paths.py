@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def test_log_relative_sources_follow_loaded_config_not_cwd(tmp_path, monkeypatch):
-    from log.settings import load_settings
+    from dashboard.settings import load_settings
     root=tmp_path/'install'; root.mkdir()
     path=root/'config.log.toml'
     path.write_text('[sources]\nhome="data"\nwxbot_config="config.wxbot.toml"\nbutler_config="config.butler.toml"\ngroups_file="data/cache/groups.json"\n',encoding='utf-8')
@@ -17,7 +17,7 @@ def test_log_relative_sources_follow_loaded_config_not_cwd(tmp_path, monkeypatch
 
 
 def test_empty_log_sources_keep_auto_and_absolute(tmp_path):
-    from log.settings import load_settings
+    from dashboard.settings import load_settings
     path=tmp_path/'log.toml'
     path.write_text('[sources]\nwxbot_config=""\n',encoding='utf-8')
     assert load_settings(path)['sources']['wxbot_config']==''
@@ -25,7 +25,7 @@ def test_empty_log_sources_keep_auto_and_absolute(tmp_path):
 
 
 def test_edit_lock_lives_in_cache_and_keeps_stable_identity(tmp_path):
-    from log.config_editor import config_lock, edit_lock_path
+    from dashboard.config_editor import config_lock, edit_lock_path
     path=tmp_path/'config.wxbot.toml'
     expected=edit_lock_path(path)
     assert expected.parent==tmp_path/'data/cache/config-locks'
@@ -38,7 +38,7 @@ def test_edit_lock_lives_in_cache_and_keeps_stable_identity(tmp_path):
 def test_upgrade_relativizes_same_targets_and_removes_only_edit_locks(tmp_path):
     import tomlkit
     from butler.upgrade import upgrade_installation
-    from log.settings import load_settings
+    from dashboard.settings import load_settings
     (tmp_path/'config.butler.toml').write_text('[agent]\nprovider="codex"\n',encoding='utf-8')
     (tmp_path/'config.wxbot.toml').write_text('[model]\nbackend="echo"\n',encoding='utf-8')
     path=tmp_path/'config.log.toml'

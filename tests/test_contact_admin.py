@@ -77,7 +77,7 @@ def test_policy_save_needs_catalogue_validation_and_is_atomic(tmp_path):
 
 def test_contact_http_origin_and_conflicts(monkeypatch,tmp_path):
     from test_user_admin import running, request
-    import log.server as server
+    import dashboard.server as server
     service, store, registry = admin(tmp_path)
     monkeypatch.setattr(server,'dashboard_mode',lambda:'local')
     monkeypatch.setattr(server.Handler,'_contact_admin',lambda self:service,raising=False)
@@ -119,8 +119,8 @@ def test_route_only_person_can_manage_memory_without_granting_identity(tmp_path)
 
 def test_unified_config_does_not_read_or_edit_retired_sources(tmp_path):
     service,store,registry=admin(tmp_path)
-    from log.config_view import ConfigView
-    from log.config_editor import ConfigEditor
+    from dashboard.config_view import ConfigView
+    from dashboard.config_editor import ConfigEditor
     bt=tmp_path/'config.butler.toml';wx=tmp_path/'config.wxbot.toml'
     for path in (bt,wx):path.write_text('[directory]\ndatabase="business.sqlite3"\n',encoding='utf-8')
     (tmp_path/'data/cache').mkdir(parents=True)
@@ -138,8 +138,8 @@ def test_nonlocal_install_can_edit_local_listening_without_local_identity(tmp_pa
     from butler.install_wizard import install,Connection
     from butler.contact_store import is_unified
     from butler.directory import DirectoryStore
-    from log.config_view import ConfigView
-    from log.config_editor import ConfigEditor
+    from dashboard.config_view import ConfigView
+    from dashboard.config_editor import ConfigEditor
     from wxbot.config import load_config
     install(tmp_path,Connection(provider=provider,model='test',url='https://remote.example/v1/handle'),nickname='Bot')
     database=tmp_path/'data/business.sqlite3'

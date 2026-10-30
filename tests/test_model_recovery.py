@@ -87,8 +87,8 @@ def test_incomplete_reply_preserves_trusted_retry_flag_and_error():
 
 
 def test_dashboard_explains_recovery_and_preserves_failure_history(tmp_path):
-    from log.queue_view import QueueView
-    from log.flow_view import FlowView
+    from dashboard.queue_view import QueueView
+    from dashboard.flow_view import FlowView
     path=tmp_path/'q.db';store=QueueStore(path,failure_timeout_seconds=180);first=claimed(store)
     store.fail_batch(first.id,'startup failed',now=2,retry_safe=True)
     data=QueueView(path,failure_timeout_seconds=180).read(now=3)

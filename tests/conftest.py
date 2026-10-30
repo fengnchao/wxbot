@@ -14,8 +14,10 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+SRC = ROOT / 'src'
+for entry in (SRC, ROOT):
+    if str(entry) not in sys.path:
+        sys.path.insert(0, str(entry))
 
 from butler.config import Config                    # noqa: E402
 from butler.contacts import load_contacts           # noqa: E402

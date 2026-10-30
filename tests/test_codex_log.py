@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 
 from butler.setup import initialize
-from log.config_view import ConfigView
+from dashboard.config_view import ConfigView
 
 
 def test_dashboard_uses_codex_business_paths_and_editable_config(tmp_path):
@@ -19,7 +19,7 @@ def test_dashboard_uses_codex_business_paths_and_editable_config(tmp_path):
 
 
 def test_codex_skills_are_loaded_from_butler_not_hermes(monkeypatch):
-    import log.server as server
+    import dashboard.server as server
     seen=[]
     class Response:
         def __enter__(self):return self

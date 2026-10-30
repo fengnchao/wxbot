@@ -4,14 +4,14 @@ import pytest
 
 
 def view_for(root):
-    from log.config_view import ConfigView
+    from dashboard.config_view import ConfigView
     return ConfigView(root/'config.wxbot.toml',root/'config.butler.toml',root/'data',
                       repo_root=root,log_config_path=root/'config.log.toml')
 
 
 def test_migrated_directory_edit_uses_contacts_without_recreating_toml_bindings(tmp_path):
     from butler.install_wizard import install, Connection
-    from log.config_editor import ConfigEditor
+    from dashboard.config_editor import ConfigEditor
     from butler.contact_admin import ContactAdmin
     from butler.directory import DirectoryStore
     install(tmp_path,Connection(),nickname='Bot')
@@ -42,7 +42,7 @@ def test_new_install_nickname_is_in_database(tmp_path):
 
 
 def test_dashboard_queue_path_follows_wxbot_config(tmp_path):
-    from log.config_view import ConfigView
+    from dashboard.config_view import ConfigView
     root=tmp_path/'installation';root.mkdir()
     (root/'config.wxbot.toml').write_text('[queue]\ndatabase="cache/queue.sqlite3"\n',encoding='utf-8')
     view=ConfigView(root/'config.wxbot.toml',root/'config.butler.toml',root/'data',repo_root=tmp_path)

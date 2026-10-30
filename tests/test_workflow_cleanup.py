@@ -4,7 +4,7 @@ import sqlite3
 import pytest
 
 from wxbot.queue_store import QueueStore,Incoming
-from log.workflow_view import WorkflowView
+from dashboard.workflow_view import WorkflowView
 
 
 def view(path):return WorkflowView({'path':path},[])
@@ -21,7 +21,7 @@ def batch(store,contact,status='done',complete=False):
 
 
 def test_delete_terminal_failure_survives_refresh_and_keeps_queue_evidence(tmp_path):
-    from log.workflow_history import WorkflowHistory
+    from dashboard.workflow_history import WorkflowHistory
     path=tmp_path/'q.db'
     with closing(QueueStore(path)) as store:
         rid=batch(store,'A')
@@ -34,12 +34,12 @@ def test_delete_terminal_failure_survives_refresh_and_keeps_queue_evidence(tmp_p
         assert store.get_batch(rid)['state']=='done'
         assert store.records('inbox')[0]['text']=='question'
         assert WorkflowHistory(path).delete({'action':'single','id':rid,'version':message['delete_version'],'acknowledge':True})['removed']==0
-        from log.workflow_content import read_content
+        from dashboard.workflow_content import read_content
         assert read_content(path,tmp_path/'missing-telegram.toml',rid) is None
 
 
 def test_bulk_cleanup_protects_current_work_and_successful_history(tmp_path):
-    from log.workflow_history import WorkflowHistory
+    from dashboard.workflow_history import WorkflowHistory
     path=tmp_path/'q.db'
     with closing(QueueStore(path)) as store:
         failed=batch(store,'failed')
@@ -56,7 +56,7 @@ def test_bulk_cleanup_protects_current_work_and_successful_history(tmp_path):
 
 
 def test_delete_checks_snapshot_and_reappears_if_work_is_reopened(tmp_path):
-    from log.workflow_history import WorkflowHistory,WorkflowConflict
+    from dashboard.workflow_history import WorkflowHistory,WorkflowConflict
     path=tmp_path/'q.db'
     with closing(QueueStore(path)) as store:
         rid=batch(store,'A')
@@ -84,14 +84,14 @@ def test_read_only_projection_does_not_initialize_history_table(tmp_path):
 @pytest.mark.parametrize('payload',[{}, {'action':'failed','acknowledge':False}, {'action':'all','acknowledge':True},
     {'action':'failed','acknowledge':True,'path':'other.db'}, {'action':'single','id':'../other','version':'x','acknowledge':True}])
 def test_invalid_cleanup_never_touches_store(tmp_path,payload):
-    from log.workflow_history import WorkflowHistory
+    from dashboard.workflow_history import WorkflowHistory
     path=tmp_path/'missing.db'
     with pytest.raises(ValueError):WorkflowHistory(path).delete(payload)
     assert not path.exists()
 
 
 def test_skipped_push_and_partial_reply_keep_delivery_receipts(tmp_path):
-    from log.workflow_history import WorkflowHistory
+    from dashboard.workflow_history import WorkflowHistory
     path=tmp_path/'q.db'
     with closing(QueueStore(path)) as store:
         rid=store.enqueue_delivery('push','discarded',now=1)
@@ -114,7 +114,7 @@ def test_skipped_push_and_partial_reply_keep_delivery_receipts(tmp_path):
 
 
 def test_hidden_history_does_not_consume_the_recent_history_limit(tmp_path):
-    from log.workflow_history import WorkflowHistory
+    from dashboard.workflow_history import WorkflowHistory
     path=tmp_path/'q.db'
     with closing(QueueStore(path)) as store:
         for index in range(64):batch(store,str(index))
@@ -132,7 +132,7 @@ def test_workflow_delete_http_checks_confirmation_and_origin(tmp_path):
     from io import BytesIO
     from types import SimpleNamespace
     import json
-    from log.server import Handler
+    from dashboard.server import Handler
     path=tmp_path/'q.db'
     base='http://127.0.0.1:8788'
     headers={'Host':'127.0.0.1:8788','Origin':base,'Content-Type':'application/json','X-Wxbot-Workflow-Action':'1'}

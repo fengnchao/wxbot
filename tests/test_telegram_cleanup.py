@@ -262,7 +262,7 @@ def test_slow_bundle_selection_cannot_recreate_deleted_source(tmp_path, monkeypa
 @pytest.mark.parametrize('images', [False, True])
 def test_projection_shows_partial_success_and_deleted_remainder_instead_of_all_sent(tmp_path, images):
     from butler.telegram_bot.cleanup import delete_unsent
-    from log.telegram_view import TelegramView
+    from dashboard.telegram_view import TelegramView
     queue, relay, calls = setup(tmp_path, images=images)
     ingest(queue, image=images)
     assert relay.expand_once() and relay.deliver_once()

@@ -25,8 +25,8 @@ from pathlib import Path
 
 # 仓库根：脚本在 scripts/ 下，按自身位置推导，避免写死部署路径。
 BOT = os.environ.get("BOT_HOME") or str(Path(__file__).resolve().parents[1])
-# HERMES_HOME 是外部 agent 家目录（看门狗/暂停标志/日志），保持可覆盖。
-HERMES_HOME = os.environ.get("HERMES_HOME", r"D:\ai\hermes")
+# HERMES_HOME 是数据家目录（看门狗/暂停标志/日志），默认落在仓库 data/ 下，可用环境变量覆盖。
+HERMES_HOME = os.environ.get("HERMES_HOME") or os.path.join(BOT, "data")
 PAUSE_FLAG = os.path.join(HERMES_HOME, "cache", "wechat_stack_paused.flag")
 SPAWNER = os.path.join(BOT, "heartbeat", "sidecar_spawn.py")
 PY = sys.executable
@@ -36,7 +36,7 @@ SERVICES = [
      "launcher": os.path.join(BOT, "scripts", "wxbot_startup.bat"),
      "match": "wxbot.main"},
     {"name": "wechat-inbox", "port": 8788,
-     "launcher": os.path.join(BOT, "log", "wechat_inbox_startup.bat"),
+     "launcher": os.path.join(BOT, "scripts", "dashboard_startup.bat"),
      "match": None},
 ]
 

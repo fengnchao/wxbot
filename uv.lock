@@ -536,7 +536,7 @@ wheels = [
 [[package]]
 name = "wxbot"
 version = "1.0.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
     { name = "croniter" },
     { name = "openai-codex" },

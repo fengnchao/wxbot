@@ -20,7 +20,7 @@ cd butler-wxbot
 
 安装脚本调用 `python -m butler setup`。向导收集接入方式、机器人昵称、服务地址／端口及必要凭据，
 显示脱敏摘要后确认写入。取消不会留下部分运行配置；已有配置保留，升级使用显式迁移命令。
-默认配置由 [butler/defaults.py](../butler/defaults.py) 生成，不分发或复制配置模板。
+默认配置由 [src/butler/defaults.py](../butler/defaults.py) 生成，不分发或复制配置模板。
 自动化安装可用 `python -m butler init --directory <安装目录>`，它是非交互、幂等的本机 Codex 初始化。
 不要复制其他安装的配置、认证或 `data/`。
 
@@ -49,7 +49,7 @@ cd butler-wxbot
 `local` 启动 Butler、log、wxbot；`external/direct` 只启动 log、wxbot。
 默认管理台为 http://127.0.0.1:8788，地址以向导结果和本机配置为准。
 端口占用时命令退出并保留已有服务；Ctrl+C 只终止本次启动的子进程。
-也可以按模式分别运行 `python -m butler.server`、`python -m log.server --open`、`python -m wxbot.main`。
+也可以按模式分别运行 `python -m butler.server`、`python -m dashboard.server --open`、`python -m wxbot.main`。
 
 本机 Butler 新安装在「联系人」统一维护监听、群昵称、角色／心跳、订阅和记忆。数据库初始化为空并直接启用统一来源，
 不再创建 `butler_heartbeat.json` 和 `butler_groups.json`。默认空联系人、空绑定、关闭心跳。角色或工具未授权时不能操作个人业务数据。

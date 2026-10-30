@@ -4,12 +4,12 @@ from pathlib import Path
 
 import pytest
 
-from log.config_view import ConfigView
+from dashboard.config_view import ConfigView
 
 
 @pytest.fixture(params=['relative', 'absolute', 'default'])
 def heartbeat_dashboard(tmp_path, monkeypatch, request):
-    import log.server as server
+    import dashboard.server as server
 
     root = tmp_path / 'installation'
     home = root / 'data'
@@ -97,7 +97,7 @@ def test_configuration_inventory_uses_the_same_role_and_group_files(heartbeat_da
 
 @pytest.mark.parametrize('agent', ['', '[agent]\nprovider="hermes"\n'])
 def test_legacy_hermes_keeps_paths_shared_with_its_runtime(tmp_path, monkeypatch, agent):
-    import log.server as server
+    import dashboard.server as server
 
     config_dir = tmp_path / 'installation'
     config_dir.mkdir()

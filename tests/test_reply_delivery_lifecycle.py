@@ -108,7 +108,7 @@ def test_uncertain_push_detaches_and_keeps_record():
 
 
 def test_draft_hold_survives_timeout_and_has_manual_release(tmp_path):
-    from log.queue_view import QueueView
+    from dashboard.queue_view import QueueView
     store = QueueStore(tmp_path/'q.db')
     turn(store)
     first = store.claim_delivery(now=0)
@@ -127,7 +127,7 @@ def test_draft_hold_survives_timeout_and_has_manual_release(tmp_path):
 
 
 def test_queue_groups_paginate_whole_round_and_hide_owned_draft(tmp_path):
-    from log.queue_view import QueueView
+    from dashboard.queue_view import QueueView
     store=QueueStore(tmp_path/'q.db')
     first=turn(store,'A')
     second=turn(store,'B',parts=('hello',))

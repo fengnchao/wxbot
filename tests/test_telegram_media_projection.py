@@ -44,7 +44,7 @@ def fixture(tmp_path, package_state='ready', deliveries=('pending',), *, legacy=
     ('ready', ('sent','uncertain'), 'blocked'), ('ready', ('sent','cancelled'), 'cancelled'),
 ])
 def test_projection_uses_media_and_whole_bundle_receipts_for_every_album_member(tmp_path, package_state, deliveries, expected):
-    from log.telegram_view import TelegramView
+    from dashboard.telegram_view import TelegramView
     cfg, butler, path = fixture(tmp_path, package_state, deliveries)
     before = hashlib.sha256(path.read_bytes()).digest()
     result = TelegramView(cfg, butler).read()
@@ -56,7 +56,7 @@ def test_projection_uses_media_and_whole_bundle_receipts_for_every_album_member(
 
 
 def test_failed_image_is_issue_with_preparation_event_and_operator_error(tmp_path):
-    from log.telegram_view import TelegramView
+    from dashboard.telegram_view import TelegramView
     cfg, butler, path = fixture(tmp_path, 'media_failed', ())
     view = TelegramView(cfg, butler)
     result = view.read(scope='issues')
@@ -68,7 +68,7 @@ def test_failed_image_is_issue_with_preparation_event_and_operator_error(tmp_pat
 
 
 def test_bundle_recipient_filter_uses_members_package_identity(tmp_path):
-    from log.telegram_view import TelegramView
+    from dashboard.telegram_view import TelegramView
     cfg, butler, path = fixture(tmp_path)
     result = TelegramView(cfg, butler).read(contact='A')
     assert result['page']['total'] == 2
@@ -92,7 +92,7 @@ def test_cli_exposes_media_preparation_and_actual_package_delivery(tmp_path):
 
 def test_legacy_database_projection_and_cli_remain_read_only(tmp_path):
     from butler.telegram_bot.__main__ import status
-    from log.telegram_view import TelegramView
+    from dashboard.telegram_view import TelegramView
     cfg, butler, path = fixture(tmp_path, legacy=True)
     before = path.read_bytes()
     result = TelegramView(cfg, butler).read()
@@ -104,7 +104,7 @@ def test_legacy_database_projection_and_cli_remain_read_only(tmp_path):
 
 
 def test_late_album_member_does_not_inherit_sent_receipt_of_earlier_images(tmp_path):
-    from log.telegram_view import TelegramView
+    from dashboard.telegram_view import TelegramView
     cfg, butler, path = fixture(tmp_path, 'ready', ('sent',))
     with sqlite3.connect(path) as db:
         body = {'message': {'message_id': 3, 'date': 1700000000, 'from': {'id': 12},
@@ -121,7 +121,7 @@ def test_late_album_member_does_not_inherit_sent_receipt_of_earlier_images(tmp_p
 
 @pytest.mark.parametrize('album', [True,False])
 def test_source_identity_and_persisted_album_alias_project_canonical_package(tmp_path, album):
-    from log.telegram_view import TelegramView
+    from dashboard.telegram_view import TelegramView
     cfg, butler, path = fixture(tmp_path)
     canonical = 'source:album:canonical' if album else 'source:-100123:message:42'
     with sqlite3.connect(path) as db:

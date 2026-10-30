@@ -65,7 +65,7 @@
 模型服务是否支持流式，以适配器和服务实际返回为准，不能仅靠模型名称判断。
 
 模型流式功能需重启 **wxbot、log**；经过 Butler 时也需重启 **Butler**，以加载新流接口。
-已加载工作流 API 的版本，改动前端需在 `log/web` 执行 `npm run build` 并刷新浏览器。
+已加载工作流 API 的版本，改动前端需在 `web` 执行 `npm run build` 并刷新浏览器。
 
 ## 消息与队列
 
@@ -138,7 +138,7 @@
 
 ```powershell
 .\.venv\Scripts\python.exe -m pytest
-cd log/web; npm run build; npm run smoke
+cd web; npm run build; npm run smoke
 # 可选：独立临时数据页面，不连接真实模型或微信
 .\.venv\Scripts\python.exe tests/dashboard_preview.py
 ```

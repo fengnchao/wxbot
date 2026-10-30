@@ -13,15 +13,15 @@ def release_module():
 def test_source_distribution_includes_telegram_defaults_and_instructions():
     module = release_module()
     paths = {p.relative_to(module.ROOT).as_posix() for p in module.source_files()}
-    assert 'butler/defaults.py' in paths
+    assert 'src/butler/defaults.py' in paths
     assert not any(p.endswith('.example.toml') for p in paths)
     assert 'docs/TELEGRAM_NEWS.md' in paths
 
 
 def test_telegram_sessions_are_excluded_even_inside_source_folder(tmp_path, monkeypatch):
     module = release_module()
-    (tmp_path/'butler').mkdir()
+    (tmp_path/'src').mkdir()
     for name in ('account.session', 'account.session-journal', 'account.session.relay.lock', 'good.py'):
-        (tmp_path/'butler'/name).write_text('fixture', encoding='utf-8')
+        (tmp_path/'src'/name).write_text('fixture', encoding='utf-8')
     monkeypatch.setattr(module, 'ROOT', tmp_path)
     assert [p.name for p in module.source_files()] == ['good.py']

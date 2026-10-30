@@ -6,7 +6,7 @@ from wxbot.queue_store import Incoming, QueueStore
 
 
 def test_selected_message_reads_complete_incoming_and_all_reply_parts_without_changing_queue(tmp_path):
-    from log.workflow_content import read_content
+    from dashboard.workflow_content import read_content
     path = tmp_path/'queue.sqlite3'
     text = '收到的长消息🙂\n' * 80 + '收件末尾'
     first, second = '完整回复第一段\n' * 70, '第二段🙂\n' * 70 + '回复末尾'
@@ -23,7 +23,7 @@ def test_selected_message_reads_complete_incoming_and_all_reply_parts_without_ch
 
 
 def test_standalone_push_content_is_complete_and_missing_records_do_not_create_a_database(tmp_path):
-    from log.workflow_content import read_content
+    from dashboard.workflow_content import read_content
     path = tmp_path/'queue.sqlite3'
     assert read_content(path, None, 'push:missing') is None
     assert not path.exists()
@@ -36,7 +36,7 @@ def test_standalone_push_content_is_complete_and_missing_records_do_not_create_a
 
 
 def test_telegram_full_caption_is_loaded_by_exact_bot_and_update_id(tmp_path):
-    from log.workflow_content import read_content
+    from dashboard.workflow_content import read_content
     from butler.telegram_bot.queue import Queue
     queue = Queue(tmp_path/'telegram'/'relay.sqlite3')
     caption = '图片说明🙂\n' * 80 + '说明末尾 fake-telegram-token'
@@ -53,7 +53,7 @@ def test_telegram_full_caption_is_loaded_by_exact_bot_and_update_id(tmp_path):
 
 @pytest.mark.parametrize('record_id', ['', 'inbox:abc', 'tg:99:7:extra', 'push:../secret', "x' OR 1=1 --"])
 def test_message_content_rejects_non_identifiers_and_never_opens_client_paths(tmp_path, record_id):
-    from log.workflow_content import read_content
+    from dashboard.workflow_content import read_content
     with pytest.raises(ValueError):
         read_content(tmp_path/'missing.sqlite3', None, record_id)
     assert list(tmp_path.iterdir()) == []
@@ -61,8 +61,8 @@ def test_message_content_rejects_non_identifiers_and_never_opens_client_paths(tm
 
 def test_content_http_route_returns_complete_body_and_clear_missing_result(tmp_path):
     from urllib.parse import urlencode
-    from log.config_view import ConfigView
-    from log.server import Handler
+    from dashboard.config_view import ConfigView
+    from dashboard.server import Handler
     path = tmp_path/'queue.sqlite3'
     with closing(QueueStore(path)) as store:
         text = ('完整正文\n' * 100 + 'Title\nhttps://example.com/a?x=中文%20保留\nMore text\nEnd\n'

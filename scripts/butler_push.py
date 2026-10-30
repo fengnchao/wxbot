@@ -29,7 +29,7 @@ BUTLER_TOKEN 覆盖。
 退出码：0 = butler 回 {ok:true}（已发出）；非 0 = 失败（stderr 打 JSON 原因）。
 
 —— Hermes 侧配置说明（不改 Hermes 代码，只在其 cron 里加一个任务）——
-在 D:\\ai\\hermes 新建一个 cron 任务，其 delivery/no_agent 步骤以【绝对路径】调用本脚本，例如：
+在 $HERMES_HOME 新建一个 cron 任务，其 delivery/no_agent 步骤以【绝对路径】调用本脚本，例如：
   D:\\work\\code\\wxbot\\.venv\\Scripts\\python.exe ^
     D:\\work\\code\\wxbot\\scripts\\butler_push.py --contact 101 --text -
 正文可由 agent 任务生成后经 stdin 传入，或用 --text 固定模板。

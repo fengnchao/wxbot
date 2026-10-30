@@ -27,7 +27,7 @@ proxy_url = "" # 如需要，可填 http://127.0.0.1:本机HTTP代理端口
 
 ## IDE 启动
 
-1. 自行重启 Butler，加载新的 `/v1/telegram/inbox` 接口。wxbot/log 无需重启。
+1. 自行重启 Butler，加载新的 `/v1/telegram/inbox` 接口。wxbot / log 无需重启。
 2. 新建 Python 运行配置，选择 **模块名** `butler.telegram_bot`；参数 `run`；工作目录为项目根目录；解释器使用项目 `.venv`。
 3. 环境变量可设置 `PYTHONIOENCODING=utf-8`。
 
