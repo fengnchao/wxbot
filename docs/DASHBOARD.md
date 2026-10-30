@@ -1,8 +1,8 @@
 # 微信管家日志（wechat-inbox）
 
-**当前界面说明：[log 管理页面](../docs/LOG_DASHBOARD.md)**。
+**当前界面说明：[管理页面说明](LOG_DASHBOARD.md)**。
 管理台由 Vue 3 前端提供，挂在 `http://127.0.0.1:8788/app/`；根路径 `/` 会 302 到 `/app/`，保留原有 `?tab=` 参数。
-实现与构建说明见 [web/README.md](web/README.md)，改 `web/src` 后执行 `npm run build` 刷新即可，无需重启服务。
+实现与构建说明见 [web/README.md](../web/README.md)，改 `web/src` 后执行 `npm run build` 刷新即可，无需重启服务。
 默认首页为「实时工作流」，每秒读取真实队列与阶段事件，按用户 UID／群成员查看当前位置、动态连线、工具进度和失败倒计时。「消息流转」独立页面已移除，旧链接自动打开实时工作流；更新后刷新浏览器即可。
 
 实时工作流中的节点和消息列表统一显示前 20 个字，超出部分用“…”省略。点选消息后按需读取正文与完整回复，保留换行，不受 240 字预览限制；正常轮询不重复下载未变化的全文。切换消息或离开页面后，旧请求不会覆盖当前详情。全文查询使用只读接口 `GET /api/workflow-content?id=消息标识`，微信与 Telegram 的数据库路径均来自服务端配置。
@@ -56,23 +56,25 @@ Hermes 专属数据路径和重启说明仅适用于显式启用的旧后端。
 - 整数/数值、布尔、文本及JSON使用对应输入控件；列表、联系人与映射支持JSON编辑。联系人名称须无首尾空格且唯一，uid须ASCII。隐藏会话模板按原名称或唯一稳定身份保留，身份合并有歧义时要求明确新值。角色与工具修改会检查Hermes技能目录与butler-role标签，白名单不能加入角色Skill。
 - 每次仅保存一个来源文件，保留TOML注释和未改项。先校验类型、范围和关联参数，再在原文件旁生成 `原文件名.config-backup-时间-随机ID`，临时文件写好后原子替换。备份与配置含凭据，已加入Git忽略。版本过期返回409，原文件不被覆盖；校验失败返回400。保存动作不会调用模型或发送微信。
 - `wxbot` 文件参数需自行重启wxbot；`Butler` 文件参数（包括Hermes调用地址）需自行重启Butler；角色/工具白名单/心跳开关与分组在后续读取时使用。心跳间隔仍由Butler启动配置控制。不会自动重启任何服务。
-- log自己的设置保存在项目 `config.log.toml`，由 `python -m butler setup`／`init` 从代码默认值生成，也可在 **log · 启动配置** 页首次保存创建。修改后自行重启log；`LOG_CONFIG`可指定其他位置。命令行 `--host/--port/--home`、环境变量 `HERMES_HOME/WXBOT_CONFIG/BUTLER_CONFIG/BUTLER_GROUP_FILE` 优先于文件，运行参数区可查看当前值。`start.bat`使用保存的默认设置，不再硬编码端口/home。
+- log自己的设置保存在项目 `config.log.toml`，由 `python -m butler setup`／`init` 从代码默认值生成，也可在 **log · 启动配置** 页首次保存创建。修改后自行重启log；`LOG_CONFIG`可指定其他位置。命令行 `--host/--port/--home`、环境变量 `HERMES_HOME/WXBOT_CONFIG/BUTLER_CONFIG/BUTLER_GROUP_FILE` 优先于文件，运行参数区可查看当前值。`scripts\dashboard.bat`使用保存的默认设置，不再硬编码端口/home。
 - 新增运行参数：`wechat.typing.chunk_size`（1–100，默认5）、`wechat.typing.chunk_interval`（0.05–10秒，默认0.5）、`queue.failure_discard_seconds`（1–86400秒，默认180）。失败期限始终从首次failed_at计算，已失败任务在重启后也使用新的期限。
 - 保存接口为 `POST /api/configuration`：请求头 `X-Wxbot-Config-Action: 1` 与JSON；请求体 `{source, version, changes:[{path:[实际键路径], op:set|clear|default, value}], acknowledge:true}`。仅允许服务器已登记来源/字段，浏览器不能指定任意写入路径；受可信Host、同源与文件版本检查保护。`clear`只适用于敏感项，`default`只适用于有默认值的项。协议标识不参与值脱敏，防密钥恰好等于字段名称时改写保存路径。
 - 配置编辑依赖 `tomlkit`，统一依赖清单已包含。更新后用户自行重启log显示新页面；使用新的输入/失败参数前需自行重启wxbot。Hermes进程自身监听端口由Hermes启动配置管理，本页的Hermes地址是调用目标。
 
 ## 快速开始
 
+从仓库根目录启动（任选一种）：
+
 ```
-双击 start.bat
+scripts\dashboard.bat            # 读取 config.log.toml，成功后自动开浏览器
 ```
-或
+
+```powershell
+.\.venv\Scripts\python.exe -m dashboard.server            # http://127.0.0.1:8788
+.\.venv\Scripts\python.exe -m dashboard.server --port 9000
 ```
-cd D:\bot\log
-python server.py                 # http://127.0.0.1:8788
-python server.py --port 9000
-```
-打开 http://127.0.0.1:8788/app/
+
+打开 http://127.0.0.1:8788/app/ 。服务只读运行数据、写配置文件，不启动或重启 wxbot、Butler。
 
 ## 页面
 

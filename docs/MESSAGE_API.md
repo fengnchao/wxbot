@@ -670,19 +670,19 @@ Butler 参数错误通常为 `{"error":"..."}`，wxbot 通常为 `{"ok":false,"d
 
 | 文件 | 核对内容 |
 |---|---|
-| [src/butler/server.py](../butler/server.py) | Butler 路由、鉴权、HTTP 参数及状态码 |
-| [src/butler/agent/core.py](../butler/agent/core.py) | 处理结果结构、身份观测、单发和群发业务 |
-| [src/wxbot/outbound.py](../wxbot/outbound.py) | `/send`、`/send-bundle`、等待语义及鉴权 |
-| [src/wxbot/processor/butler.py](../wxbot/processor/butler.py) | 实际 wxbot → Butler 请求和回复解析 |
-| [src/wxbot/delivery.py](../wxbot/delivery.py)、[src/wxbot/queue_store.py](../wxbot/queue_store.py) | 持久入队、图文幂等和本地发送回执 |
-| [src/common/media_bundle.py](../common/media_bundle.py)、[src/butler/delivery/media.py](../butler/delivery/media.py) | 图文和图片格式限制 |
-| [src/common/avatar_identity.py](../common/avatar_identity.py)、[src/butler/identity/user_registry.py](../butler/identity/user_registry.py) | 头像编码与身份观测约束 |
-| [src/butler/identity/group_context.py](../butler/identity/group_context.py) | 群归档格式、序号及幂等 |
-| [src/butler/channels/telegram/bot/inbox.py](../butler/channels/telegram/bot/inbox.py) | Telegram 收件校验和持久化回执 |
-| [src/butler/channels/telegram/bot/service.py](../butler/channels/telegram/bot/service.py) | Telegram 桥接筛选和保留字段 |
-| [src/butler/delivery/push.py](../butler/delivery/push.py)、[src/butler/identity/groups.py](../butler/identity/groups.py) | 发件转发、超时和订阅分组 |
+| [src/butler/server.py](../src/butler/server.py) | Butler 路由、鉴权、HTTP 参数及状态码 |
+| [src/butler/agent/core.py](../src/butler/agent/core.py) | 处理结果结构、身份观测、单发和群发业务 |
+| [src/wxbot/outbound.py](../src/wxbot/outbound.py) | `/send`、`/send-bundle`、等待语义及鉴权 |
+| [src/wxbot/processor/butler.py](../src/wxbot/processor/butler.py) | 实际 wxbot → Butler 请求和回复解析 |
+| [src/wxbot/delivery.py](../src/wxbot/delivery.py)、[src/wxbot/queue_store.py](../src/wxbot/queue_store.py) | 持久入队、图文幂等和本地发送回执 |
+| [src/common/media_bundle.py](../src/common/media_bundle.py)、[src/butler/delivery/media.py](../src/butler/delivery/media.py) | 图文和图片格式限制 |
+| [src/common/avatar_identity.py](../src/common/avatar_identity.py)、[src/butler/identity/user_registry.py](../src/butler/identity/user_registry.py) | 头像编码与身份观测约束 |
+| [src/butler/identity/group_context.py](../src/butler/identity/group_context.py) | 群归档格式、序号及幂等 |
+| [src/butler/channels/telegram/bot/inbox.py](../src/butler/channels/telegram/bot/inbox.py) | Telegram 收件校验和持久化回执 |
+| [src/butler/channels/telegram/bot/service.py](../src/butler/channels/telegram/bot/service.py) | Telegram 桥接筛选和保留字段 |
+| [src/butler/delivery/push.py](../src/butler/delivery/push.py)、[src/butler/identity/groups.py](../src/butler/identity/groups.py) | 发件转发、超时和订阅分组 |
 | [src/dashboard/server.py](../src/dashboard/server.py)、[src/dashboard/queue_view.py](../src/dashboard/queue_view.py)、[src/dashboard/flow_view.py](../src/dashboard/flow_view.py)、[src/dashboard/workflow_content.py](../src/dashboard/workflow_content.py) | 本机查询接口 |
-| [src/butler/defaults.py](../butler/defaults.py)、[安装引导](CODEX_INSTALL.md) | 代码默认值、接入模式和本机配置生成 |
+| [src/butler/defaults.py](../src/butler/defaults.py)、[安装引导](CODEX_INSTALL.md) | 代码默认值、接入模式和本机配置生成 |
 
 本次已通过 `test_transport.py / test_push.py / test_media_outbound.py / test_group_public_context.py / test_telegram_media_store.py / test_groups.py` 六个现有测试文件的离线验证，并检查 JSON 示例和源码链接。测试使用临时数据、假模型和假投递；本文件不包含真实 Token、用户聊天内容或真实微信发送验证。
 

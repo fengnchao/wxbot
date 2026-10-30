@@ -2,51 +2,10 @@
 
 > 面向后续维护会话的速查文档。扫描日期：2026-10-14。以代码和配置模板为准；密钥、真实联系人和本机私有配置不记入本文。
 
-## 项目定位
+## 架构与路径
 
-Windows 上的个人微信机器人，Python 项目，拆成两个本地进程：
-
-- `src/wxbot/` 是 UI 收发层：默认通过 Windows UI Automation 扫描微信主窗口全部会话，采集后入 SQLite 队列，后台调用处理器、主线程模拟发送；兼容独立窗口模式。
-- `src/butler/` 是对话编排层：提供 HTTP API，按联系人映射 Hermes Profile/uid，处理补发、会话、行动标记、提醒和主动推送。
-- Hermes 网关提供模型与既有 skill runtime；默认地址/端口见 `config.butler.example.toml`（本地 8642）。
-- 可选 `src/dashboard/` 看板提供日志、任务和分组管理；`heartbeat/` 看门狗检查/重启进程；`scripts/` 提供启动、投递和提醒运维入口。
-
-主要链路：微信主窗口 → `wxbot` SQLite 收件/合并 → 模型工作线程 `POST /v1/handle`（butler 8770）→ Hermes → butler → SQLite 发件 → wxbot UI 主线程回复。主动提醒链路为脚本/Hermes → butler `/v1/push` → wxbot 外发服务（8765）→ 发件队列 → 微信窗口。
-
-## 关键边界和协议
-
-- 窗口定位、轮询、消息差分、发送和 `/ping` 等通道命令属于 wxbot；联系人身份、Hermes Profile/uid、会话 id、补发、静默和 skill 决策属于 butler。
-- wxbot 通过 `src/wxbot/processor/butler.py` 把消息发给 butler；仍支持 `echo`、Hermes/OpenAI 兼容和 Ollama 后端，路由见 `src/wxbot/main.py`。
-- 主窗口默认无需绑定列表，群聊根据右侧人数标签识别；独立窗口/限定范围用 `[bot].bound_groups`。通过 `[bot].mention_names` 配置机器人昵称；仅处理包含 `@昵称` 的其他成员文字消息。WeChat UIA 不暴露群昵称，wxbot 用左侧头像感知哈希生成 member_id，可在 `[wechat.group_sender.member_names]` 配真实昵称；每批消息携 speaker/member_id 标签进入同一群聊会话。
-- butler HTTP 接口都要求 `Authorization: Bearer <token>`：`GET /health`、`GET /v1/catalogue`、`POST /v1/handle`、`POST /v1/reset`、`POST /v1/push`。默认仅绑定 loopback。处理接口形状见 `src/butler/server.py`。
-- Hermes 调用同时传 `X-Hermes-Session-Key`（长期身份/记忆归属）和 `X-Hermes-Session-Id`（同一段对话连续性）。只传前者可能每轮派生新会话。`/new` 或 `/重置` 会轮换会话 id。
-- 模型行动标记 `<<butler:action {"skill":"...","args":{...}}>>` 由 `src/butler/agent/router.py` 去除并交 `src/butler/agent/skills.py` 白名单执行；未知 skill 失败留痕。现有 catalog：`reminder.create/list/cancel`（本地实现）、`learn.card`、`quiz.next`（再委派 Hermes）。`<<butler:silent>>` 等标记用于静默。
-- 每条消息开始先认领补发队列，再调用模型；模型失败或静默时仍应送出已认领内容。队列 schema 复用 Hermes Profile 下的 `pending_delivery.py`。
-- 主动推送不调用模型且不改会话。`type=1` 指定联系人；`type=2` 按 `messageType` 从 groups JSON 逐人发送。分组文件默认在 Hermes root 的 `cache/butler_groups.json`，可由配置覆盖，每次推送重新读取。
-
-## 重要路径
-
-- `src/butler/` 内部分层：根目录只留 `__main__.py`、`config.py`、`defaults.py`、`runtime_config.py`、`business.py`、`server.py`；`agent/` 决策与执行、`identity/` 联系人身份、`delivery/` 投递、`runtime/` 安装迁移与运行支撑、`channels/telegram/`（含 `bot/`、`relay/`）、`news/`、`backends/`。
-- `src/butler/agent/core.py`：主流程、补发、Hermes 调用、行动执行、出站推送。
-- `src/butler/server.py`：HTTP 路由、Bearer 校验和状态探活。
-- `src/butler/config.py`、`src/butler/identity/contacts.py`、`src/butler/agent/hermes.py`：配置、身份映射和 Hermes wire/session 语义。
-- `src/butler/agent/router.py`、`src/butler/agent/skills.py`、`src/butler/delivery/pending.py`：路由/标记协议、skill 白名单、补发。
-- `src/butler/identity/groups.py`、`src/butler/delivery/push.py`、`src/butler/runtime/flowlog.py`：分组推送与流水日志。
-- Telegram 入口：`python -m butler.channels.telegram`（收信转发）、`python -m butler.channels.telegram.bot`（Bot API 入库）；`python -m butler` / `butler.server` 不变。
-- `src/wxbot/main.py`、`state.py`、`wechat/chat_window.py`：主轮询、消息差分、窗口读写。
-- `src/wxbot/outbound.py`：接收主动推送的 HTTP 队列服务；`src/wxbot/processor/` 是各后端适配器。
-- `src/dashboard/server.py`、`web/`：看板服务与 Vue 管理台；构建产物由 `/app/` 提供，根路径 `/` 302 到 `/app/`，看板直接读取配置/日志/任务数据。
-- `scripts/wechat_stack_ctl.py`：栈启停状态；`scripts/butler_reminder_*.py`：提醒创建/投递；`heartbeat/`：进程监控。
-- `tests/`：离线测试，包括主流程不变量、HTTP/Hermes 传输、消息状态、分组、推送和任务归属。
-
-## 配置与运行
-
-- 根目录单一 `pyproject.toml` / `requirements.txt` / `.venv`。项目声明 Python 3.14+；依赖主要是 `uiautomation`、`requests`、`pillow`，开发测试用 pytest。锁文件为 `uv.lock`。
-- 从 `config.butler.example.toml`、`config.wxbot.example.toml` 复制生成本地配置；两者分开且含 token/key 的本地配置不要提交。
-- 启动 butler：`\.venv\Scripts\python -m butler.server --config config.butler.toml`；`--status` 做配置和 Hermes 探活。
-- 启动 wxbot：`\.venv\Scripts\python -m wxbot.main`。默认保持微信主窗口打开；独立模式需打开绑定窗口。UI 自动化要求窗口可见、不遮挡，机器不能锁屏。控件变化时用 `tools/probe.py` 检查校准。
-- 测试命令：`\.venv\Scripts\python -m pytest`（全离线）；此轮扫描未运行测试。
-- butler 的本地提醒执行器从 `[dispatch].script_dir` 调 `butler_reminder_create.py`；补发程序从 `{hermes.root}/profiles/<profile>/skills/messaging/wechat-reminder/scripts/pending_delivery.py` 复用 Hermes 队列。
+进程与链路、职责边界、目录地图、关键路径、协议要点和配置运行方式见
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。本文只记约定与踩坑记录。
 
 ## 维护注意
 

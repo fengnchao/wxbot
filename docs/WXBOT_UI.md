@@ -3,7 +3,7 @@
 基于 Windows UI Automation 的个人微信自动回复工具：
 默认监听主窗口全部会话：私聊新消息和群聊消息 → SQLite 队列与连续消息合并 → Butler/模型处理 → 自动回复（群内按成员区分会话）。
 
-可选的 [Telegram 频道窗口转发与图文投递](docs/TELEGRAM_RELAY_SKILL.md) 默认关闭，与微信共用主窗口模式的单一 UI 调度线程；启用前需配置现有机器人、频道及微信图片控件，异常结果需人工核对。
+可选的 [Telegram 频道窗口转发与图文投递](TELEGRAM_RELAY_SKILL.md) 默认关闭，与微信共用主窗口模式的单一 UI 调度线程；启用前需配置现有机器人、频道及微信图片控件，异常结果需人工核对。
 
 > ⚠️ 非官方用法，有账号风险。建议用小号，只绑定少数好友，保持低频。
 
@@ -83,7 +83,7 @@ python -m butler setup
 
 向导支持本机 Codex、已有 Butler，以及 Hermes、OpenClaw、Cursor、DeepSeek 和自定义 API 的直接接入。
 默认值来自代码，已有配置不覆盖；自动化初始化可用 `python -m butler init`。
-模式、登录与升级步骤见 [安装文档](docs/CODEX_INSTALL.md)。直接接入不提供 Butler 业务工具。
+模式、登录与升级步骤见 [安装文档](CODEX_INSTALL.md)。直接接入不提供 Butler 业务工具。
 
 ### 2. 校准控件（必做）
 
@@ -159,7 +159,7 @@ Butler 完整生成、处理行动与补发后一次返回全部分句，wxbot �
 
 文字行被裁剪、暂时无法确认发送方时，采集会保留快照和待重读任务，发送流程独立核验目标会话及自己的新增气泡。读取发送目标的消息列表失败或会话对象无法确认时，仍停止发送。
 
-「wxbot 通道」还提供 **「只看消息流转」**：wxbot 收件入库 → 合并/阻塞 → Butler 接收 → Hermes 工具进度与最终结果 → 分句发送。联系人与批次 ID 精确关联，未到 Butler 的消息也会显示；阶段缺失标记未确认。该链路记录功能同时改动了 wxbot、Butler、log 及 Hermes 的可选最终正文事件，需先停 wxbot，重启更新后的 Hermes、Butler、log，再启动 wxbot；旧异常任务仍保留。详见 [log 说明](docs/DASHBOARD.md)。
+「wxbot 通道」还提供 **「只看消息流转」**：wxbot 收件入库 → 合并/阻塞 → Butler 接收 → Hermes 工具进度与最终结果 → 分句发送。联系人与批次 ID 精确关联，未到 Butler 的消息也会显示；阶段缺失标记未确认。该链路记录功能同时改动了 wxbot、Butler、log 及 Hermes 的可选最终正文事件，需先停 wxbot，重启更新后的 Hermes、Butler、log，再启动 wxbot；旧异常任务仍保留。详见 [log 说明](DASHBOARD.md)。
 
 | 状态 | 含义与处理 |
 |---|---|
@@ -183,7 +183,7 @@ Butler 完整生成、处理行动与补发后一次返回全部分句，wxbot �
 .\.venv\Scripts\python -m wxbot.queue_admin skip <ID> --delivery
 ```
 
-人工操作允许 `blocked` / `uncertain` 任务，以及超时后已为 `skipped`、但仍有草稿待人工清理标记的发件任务；先核对发送结果并清理输入框，再重试、确认已发或丢弃以解除会话暂停。已有发件结果的批次应处理发件任务，不能重跑模型。重启时未开始的任务继续排队，执行中断的模型批次转为 `uncertain`；发件先只读核对，能确认已有新气泡的标记完成，其余保持 `uncertain`。模型确认未提交时最多尝试3次；网络超时、进程中断等未知结果不重放，失败最多阻塞180秒（由 queue.failure_discard_seconds 配置），随后保留记录并结束旧批次，放行新消息。详见 [模型失败恢复](docs/LOG_DASHBOARD.md)。
+人工操作允许 `blocked` / `uncertain` 任务，以及超时后已为 `skipped`、但仍有草稿待人工清理标记的发件任务；先核对发送结果并清理输入框，再重试、确认已发或丢弃以解除会话暂停。已有发件结果的批次应处理发件任务，不能重跑模型。重启时未开始的任务继续排队，执行中断的模型批次转为 `uncertain`；发件先只读核对，能确认已有新气泡的标记完成，其余保持 `uncertain`。模型确认未提交时最多尝试3次；网络超时、进程中断等未知结果不重放，失败最多阻塞180秒（由 queue.failure_discard_seconds 配置），随后保留记录并结束旧批次，放行新消息。详见 [模型失败恢复](LOG_DASHBOARD.md)。
 
 多句回复中某一句异常只暂停所属用户，其他用户可继续。`sent`/`skip`/`retry --delivery` 仅处理指定一句，再重新计算整轮；已确认的句子不重发，也不重跑模型。全部句子 `sent`/`skipped` 才完成整轮并释放该用户下一批。
 
@@ -195,7 +195,7 @@ Butler 完整生成、处理行动与补发后一次返回全部分句，wxbot �
 - log → **收发队列** → 选择用户：异常任务旁有三个操作按钮及倒计时，下方 **发送失败与人工核对记录** 展示最近50条记录。操作只允许异常任务，页面状态过期会拒绝并提示刷新。
 - 本次需由用户自行重启 **wxbot → log**；wxbot 取得运行锁后升级为队列版本3，旧失败任务按已有失败时间补记，已经超过180秒的任务会自动丢弃。无需为本次改动重启 Butler 或 Hermes。
 
-输入节奏也可在log的「全部配置 → wxbot · wechat」修改：`wechat.typing.chunk_size` 默认5字（1–100），`chunk_interval` 默认0.5秒（0.05–10）；发送前仍校验内容、目标及焦点。参数保存到wxbot配置后自行重启生效，现有实际参数不会因代码更新而被改写。Hermes调用地址在「Butler · hermes」，修改后自行重启Butler；更多保存及备份规则见 [log说明](docs/DASHBOARD.md#配置编辑与生效)。
+输入节奏也可在log的「全部配置 → wxbot · wechat」修改：`wechat.typing.chunk_size` 默认5字（1–100），`chunk_interval` 默认0.5秒（0.05–10）；发送前仍校验内容、目标及焦点。参数保存到wxbot配置后自行重启生效，现有实际参数不会因代码更新而被改写。Hermes调用地址在「Butler · hermes」，修改后自行重启Butler；更多保存及备份规则见 [log说明](DASHBOARD.md#配置编辑与生效)。
 
 数据库自动增加 `submitted_text` 字段，保留原模型正文 `text`，记录回车前核对过的实际输入正文；恢复优先按实际输入确认。旧版因输入法导致实际正文改变、但用户已确认发送的任务，可登记实际正文并保持 `uncertain`，等待新版本重启后只读核对。登记本身不释放旧进程队列，也不重发消息。
 

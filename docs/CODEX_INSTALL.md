@@ -20,7 +20,7 @@ cd butler-wxbot
 
 安装脚本调用 `python -m butler setup`。向导收集接入方式、机器人昵称、服务地址／端口及必要凭据，
 显示脱敏摘要后确认写入。取消不会留下部分运行配置；已有配置保留，升级使用显式迁移命令。
-默认配置由 [src/butler/defaults.py](../butler/defaults.py) 生成，不分发或复制配置模板。
+默认配置由 [src/butler/defaults.py](../src/butler/defaults.py) 生成，不分发或复制配置模板。
 自动化安装可用 `python -m butler init --directory <安装目录>`，它是非交互、幂等的本机 Codex 初始化。
 不要复制其他安装的配置、认证或 `data/`。
 
