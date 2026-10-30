@@ -1,5 +1,8 @@
 @echo off
-REM 配置默认值从 config.log.toml 读取；环境变量和命令行可覆盖。
+REM Dashboard (Vue at /app/). Config defaults come from config.log.toml;
+REM environment variables and command-line flags can override them.
 setlocal
-python "%~dp0server.py" --open
+set "ROOT=%~dp0.."
+if exist "%ROOT%\.venv\Scripts\python.exe" (set "PY=%ROOT%\.venv\Scripts\python.exe") else (set "PY=python")
+"%PY%" "%~dp0server.py" --open
 endlocal

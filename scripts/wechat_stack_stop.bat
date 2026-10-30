@@ -1,18 +1,21 @@
 @echo off
 REM Thin wrapper: stop the WeChat bot stack (wxbot 8765 + wechat-inbox 8788).
-REM Real logic lives in wechat_stack_ctl.py. This file is pure ASCII on purpose
-REM (cmd parses .bat as GBK; UTF-8 CJK comments can swallow following lines).
+REM Real logic lives in wechat_stack_ctl.py. Pure ASCII on purpose:
+REM cmd parses .bat as GBK, UTF-8 CJK comments can swallow following lines.
 chcp 65001 >nul
-set HERMES_HOME=D:\ai\hermes
-set PYTHONIOENCODING=utf-8
-set PYTHONUTF8=1
+setlocal
+set "ROOT=%~dp0.."
+set "PYTHONIOENCODING=utf-8"
+set "PYTHONUTF8=1"
+if exist "%ROOT%\.venv\Scripts\python.exe" (set "PY=%ROOT%\.venv\Scripts\python.exe") else (set "PY=python")
 title Hermes WeChat Bot - STOP
 cls
 echo ==========================================
 echo   Hermes WeChat bot stack  --  STOPPING
 echo ==========================================
 echo.
-"D:\ai\hermes\hermes-agent\venv\Scripts\python.exe" "D:\bot\scripts\wechat_stack_ctl.py" stop
+"%PY%" "%~dp0wechat_stack_ctl.py" stop
 echo.
 echo (this window can be closed)
 pause >nul
+endlocal

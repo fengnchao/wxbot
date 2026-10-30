@@ -21,13 +21,15 @@ import socket
 import subprocess
 import sys
 import time
+from pathlib import Path
 
+# 仓库根：脚本在 scripts/ 下，按自身位置推导，避免写死部署路径。
+BOT = os.environ.get("BOT_HOME") or str(Path(__file__).resolve().parents[1])
+# HERMES_HOME 是外部 agent 家目录（看门狗/暂停标志/日志），保持可覆盖。
 HERMES_HOME = os.environ.get("HERMES_HOME", r"D:\ai\hermes")
 PAUSE_FLAG = os.path.join(HERMES_HOME, "cache", "wechat_stack_paused.flag")
-# 本项目（看门狗/日志服务/启动 bat/投递脚本）2026-10-11 搬到了 D:\bot
-BOT = os.environ.get("BOT_HOME", r"D:\bot")
-SPAWNER = os.path.join(BOT, "kmg", "sidecar_spawn.py")
-PY = os.path.join(HERMES_HOME, "hermes-agent", "venv", "Scripts", "python.exe")
+SPAWNER = os.path.join(BOT, "heartbeat", "sidecar_spawn.py")
+PY = sys.executable
 
 SERVICES = [
     {"name": "wxbot", "port": 8765,
@@ -159,7 +161,7 @@ def do_start():
             print(f"[启动] {svc['name']}: 已拉起（{svc['port']} UP）")
         else:
             print(f"[启动] {svc['name']}: !! 30 秒内没起来（spawn {'OK' if ok else '失败'}）"
-                  f" —— 检查日志 D:\\ai\\hermes\\cache\\wxbot.log")
+                  f" —— 检查日志 {os.path.join(HERMES_HOME, 'cache', 'wxbot.log')}")
             rc = 1
     print()
     print("结果:", "两个服务都在线" if rc == 0 else "有服务没起来，见上面提示")
