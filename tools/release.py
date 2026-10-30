@@ -9,8 +9,7 @@ ROOT=Path(__file__).resolve().parents[1]
 VERSION='1.0.0'
 ROOT_FILES={'README.md','AGENTS.md','pyproject.toml','requirements.txt','uv.lock','.gitignore'}
 SOURCE_DIRS={'src','web','tests','plugins'}
-SPECIAL={'.agents/plugins/marketplace.json','scripts/setup.ps1','tools/probe_codex.py','tools/release.py',
-         'docs/MESSAGE_API.md','docs/TELEGRAM_RELAY_SKILL.md','docs/USER_MEMORY.md','docs/CODEX_INSTALL.md','docs/CODEX_PROTOCOL.md','docs/CODEX_VERIFICATION.md','docs/NEWS_DELIVERY.md','docs/TELEGRAM_NEWS.md','docs/TELEGRAM_BOT.md','docs/WXBOT_UI.md'}
+SPECIAL={'.agents/plugins/marketplace.json','scripts/setup.ps1','tools/probe_codex.py','tools/release.py'}
 FORBIDDEN_PARTS={'.venv','node_modules','__pycache__','.git','.idea','.pytest_cache','data','cache','dist','.superpowers'}
 
 

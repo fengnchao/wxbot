@@ -1,7 +1,7 @@
 # Butler/wxbot development and installation
 
-Read README.md for the layout map, docs/INDEX.md for the documentation entry and
-docs/CODEX_INSTALL.md for portable setup. Use the installation
+Read README.md first: it is the only project document (layout, per-module file map,
+protocols, configuration, run and release steps). Use the installation
 owner's own Codex login. Never copy credentials, local config or runtime data from
 another installation. `python -m butler init` preserves existing configurations.
 

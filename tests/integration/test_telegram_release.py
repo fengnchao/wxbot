@@ -16,7 +16,7 @@ def test_source_distribution_includes_telegram_defaults_and_instructions():
     paths = {p.relative_to(module.ROOT).as_posix() for p in module.source_files()}
     assert 'src/butler/defaults.py' in paths
     assert not any(p.endswith('.example.toml') for p in paths)
-    assert 'docs/TELEGRAM_NEWS.md' in paths
+    assert 'README.md' in paths
 
 
 def test_telegram_sessions_are_excluded_even_inside_source_folder(tmp_path, monkeypatch):

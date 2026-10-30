@@ -3,7 +3,7 @@
 butler 是决策编排层：负责投递大模型(Hermes)、判断是否调用 skill、拼装补发，
 最终返回 {"reply": ...}。本处理器只做“转发 + 取 reply”，不含任何业务决策。
 
-对应 butler 侧接口（见 butler/README.md）：
+对应 butler 侧接口（见仓库根 README.md「接口与协议」）：
     POST /v1/handle {contact, text}  → {"reply": str|null, "actions": [...], "meta": {...}}
     POST /v1/reset  {contact}        → 开新会话
 两者都要求 Header: Authorization: Bearer <token>（token = butler 配置的 server.token）。
