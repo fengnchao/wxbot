@@ -19,6 +19,7 @@ LABELS={
  'send_identity':('发送用户身份','将微信会话身份提供给 Hermes。'),
  'profile_in_path':('地址包含 Profile','接口路径使用 /p/{profile}/v1/。'),
  'contacts':('联系人映射','JSON数组：微信名称 name、Profile profile、ASCII用户ID uid，可附 label/session_key。'),
+ 'message_routes':('指定联系人消息转发','JSON数组：contact=私聊微信会话名称，url=完整HTTP接口地址，code=目标用户代码，可选 enabled=true、timeout=10（秒）。命中后只POST code/text，不调用模型、不回复微信；失败不回退模型、不自动重放。'),
  'bound_users':('绑定的私聊用户','微信会话名称列表；全部监听开启时不限制为此列表。'),
  'bound_groups':('绑定的群聊','微信群名称列表；群消息需要明确@机器人。'),
  'mention_names':('机器人群昵称','用于识别@机器人的昵称列表。'),
@@ -100,6 +101,8 @@ def row_metadata(source,path,value,*,default_available=False):
         label,description='Codex 独立登录目录','机器人自己的 Codex 登录和会话目录；不能指向他人的认证目录。'
     if source=='log_config' and key=='home':
         label,description='log 数据来源目录','看板读取业务数据的目录；不改变 Butler 的数据位置。'
+    if source=='wxbot' and tuple(path)==('wechat','typing','mode'):
+        label,description='回复方式','full=全量粘贴；chunked=完整回复后分字粘贴；streaming=边生成边粘贴，按完整句发送。不支持流式的后端等待完整结果。'
     editor=('boolean' if type(value) is bool else 'integer' if type(value) is int else
             'number' if type(value) is float else 'json' if isinstance(value,(list,dict)) else 'string')
     effect=('保存后立即用于后续角色/心跳检查' if source in {'policies','log_policies'} else
@@ -108,9 +111,12 @@ def row_metadata(source,path,value,*,default_available=False):
     choices={('butler','agent','provider'):['codex','hermes'],
              ('wxbot','model','backend'):['butler','hermes','openai','responses','openclaw','cursor','ollama','echo'],
              ('wxbot','queue','restart_chat_policy'):['discard','resume'],
+             ('wxbot','wechat','typing','mode'):['full','chunked','streaming'],
              ('wxbot','wechat','mode'):['main','independent']}.get((source,*path))
     widget='contacts' if source=='butler' and tuple(path)==('contacts',) else (
         'string-list' if isinstance(value,list) and all(isinstance(v,str) for v in value) else editor)
+    if source=='butler' and tuple(path)==('message_routes',):
+        widget='json'
     return {'path':list(path),'label':label,'description':description,'editor':editor,'widget':widget,
             'choices':choices,'editable':True,'effect':effect,'default_available':default_available}
 
@@ -142,4 +148,6 @@ def validate_value(path,value,reference):
     if key=='provider' and value not in {'codex','hermes'}:raise ValueError('模型运行时无效')
     if key=='max_workers' and not 1<=value<=8:raise ValueError('Codex 最大进程数范围为1–8')
     if key=='idle_seconds' and value<=0:raise ValueError('空闲回收时间必须为正数')
-    if key=='mode' and path[0]=='wechat' and value not in {'main','independent'}:raise ValueError('微信监听模式无效')
+    if tuple(path)==('wechat','typing','mode'):
+        if value not in {'full','chunked','streaming'}:raise ValueError('回复方式无效')
+    elif key=='mode' and path[0]=='wechat' and value not in {'main','independent'}:raise ValueError('微信监听模式无效')

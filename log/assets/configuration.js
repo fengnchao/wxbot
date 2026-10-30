@@ -241,7 +241,8 @@ function renderConfigurationPane(){
               control=`<div class="monitor-source">${esc(r.value)} · 原密钥已隐藏</div><select data-c-secret="${i}" aria-label="${esc(r.label||r.key)}操作" ${disabled}><option value="keep" ${mode==='keep'?'selected':''}>保持不变</option><option value="set" ${mode==='set'?'selected':''}>替换密钥</option><option value="clear" ${mode==='clear'?'selected':''}>清空密钥</option></select><input ${attr} type="password" autocomplete="new-password" placeholder="选择替换后填写新密钥" ${mode==='set'?'':'disabled'}>`;
             }else if(r.choices?.length){
               const choices=[...new Set([...r.choices,...(raw&&!r.choices.includes(raw)?[raw]:[])])];
-              control=`<select ${attr}>${choices.map(v=>`<option value="${esc(v)}" ${raw===v?'selected':''}>${esc(v)}</option>`).join('')}</select>`;
+              const choiceLabels=r.path?.join('.')==='wechat.typing.mode'?{full:'全量粘贴',chunked:'分字粘贴',streaming:'流式粘贴'}:{};
+              control=`<select ${attr}>${choices.map(v=>`<option value="${esc(v)}" ${raw===v?'selected':''}>${esc(choiceLabels[v]||v)}</option>`).join('')}</select>`;
             }else if(r.editor==='boolean'){
               control=`<select ${attr}><option value="true" ${raw==='true'?'selected':''}>开启（true）</option><option value="false" ${raw==='false'?'selected':''}>关闭（false）</option></select>`;
             }else if(['integer','number'].includes(r.editor)){

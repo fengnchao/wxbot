@@ -28,6 +28,7 @@ class ReadDeferred(RuntimeError):
 @dataclass(frozen=True)
 class Message:
     sender: str   # "other" 对方 / "self" 自己 / "system" 时间、系统提示、非文字消息
+                  # "clipped" 顶部残缺行，仅保留正文作快照对齐锚点
     text: str
     sender_name: str | None = None  # 群聊成员映射名或稳定头像 ID
     sender_key: str | None = None   # 头像感知哈希，用于稳定区分/配置映射
@@ -218,8 +219,16 @@ class ChatWindow:
             if not is_text and (not cls.startswith("mmui::Chat")
                                 or not cls.endswith("ItemView") or cls == "mmui::ChatItemView"):
                 continue
+            # UIA also exposes the text tail of history above the viewport.
+            # Its avatar is gone, so retain only an overlap anchor, never an
+            # unread candidate. Keep bottom-clipped new rows unresolved so they
+            # still defer capture until their direction can be verified.
+            row_rect = getattr(item, 'BoundingRectangle', None)
             text = item.Name or ""
             if is_text and not text.strip():
+                continue
+            if row_rect is not None and list_rect is not None and row_rect.top < list_rect.top:
+                result.append((Message('clipped', text), is_text))
                 continue
             sender = (self._classify(item, text, list_rect, use_sent_cache=False)
                       if strict_sender else self._classify(item, text, list_rect))
@@ -256,6 +265,8 @@ class ChatWindow:
         messages = [message for message, is_text in all_entries if is_text]
         entries = [(message, is_text) for message, is_text in all_entries
                    if message.sender in {"other", "system"}]
+        if count > 0 and not entries:
+            raise ReadDeferred('unread_messages_not_visible', '未读消息尚未在可读区域显示，保留未读任务等待重读')
         if count > len(entries):
             log.warning("[%s] 未读 %d 条，当前可读取 %d 条；超出已加载消息区的历史不会自动补读",
                         self.title, count, len(entries))

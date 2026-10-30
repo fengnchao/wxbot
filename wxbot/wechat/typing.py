@@ -1,8 +1,9 @@
 """UI 线程分批粘贴；step 每次最多输入一批，不 sleep 等待下一批。"""
 import time
+from contextlib import nullcontext
 
 import uiautomation as auto
-from ..config import validate_typing_config
+from ..config import validate_typing_config, validate_typing_mode
 from .clipboard import ClipboardLease,failure_details
 
 
@@ -15,7 +16,12 @@ class TypingSession:
         self.normalized = normalized
         self.chunks = [normalized[i:i + self.chunk_size]
                        for i in range(0, len(normalized), self.chunk_size)]
+        if validate_typing_mode(getattr(chat,'wcfg',{}))=='full':
+            self.chunks=[normalized] if normalized else []
         self.index = 0
+        self._entered_length = 0
+        self.stream_sealed = True
+        self.enter_gate = None
         self.next_due = clock()
         self.state = "typing"
         self.error = ""
@@ -48,6 +54,22 @@ class TypingSession:
             return raw[len(self._mention_prefix):] if raw.startswith(self._mention_prefix) else None
         value = self.chat._input_text(self.edit)
         return value.replace("\r\n", "\n").replace("\r", "\n") if value is not None else None
+
+    def update_stream(self, text, *, sealed):
+        normalized=text.replace('\r\n','\n').replace('\r','\n')
+        if not normalized.startswith(self.normalized) or self.enter_attempted:
+            raise ValueError('stream draft must be append-only before Enter')
+        # Keep already pasted chunks immutable, including a short live chunk.
+        remaining=normalized[self._entered_length:]
+        self.chunks=self.chunks[:self.index]+[remaining[i:i+self.chunk_size]
+            for i in range(0,len(remaining),self.chunk_size)]
+        self.text,self.normalized=text,normalized
+        self.stream_sealed=bool(sealed)
+
+    def full_paste(self):
+        if self.index:
+            raise ValueError('typing already started')
+        self.chunks=[self.normalized] if self.normalized else []
 
     def close(self):
         if self._clipboard is None:
@@ -106,7 +128,7 @@ class TypingSession:
                 return self.state
             if self._verify_prefix:
                 self.phase='verify_prefix'
-                expected = self.normalized[:self.index * self.chunk_size]
+                expected = self.normalized[:self._entered_length]
                 if self._draft() == expected:
                     if self.on_verified_draft is not None and not self.mention_name:
                         self.on_verified_draft(expected)
@@ -125,7 +147,7 @@ class TypingSession:
                 return self.state
             if self.index < len(self.chunks):
                 self.phase='paste_guard'
-                if self._draft() != self.normalized[:self.index * self.chunk_size]:
+                if self._draft() != self.normalized[:self._entered_length]:
                     self.state,self.error='blocked','粘贴前输入内容变化或不可读，已保留草稿，未按回车'
                     return self.state
                 self.phase='clipboard_acquire'
@@ -135,7 +157,7 @@ class TypingSession:
                     self.state,self.error='blocked',self._target_or_focus_error('粘贴前')
                     self.close()
                     return self.state
-                if self._draft() != self.normalized[:self.index * self.chunk_size]:
+                if self._draft() != self.normalized[:self._entered_length]:
                     self.state, self.error = 'blocked', '粘贴前草稿或提及对象变化，未粘贴、未按回车'
                     self.close()
                     return self.state
@@ -151,11 +173,14 @@ class TypingSession:
                     return self.state
                 self.phase='paste_key'
                 auto.SendKeys('{Ctrl}v',interval=0.01,waitTime=0.05)
+                self._entered_length += len(self.chunks[self.index])
                 self.index += 1
                 self._verify_prefix = True
                 self._verify_deadline = self.clock() + 0.75
                 self.next_due = self.clock() + (self.chunk_interval if self.index < len(self.chunks) else 0.05)
             else:
+                if not self.stream_sealed:
+                    return self.state
                 self.phase='before_enter'
                 if self._draft() != self.normalized:
                     self.state, self.error = "blocked", "回车前输入内容变化，已保留草稿"
@@ -175,10 +200,13 @@ class TypingSession:
                 if not self.chat._can_send(self.win, self.edit) or self._draft() != self.normalized:
                     self.state, self.error = "blocked", "回车前对象、焦点或输入内容变化，已保留草稿"
                     return self.state
-                self.enter_attempted = True
-                self.phase='enter'
-                auto.SendKeys("{Enter}", waitTime=0.1)
-                self.state = "submitted"
+                with self.enter_gate() if self.enter_gate is not None else nullcontext(True) as allowed:
+                    if not allowed:
+                        return self.state
+                    self.enter_attempted = True
+                    self.phase='enter'
+                    auto.SendKeys("{Enter}", waitTime=0.1)
+                    self.state = "submitted"
         except Exception as exc:
             self.state = "uncertain" if self.enter_attempted else "blocked"
             self.failure_details.update(failure_details(exc))
@@ -191,5 +219,5 @@ class TypingSession:
                 if self.mention_name and not self.enter_attempted:
                     self.failure_details['manual_required'] = True
                 self.failure_details.update(phase=self.phase,enter_attempted=self.enter_attempted,
-                    characters_entered=min(self.index*self.chunk_size,len(self.normalized)))
+                    characters_entered=self._entered_length)
         return self.state

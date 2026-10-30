@@ -15,8 +15,10 @@ import uuid
 import json
 from pathlib import Path
 from threading import Lock
+from contextvars import ContextVar
 
 from common.flow_trace import FlowTrace, butler_trace_path, record
+from common.model_stream import bind,emit,answer
 
 from .config import Config
 from .contacts import Contact
@@ -27,8 +29,33 @@ from .skill_policy import SkillPolicyStore
 from .pending import PendingQueue, EmptyPendingQueue
 from .push import push_to_wxbot
 from .reply import split_reply
+from .message_forwarding import ForwardingError, forward_message
 from .concurrency import RuntimeLocks
 from . import router, skills
+
+_stream_state=ContextVar('butler_public_stream',default=None)
+
+
+class _FinalCompositionStream:
+    """Append-only projection of Codex final-channel text through legacy cleanup."""
+    def __init__(self):
+        self.raw='';self.sent=''
+
+    def feed(self,text):
+        self.raw+=text
+        if len(self.raw)>1024*1024:raise ValueError('Model answer exceeds stream limit')
+        candidate=self.raw.lstrip()
+        if any(marker.startswith(candidate) for marker in router.SILENT_MARKERS) or router.is_silent(candidate):
+            return ''
+        # An action may span arbitrary deltas. Hold its opener and everything
+        # after it until the complete marker can be removed by the same parser.
+        opened=candidate.rfind('<<')
+        if opened>=0 and candidate.find('>>',opened)<0:candidate=candidate[:opened]
+        elif candidate.endswith('<'):candidate=candidate[:-1]
+        candidate=router.parse_actions(candidate)[0].rstrip()
+        if not candidate.startswith(self.sent):raise ValueError('Model answer changed after streaming')
+        delta=candidate[len(self.sent):];self.sent=candidate
+        return delta
 
 
 @dataclass
@@ -173,7 +200,47 @@ class Butler:
         return {'users': rows}
 
     # ---------- 主流程 ----------
-    def handle(self, contact_name: str, text: str, msg_id: str | None = None,
+    def handle(self, contact_name: str, text: str, msg_id=None,channel_type='dm',member_key='',member_name='',
+               avatar='',group_context_seq=0,on_event=None):
+        if on_event is None:
+            return self._handle_request(contact_name,text,msg_id,channel_type,member_key,member_name,avatar,group_context_seq)
+        state={'safe':False,'filter':_FinalCompositionStream()}
+        def public(event):
+            # Legacy actions, silence and pending composition can replace raw
+            # backend text. Observation is live; delivery waits for composition.
+            event=dict(event)
+            if event['type']=='backend':
+                event.update(streaming=state['safe'],mention_name='')
+                if not state['safe']:event['fallback']='final_composition'
+            if event['type']=='answer_delta':
+                if not state['safe'] or event.get('sendable') is not True:return
+                delta=state['filter'].feed(event.get('text',''))
+                if not delta:return
+                for offset in range(0,len(delta),8192):
+                    on_event({**event,'text':delta[offset:offset+8192]})
+                return
+            on_event(event)
+        token=_stream_state.set(state)
+        try:
+            with bind(public):
+                result=self._handle_request(contact_name,text,msg_id,channel_type,member_key,member_name,avatar,group_context_seq)
+        finally:
+            _stream_state.reset(token)
+        with bind(on_event):
+            if result.meta.get('reply_complete') is False:
+                emit('error',code='incomplete_result',retry_safe=result.meta.get('retry_safe') is True)
+            elif result.meta.get('route') == 'forward':
+                emit('complete')
+            else:
+                emit('backend',provider=self.cfg.provider,model=getattr(self.cfg,'codex_model','') if self.cfg.provider=='codex' else getattr(self.cfg,'hermes_model',''),streaming=state['safe'],
+                     mention_name=result.meta.get('mention_name',''),**({} if state['safe'] else {'fallback':'final_composition'}))
+                prefix=state['filter'].sent
+                if not (result.reply or '').startswith(prefix):
+                    raise ValueError('Butler composed answer differs from streamed prefix')
+                answer((result.reply or '')[len(prefix):]);emit('complete')
+        return result
+
+    def _handle_request(self, contact_name: str, text: str, msg_id: str | None = None,
                channel_type: str = "dm", member_key: str = "", member_name: str = "",
                avatar: str = "", group_context_seq: int = 0) -> Result:
         started = time.monotonic()
@@ -181,12 +248,20 @@ class Butler:
             record('butler_received','ok',characters=len(text))
             try:
                 c = self._contact(contact_name, channel_type, member_key)
-                c = self._resolved_contact(replace(c,label=member_name,avatar=avatar,group_context_seq=group_context_seq))
+                c = replace(c,label=member_name,avatar=avatar,group_context_seq=group_context_seq)
+                route = next((r for r in self.cfg.message_routes
+                              if r.enabled and c.channel_type == 'dm' and r.contact == c.name), None)
+                if route is None:
+                    c = self._resolved_contact(c)
                 record('butler_session','waiting')
                 with self.runtime_locks.session(c):
                     record('butler_session','ok')
-                    result = self._handle(c, text)
-                    if self.registry:
+                    if route is not None:
+                        self.flow.received(c.name, text)
+                        result = self._forward_message(route, text)
+                    else:
+                        result = self._handle(c, text)
+                    if self.registry and route is None:
                         result.meta.update(user_id=c.user_id,binding_id=c.binding_id,identity_status=c.identity_status,
                             mention_name=c.mention_name if c.channel_type=='group' and c.identity_status=='confirmed' else '')
                 record('butler_result','error' if result.meta.get('error') else 'ok',
@@ -209,6 +284,11 @@ class Butler:
         # 1. 补发：先认领（这样模型自己再查队列看到的是空的，不会说两遍）
         pending = self.pending.take_and_claim(
             c, allow_unowned=self.cfg.contacts.is_sole_profile_owner(c))
+        stream_state=_stream_state.get()
+        if stream_state is not None:
+            # Groups wait for the identity/mention envelope and final result;
+            # pending replies must remain ahead of the generated answer.
+            stream_state['safe']=self.cfg.provider=='codex' and not pending and c.channel_type=='dm'
 
         # 2. 前置规则
         dec = router.pre_route(c, text)
@@ -306,6 +386,23 @@ class Butler:
                 "model_silent": model_silent, "sent": reply is not None,
                 "session_id": self.hermes.session_id(c, skill_policy=policy)}
         return Result(reply, results, meta)
+
+    def _forward_message(self, route, text) -> Result:
+        started = time.monotonic()
+        record('butler_forward', 'started')
+        emit('backend', provider='http', label='消息转发', streaming=False)
+        try:
+            status = forward_message(route, text)
+        except ForwardingError as exc:
+            record('butler_forward', 'error', http_status=exc.status,
+                   elapsed_ms=round((time.monotonic() - started) * 1000))
+            self.log('[%s] %s', route.contact, exc)
+            return Result(meta={'route': 'forward', 'forwarded': False, 'error': str(exc),
+                                'http_status': exc.status, 'reply_complete': False, 'retry_safe': False})
+        record('butler_forward', 'ok', http_status=status,
+               elapsed_ms=round((time.monotonic() - started) * 1000))
+        self.log('[%s] 消息已转发（HTTP %s）', route.contact, status)
+        return Result(meta={'route': 'forward', 'forwarded': True, 'http_status': status, 'sent': False})
 
     def _public_context_scope(self, contact, policy):
         scope = self.hermes.scope(contact,policy) if hasattr(self.hermes,'scope') else contact.key()

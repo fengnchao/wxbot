@@ -13,6 +13,7 @@ import uuid
 from urllib.request import getproxies
 
 from common.flow_trace import record,current_request_id
+from common.model_stream import emit,answer
 from ..concurrency import RuntimeLocks
 from ..hermes import HermesError
 
@@ -259,6 +260,7 @@ class CodexBackend:
             startup.cancel()
 
     def chat(self,contact,text,*,extra_system='',timeout=None,skill_policy=None,session_kind='chat'):
+        emit('backend',provider='codex',model=self.cfg.codex_model or '',streaming=True)
         from openai_codex import SkillInput,TextInput
         policy=self.tools.catalogue.validate(skill_policy or DEFAULT_POLICY)
         scope=self.scope(contact,policy,session_kind)
@@ -285,25 +287,44 @@ class CodexBackend:
                 # Mark before the call: an RPC failure may occur after submission.
                 submitted=True
                 turn=worker.thread.turn(inputs)
-                final=None; completed=False
+                final=None; completed=False; phases={}; streamed={}
                 for event in turn.stream():
                     payload=event.payload
                     if hasattr(payload,'model_dump'):
                         payload=payload.model_dump(mode='json',by_alias=True)
                     if not isinstance(payload,dict):
                         continue
+                    if event.method=='item/agentMessage/delta':
+                        item_id=payload.get('itemId')
+                        delta=payload.get('delta')
+                        if phases.get(item_id)=='final_answer' and isinstance(delta,str):
+                            streamed[item_id]=streamed.get(item_id,'')+delta
+                            answer(delta)
+                    if event.method=='item/reasoning/summaryTextDelta':
+                        # SDK reasoning summaries are explicitly public; opaque
+                        # reasoning text and encrypted content are never read.
+                        if isinstance(payload.get('delta'),str):
+                            emit('summary_delta',text=payload['delta'])
                     if event.method in ('item/started','item/completed'):
                         item=payload.get('item') or {}
                         kind=item.get('type')
+                        if kind=='agentMessage' and item.get('id'):
+                            phases[item['id']]=item.get('phase')
                         # MCP progress comes from ToolService, with the original
                         # request id, avoiding duplicate SDK and HTTP event rows.
-                        if kind=='dynamicToolCall':
+                        if kind in ('dynamicToolCall','mcpToolCall'):
                             status='running' if event.method=='item/started' else 'completed'
                             name=item.get('tool','tool')
+                            emit('tool',tool=name,status=status)
                             record('hermes_tool',status,backend='codex',tool=name)
                             self.store.event(contact.name,'model_tool',status,tool=name)
                         if event.method=='item/completed' and kind=='agentMessage' and item.get('phase') in (None,'final_answer'):
                             final=item.get('text')
+                            prefix=streamed.get(item.get('id'),'')
+                            if prefix and (not isinstance(final,str) or not final.startswith(prefix)):
+                                raise HermesError('Codex final response differs from streamed answer')
+                            if item.get('phase')=='final_answer' and isinstance(final,str):
+                                answer(final[len(prefix):])
                     if event.method=='turn/completed':
                         completed=(payload.get('turn') or {}).get('status')=='completed'
                 deadline.check()

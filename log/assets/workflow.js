@@ -7,6 +7,59 @@ const WF_STATUS = {unbatched:'等待合并',ready:'等待提交',processing:'处
   blocked:'已阻断',uncertain:'结果不确定',waiting_blocker:'等待旧任务释放',discarded:'已丢弃',
   model_failed:'模型失败已结束',no_reply:'本轮无需回复',archived:'已归档 / 静默'};
 const WF_COLORS = ['#72b4ff','#bb9aff','#51d4b1','#f0bc76','#f18db0'];
+const modelStream={id:'',cursor:0,summary:'',answer:'',tools:[],model:null,status:'',error:'',controller:null,timer:null,epoch:0};
+function stopModelStream(){
+  modelStream.epoch++;clearTimeout(modelStream.timer);modelStream.controller?.abort();
+  Object.assign(modelStream,{id:'',cursor:0,summary:'',answer:'',tools:[],model:null,status:'',error:'',controller:null,timer:null});
+}
+function workflowModelLabel(data=workflow.data){
+  const info=modelStream.model||data?.model;
+  return info?String(info.label||info.provider||'模型')+(info.model?' · '+info.model:''):
+    ({hermes:'Hermes',codex:'Codex'}[data?.backend]||'模型');
+}
+function workflowModelPanel(){
+  if(!modelStream.id)return '<div class="wf-stream-empty">正在处理的请求会实时显示在这里；也可点选消息查看已记录的模型输出。</div>';
+  const message=workflow.data?.messages.find(m=>m.id===modelStream.id);
+  return `<div class="wf-stream"><div class="wf-stream-heading"><b>${esc(message?.contact||'当前请求')}</b><span>${esc(modelStream.error||modelStream.status||'正在读取模型进度')}</span></div>`+
+    (modelStream.model?.fallback?`<p class="wf-note">${esc(({final_composition:'此请求需要完成回复整理后再发送，处理进度仍实时显示。',group_identity:'群提及身份需在最终结果核验，本轮等待完整回复。',complete_only:'此后端等待完整回复后发送。'})[modelStream.model.fallback]||'本轮等待完整回复后发送。')}</p>`:'')+
+    `<div class="wf-stream-columns"><div><h4>思考摘要</h4><pre>${esc(modelStream.summary||'后端尚未提供公开摘要')}</pre>`+
+    `<h4>工具进度</h4>${modelStream.tools.length?'<ul>'+modelStream.tools.map(t=>`<li>${esc(t.tool||'工具')} · ${esc(t.status||'处理中')}</li>`).join('')+'</ul>':'<p class="wf-note">暂无工具事件</p>'}</div>`+
+    `<div><h4>回复正文</h4><pre>${esc(modelStream.answer||'等待最终回答正文…')}</pre></div></div></div>`;
+}
+async function loadModelStream(){
+  if(state.tab!=='workflow'||!workflow.overview||workflow.deleting||document.hidden){stopModelStream();return;}
+  const messages=workflow.data?.messages||[];
+  const target=messages.find(m=>m.id===workflow.selected&&m.kind==='batch')||(!workflow.selected&&messages.find(m=>m.kind==='batch'&&!m.terminal));
+  if(!target){stopModelStream();return;}
+  if(modelStream.id!==target.id){stopModelStream();modelStream.id=target.id;}
+  if(modelStream.controller)return;
+  clearTimeout(modelStream.timer);
+  const epoch=modelStream.epoch,id=target.id,controller=new AbortController();modelStream.controller=controller;
+  const timeout=setTimeout(()=>controller.abort(),5000);
+  const current=()=>state.tab==='workflow'&&workflow.overview&&epoch===modelStream.epoch&&id===modelStream.id&&modelStream.controller===controller;
+  let more=false;
+  try{
+    const response=await fetch('/api/workflow-stream?'+new URLSearchParams({id,after:String(modelStream.cursor)}),{signal:controller.signal,cache:'no-store'});
+    const data=await response.json();if(!current())return;
+    if(!response.ok||data.id!==id)throw new Error(data.error||'模型实时输出暂不可读取');
+    if(data.reset)Object.assign(modelStream,{summary:'',answer:'',tools:[],model:null});
+    for(const event of data.events||[]){
+      if(event.type==='summary_delta')modelStream.summary=(modelStream.summary+String(event.text||'')).slice(-16000);
+      if(event.type==='answer_delta')modelStream.answer=(modelStream.answer+String(event.text||'')).slice(-32000);
+      if(event.type==='tool')modelStream.tools=[...modelStream.tools,event].slice(-8);
+      if(event.type==='backend')modelStream.model={...workflow.data?.model,...event,label:({codex:'Codex',hermes:'Hermes',deepseek:'DeepSeek',openclaw:'OpenClaw',cursor:'Cursor'}[event.provider]||workflow.data?.model?.label||event.provider)};
+      if(event.type==='complete')modelStream.status='模型已完成';
+      if(event.type==='error')modelStream.status='本轮已中止';
+    }
+    modelStream.cursor=Number(data.cursor)||0;modelStream.error='';more=!!data.more;
+    if(!modelStream.status)modelStream.status=data.available?(target.terminal?'历史模型记录':'生成中'):'此记录暂无模型实时输出';
+    renderWorkflow(true);
+  }catch(error){if(current()){modelStream.error=error.name==='AbortError'?'读取超时，正在重连':'模型实时输出暂不可读取';renderWorkflow(true);}}
+  finally{
+    clearTimeout(timeout);
+    if(current()){modelStream.controller=null;if(!target.terminal||more)modelStream.timer=setTimeout(loadModelStream,400);}
+  }
+}
 Object.assign(WF_STATUS,{received:'Butler 已收件，等待新闻调度',rejected:'已拒绝',not_submitted:'新闻未提交',cancelled:'已取消',skipped:'已跳过'});
 Object.assign(WF_STATUS,{preparing:'图片准备中',media_failed:'图片准备失败',awaiting_bot:'等待机器人收件'});
 Object.assign(FLOW_STAGE_LABELS,{telegram_received:'Telegram 机器人收件',telegram_butler:'Butler 确认收件',telegram_news:'新闻投递回执'});
@@ -35,6 +88,7 @@ function workflowFresh(previous,next,baseline){
   return fresh;
 }
 function stopWorkflow(){
+  stopModelStream();
   workflow.epoch++;clearTimeout(workflow.timer);workflow.controller?.abort();workflow.controller=null;
   workflow.contentController?.abort();workflow.contentController=null;workflow.content=null;
   workflow.busy=false;workflow.baseline=false;stopWorkflowPulses();
@@ -65,6 +119,7 @@ async function loadWorkflow(){
     const selected=data.messages.find(m=>m.id===workflow.selected);
     if(selected)loadWorkflowContent(selected);
     else {workflow.contentController?.abort();workflow.contentController=null;workflow.content=null;}
+    if(workflow.overview)loadModelStream();
     if(!workflow.paused)pulseWorkflow(fresh);
     markRefreshed();
   }catch(error){
@@ -184,6 +239,7 @@ async function deleteWorkflow(action,id=''){
   workflow.deleting=true;workflow.notice='正在移除…';
   const epoch=++workflow.epoch;clearTimeout(workflow.timer);workflow.controller?.abort();workflow.controller=null;workflow.busy=false;
   workflow.contentController?.abort();workflow.contentController=null;
+  stopModelStream();
   // An aborted full-text read must not remain cached as an in-flight request.
   if(workflow.content?.status==='loading')workflow.content=null;
   renderWorkflow(true);
@@ -248,7 +304,7 @@ function workflowDiagram(data,visible,selected,recent){
   const trail=new Set((selected?.events||[]).map(e=>workflowService(e.node)));
   const edges=new Set((selected?.events||[]).map(workflowEventEdge));
   const present=visible.filter(m=>m.id===workflow.selected||(m.scope!=='issues'&&(!m.terminal||recent.has(m.id))));
-  const model=data?.backend==='hermes'?'Hermes':data?.backend==='codex'?'Codex':'模型';
+  const model=workflowModelLabel(data);
   function node(id,title,subtitle,icon){
     const messages=present.filter(m=>workflowService(m.stage)===id).sort((a,b)=>a.order-b.order||a.id.localeCompare(b.id));
     const cap=['butler','wxbot','telegram'].includes(id)?2:8;
@@ -256,12 +312,18 @@ function workflowDiagram(data,visible,selected,recent){
     return `<div id="wf-node-${id}" data-service="${id}" class="wf-node wf-service-${id} ${trail.has(id)?'traced':''} ${selected&&workflowService(selected.stage)===id?'current':''}">
       <div class="wf-node-label"><span class="wf-service-icon">${icon}</span><div><h3>${esc(title)}</h3><p>${esc(subtitle)}</p></div><span class="wf-service-count">${messages.length} <small>${id==='model'?'条请求':'条'}</small></span></div>
       <div class="wf-node-messages">${shown.map(m=>workflowSummaryRow(m,id)).join('')||`<div class="wf-service-empty">${id==='model'?'等待新的模型请求':id==='inbox'?'暂无待合并或待提交消息':id==='outbox'?'暂无等待发送的回复':id==='butler'?'接收、调度与回复共用此节点':'接收消息 · 输入回复 · 确认发送'}</div>`}</div>
+      ${id==='model'?workflowModelPanel():''}
       ${messages.length>cap?`<button class="wf-more" data-wf-more="${id}">${workflow.expanded.has(id)?'收起':'查看其余 '+(messages.length-cap)+' 条'}</button>`:''}</div>`;
   }
   function wires(band,paths){
     return `<div class="wf-wire-band wf-band-${band}"><svg viewBox="0 0 1000 72" preserveAspectRatio="none" aria-hidden="true"><defs><marker id="wf-arrow-${band}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/></marker></defs>${paths.map(([id,path,label])=>`<g id="wf-edge-${id}" class="wf-wire ${edges.has(id)?'traced':''}" style="--trace-color:${selected?workflowColor(selected):'#5d978e'}"><path class="wf-wire-line" d="${path}" marker-end="url(#wf-arrow-${band})"/><path class="wf-packet" d="${path}" pathLength="100"/></g>`).join('')}</svg>${paths.map(([id,path,label],i)=>`<span class="wf-wire-label ${i?'right':'left'}">${label}</span>`).join('')}</div>`;
   }
-  return `<div class="wf-diagram">${node('model',model,'模型执行区 · 多用户请求与工具进度','✦')}
+  if(data?.model?.via_butler===false)return `<div class="wf-diagram">${node('model',model,'直接接入 · 公开摘要、工具进度与回复正文','✦')}
+    ${wires('model',[['dispatch','M240 72 V38 H420 V2','↑ 请求模型'],['enqueue','M580 0 V38 H760 V70','↓ 回复入队']])}
+    <div class="wf-queue-pair">${node('inbox','收件队列','wxbot · 连续消息合并','收')}${node('outbox','发件队列','wxbot · 按句发送与确认','发')}</div>
+    ${wires('wechat',[['receive','M420 72 V38 H240 V2','↑ 收到消息'],['send','M760 0 V38 H580 V70','↓ 发送回复']])}
+    <div class="wf-hub-row">${node('wxbot','wxbot','微信收件与发送确认','W')}</div></div>`;
+  return `<div class="wf-diagram">${node('model',model,'模型执行区 · 公开摘要、工具进度与回复正文','✦')}
     ${wires('model',[['request','M420 72 V2','↑ 请求模型'],['result','M580 0 V70','↓ 完整回复']])}
     <div class="wf-hub-row wf-entry-row"><div class="wf-telegram-entry">${node('telegram','Telegram','机器人收件 · 累计 '+(data?.counts?.telegram||0)+' 条','T')}</div>
       <svg class="wf-telegram-wire" viewBox="0 0 1000 100" preserveAspectRatio="none" aria-hidden="true"><defs><marker id="wf-tg-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10z" fill="context-stroke"/></marker></defs><g id="wf-edge-telegram" class="wf-wire ${edges.has('telegram')?'traced':''}" style="--trace-color:${selected?workflowColor(selected):'#69bafa'}"><path class="wf-wire-line" d="M245 50 H278" marker-end="url(#wf-tg-arrow)"/><path class="wf-packet" d="M245 50 H278" pathLength="100"/></g></svg>
@@ -275,7 +337,7 @@ function renderWorkflow(force=false){
   if(state.tab!=='workflow')return;
   const data=workflow.data;
   const recent=new Set((data?.messages||[]).filter(m=>m.terminal&&data.at-m.updated_at<15).map(m=>m.id));
-  const signature=(data?workflowSignature(data):'empty')+'|'+[...recent].join(',')+'|'+workflow.selected+'|'+workflow.scope+'|'+currentQuery()+'|'+[...workflow.expanded].join(',')+'|'+workflow.error;
+  const signature=(data?workflowSignature(data):'empty')+'|'+JSON.stringify(data?.model)+'|'+[...recent].join(',')+'|'+workflow.selected+'|'+workflow.scope+'|'+currentQuery()+'|'+[...workflow.expanded].join(',')+'|'+workflow.error;
   if(!force&&signature===workflow.signature)return;
   workflow.signature=signature;
   const all=data?.messages||[],visible=all.filter(workflowMatches),selected=all.find(m=>m.id===workflow.selected);
@@ -292,7 +354,7 @@ function renderWorkflow(force=false){
     ${workflow.error?`<div class="wf-alert" role="status">${esc(workflow.error)}${data?' · 下方保留最近快照，状态及倒计时已暂停。':''}</div>`:''}
     ${warnSources.length?`<div class="wf-note wf-source-note">${warnSources.map(s=>esc(s.name)+'：'+esc(s.error||(s.status==='missing'?'数据尚未创建':s.status!=='ok'?'数据暂不可读取':s.name==='Telegram'?'仅载入部分消息，更多见收发队列':'仅载入最近 4 MB 过程事件'))).join('；')}。队列中已确认的阶段仍会显示。</div>`:''}
     ${data?.active_more?'<div class="wf-alert">当前展示最早的 500 条待处理记录。更多记录请在收发队列分页查看。</div>':''}
-    <section class="wf-overview"><button id="wf-overview" aria-expanded="${workflow.overview}">${workflow.overview?'收起':'展开'}服务流转概览 <span>微信 → 收件 → Butler ⇄ 模型 → 发件 → 微信</span></button>
+    <section class="wf-overview"><button id="wf-overview" aria-expanded="${workflow.overview}">${workflow.overview?'收起':'展开'}服务流转概览 <span>${esc(workflowModelLabel())} · ${data?.model?.via_butler===false?'微信 → 收件 → 模型 → 发件 → 微信':'微信 → 收件 → Butler ⇄ 模型 → 发件 → 微信'}</span></button>
       ${workflow.overview?`<div class="wf-canvas">${diagram}<div class="wf-legend"><i></i> 新事件传输 <em></em> 所选消息经过的路径</div></div>`:''}</section>
     <section class="wf-sidebar"><div class="wf-section-heading"><h2>实时消息</h2><span>${visible.length} 条已载入</span><button id="wf-clear-failed" ${workflow.deleting||!count.closed_issues?'disabled':''}>清理已结束异常 (${count.closed_issues??0})</button></div>
       <div class="wf-tabs">${[['all','最近消息'],['active','进行中'],['issues','异常记录'],['complete','已完成']].map(([value,label])=>`<button data-wf-scope="${value}" class="${workflow.scope===value?'on':''}">${label} <b>${visible.filter(m=>workflowInScope(m,value)).length}</b></button>`).join('')}</div>
@@ -301,17 +363,18 @@ function renderWorkflow(force=false){
       ${selected?workflowTrace(selected):''}</div>
       <p class="wf-note">点选消息查看正文与流转。可按用户、UID、群成员及 ID 搜索。${data?.history_more?'历史仅显示最近 60 轮。':''}</p></section>
     <details class="wf-recent" data-detail="workflow-recent"><summary>最近事件 · ${events.length?esc(full(events[0].e.ts)):'等待收件'}</summary>${events.map(({m,e})=>`<div><time>${esc(full(e.ts))}</time><b>${esc(m.contact)}</b><span>${esc(FLOW_STAGE_LABELS[e.stage]||e.stage)} · ${esc(FLOW_STATUS_LABELS[e.status]||e.status)}</span></div>`).join('')}</details></div>`;
-  $('#wf-overview').onclick=()=>{workflow.overview=!workflow.overview;renderWorkflow(true);};
+  $('#wf-overview').onclick=()=>{workflow.overview=!workflow.overview;if(workflow.overview)loadModelStream();else stopModelStream();renderWorkflow(true);};
   $('#wf-clear-failed').onclick=()=>deleteWorkflow('failed');
   $('#pane').querySelectorAll('[data-wf-delete]').forEach(button=>button.onclick=()=>deleteWorkflow('single',button.dataset.wfDelete));
   $('#wf-animation').onclick=()=>{workflow.paused=!workflow.paused;stopWorkflowPulses();renderWorkflow(true);};
   $('#pane').querySelectorAll('[data-wf-select]').forEach(button=>button.onclick=()=>{
     workflow.selected=button.dataset.wfSelect;
+    if(workflow.overview)loadModelStream();
     loadWorkflowContent(workflow.data?.messages.find(m=>m.id===workflow.selected));renderWorkflow(true);
   });
   $('#pane').querySelectorAll('[data-wf-scope]').forEach(button=>button.onclick=()=>{workflow.scope=button.dataset.wfScope;renderWorkflow(true);});
   $('#pane').querySelectorAll('[data-wf-more]').forEach(button=>button.onclick=()=>{const id=button.dataset.wfMore;workflow.expanded.has(id)?workflow.expanded.delete(id):workflow.expanded.add(id);renderWorkflow(true);});
-  if(selected){$('#wf-deselect').onclick=()=>{workflow.selected='';workflow.contentController?.abort();workflow.contentController=null;workflow.content=null;renderWorkflow(true);};
+  if(selected){$('#wf-deselect').onclick=()=>{workflow.selected='';workflow.contentController?.abort();workflow.contentController=null;workflow.content=null;stopModelStream();if(workflow.overview)loadModelStream();renderWorkflow(true);};
     $('#wf-diagnose').onclick=()=>{state.qContact=selected.contact;state.qState='all';state.qScope=selected.terminal?'history':selected.scope==='issues'?'issues':'active';resetQueuePages();switchTab('queue');};}
   for(const [selector,top] of scrolls){const node=$(selector);if(node)node.scrollTop=top;}
   updateWorkflowClock();

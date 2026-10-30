@@ -12,6 +12,7 @@ import uuid
 
 from .config import validate_failure_timeout
 from .delivery_policy import DeliveryPolicy
+from .stream_queue import StreamQueue
 
 FAILURE_TIMEOUT_SECONDS = 180
 RETRY_DELAY_SECONDS = 20
@@ -87,7 +88,7 @@ class Delivery:
     media_path: str = ''
 
 
-class QueueStore(DeliveryPolicy):
+class QueueStore(StreamQueue, DeliveryPolicy):
     def __init__(self, path, *, access="runtime", failure_timeout_seconds=FAILURE_TIMEOUT_SECONDS,
                  retry_delay_seconds=RETRY_DELAY_SECONDS, max_delivery_retries=MAX_DELIVERY_RETRIES, restart_chat_policy='discard', directory_path=None):
         from . import queue_schema
@@ -124,6 +125,7 @@ class QueueStore(DeliveryPolicy):
                 self._db.execute("PRAGMA synchronous=FULL")
                 self._db.execute("PRAGMA foreign_keys=ON")
                 queue_schema.initialize(self._db)
+                self._initialize_streams()
             elif access == "admin" and not queue_schema.is_latest(self._db):
                 raise ValueError("旧队列需要升级：先停止旧 wxbot，再启动新版；管理命令不会迁移")
         except BaseException:
@@ -559,7 +561,7 @@ class QueueStore(DeliveryPolicy):
 
     def confirming(self, delivery_id, *, now):
         with self._transaction() as db:
-            db.execute("UPDATE outbox SET state='confirming',submitted_at=? WHERE id=?", (now, delivery_id))
+            db.execute("UPDATE outbox SET state='confirming',submitted_at=? WHERE id=? AND state IN ('sending','confirming')", (now, delivery_id))
 
     @staticmethod
     def _event(db,row,action,now,state,reason,details=None,*,kind='outbox',source='wxbot'):
@@ -658,6 +660,10 @@ class QueueStore(DeliveryPolicy):
     def recover(self, *, now=None):
         now=time.time() if now is None else now
         with self._transaction() as db:
+            streams=(db.execute("SELECT batch_id FROM model_stream_batches WHERE mode='streaming' AND status!='cancelled'").fetchall()
+                     if db.execute("SELECT 1 FROM sqlite_master WHERE name='model_stream_batches'").fetchone() else [])
+            for stream in streams:
+                self._cancel_stream(db,stream['batch_id'],now,'重启停止旧流式回复，不重放')
             interrupted_models=db.execute("SELECT * FROM batches WHERE state='processing'").fetchall()
             models = db.execute("""UPDATE batches SET state='uncertain',error='进程中断，模型结果未知',finished_at=?
                 WHERE state='processing'""",(now,)).rowcount
@@ -752,6 +758,9 @@ class QueueStore(DeliveryPolicy):
         with self._transaction() as db:
             table = "outbox" if delivery else "batches"
             row = db.execute(f"SELECT * FROM {table} WHERE id=?", (record_id,)).fetchone()
+            stream=self.stream_part(record_id) if delivery else None
+            if stream and (stream['status']=='cancelled' or stream['enter_attempted']):
+                raise ValueError('流式本轮已结束，请核对已发送内容后发起新请求')
             if row is None or (row["state"] not in {"blocked", "uncertain"} and not (delivery and row["state"]=="skipped" and row["manual_required"])):
                 raise ValueError("只允许显式重试 blocked/uncertain 任务")
             self._check_action(row,contact,expected_state,expected_finished_at,expected_attempts)

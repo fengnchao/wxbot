@@ -97,6 +97,9 @@ class DeliveryPump:
             close=getattr(self.active.typing,'close',None)
             if close is not None: close()
         self.store.finish_delivery(delivery.id, state, now=self.clock(), error=error,details=details)
+        part=getattr(self.store,'stream_part',lambda _:None)(delivery.id)
+        if part and state in {'blocked','uncertain'}:
+            self.store.cancel_stream(delivery.batch_id,now=self.clock(),reason=error or '流式投递停止')
         if state in {'blocked','uncertain'}:
             row=self.store.get_delivery(delivery.id)
             log.error('[发送失败][%s][%s] 状态=%s 原因=%s 详情=%s 自动丢弃截止=%s',
@@ -174,6 +177,25 @@ class DeliveryPump:
                 self._finish(delivery, "blocked", "输入框有草稿或无法读取、对象无法确认或窗口不可用",
                              {**self._diagnostics(chat,'prepare_input'), 'manual_required':getattr(chat,'draft_conflict',False)})
                 return
+            stream_part=getattr(self.store,'stream_part',lambda _:None)(delivery.id)
+            if stream_part:
+                if not hasattr(typing,'update_stream'):
+                    close=getattr(typing,'close',None)
+                    if stream_part['status']!='complete':
+                        if close is not None: close()
+                        self.store.defer_stream_window(delivery.id,now=self.clock())
+                        log.info('[队列][%s] 窗口不支持流式输入，等待完整回复后发送',delivery.id)
+                        return
+                    # Completed immutable snapshot: legacy windows use their
+                    # existing buffered send path; never type an unsealed part.
+                else:
+                    typing.update_stream(stream_part['text'],sealed=stream_part['sealed'])
+                    typing.enter_gate=lambda: self.store.stream_enter_gate(
+                        delivery.id,typing.text,getattr(typing,'stream_version',None))
+                    typing.stream_version=stream_part['version']
+            elif (getattr(self.store,'delivery_typing_mode',lambda _:'chunked')(delivery.batch_id)=='full'
+                    and hasattr(typing,'full_paste')):
+                typing.full_paste()
             active = ActiveDelivery(delivery, chat, typing, baseline)
             typing.on_verified_draft = lambda text: self.store.save_draft(delivery.id, text)
             typing.before_enter = lambda: self._prepare_enter(active)
@@ -289,6 +311,25 @@ class DeliveryPump:
                 active.deadline+=max(0,self.monotonic()-active.authorization_paused_at)
             active.authorization_paused_at=None
         row = self.store.get_delivery(active.delivery.id)
+        part=getattr(self.store,'stream_part',lambda _:None)(active.delivery.id)
+        if part and not active.typing.enter_attempted:
+            if part['status']=='cancelled' or row['state']=='skipped':
+                # Clear exclusively the exact UI-readback prefix we own.
+                draft=row.get('draft_text')
+                cleared=False
+                if draft and hasattr(active.chat,'clear_owned_draft'):
+                    try: cleared=active.chat.clear_owned_draft(draft)
+                    except Exception: pass
+                if cleared:
+                    self.store.forget_draft(active.delivery.contact)
+                    self.store.stream_draft_cleaned(active.delivery.id)
+                elif draft or getattr(active.typing,'_entered_length',0) or getattr(active.typing,'index',0):
+                    self.store.stream_draft_review(active.delivery.id)
+                self._finish(active.delivery,'skipped','流式回复已停止',{'manual_required':bool(draft and not cleared)})
+                return
+            if hasattr(active.typing,'update_stream'):
+                active.typing.update_stream(part['text'],sealed=part['sealed'])
+                active.typing.stream_version=part['version']
         if (active.delivery.batch_id and row['failed_at'] is not None
                 and self.clock() >= row['failed_at'] + self.store.failure_timeout_seconds
                 and not active.typing.enter_attempted):

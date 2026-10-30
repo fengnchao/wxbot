@@ -57,6 +57,43 @@ Butler Token 为空时拒绝请求并返回 500；wxbot `/send` 在服务端 Tok
 
 微信原始收件依靠 Windows UI 采集。当前没有供第三方订阅微信实时消息的 Webhook、WebSocket、SSE 或“注册回调 URL”接口；第三方可以调用处理接口，或通过管理台只读接口查询已采集记录。
 
+### 1.3 指定联系人只转发到其他接口
+
+在 `config.butler.toml` 添加规则，也可以在管理台「配置管理」搜索「指定联系人消息转发」，
+编辑对应 JSON 数组。`contact` 是微信私聊会话的精确名称（通常是备注名），
+`code` 是目标接口要求的用户代码，两者可以不同：
+
+```toml
+[[message_routes]]
+contact = "微信联系人备注名"
+url = "http://127.0.0.1:8790/v1/message"
+code = "101"
+enabled = true
+timeout = 10
+```
+
+该联系人发来「你好」时，Butler 发送：
+
+```http
+POST http://127.0.0.1:8790/v1/message
+Content-Type: application/json
+
+{"code":"101","text":"你好"}
+```
+
+规则在模型调用、个人记忆读取、补发认领及 Butler 自身命令前判断；
+收到任意 2xx 响应即记为转发成功，响应正文不解析、不回微信。
+失败、超时或重定向只记录错误，不改走 Codex，也不自动重放请求。
+对端应在接收成功后返回 2xx；超时可能发生于对端已接收之后，需要人工核对。
+
+没有规则、`enabled = false` 的联系人以及群聊继续原有处理流程；一个联系人最多一条规则。
+`enabled` 缺省为 true，`timeout` 缺省为 10 秒。删除或禁用规则后恢复模型处理。
+配置更改需由使用者自行重载 Butler，程序不自动重启。
+
+转发正文沿用 wxbot 已送到 Butler 的文本批次；短时间内多条消息仍按原队列规则合并。
+wxbot 本地 `/ping`、`/help`、`/reset` 等斜杠命令仍在 wxbot 处理，不进入此转发接口。
+此功能不转发记忆、角色、服务凭证、其他用户上下文或图片原文件。
+
 ## 2. 接口速查
 
 以下路径分别拼接对应服务的基础地址。
@@ -654,3 +691,16 @@ Butler 参数错误通常为 `{"error":"..."}`，wxbot 通常为 `{"ok":false,"d
 本机管理台可向 `POST /api/jobs/delete` 提交 `{job_id, version, acknowledge:true}`，使用 JSON、同源请求及 `X-Wxbot-Job-Action: 1`。`job_id` 和 `version` 分别来自任务列表的 `job_id` 和 `delete_version`。页面先请求确认，再由 log 持服务端 Token 转发到 `POST /v1/jobs/delete`；浏览器不持有 Token。
 
 删除停止该条 Butler 提醒的未来执行并从任务列表移除，保留删除操作记录。正在投递或版本已变化时返回 409，已删除／不存在返回 404，未确认或参数无效返回 400。取消、已发送和失败记录也可删除；已发送的微信消息不会撤回。其他调度器的旧任务需到对应调度器操作。
+# 模型流式回复（2026-10-29）
+
+`POST /v1/handle-stream` 为 Butler 的流式处理入口，沿用 `/v1/handle` 的 Bearer Token、身份校验和请求参数。
+响应为 SSE，`data:` 中是 JSON 对象：`backend`（实际后端及能力）、`summary_delta`（公开摘要）、
+`tool`（工具进度）、`answer_delta`（正文增量）、`error`（中止）；最终 `result` 事件的 `result` 字段
+为原完整处理接口的响应对象。没有正常最终结果的连接按中断处理，不能自动重新提交模型请求。
+
+`answer_delta` 只有显式 `sendable=true` 才可作为提前发送正文；摘要和工具进度不进入发件队列。
+Butler 需要补发拼接、旧行动标记处理或无法预先固定群提及身份时，会等最终结果再输出正文。
+原 `/v1/handle` 继续返回完整 JSON，兼容原调用方。
+
+管理台 `GET /api/workflow-stream?id=<批次ID>&after=<游标>` 只读本地持久化公开事件；
+它不生成回复或恢复请求。字段及微信三种回复方式见 [LOG_DASHBOARD.md](LOG_DASHBOARD.md#回复方式)。

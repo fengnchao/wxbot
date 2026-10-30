@@ -1495,13 +1495,35 @@ class Handler(BaseHTTPRequestHandler):
                 except (OSError,sqlite3.Error,KeyError,TypeError):
                     self._json({'status':'error','error':'消息全文暂时不可读取'},503)
                 return
+            if p == '/api/workflow-stream':
+                from log.model_stream_view import read_stream
+                from log.workflow_content import read_content
+                try:
+                    view=self._config_view();view.read()
+                    record_id=one('id','');after=int(one('after','0'))
+                    queue_path=view.queue_options()['path']
+                    if read_content(queue_path,view.root/'config.telegram-bot.toml',record_id) is None:
+                        self._json({'status':'missing','error':'消息已移除或不存在'},404);return
+                    payload=read_stream(queue_path,record_id,after=after)
+                    # Preserve protocol structure; scrub only the displayed event values.
+                    for event in payload['events']:
+                        for key in ('text','message','model','provider','tool','fallback'):
+                            if isinstance(event.get(key),str):event[key]=view.scrub_message_text(event[key])
+                    self._json(payload)
+                except (ValueError,TypeError):self._json({'error':'消息标识或读取位置无效'},400)
+                except (OSError,sqlite3.Error):self._json({'error':'模型实时输出暂不可读取'},503)
+                return
             if p == '/api/workflow':
                 try:
                     view = self._config_view()
                     view.read()
-                    config = _load_butler_config()
-                    payload = WorkflowView(**view.flow_options(), contacts=config.get('contacts', []),
-                                           backend=(config.get('agent') or {}).get('provider','hermes')).read()
+                    from log.model_stream_view import resolve_model
+                    config=view._raw.get('butler') or {}
+                    wx=view._raw.get('wxbot') or {}
+                    model=resolve_model(wx,config)
+                    contacts=load_wxbot_contacts()
+                    payload = WorkflowView(**view.flow_options(), contacts=list(contacts.values()) if isinstance(contacts,dict) else contacts,
+                                           backend=model['provider'],model=model).read()
                     telegram = TelegramView(view.root/'config.telegram-bot.toml', view.butler_path).workflow()
                     payload['sources'].append(telegram['source'])
                     payload['nodes'].append(dict(id=8,key='telegram',label='Telegram',description='机器人收件与新闻提交'))

@@ -4,6 +4,7 @@ import uuid
 import sqlite3
 from pathlib import Path
 import requests
+from common.model_stream import bind,emit,answer,json_frames,TrimmedAnswer
 from .base import Processor
 from ..reply import Reply
 
@@ -12,6 +13,7 @@ class OpenAICompatProcessor(Processor):
     def __init__(self, mcfg: dict, *, raise_errors=False):
         self.raise_errors = raise_errors
         self.backend = mcfg.get('backend', 'openai')
+        self.provider = mcfg.get('provider') or self.backend
         self.url = mcfg.get('url', 'http://127.0.0.1:8642/v1/chat/completions')
         self.model = mcfg.get('model', 'hermes-agent')
         self.agent = mcfg.get('agent', 'default')
@@ -104,15 +106,60 @@ class OpenAICompatProcessor(Processor):
             raise ValueError('Model reply has no final text')
         return reply.strip()
 
-    def handle_reply(self, contact, text, *, request_id=None, member_key='', member_name='', **kwargs):
+    def _stream_decode(self,response):
+        pieces=[];finish=None;output=TrimmedAnswer()
+        for data in json_frames(response.iter_lines()):
+            if data=='[DONE]':
+                if finish!='stop' or not ''.join(pieces).strip():raise ValueError('Model stream incomplete')
+                return ''.join(pieces).strip()
+            if not isinstance(data,dict) or data.get('error'):raise ValueError('Model stream failed')
+            for choice in data.get('choices',[]):
+                if choice.get('index',0)!=0:raise ValueError('Multiple model choices')
+                delta=choice.get('delta') or {}
+                if delta.get('tool_calls') or delta.get('function_call'):raise ValueError('Unresolved streaming tool request')
+                text=delta.get('content')
+                if text is not None:
+                    if not isinstance(text,str) or finish is not None:raise ValueError('Invalid model stream delta')
+                    pieces.append(text);output.feed(text)
+                if choice.get('finish_reason') is not None:
+                    finish=choice['finish_reason']
+                    if finish!='stop':raise ValueError('Model stream incomplete')
+        raise ValueError('Model stream disconnected before completion')
+
+    def handle_reply(self, contact, text, *, request_id=None, member_key='', member_name='',on_event=None, **kwargs):
+        streaming=on_event is not None and self.backend not in ('hermes','openclaw')
+        with bind(on_event):
+            emit('backend',provider=self.provider,model=self.model,streaming=streaming,
+                 **({'fallback':'final_composition'} if not streaming else {}))
+            try:
+                result=self._handle_reply(contact,text,request_id=request_id,member_key=member_key,
+                    member_name=member_name,_streaming=streaming,**kwargs)
+                if not streaming:answer(result.text)
+                emit('complete')
+                return result
+            except Exception as exc:
+                if on_event is not None:exc.retry_safe=False
+                emit('error',code=type(exc).__name__,retry_safe=False)
+                raise
+
+    def _handle_reply(self, contact, text, *, request_id=None, member_key='', member_name='',_streaming=False, **kwargs):
         key = self._key(contact, 'group' if member_key or kwargs.get('channel_type') == 'group' else 'dm')
         history = self.histories.get(key, [])
         messages = ([{'role':'system','content':self.system_prompt}] if self.system_prompt else []) + history + [{'role':'user','content':text}]
         headers, body = self._request(messages, key, request_id)
         # Errors propagate in every mode: a failed turn must never become a delivered reply.
-        response = requests.post(self.url, headers=headers, json=body, timeout=self.timeout)
-        response.raise_for_status()
-        reply = self._decode(response.json())
+        if _streaming:body['stream']=True
+        response = requests.post(self.url, headers=headers, json=body, timeout=self.timeout,
+                                 **({'stream':True} if _streaming else {}))
+        try:
+            response.raise_for_status()
+            if _streaming and 'application/json' in getattr(response,'headers',{}).get('Content-Type','').lower():
+                emit('backend',provider=self.provider,model=self.model,streaming=False,fallback='complete_result')
+                reply=self._decode(response.json());answer(reply)
+            else:
+                reply = self._stream_decode(response) if _streaming else self._decode(response.json())
+        finally:
+            if _streaming:response.close()
         if self.backend == 'hermes':
             echoed = getattr(response, 'headers', {}).get('X-Hermes-Session-Id')
             if echoed:

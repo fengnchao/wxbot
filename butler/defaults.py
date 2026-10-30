@@ -6,11 +6,13 @@ def butler_defaults():
             'server': {'host': '127.0.0.1', 'port': 8770, 'token': ''},
             'codex': {'model': ''},
             'wxbot': {'url': 'http://127.0.0.1:8765', 'token': ''},
-            'dispatch': {'actions_enabled': False}}
+            'dispatch': {'actions_enabled': False},
+            'message_routes': []}
 
 
 def wxbot_defaults():
     return {'model': {'backend': 'butler'},
+            'wechat': {'typing': {'mode':'chunked','chunk_size':5,'chunk_interval':.25}},
             'butler': {'url': 'http://127.0.0.1:8770', 'token': '', 'timeout': 660},
             'outbound': {'enabled': True, 'host': '127.0.0.1', 'port': 8765, 'token': ''},
             'queue': {'database': 'cache/wxbot_queue.sqlite3'}}

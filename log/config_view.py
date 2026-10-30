@@ -30,7 +30,7 @@ WX_DEFAULTS = {
                'group_sender':{'avatar_size':48,'avatar_left_offset':4,'avatar_top_offset':0,'member_names':{},
                                'identity_avatar_left_offset':12,'identity_avatar_top_offset':0},
                'sender_detect':{'strip_width':80,'diff_threshold':40,'min_pixels':20},
-               'typing':{'chunk_size':5,'chunk_interval':.25}},
+               'typing':{'mode':'chunked','chunk_size':5,'chunk_interval':.25}},
 }
 BT_DEFAULTS = {
     'reply':{'chunk_chars':500},
@@ -42,7 +42,7 @@ BT_DEFAULTS = {
               'root':'','send_identity':True,'profile_in_path':False},
     'wxbot':{'url':'http://127.0.0.1:8765','token':'','timeout':120},
     'dispatch':{'actions_enabled':True,'script_dir':'','respond_after_action':False},
-    'log':{'flow_file':''}, 'groups':{'file':''}, 'contacts':[],
+    'log':{'flow_file':''}, 'groups':{'file':''}, 'contacts':[], 'message_routes':[],
     'heartbeat':{'config_file':'','state_file':'','audit_file':'','min_interval_minutes':180,'max_interval_minutes':360},
 }
 _SECRET_WORDS = {'key','apikey','token','password','passwd','secret','authorization','credential',

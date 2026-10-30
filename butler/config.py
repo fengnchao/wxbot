@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .contacts import ContactMap, load_contacts
+from .message_forwarding import MessageRoute, load_message_routes
 
 DEFAULT_CONFIG = Path(__file__).resolve().parents[1] / "config.butler.toml"
 
@@ -64,6 +65,7 @@ class Config:
     heartbeat_max_interval_minutes: int = 360
     # 联系人
     contacts: ContactMap = field(default_factory=ContactMap)
+    message_routes: tuple[MessageRoute, ...] = field(default_factory=tuple)
 
     @property
     def have_token(self) -> bool:
@@ -200,6 +202,7 @@ def load(path: str | os.PathLike | None = None) -> Config:
         heartbeat_min_interval_minutes=max(1, int(hb.get("min_interval_minutes") or 180)),
         heartbeat_max_interval_minutes=max(1, int(hb.get("max_interval_minutes") or 360)),
         contacts=contacts,
+        message_routes=load_message_routes(raw.get('message_routes', [])),
     )
 
 

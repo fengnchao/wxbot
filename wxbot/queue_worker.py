@@ -2,6 +2,7 @@
 import random
 import threading
 import time
+import inspect
 from contextlib import nullcontext
 
 from common.flow_trace import record
@@ -10,9 +11,21 @@ from .log import log
 from .config import validate_model_concurrency
 
 
+def _supports_events(router):
+    """Callbacks need an explicit parameter or an advertised capability."""
+    if getattr(router,'supports_model_stream',False) is True:
+        return True
+    try:
+        params=inspect.signature(router.handle_reply).parameters
+        return 'on_event' in params
+    except (ValueError,TypeError):
+        return False
+
+
 class ModelWorker:
     def __init__(self, store, router, *, quiet=3, max_wait=10, prefix="/",
-                 reply_delay_min=0, reply_delay_max=0, clock=time.time, max_concurrency=2, trace=None):
+                 reply_delay_min=0, reply_delay_max=0, clock=time.time, max_concurrency=2, trace=None,
+                 typing_mode='chunked'):
         validate_model_concurrency(max_concurrency)
         self.max_concurrency = max_concurrency
         self.store, self.router = store, router
@@ -20,6 +33,9 @@ class ModelWorker:
         self.delay_min, self.delay_max = reply_delay_min, reply_delay_max
         self.clock = clock
         self.trace = trace
+        if typing_mode not in {'full','chunked','streaming'}:
+            raise ValueError('invalid typing mode')
+        self.typing_mode = typing_mode
         self._stop = threading.Event()
         self._threads = []
         self._claims = threading.Lock()
@@ -91,16 +107,68 @@ class ModelWorker:
                     log.info("[队列][%s][%s] 本批次静默（已进上下文，不回复）", batch.contact, batch.id)
                 else:
                     record('wxbot_model','started')
+                    # Freeze mode for this batch. Group mention identity is only
+                    # service-resolved in the final result: buffer groups safely.
+                    stream_mode = self.typing_mode
+                    if (batch.member_key or getattr(self.store,'is_group_batch',lambda _:False)(batch.id)) and stream_mode == 'streaming':
+                        stream_mode = 'chunked'
+                    begin = getattr(self.store,'begin_stream',None)
+                    if begin is not None:
+                        begin(batch.id,stream_mode,now=self.clock())
+                    if self.typing_mode=='streaming' and stream_mode!='streaming':
+                        persist=getattr(self.store,'record_model_event',None)
+                        if persist is not None:
+                            persist(batch.id,{'type':'backend','streaming':False,
+                                'fallback':'群聊等待服务确认提及身份后完整发送'},now=self.clock())
+                    streamed = []
+                    def on_event(event):
+                        if not isinstance(event,dict):
+                            return
+                        persist = getattr(self.store,'record_model_event',None)
+                        if persist is not None:
+                            persist(batch.id,event,now=self.clock())
+                        if event.get('type')=='error':
+                            raise RuntimeError('backend stream failed')
+                        if (stream_mode=='streaming' and event.get('type')=='answer_delta'
+                                and event.get('sendable') is True and isinstance(event.get('text'),str)):
+                            if self._stop.is_set():
+                                raise RuntimeError('stream stopped')
+                            text=event['text']
+                            self.store.append_stream(batch.id,text,now=self.clock())
+                            streamed.append(text)
+                    if _supports_events(self.router):
+                        extra['on_event']=on_event
                     reply = self.router.handle_reply(batch.contact, batch.text, context=batch.context, request_id=batch.id,
                                                      member_key=batch.member_key, member_name=batch.member_name, **extra)
-                    self.store.finish_batch_parts(batch.id, reply.parts, reply_text=reply.text, now=self.clock(),
-                                                  delay=random.uniform(self.delay_min, self.delay_max),
-                                                  mention_name=getattr(reply, 'mention_name', ''))
+                    if self._stop.is_set() and streamed:
+                        raise RuntimeError('stream stopped')
+                    if streamed:
+                        prefix=''.join(streamed)
+                        if not reply.text.startswith(prefix):
+                            raise ValueError('final answer differs from streamed prefix')
+                        self.store.append_stream(batch.id,reply.text[len(prefix):],now=self.clock(),final=True)
+                    else:
+                        parts=(reply.text,) if self.typing_mode=='full' and (reply.text or '').strip() else reply.parts
+                        self.store.finish_batch_parts(batch.id, parts, reply_text=reply.text, now=self.clock(),
+                                                      delay=random.uniform(self.delay_min, self.delay_max),
+                                                      mention_name=getattr(reply, 'mention_name', ''))
+                        finish_stream=getattr(self.store,'finish_buffered_stream',None)
+                        if finish_stream is not None:
+                            finish_stream(batch.id,reply.text)
+                    persist=getattr(self.store,'record_model_event',None)
+                    if persist is not None:
+                        persist(batch.id,{'type':'complete'},now=self.clock())
                     record('wxbot_result','ok',part_count=len(reply.parts),characters=len(reply.text or ''),
                            elapsed_ms=round((time.monotonic()-started)*1000))
                     log.info("[队列][%s][%s] %s", batch.contact, batch.id,
                              f"完整回复已入发件箱，共 {len(reply.parts)} 句" if reply.parts else "本批次无需回复")
             except Exception as exc:
+                persist=getattr(self.store,'record_model_event',None)
+                if persist is not None:
+                    persist(batch.id,{'type':'error','message':type(exc).__name__},now=self.clock())
+                snapshot = getattr(self.store,'stream_snapshot',lambda _:None)(batch.id)
+                if snapshot and snapshot['mode']=='streaming' and snapshot['answer']:
+                    self.store.cancel_stream(batch.id,now=self.clock())
                 record('wxbot_result','error',error_type=type(exc).__name__,
                        elapsed_ms=round((time.monotonic()-started)*1000))
                 safe=getattr(exc,'retry_safe',False) is True
@@ -143,6 +211,9 @@ class ModelWorker:
     def stop(self, timeout=1):
         deadline = time.monotonic() + max(0, timeout)
         self._stop.set()  # Never wait for SQLite/claim locks to signal shutdown.
+        cancel=getattr(self.store,'cancel_active_streams',None)
+        if cancel is not None:
+            cancel(now=self.clock())
         for thread in self._threads:
             thread.join(max(0, deadline-time.monotonic()))
         return not any(thread.is_alive() for thread in self._threads)

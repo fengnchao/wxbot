@@ -133,6 +133,8 @@ def validate_document(source,data,view,changes,policy_validator=None):
         if q['max_wait_seconds']<=0 or q['confirm_timeout']<=0:raise ValueError('合并及发送确认等待必须大于0')
     elif source=='butler':
         cfg=merge(BT_DEFAULTS,data)
+        from butler.message_forwarding import load_message_routes
+        load_message_routes(cfg['message_routes'])
         context=cfg['context']
         for key,high in (('group_messages',200),('group_characters',30000)):
             if type(context[key])is not int or not 1<=context[key]<=high:

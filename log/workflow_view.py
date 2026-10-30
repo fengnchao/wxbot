@@ -42,14 +42,16 @@ class WorkflowView:
     ACTIVE_LIMIT = 500
     HISTORY_LIMIT = 60
 
-    def __init__(self, queue_options, trace_paths, *, contacts=(), backend='codex'):
+    def __init__(self, queue_options, trace_paths, *, contacts=(), backend='codex', model=None):
         self.flow = FlowView(queue_options, trace_paths)
         self.contacts = {c['name']: c for c in contacts if c.get('name')}
-        self.backend = backend if backend in ('codex', 'hermes') else 'unknown'
+        self.backend = str(backend)[:64]
+        self.model = model or {'provider':self.backend,'label':{'codex':'Codex','hermes':'Hermes'}.get(self.backend,'模型'),
+                               'model':'','via_butler':True}
 
     def read(self, *, now=None):
         now = time.time() if now is None else now
-        result = dict(status='ok', read_only=True, at=now, backend=self.backend, messages=[],
+        result = dict(status='ok', read_only=True, at=now, backend=self.backend, model=self.model, messages=[],
                       nodes=[dict(id=i, key=k, label=l, description=d) for i,(k,l,d) in enumerate(NODES)],
                       counts={}, sources=[], active_more=False, history_more=False, error='')
         traces = defaultdict(list)
@@ -83,6 +85,12 @@ class WorkflowView:
                                (self.HISTORY_LIMIT,)).fetchall()
             reasons = {name: self.flow.queue._reason(db, name, now) for name in {r['contact'] for r in rows}}
             result['messages'] = [self._message(db,r,reasons[r['contact']],traces,now) for r in rows]
+            if rows:
+                from .model_stream_view import latest_model
+                candidate=next((r for r in rows if r['kind']=='batch' and not r['terminal']),None)
+                if candidate:
+                    result['model']=latest_model(path,candidate['id'],self.model)
+                    result['backend']=result['model']['provider']
             result['active_more'] = totals.get(0,0) > self.ACTIVE_LIMIT
             result['history_more'] = totals.get(1,0) > self.HISTORY_LIMIT
             scalar = lambda sql: db.execute(sql).fetchone()[0]

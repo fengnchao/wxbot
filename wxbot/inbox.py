@@ -10,7 +10,7 @@ from common.flow_trace import FlowTrace,queue_trace_path,record
 from .wechat.clipboard import restore_pending
 
 from .delivery import DeliveryPump
-from .config import validate_model_concurrency, validate_runtime_config
+from .config import validate_model_concurrency, validate_runtime_config, validate_typing_mode
 from .log import log
 from .queue_store import Incoming, QueueStore, queue_database
 from .queue_worker import ModelWorker
@@ -75,6 +75,7 @@ class MainInbox:
             reply_delay_min=self.bot.get("reply_delay_min", 0.8),
             reply_delay_max=self.bot.get("reply_delay_max", 2.5),
             max_concurrency=concurrency,trace=self.trace,
+            typing_mode=validate_typing_mode(cfg.get('wechat', {})),
         )
         self.delivery = DeliveryPump(
             self.store, self._chat, self._capture_target, self._discover,
@@ -229,6 +230,13 @@ class MainInbox:
         expected = getattr(chat, "expected_group", None)
         if expected is not None and chat.group_mode != expected:
             raise RuntimeError(f"[{name}] 会话类型变化，拒绝覆盖原快照或继续收发")
+        session = self.pending.get(name)
+        if (fresh is None and session and session.unread_count
+                and not any(message.sender in {'other', 'system'} for message in messages)):
+            # Passive/handoff/send reads contain text only. They cannot consume
+            # pending unread work without a readable incoming row. A successful
+            # read_bundle supplies explicit fresh entries, including [] for images.
+            raise ReadDeferred('unread_messages_not_visible', '未读消息尚未在可读区域显示，保留未读任务等待重读')
         if fresh is None:
             previous = self.snapshots.get(name)
             fresh = new_messages(previous, messages) if previous else messages if previous == [] else []
@@ -315,7 +323,7 @@ class MainInbox:
         try:
             self._capture(name, chat, messages)
         except ReadDeferred as exc:
-            if exc.read_code not in {'unknown_fresh_sender', 'unknown_unread_sender'}:
+            if exc.read_code not in {'unknown_fresh_sender', 'unknown_unread_sender', 'unread_messages_not_visible'}:
                 raise
             # Baseline/bubble reads belong to DeliveryPump. An ambiguous
             # incoming row cannot invalidate its independently verified send.
@@ -367,7 +375,9 @@ class MainInbox:
                 if fresh:
                     log.info("[%s] 快照正文相同，按明确未读信号补采 %d 条", name, len(fresh))
             else:
-                fresh = None
+                # The bundle also verified nontext entries; keep its successful
+                # read explicit even when no incoming text was found.
+                fresh = new_messages(previous, messages) if previous else messages
         else:
             messages, fresh = chat.read_messages(), None
         self._capture(name, chat, messages, fresh=fresh)
@@ -377,7 +387,7 @@ class MainInbox:
         try:
             return self._receive(self.pending.get(name, Session(name)))
         except ReadDeferred as exc:
-            if exc.read_code not in {'unknown_fresh_sender', 'unknown_unread_sender'}:
+            if exc.read_code not in {'unknown_fresh_sender', 'unknown_unread_sender', 'unread_messages_not_visible'}:
                 raise
             # _receive already verified chat availability before sender
             # classification. DeliveryPump must still read its own baseline;

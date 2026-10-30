@@ -126,5 +126,15 @@ body.workflow-page #pane{padding:20px 25px 45px;background:radial-gradient(ellip
 .wf-delete:disabled,#wf-clear-failed:disabled{opacity:.45;cursor:default}
 .wf-inspect{margin:0;max-height:70vh;padding:15px;min-width:0}
 .wf-action-notice{font-size:12px;color:#d7bc98;margin:8px 0 12px}
+.wf-stream-empty{padding:0 16px 14px;color:#7897a8;font-size:11px}
+.wf-stream{padding:0 16px 16px;min-width:0}
+.wf-stream-heading{display:flex;gap:12px;justify-content:space-between;font-size:12px;color:#c6d9e3}
+.wf-stream-heading span{font-size:11px;color:#84b7b1}
+.wf-stream-columns{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:16px;margin-top:10px}
+.wf-stream-columns>div{min-width:0;border-top:1px solid #2d4654;padding-top:8px}
+.wf-stream h4{margin:6px 0;color:#9cb9cb;font-size:11px;font-weight:500}
+.wf-stream pre{white-space:pre-wrap;overflow-wrap:anywhere;font:12px/1.8 inherit;max-height:240px;overflow:auto;margin:5px 0;color:#d5e1e8}
+.wf-stream ul{margin:5px 0;padding-left:16px;color:#a3bbc9;font-size:11px;max-height:100px;overflow:auto}
+@media(max-width:600px){.wf-stream-columns{grid-template-columns:minmax(0,1fr)}.wf-stream pre{max-height:160px}}
 @media(max-width:950px){.wf-stats{grid-template-columns:repeat(3,minmax(0,1fr))}.wf-message-layout.has-selection{grid-template-columns:minmax(0,1fr)}.wf-inspect{grid-row:1;max-height:55vh}.wf-feed{max-height:65vh}.wf-sidebar{padding:14px}.wf-tabs{flex-wrap:wrap}.wf-tabs button{min-width:0;flex:1}}
 @media(max-width:600px){#wf-overview{display:block}#wf-overview span{display:block;margin-top:5px}.wf-message-head{flex-wrap:wrap;gap:3px}.wf-overview .wf-canvas{padding:8px}.wf-overview .wf-node-label p{display:none}.wf-tabs{gap:3px}.wf-tabs button{padding:7px 5px}.wf-delete{padding:7px}.wf-stats strong{font-size:21px}}

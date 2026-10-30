@@ -19,7 +19,15 @@ class CursorProcessor(OpenAICompatProcessor):
     def _request(self, messages, key, request_id):
         return {}, {'messages': messages}
 
-    def handle_reply(self, contact, text, *, request_id=None, member_key='', member_name='', **kwargs):
+    def handle_reply(self, contact, text, *, request_id=None, member_key='', member_name='',on_event=None, **kwargs):
+        from common.model_stream import bind,emit,answer
+        with bind(on_event):
+            emit('backend',provider='cursor',model=self.cursor_model,streaming=False,fallback='complete_result')
+            result=self._handle_cursor(contact,text,request_id=request_id,member_key=member_key,member_name=member_name,**kwargs)
+            answer(result.text);emit('complete')
+            return result
+
+    def _handle_cursor(self, contact, text, *, request_id=None, member_key='', member_name='', **kwargs):
         from ..reply import Reply
         key = self._key(contact, 'group' if member_key or kwargs.get('channel_type') == 'group' else 'dm')
         history = self.histories.get(key, [])

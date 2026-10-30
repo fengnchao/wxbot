@@ -29,6 +29,7 @@ from .inbox import mentioned_text as _mentioned_text, run_main_inbox
 def build_processor(cfg: dict) -> Router:
     mcfg = dict(cfg.get("model", {}))
     backend = mcfg.get("backend", "ollama")
+    mcfg.setdefault('provider',cfg.get('installation',{}).get('provider') or backend)
     if cfg.get('_config_dir') and backend in ('hermes', 'openclaw'):
         from pathlib import Path
         mcfg.setdefault('session_state', str(Path(cfg['_config_dir']) / 'data' / 'agent_sessions.sqlite3'))

@@ -25,7 +25,7 @@ class Router:
         return self.handle_reply(contact, text, context=context, member_key=member_key, member_name=member_name).text
 
     def handle_reply(self, contact: str, text: str, *, context: str = "", request_id=None,
-                     member_key: str = "", member_name: str = "", avatar='', group_context_seq=None) -> Reply:
+                     member_key: str = "", member_name: str = "", avatar='', group_context_seq=None,on_event=None) -> Reply:
         text = text.strip()
         if self.prefix and text.startswith(self.prefix):
             words = text[len(self.prefix):].split()
@@ -39,6 +39,8 @@ class Router:
         if context:
             text = f"{context}\n{text}"
         extra = {}
+        if on_event is not None:
+            extra['on_event']=on_event
         if context.startswith('[群聊发言人：') or member_key:
             extra['channel_type']='group'
         if avatar:

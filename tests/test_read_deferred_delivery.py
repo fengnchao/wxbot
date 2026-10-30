@@ -5,7 +5,7 @@ import pytest
 
 from test_main_window import Chat, Desktop, Router, cfg
 from wxbot.inbox import MainInbox
-from wxbot.wechat.chat_window import Message, ReadDeferred
+from wxbot.wechat.chat_window import ChatWindow, Message, ReadDeferred
 from wxbot.wechat.main_window import Conversation, MainWindow, Session
 
 
@@ -66,6 +66,30 @@ def test_unknown_unread_sender_does_not_block_send_or_consume_incoming_checkpoin
     inbox.poll(allow_switch=True)
     inbox.poll(allow_switch=True)
     assert [row['text'] for row in inbox.store.records('inbox')] == ['新收到']
+    assert inbox.store.pending_sessions() == []
+
+
+def test_no_visible_unread_does_not_block_verified_send_or_discard_unread_task(monkeypatch):
+    inbox, chat, desktop = setup_inbox()
+    before = inbox.store.snapshots()
+    chat.messages = [Message('clipped', '顶部残缺历史')]
+    desktop.pending = [Session('101', 8)]
+    reader = SimpleNamespace(_read_entries=lambda: [(message, True) for message in chat.messages],
+                             title=chat.title)
+    monkeypatch.setattr(chat, 'read_bundle', lambda count: ChatWindow.read_bundle(reader, count))
+    record_id = enqueue(inbox)
+
+    send(inbox)
+
+    assert inbox.store.get_delivery(record_id)['state'] == 'sent'
+    assert inbox.store.snapshots() == before
+    assert inbox.store.pending_sessions()[0]['unread_count'] == 8
+    assert inbox.store.records('inbox') == []
+    chat.messages.append(Message('other', '晚点可读的新消息'))
+    inbox.monotonic = lambda: 12
+    inbox.poll(allow_switch=True)
+    inbox.poll()
+    assert [row['text'] for row in inbox.store.records('inbox')] == ['晚点可读的新消息']
     assert inbox.store.pending_sessions() == []
 
 

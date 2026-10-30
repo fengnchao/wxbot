@@ -305,10 +305,12 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                     return
                 self._send(202, {"ok": True, "status": "started", "contact": contact})
                 return
-            if self.path.startswith("/v1/handle"):
+            if self.path in ("/v1/handle","/v1/handle-stream"):
                 if not self._authed():
                     return
                 b = self._body()
+                if not isinstance(b,dict):
+                    self._send(400,{'error':'请求必须是对象'});return
                 contact = str(b.get("contact") or "").strip()
                 text = str(b.get("text") or "")
                 if not contact:
@@ -324,17 +326,35 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 boundary = b.get('group_context_seq',0)
                 if not isinstance(avatar,str) or len(avatar)>750000 or type(boundary)is not int or boundary<0:
                     self._send(400,{'error':'Invalid avatar or group context sequence'}); return
+                streaming=self.path=='/v1/handle-stream'
+                def stream_event(event):
+                    self.wfile.write(('data: '+json.dumps(event,ensure_ascii=False)+'\n\n').encode('utf-8'))
+                    self.wfile.flush()
+                if streaming:
+                    self.send_response(200)
+                    self.send_header('Content-Type','text/event-stream; charset=utf-8')
+                    self.send_header('Cache-Control','no-store')
+                    self.send_header('Connection','close')
+                    self.end_headers()
+                    self.close_connection=True
                 try:
                     res = butler.handle(contact, text, msg_id=b.get("msg_id"),
                                         channel_type=channel_type,
                                         member_key=member_key, member_name=member_name,
                                         **({'avatar':avatar}if avatar else {}),
-                                        **({'group_context_seq':boundary}if boundary else {}))
+                                        **({'group_context_seq':boundary}if boundary else {}),
+                                        **({'on_event':stream_event}if streaming else {}))
                 except Exception as e:                     # 绝不让异常变成"通道死了"
+                    if streaming:
+                        try:stream_event({'type':'error','code':type(e).__name__,'retry_safe':False})
+                        except (OSError,ValueError):pass
+                        return
                     _log("handle 异常: %s: %s", type(e).__name__, e)
                     self._send(500, {"error": f"{type(e).__name__}: {e}"})
                     return
-                self._send(200, res.as_dict(reply_chunk_chars=cfg.reply_chunk_chars))
+                result=res.as_dict(reply_chunk_chars=cfg.reply_chunk_chars)
+                if streaming:stream_event({'type':'result','result':result})
+                else:self._send(200,result)
                 return
             if self.path.startswith("/v1/reset"):
                 if not self._authed():

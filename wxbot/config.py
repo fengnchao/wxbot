@@ -16,7 +16,20 @@ def validate_model_concurrency(value):
         raise ValueError('queue.max_model_requests 必须是正整数（不能是布尔值）')
 
 
+def validate_typing_mode(wcfg):
+    if not isinstance(wcfg, dict):
+        raise ValueError('wechat 必须是配置表')
+    typing = wcfg.get('typing', {})
+    if not isinstance(typing, dict):
+        raise ValueError('wechat.typing 必须是配置表')
+    mode = typing.get('mode', 'chunked')
+    if mode not in ('full', 'chunked', 'streaming'):
+        raise ValueError('wechat.typing.mode 必须是 full/chunked/streaming')
+    return mode
+
+
 def validate_typing_config(wcfg):
+    validate_typing_mode(wcfg)
     if not isinstance(wcfg, dict):
         raise ValueError('wechat 必须是配置表')
     typing = wcfg.get('typing', {})

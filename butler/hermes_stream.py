@@ -3,6 +3,7 @@ import json
 import time
 
 from common.flow_trace import record
+from common.model_stream import emit
 
 
 class StreamError(ValueError):
@@ -35,6 +36,7 @@ def frames(response, deadline):
 
 
 def read_complete(response, timeout):
+    emit('backend',provider='hermes',streaming=False,fallback='final_composition')
     final_text, completion_id, finish, generating = None, None, None, False
     for event,raw in frames(response,time.monotonic()+timeout):
         if raw=='[DONE]':
@@ -56,6 +58,7 @@ def read_complete(response, timeout):
         if event=='hermes.tool.progress':
             status = data.get('status')
             if status in ('running','completed','failed'):
+                emit('tool',status=status,tool=data.get('tool',''))
                 record('hermes_tool',status,tool=data.get('tool',''),tool_call_id=data.get('toolCallId',''))
             continue
         if event=='approval.request':

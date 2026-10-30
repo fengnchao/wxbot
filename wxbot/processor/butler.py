@@ -12,6 +12,7 @@ import requests
 import time
 
 from common.flow_trace import record
+from common.model_stream import bind,emit,json_frames
 
 from ..log import log
 from .base import Processor
@@ -57,7 +58,7 @@ class ButlerProcessor(Processor):
         return data['seq']
 
     def handle_reply(self, contact: str, text: str, *, request_id=None, member_key="", member_name="",
-                     avatar='', group_context_seq=None,channel_type='dm') -> Reply:
+                     avatar='', group_context_seq=None,channel_type='dm',on_event=None) -> Reply:
         started = time.monotonic()
         record('wxbot_butler','started')
         try:
@@ -72,16 +73,39 @@ class ButlerProcessor(Processor):
                 body['avatar'] = avatar
             if group_context_seq is not None:
                 body['group_context_seq'] = group_context_seq
-            resp = requests.post(self.url + "/v1/handle", headers=self._headers(),
-                                 json=body, timeout=self.timeout)
+            resp = requests.post(self.url + ("/v1/handle-stream" if on_event is not None else "/v1/handle"), headers=self._headers(),
+                                 json=body, timeout=self.timeout,**({'stream':True} if on_event is not None else {}))
             resp.raise_for_status()
-            data = resp.json()
+            if on_event is None:
+                data = resp.json()
+            else:
+                data=None;prefix=''
+                try:
+                    with bind(on_event):
+                        for event in json_frames(resp.iter_lines()):
+                            if not isinstance(event,dict):raise ValueError('Invalid Butler stream event')
+                            kind=event.get('type')
+                            if kind=='result':
+                                data=event.get('result')
+                                validated=self._decode_reply(data,request_id)
+                                if not (validated.text or '').startswith(prefix):
+                                    raise ValueError('Butler final answer differs from streamed prefix')
+                                break
+                            if kind=='error':raise ValueError('Butler stream failed')
+                            if kind=='answer_delta' and event.get('sendable') is True:
+                                if not isinstance(event.get('text'),str):raise ValueError('Invalid Butler answer delta')
+                                prefix+=event['text']
+                            emit(kind,**{k:v for k,v in event.items() if k!='type'})
+                    if data is None:raise ValueError('Butler stream disconnected before result')
+                finally:
+                    resp.close()
         except Exception as e:
             record('wxbot_butler','error',error_type=type(e).__name__,
                    http_status=getattr(getattr(e,'response',None),'status_code',0),
                    elapsed_ms=round((time.monotonic()-started)*1000))
             log.error("butler 调用失败: %s", type(e).__name__)
-            if self.raise_errors:
+            if self.raise_errors or on_event is not None:
+                if on_event is not None:e.retry_safe=False
                 raise
             return Reply.from_text("抱歉，我这边暂时出了点问题，稍后再试。")
         try:
