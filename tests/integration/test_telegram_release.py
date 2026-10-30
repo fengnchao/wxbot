@@ -1,9 +1,10 @@
 import importlib.util
 from pathlib import Path
+from support.paths import REPO_ROOT
 
 
 def release_module():
-    path = Path(__file__).resolve().parents[1] / 'tools/release.py'
+    path = REPO_ROOT / 'tools/release.py'
     spec = importlib.util.spec_from_file_location('telegram_release_check', path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

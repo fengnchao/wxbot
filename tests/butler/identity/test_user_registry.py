@@ -5,6 +5,7 @@ import pytest
 from PIL import Image, ImageDraw
 
 from butler.business import BusinessStore
+from support.paths import REPO_ROOT
 
 
 def avatar(seed=0):
@@ -177,7 +178,7 @@ def test_unknown_identity_cannot_call_memory_even_when_group_skill_enabled(tmp_p
     from butler.agent.catalogue import SkillCatalogue
     from butler.agent.tools import ToolService
     from pathlib import Path
-    service = ToolService(BusinessStore(tmp_path/'business.sqlite3'), SkillCatalogue(Path(__file__).resolve().parents[1]/'plugins'/'butler-wechat'/'skills'))
+    service = ToolService(BusinessStore(tmp_path/'business.sqlite3'), SkillCatalogue(REPO_ROOT/'plugins'/'butler-wechat'/'skills'))
     policy = {'role_skill':'butler-companion','allowed_skills':['butler-memory']}
     token = service.issue(owner='unknown',contact='群',policy=policy,request_id='test',memory_allowed=False)
     assert not any(d['name'].startswith('memory_')for d in service.definitions(token))

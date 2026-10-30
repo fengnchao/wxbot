@@ -11,8 +11,9 @@ import threading
 import urllib.request
 from http.server import ThreadingHTTPServer
 from pathlib import Path
+from support.paths import REPO_ROOT
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = REPO_ROOT
 
 
 def _load_dashboard():

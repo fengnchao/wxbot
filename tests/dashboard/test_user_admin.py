@@ -11,6 +11,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 import pytest
+from support.paths import REPO_ROOT
 
 
 @contextmanager
@@ -97,7 +98,7 @@ def test_butler_admin_routes_require_server_token_not_tool_capability():
 
 
 def test_log_admin_proxy_requires_same_origin_and_keeps_credentials_server_side(monkeypatch):
-    source = Path(__file__).resolve().parents[1] / 'src' / 'dashboard' / 'server.py'
+    source = REPO_ROOT / 'src' / 'dashboard' / 'server.py'
     spec = importlib.util.spec_from_file_location('_user_admin_http', source)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

@@ -3,6 +3,7 @@ import tomllib
 
 from butler.runtime.setup import initialize, doctor
 from butler.config import load
+from support.paths import REPO_ROOT
 
 
 def test_fresh_install_is_idempotent_and_does_not_copy_personal_data(tmp_path):
@@ -33,7 +34,7 @@ def test_fresh_install_is_idempotent_and_does_not_copy_personal_data(tmp_path):
 
 def test_plugin_references_and_protocol_are_self_contained():
     from pathlib import Path
-    root=Path(__file__).resolve().parents[1]/'plugins'/'butler-wechat'
+    root=REPO_ROOT/'plugins'/'butler-wechat'
     manifest=json.loads((root/'.codex-plugin/plugin.json').read_text(encoding='utf-8'))
     assert (root/manifest['skills']).is_dir()
     assert (root/manifest['mcpServers']).is_file()

@@ -2,6 +2,7 @@ import pytest
 
 from dashboard.queue_actions import QueueActions
 from wxbot.queue_store import QueueStore
+from support.paths import REPO_ROOT
 
 
 def setup_task(tmp_path):
@@ -143,7 +144,7 @@ def test_http_actions_require_same_origin_json_confirmation_and_reject_stale_sta
     path,store,payload=setup(tmp_path)
     with wx.open('a',encoding='utf-8') as fh:fh.write('\n[queue]\ndatabase='+json.dumps(str(path))+'\n')
     monkeypatch.setenv('WXBOT_CONFIG',str(wx));monkeypatch.setenv('BUTLER_CONFIG',str(bt))
-    spec=importlib.util.spec_from_file_location('_queue_action_http',Path(__file__).resolve().parents[1]/'src'/'dashboard'/'server.py')
+    spec=importlib.util.spec_from_file_location('_queue_action_http',REPO_ROOT/'src'/'dashboard'/'server.py')
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     server=ThreadingHTTPServer(('127.0.0.1',0),type('TestHandler',(module.Handler,),{'home':str(home)}))
     thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()

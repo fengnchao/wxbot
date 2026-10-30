@@ -140,7 +140,7 @@
 .\.venv\Scripts\python.exe -m pytest
 cd web; npm run build; npm run smoke
 # 可选：独立临时数据页面，不连接真实模型或微信
-.\.venv\Scripts\python.exe tests/dashboard_preview.py
+.\.venv\Scripts\python.exe tests/support/dashboard_preview.py
 ```
 
 本次更新需自行重启 log；Butler 的提醒查询顺序更新需自行重启 Butler。

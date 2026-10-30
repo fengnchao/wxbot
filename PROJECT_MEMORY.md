@@ -211,7 +211,7 @@ Windows 上的个人微信机器人，Python 项目，拆成两个本地进程�
 - @前缀：wxbot 侧 `finish_batch_parts` 只给首个分句加 `@member_name `，模型正文不含 @；member_name 未在 `[wechat.group_sender.member_names]` 映射时是 `成员-<id>`，@不到真人，需配置真实群昵称。
 - 收件与随机插话：`inbox._capture` 不再因“未 @”跳过，始终去 @Bot 前缀；被 @ 入 inbox（文字链路），普通消息按 `[bot].group_reply_chance`（默认 0.1）概率直接 `enqueue_sticker` 入发件箱（kind=emoji，不走模型）。`_discover` 不再因群未 @ 而跳过。队列 schema 升到 VERSION 4（inbox 加 member_name、batches 加 member_key/member_name、outbox 加 kind），自动迁移。
 - 表情发送：新增 `src/wxbot/wechat/emoji.py`，按 `[wechat.emoji]` 的 button/panel/item 定位点击随机条目；`delivery._start_emoji` 处理 kind=emoji 的发件，点击后按新增自己的气泡确认（读 `read_all_messages`），未确认按 uncertain 走既有失败策略。`[wechat.emoji]` 定位需按本机微信版本用 `tools/probe.py` 校准，未校准时表情发件会 blocked 并留日志。
-- 验证：离线全套 pytest 通过（exit 0），`git diff --check` 干净；新增 `tests/test_group_member_identity.py` 覆盖每成员 uid 隔离、@前缀、emoji 发件、member 透传与表情面板点击。未操作真实微信、未发测试消息、未重启任何服务；表情面板定位与真实 @效果需用户自行重启 wxbot 并校准后观察。
+- 验证：离线全套 pytest 通过（exit 0），`git diff --check` 干净；新增 `tests/unit/wxbot/test_group_member_identity.py` 覆盖每成员 uid 隔离、@前缀、emoji 发件、member 透传与表情面板点击。未操作真实微信、未发测试消息、未重启任何服务；表情面板定位与真实 @效果需用户自行重启 wxbot 并校准后观察。
 
 ## 每条消息进上下文 + 文字/表情二选一 + log 实时流转（2026-10-22）
 

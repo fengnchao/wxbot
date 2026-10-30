@@ -12,6 +12,7 @@ import pytest
 from dashboard.config_view import ConfigView
 from dashboard.queue_view import QueueView
 from wxbot.queue_store import Incoming, QueueStore
+from support.paths import REPO_ROOT
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -198,7 +199,7 @@ def test_monitor_http_endpoints_and_html_routes(tmp_path,monkeypatch):
         fh.write('\n[queue]\ndatabase='+json.dumps(str(path))+'\n')
     monkeypatch.setenv('WXBOT_CONFIG',str(wx))
     monkeypatch.setenv('BUTLER_CONFIG',str(bt))
-    root=Path(__file__).resolve().parents[1]
+    root=REPO_ROOT
     spec=importlib.util.spec_from_file_location('_dashboard_monitor',root/'src'/'dashboard'/'server.py')
     mod=importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

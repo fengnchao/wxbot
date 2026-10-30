@@ -9,8 +9,9 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
+from support.paths import REPO_ROOT
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = REPO_ROOT
 
 
 def _load_server(tmp_path, monkeypatch):
@@ -108,7 +109,7 @@ def test_unbuilt_webapp_explains_how_to_build(tmp_path, monkeypatch):
 def test_vue_shell_renders_without_a_browser():
     """jsdom 回归；未安装前端依赖时跳过，不阻塞纯后端环境。"""
     node = shutil.which('node')
-    web = Path(__file__).resolve().parents[1] / 'web'
+    web = REPO_ROOT / 'web'
     if not node or not (web / 'node_modules').is_dir():
         pytest.skip('需要先在 web 执行 npm install 与 npm run build')
     result = subprocess.run([node, str(web / 'scripts' / 'smoke.mjs')], cwd=web,

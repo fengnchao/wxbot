@@ -15,9 +15,17 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / 'src'
-for entry in (SRC, ROOT):
+TESTS = Path(__file__).resolve().parent
+for entry in (SRC, ROOT, TESTS):
     if str(entry) not in sys.path:
         sys.path.insert(0, str(entry))
+# 测试按域分子目录后，仍沿用「按文件名互相 import」的写法，
+# 这里把所有测试子目录也加入 sys.path，避免依赖收集顺序。
+for folder in sorted(p for p in TESTS.rglob('*') if p.is_dir()):
+    if '__pycache__' in folder.parts:
+        continue
+    if str(folder) not in sys.path:
+        sys.path.append(str(folder))
 
 from butler.config import Config                    # noqa: E402
 from butler.identity.contacts import load_contacts           # noqa: E402

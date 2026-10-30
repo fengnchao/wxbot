@@ -14,6 +14,6 @@
 
 最终完整回归：922 通过、3 失败，共 925 项，54.04 秒；提及测试文件 37 项全部通过。完整回归仍包含此前已确认的三个基线失败：
 
-- tests/test_queue_admin.py::test_multipart_cli_sent_and_retry_preserve_other_parts
-- tests/test_queue_store.py::test_user_confirmed_actual_text_is_deferred_and_does_not_release_running_old_worker
-- tests/test_typing.py::test_typing_steps_keep_half_second_between_batches_and_one_final_enter
+- tests/unit/queue/test_queue_admin.py::test_multipart_cli_sent_and_retry_preserve_other_parts
+- tests/unit/queue/test_queue_store.py::test_user_confirmed_actual_text_is_deferred_and_does_not_release_running_old_worker
+- tests/unit/text/test_typing.py::test_typing_steps_keep_half_second_between_batches_and_one_final_enter

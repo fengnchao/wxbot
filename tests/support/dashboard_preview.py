@@ -8,7 +8,8 @@ import time
 import sqlite3
 from http.server import ThreadingHTTPServer
 
-sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
+ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / 'src'))
 from butler.runtime.setup import initialize
 from wxbot.queue_store import QueueStore,Incoming
 

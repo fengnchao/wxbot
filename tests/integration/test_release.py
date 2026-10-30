@@ -1,10 +1,11 @@
 import importlib.util
 from pathlib import Path
 import zipfile
+from support.paths import REPO_ROOT
 
 
 def test_release_excludes_runtime_and_contains_plugin(tmp_path):
-    path=Path(__file__).resolve().parents[1]/'tools/release.py'
+    path=REPO_ROOT/'tools/release.py'
     spec=importlib.util.spec_from_file_location('release_tools',path)
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     result=module.build_release(tmp_path)
@@ -32,7 +33,7 @@ def test_invalid_plugin_names_cannot_escape_workspace(tmp_path):
 
 
 def test_release_excludes_config_templates_at_any_depth(tmp_path, monkeypatch):
-    path = Path(__file__).resolve().parents[1] / 'tools/release.py'
+    path = REPO_ROOT / 'tools/release.py'
     spec = importlib.util.spec_from_file_location('release_no_templates', path)
     module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
     (tmp_path / 'butler').mkdir()

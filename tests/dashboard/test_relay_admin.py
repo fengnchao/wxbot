@@ -6,11 +6,12 @@ from butler.business import BusinessStore
 from butler.agent.catalogue import SkillCatalogue
 from butler.channels.telegram.relay.settings import Settings
 from butler.agent.tools import ToolService
+from support.paths import REPO_ROOT
 
 
 @pytest.fixture
 def admin_service(tmp_path):
-    catalogue = SkillCatalogue(Path(__file__).resolve().parents[1] / 'plugins/butler-wechat/skills')
+    catalogue = SkillCatalogue(REPO_ROOT / 'plugins/butler-wechat/skills')
     service = ToolService(BusinessStore(tmp_path / 'business.sqlite3'), catalogue)
     service.relay_settings = Settings(tmp_path / 'relay.toml')
     state = service.relay_settings.read()

@@ -6,7 +6,7 @@
 
 ## 验证结果
 
-- 相关测试：`python -m pytest tests/test_group_nickname_mapping.py tests/test_group_member_identity.py tests/test_main_window.py tests/test_queue_migration.py`，72 项通过。
+- 相关测试：`python -m pytest tests/unit/wxbot/test_group_nickname_mapping.py tests/unit/wxbot/test_group_member_identity.py tests/unit/wxbot/test_main_window.py tests/unit/queue/test_queue_migration.py`，72 项通过。
 - 完整测试：`python -m pytest`，547 项通过，4 项失败（见下）。
 - 修改文件的 `git diff --check` 通过。
 - 复核发现并修复了旧摘要给不同成员的相同正文错误建立映射的问题，新增摘要变化、会话消失回归测试。

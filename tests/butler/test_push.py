@@ -22,8 +22,9 @@ from butler.config import Config
 from butler.runtime.flowlog import FlowLog
 from butler.delivery.push import push_to_wxbot
 from wxbot.outbound import OutboundQueue, start_server
+from support.paths import REPO_ROOT
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = REPO_ROOT
 
 
 def _load_dashboard():

@@ -5,6 +5,7 @@ import tomllib
 import pytest
 
 from dashboard.config_view import ConfigView
+from support.paths import REPO_ROOT
 
 
 def setup_editor(tmp_path):
@@ -177,7 +178,7 @@ def test_configuration_http_save_is_confirmed_local_and_secret_free(tmp_path,mon
     editor,view,wx,bt=setup_editor(tmp_path)
     for key,path in (('WXBOT_CONFIG',wx),('BUTLER_CONFIG',bt),('LOG_CONFIG',tmp_path/'log.toml')):
         monkeypatch.setenv(key,str(path))
-    spec=importlib.util.spec_from_file_location('_config_editor_http',Path(__file__).resolve().parents[1]/'src'/'dashboard'/'server.py')
+    spec=importlib.util.spec_from_file_location('_config_editor_http',REPO_ROOT/'src'/'dashboard'/'server.py')
     module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
     server=ThreadingHTTPServer(('127.0.0.1',0),type('TestHandler',(module.Handler,),{'home':str(tmp_path/'hermes')}))
     thread=threading.Thread(target=server.serve_forever,daemon=True);thread.start()

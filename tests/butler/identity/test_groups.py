@@ -17,8 +17,9 @@ from pathlib import Path
 import pytest
 
 from butler.identity.groups import GroupStore, parse_int
+from support.paths import REPO_ROOT
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = REPO_ROOT
 
 
 def _load_dashboard():
