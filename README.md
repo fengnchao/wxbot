@@ -91,7 +91,7 @@ web/            Vue 3 + Vite 管理台源码，构建产物 web/dist 由管理�
 scripts/        启动与运维脚本（栈启停、投递、提醒、安装）
 tools/          探活与打包（probe.py、probe_codex.py、release.py）
 plugins/butler-wechat/  Codex 插件：安装引导、角色、功能 Skill、MCP 连接
-tests/          离线测试：support/ unit/ butler/ dashboard/ integration/
+tests/          离线回归测试（仅本地，不入库）：support/ unit/ butler/ dashboard/ integration/
 data/           本机认证和运行数据，禁止提交 Git
 config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，不要改名）
 ```
@@ -422,8 +422,9 @@ web/dist/                 构建产物，随仓库提交
 
 插件的 `.md` 是运行时资产，改动会影响模型行为，不当普通文档处理。
 
-### tests/ —— 离线测试
+### tests/ —— 离线测试（仅本地，不入 Git）
 
+`tests/` 写在 `.gitignore` 里，不随仓库提交、也不进发布包，只存在于开发机上。
 全离线：用临时配置、临时数据库、假 UI 和假投递，不发真实微信消息。
 
 | 目录 | 覆盖 |
@@ -574,7 +575,7 @@ cd web; npm.cmd run build; npm.cmd run smoke                 # 前端构建与�
 .\.venv\Scripts\python.exe tools\release.py                # 打两个包
 ```
 
-`tools/release.py` 按显式白名单打包：根文件 + `src`/`web`/`tests`/`plugins` 四个目录 +
+`tools/release.py` 按显式白名单打包：根文件 + `src`/`web`/`plugins` 三个目录 +
 若干特例文件；排除 `.venv`、`node_modules`、`data`、`cache`、`dist`、`__pycache__`、
 `*.session`、`auth.json`、`config.*.toml` 与备份。打包前会扫描凭据形状的字面量，命中直接拒绝。
 

@@ -17,7 +17,8 @@ validate the service-issued identity and permissions; prompts are not authority.
 
 Never automatically restart existing services. Do not send real WeChat test
 messages without explicit authorization. Use temporary data and fake delivery for
-tests. tests/conftest.py forbids accessing the real clipboard in offline tests.
+tests. tests/ is git-ignored and local only; tests/conftest.py forbids accessing
+the real clipboard in offline tests.
 
 Before preparing a release, run authorized checks and tools/release.py; never
 commit auth.json, config.*.toml runtime files, data/, cache/, virtual environments

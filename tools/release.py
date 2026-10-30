@@ -8,7 +8,7 @@ import zipfile
 ROOT=Path(__file__).resolve().parents[1]
 VERSION='1.0.0'
 ROOT_FILES={'README.md','AGENTS.md','pyproject.toml','requirements.txt','uv.lock','.gitignore'}
-SOURCE_DIRS={'src','web','tests','plugins'}
+SOURCE_DIRS={'src','web','plugins'}
 SPECIAL={'.agents/plugins/marketplace.json','scripts/setup.ps1','tools/probe_codex.py','tools/release.py'}
 FORBIDDEN_PARTS={'.venv','node_modules','__pycache__','.git','.idea','.pytest_cache','data','cache','dist','.superpowers'}
 
