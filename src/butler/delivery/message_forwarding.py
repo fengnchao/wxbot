@@ -55,14 +55,35 @@ class ForwardingError(Exception):
         self.status = status
 
 
+def _target(route: MessageRoute) -> str:
+    parts = urlsplit(route.url)
+    return f'{parts.hostname}:{parts.port or (443 if parts.scheme == "https" else 80)}'
+
+
+def _failure_detail(exc: requests.RequestException) -> str:
+    """最内层连接失败原因（errno/strerror）；不取异常文本，避免带出 URL 查询串。"""
+    if isinstance(exc, requests.Timeout):
+        return '连接未建立或超时'
+    cause = exc.args[0] if exc.args else exc
+    for _ in range(5):
+        inner = getattr(cause, 'reason', None)
+        if inner is None:
+            break
+        cause = inner
+    code = getattr(cause, 'winerror', None) or getattr(cause, 'errno', None)
+    text = getattr(cause, 'strerror', None) or type(cause).__name__
+    return f'WinError {code}: {text}' if code else text
+
+
 def forward_message(route: MessageRoute, text: str) -> int:
     """Only acknowledge 2xx headers; never follow redirects or consume a reply."""
     try:
         with requests.post(route.url, json={'code': route.code, 'text': text},
                            timeout=route.timeout, allow_redirects=False, stream=True) as response:
             if not 200 <= response.status_code < 300:
-                raise ForwardingError(f'消息转发失败（HTTP {response.status_code}）', response.status_code)
+                raise ForwardingError(f'消息转发失败（HTTP {response.status_code}；目标 {_target(route)}）',
+                                      response.status_code)
             return response.status_code
     except requests.RequestException as exc:
-        # Exception messages can contain URLs, credentials or remote response data.
-        raise ForwardingError(f'消息转发失败（{type(exc).__name__}）') from None
+        raise ForwardingError(f'消息转发失败（{type(exc).__name__}；{_failure_detail(exc)}'
+                              f'；目标 {_target(route)}）') from None

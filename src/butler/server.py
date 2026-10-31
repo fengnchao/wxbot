@@ -346,7 +346,9 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                                         **({'on_event':stream_event}if streaming else {}))
                 except Exception as e:                     # 绝不让异常变成"通道死了"
                     if streaming:
-                        try:stream_event({'type':'error','code':type(e).__name__,'retry_safe':False})
+                        _log("handle-stream 异常: %s: %s", type(e).__name__, e)
+                        try:stream_event({'type':'error','code':type(e).__name__,
+                                          'message':str(e)[:300],'retry_safe':False})
                         except (OSError,ValueError):pass
                         return
                     _log("handle 异常: %s: %s", type(e).__name__, e)

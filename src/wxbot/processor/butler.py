@@ -91,7 +91,9 @@ class ButlerProcessor(Processor):
                                 if not (validated.text or '').startswith(prefix):
                                     raise ValueError('Butler final answer differs from streamed prefix')
                                 break
-                            if kind=='error':raise ValueError('Butler stream failed')
+                            if kind=='error':
+                                detail=': '.join(str(part) for part in (event.get('code'),event.get('message')) if part)
+                                raise ValueError('Butler stream failed'+(': '+detail if detail else ''))
                             if kind=='answer_delta' and event.get('sendable') is True:
                                 if not isinstance(event.get('text'),str):raise ValueError('Invalid Butler answer delta')
                                 prefix+=event['text']

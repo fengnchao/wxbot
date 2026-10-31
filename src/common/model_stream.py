@@ -14,7 +14,7 @@ _FIELDS = {
     'tool': {'tool','status'},
     'answer_delta': {'text','sendable'},
     'complete': set(),
-    'error': {'code','retry_safe'},
+    'error': {'code','message','retry_safe'},
 }
 
 

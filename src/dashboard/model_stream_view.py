@@ -33,7 +33,7 @@ def public_event(event):
     kind=event.get('type')
     fields={'backend':('provider','model','streaming','fallback'),
             'summary_delta':('text',),'answer_delta':('text','sendable'),
-            'tool':('tool','status'),'complete':('status',),'error':('message','status')}.get(kind)
+            'tool':('tool','status'),'complete':('status',),'error':('code','message','status')}.get(kind)
     if fields is None:return None
     result={'type':kind}
     for key in fields:

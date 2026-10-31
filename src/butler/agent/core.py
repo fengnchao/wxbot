@@ -230,7 +230,8 @@ class Butler:
             _stream_state.reset(token)
         with bind(on_event):
             if result.meta.get('reply_complete') is False:
-                emit('error',code='incomplete_result',retry_safe=result.meta.get('retry_safe') is True)
+                emit('error',code='incomplete_result',message=str(result.meta.get('error') or ''),
+                     retry_safe=result.meta.get('retry_safe') is True)
             elif result.meta.get('route') == 'forward':
                 emit('complete')
             else:
@@ -396,9 +397,9 @@ class Butler:
         try:
             status = forward_message(route, text)
         except ForwardingError as exc:
-            record('butler_forward', 'error', http_status=exc.status,
-                   elapsed_ms=round((time.monotonic() - started) * 1000))
-            self.log('[%s] %s', route.contact, exc)
+            elapsed=round((time.monotonic() - started) * 1000)
+            record('butler_forward', 'error', http_status=exc.status, elapsed_ms=elapsed)
+            self.log('[%s] %s（%sms）', route.contact, exc, elapsed)
             return Result(meta={'route': 'forward', 'forwarded': False, 'error': str(exc),
                                 'http_status': exc.status, 'reply_complete': False, 'retry_safe': False})
         record('butler_forward', 'ok', http_status=status,
