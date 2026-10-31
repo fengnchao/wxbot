@@ -30,7 +30,11 @@ def main() -> None:
     show = (lambda t: t) if args.raw else (lambda t: f"***({len(t)})")
 
     cfg = load_config()
-    for name in cfg["bot"]["bound_users"]:
+    users = cfg["bot"].get("bound_users", [])
+    if not users:
+        print("绑定列表为空（联系人目录里没有绑定微信号），没有独立聊天窗口可检查。")
+        return
+    for name in users:
         print(f"\n===== 绑定对象 {show(name)} =====")
         chat = ChatWindow(name, cfg["wechat"])
         win = chat._window()
