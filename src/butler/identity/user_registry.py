@@ -8,7 +8,7 @@ import heapq
 from contextlib import closing
 from threading import RLock
 
-from common.avatar_identity import avatar_distance, decode_avatar, normalize_avatar
+from common.avatar_identity import avatar_distance, avatar_is_informative, decode_avatar, normalize_avatar
 from butler.identity import contact_identity
 
 
@@ -106,15 +106,27 @@ class UserRegistry:
         return row
 
     def _create(self, db, channel_type, contact, nickname, feature=None, *, identity_confirmed=True,
-                nickname_confirmed=True, actual_nickname=None):
+                nickname_confirmed=True, actual_nickname=None, person_id=None, reuse_name=True):
         if channel_type not in {'dm', 'group'}:
             raise ValueError('会话类型必须为 dm 或 group')
         contact, nickname = _text(contact, '会话名称'), _text(nickname, '昵称')
         if channel_type == 'dm' and db.execute('SELECT 1 FROM user_bindings WHERE channel_type=? AND contact=?', ('dm', contact)).fetchone():
             raise ValueError('该私聊已有用户绑定')
         effective_name = actual_nickname if actual_nickname is not None else nickname
-        user_id = contact_identity.reuse_person(db, effective_name)
+        # Explicit administration chooses an identity; observed-name reuse remains
+        # available to the existing collection pipeline, never to management forms.
+        user_id = person_id if person_id is not None else (
+            contact_identity.reuse_person(db, effective_name) if reuse_name else None)
+        if person_id is not None:
+            if contact_identity.canonical_user(db, person_id) != person_id or not db.execute(
+                    'SELECT 1 FROM user_profiles WHERE user_id=?', (person_id,)).fetchone():
+                raise ValueError('目标联系人不存在或已合并，请刷新列表')
         binding_id = uuid.uuid4().hex
+        if not reuse_name and channel_type == 'group' and db.execute(
+                'SELECT 1 FROM user_bindings WHERE channel_type=? AND contact=? AND nickname=?',
+                (channel_type, contact, nickname)).fetchone():
+            actual_nickname = effective_name
+            nickname = nickname[:160] + '（' + binding_id[:12] + '）'
         if user_id is None:
             user_id = uuid.uuid4().hex
             db.execute('INSERT INTO user_profiles VALUES(?,?,0,?)', (user_id, effective_name, time.time()))
@@ -140,10 +152,10 @@ class UserRegistry:
                        (uuid.uuid4().hex, binding_id, feature['image'], feature['hash'], feature['algorithm'], time.time()))
             contact_identity.touch_version(db)
 
-    def create(self, channel_type, contact, nickname, avatar):
+    def create(self, channel_type, contact, nickname, avatar, *, reuse_name=True):
         feature = normalize_avatar(decode_avatar(avatar))
         with self.store.transaction() as db:
-            return self._create(db, channel_type, contact, nickname, feature)
+            return self._create(db, channel_type, contact, nickname, feature, reuse_name=reuse_name)
 
     def list_users(self, query='', contact='', offset=0, limit=50, channel_type='', status=''):
         if channel_type not in {'','dm','group'} or status not in {'','confirmed','disabled','observed'}:
@@ -205,7 +217,7 @@ class UserRegistry:
                     profile = db.execute('SELECT display_name FROM user_profiles WHERE user_id=?', (row['user_id'],)).fetchone()
                     if contact_identity.normalize_name(profile[0]) == contact_identity.normalize_name(old_name):
                         db.execute('UPDATE user_profiles SET display_name=? WHERE user_id=?', (nickname, row['user_id']))
-                    contact_identity.merge_same_named(db)
+                    # Renaming a binding is not evidence that two people are one.
             if feature:
                 self._add_avatar(db, binding_id, feature)
             if not row['identity_confirmed']:
@@ -228,6 +240,36 @@ class UserRegistry:
                 (binding['contact'],binding['channel_type'],binding_id,key,key)).fetchone()
             if not collision:
                 db.execute('INSERT OR IGNORE INTO user_member_aliases VALUES(?,?)', (binding_id,key))
+
+    def _learn_nickname(self, db, binding_id, nickname, feature=None):
+        """群成员目录学到的昵称补上待命名档案；管理员确认过的名字不跟着漂。"""
+        name = (nickname or '').strip()
+        row = self._get(db, binding_id)
+        current = contact_identity.binding_name(db, row)
+        if not name or name == current or not contact_identity.normalize_name(name):
+            return
+        if row['nickname_confirmed']:
+            return
+        # 同群已有同名档案（含已停用）：不改名，等人来分清，别把两个人合成一条。
+        clash = db.execute('''SELECT 1 FROM user_bindings b
+            LEFT JOIN user_binding_names n ON n.binding_id=b.binding_id
+            WHERE b.channel_type='group' AND b.contact=? AND b.binding_id!=?
+              AND COALESCE(n.nickname,b.nickname)=?''', (row['contact'], binding_id, name)).fetchone()
+        if clash:
+            return
+        # 自动观测不升权限：只有配合有效头像才能从 observed 转 confirmed。
+        has_avatar = bool(feature) or bool(
+            db.execute('SELECT 1 FROM user_avatars WHERE binding_id=?', (binding_id,)).fetchone())
+        db.execute('DELETE FROM user_binding_names WHERE binding_id=?', (binding_id,))
+        db.execute('UPDATE user_bindings SET nickname=?,nickname_confirmed=1,identity_confirmed=?,version=version+1 '
+                   'WHERE binding_id=?', (name, int(bool(row['identity_confirmed']) or has_avatar), binding_id))
+        db.execute('INSERT OR REPLACE INTO user_binding_names VALUES(?,?)', (binding_id, name))
+        profile = db.execute('SELECT display_name FROM user_profiles WHERE user_id=?', (row['user_id'],)).fetchone()
+        if profile and profile[0].startswith('待命名-'):
+            db.execute('UPDATE user_profiles SET display_name=? WHERE user_id=?', (name, row['user_id']))
+        contact_identity.remember_name(db, row['user_id'], current)
+        contact_identity.touch_version(db)
+        self._audit(db, binding_id, 'nickname_learned', {'from': current, 'to': name})
 
     @staticmethod
     def _disabled_named_person(db, nickname):
@@ -317,20 +359,37 @@ class UserRegistry:
         contact = _text(contact, '会话名称')
         if not all(isinstance(value, str) for value in (member_key, avatar, nickname)):
             raise ValueError('身份观测字段必须为文本')
+        # 遮挡或滚出视口时截到的是纯色块：既不是头像，也不是身份证据。
+        if avatar and not avatar_is_informative(avatar):
+            avatar = ''
         with self._observe_lock:
             resolved = self.resolve(contact, channel_type, member_key, avatar, nickname)
             feature = normalize_avatar(decode_avatar(avatar)) if avatar else None
             if resolved['status'] not in {'unknown','ambiguous'}:
                 if channel_type == 'dm' and feature and resolved.get('binding_id'):
                     with self.store.transaction() as db:
-                        self._add_avatar(db, resolved['binding_id'], feature)
+                        # 私聊窗口只认首张可用头像。同一窗口里引用、转发、群名片都会带来
+                        # 别人的头像，逐张累加会把窗口主人的头像换成别人。
+                        known = db.execute('SELECT 1 FROM user_avatars WHERE binding_id=?',
+                                           (resolved['binding_id'],)).fetchone()
+                        if not known and len(feature['image']) >= 1024:
+                            self._add_avatar(db, resolved['binding_id'], feature)
                         return self._row(db, resolved['binding_id'])
-                if (channel_type == 'group' and resolved['status']=='confirmed'
-                        and member_key and not member_key.startswith('unknown-')):
+                if (channel_type == 'group' and resolved['status'] in {'confirmed', 'observed'}
+                        and resolved.get('binding_id') and member_key
+                        and not member_key.startswith('unknown-')):
                     key = _text(member_key, '头像观测ID', 128)
                     with self.store.transaction() as db:
-                        db.execute('INSERT OR IGNORE INTO user_observation_keys VALUES(?,?)', (resolved['binding_id'],key))
-                        return self._row(db,resolved['binding_id'])
+                        row = self._get(db, resolved['binding_id'])
+                        if resolved['status'] == 'observed' and row['identity_confirmed']:
+                            # 已确认档案在缺昵称时的降级观测：不登记、不改名，免得抢走别人的记忆。
+                            return resolved
+                        db.execute('INSERT OR IGNORE INTO user_observation_keys VALUES(?,?)', (row['binding_id'],key))
+                        if feature and len(feature['image']) >= 1024:
+                            self._add_avatar(db, row['binding_id'], feature)
+                        # 档案已存在，但群目录刚学到名字：补上，别让它永远是待命名。
+                        self._learn_nickname(db, row['binding_id'], nickname, feature)
+                        return self._row(db,row['binding_id'])
                 return resolved
             if channel_type == 'dm':
                 return resolved  # A disabled private identity must not be recreated.
@@ -367,7 +426,19 @@ class UserRegistry:
                 if len(pending)==1:
                     if feature:
                         self._add_avatar(db,pending[0]['binding_id'],feature)
+                    self._learn_nickname(db, pending[0]['binding_id'], nickname, feature)
                     return self._row(db,pending[0]['binding_id'])
+                # 头像 dhash 每次截屏都会变，群昵称不会；同群同名只有一条时并回原档案。
+                if named and feature:
+                    same = db.execute('''SELECT b.binding_id FROM user_bindings b
+                        LEFT JOIN user_binding_names n ON n.binding_id=b.binding_id
+                        WHERE b.channel_type='group' AND b.contact=? AND b.enabled=1
+                          AND COALESCE(n.nickname,b.nickname)=?''', (contact, nickname.strip())).fetchall()
+                    if len(same)==1:
+                        db.execute('INSERT OR IGNORE INTO user_member_aliases VALUES(?,?)', (same[0]['binding_id'],key))
+                        self._add_avatar(db,same[0]['binding_id'],feature)
+                        self._audit(db,same[0]['binding_id'],'avatar_alias',{'member_key':key})
+                        return self._row(db,same[0]['binding_id'])
                 name = nickname.strip() if named else '待命名-' + key[:12]
                 actual_nickname = None
                 if db.execute('SELECT 1 FROM user_bindings WHERE channel_type=? AND contact=? AND nickname=?',

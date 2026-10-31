@@ -73,7 +73,7 @@ def dispatch_user_post(registry, payload):
         values = {key: _text(payload, key) for key in ('channel_type', 'contact', 'nickname', 'avatar')}
         if values['channel_type'] not in ('group', 'dm'):
             raise ValueError('channel_type 只支持 group / dm')
-        return registry.create(**values)
+        return registry.create(**values, reuse_name=False)
     binding_id = _text(payload, 'binding_id')
     version = _version(payload, minimum=0 if action.startswith('memory_') else 1)
     if action == 'update':
@@ -101,6 +101,9 @@ def dispatch_user_post(registry, payload):
         if resolutions is not None and (not isinstance(resolutions, dict) or any(
                 not isinstance(key, str) or value not in ('source', 'target') for key, value in resolutions.items())):
             raise ValueError('冲突处理必须逐项选择 source / target')
+        from butler.identity.contact_store import is_unified
+        if is_unified(registry.store.path):
+            raise ValueError('统一联系人请使用联系人身份合并预览，再确认合并')
         return registry.link(binding_id, target, version, resolutions=resolutions, expected_versions=expected)
     key = _text(payload, 'key')
     value = _text(payload, 'value', required=False) if action == 'memory_set' else ''

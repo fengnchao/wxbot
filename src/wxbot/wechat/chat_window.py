@@ -8,12 +8,12 @@
 import time
 import json
 from io import BytesIO
-from collections import deque, OrderedDict
+from collections import Counter, deque, OrderedDict
 from dataclasses import dataclass
 from statistics import median
 
 import uiautomation as auto
-from PIL import Image, ImageGrab
+from PIL import Image, ImageChops, ImageGrab
 
 from ..log import log
 from .locator import find, matches
@@ -170,25 +170,101 @@ class ChatWindow:
         except (AttributeError, OSError):
             return 1.0
 
+    def _avatar_box(self, item, list_rect, scale):
+        """按像素边界量出头像方框，不依赖固定的尺寸假设。
+
+        消息行左侧是一条聊天背景色的空隙，头像与它有明显的颜色差。
+        先按列投影找到头像左右边，再按行投影找上下边，最后取较长边
+        向外扩成正方形——宁可多带一点背景，也不要切掉头像的右下角；
+        多出来的部分会在 normalize_avatar 里被居中裁掉。
+        """
+        rect = item.BoundingRectangle
+        if rect.top < list_rect.top or rect.left < list_rect.left:
+            # 顶部残缺行只剩文字，没有头像可采：先判定再截屏，不白读一次屏幕。
+            return None, None
+        right_limit = min(rect.right, list_rect.right)
+        bottom_limit = min(rect.bottom, list_rect.bottom)
+        width, height = right_limit - rect.left, bottom_limit - rect.top
+        if width < round(80 * scale) or height < round(30 * scale):
+            return None, None
+        limit = min(width, round(96 * scale))
+        shot = ImageGrab.grab(bbox=(rect.left, rect.top, rect.left + limit, bottom_limit),
+                              all_screens=True).convert('RGB')
+        # 行最左一小条永远是头像外的聊天背景，用它当参考色。
+        gutter = shot.crop((0, 0, min(3, shot.width), shot.height))
+        background = Counter(gutter.getdata()).most_common(1)[0][0]
+        diff = ImageChops.difference(shot, Image.new('RGB', shot.size, background)).convert('L')
+        columns = list(diff.resize((shot.width, 1), Image.Resampling.BOX).getdata())
+        peak = max(columns)
+        if peak < 8:
+            return None, None
+        edge = max(6, int(peak * 0.25))
+        left = next((x for x, value in enumerate(columns) if value > edge), None)
+        if left is None:
+            return None, None
+        right = left
+        for x in range(left, len(columns)):
+            if columns[x] <= edge:
+                break
+            right = x
+        if right - left + 1 < round(18 * scale):
+            return None, None
+        rows = list(diff.crop((left, 0, right + 1, shot.height)).resize((1, shot.height), Image.Resampling.BOX).getdata())
+        top = next((y for y, value in enumerate(rows) if value > edge), None)
+        if top is None:
+            return None, None
+        bottom = top
+        for y in range(top, len(rows)):
+            if rows[y] <= edge:
+                break
+            bottom = y
+        wide, tall = right - left + 1, bottom - top + 1
+        if wide > round(60 * scale) or tall > round(60 * scale) or max(wide, tall) > min(wide, tall) * 1.6:
+            return None, None
+        size = max(wide, tall)
+        if size > shot.width or size > shot.height:
+            return None, None
+        x = rect.left + left - (size - wide) // 2
+        y = rect.top + top - (size - tall) // 2
+        # 补齐正方形时可能顶到截图边界：夹回来，宁可靠边也不能裁到框外。
+        x = min(max(x, rect.left), rect.left + shot.width - size)
+        y = min(max(y, rect.top), rect.top + shot.height - size)
+        if x + size > right_limit or y + size > bottom_limit:
+            return None, None
+        return (x, y, x + size, y + size), shot
+
     def _runtime_avatar(self, item, list_rect):
-        """Crop only the tight 36px avatar, never its nickname/gutter/bubble."""
-        from common.avatar_identity import normalize_avatar
+        """只裁头像本身，不带昵称、间隙和气泡。"""
+        from common.avatar_identity import avatar_is_informative, normalize_avatar
         rect = getattr(item, 'BoundingRectangle', None)
         if rect is None or list_rect is None:
             return None
         scale = self._avatar_scale()
-        size = round(36 * scale)
-        left = round(max(rect.left, list_rect.left) + float(self.group_sender_cfg.get('identity_avatar_left_offset', 12)) * scale)
-        top = round(rect.top + float(self.group_sender_cfg.get('identity_avatar_top_offset', 0)) * scale)
-        right, bottom = left + size, top + size
+        box, shot = self._avatar_box(item, list_rect, scale)
+        if box is None:
+            # 量不出边界时退回原来的固定采样，保证不会比校准前更差。
+            size = round(36 * scale)
+            left = round(max(rect.left, list_rect.left) + float(self.group_sender_cfg.get('identity_avatar_left_offset', 20)) * scale)
+            top = round(rect.top + float(self.group_sender_cfg.get('identity_avatar_top_offset', 8)) * scale)
+            box = (left, top, left + size, top + size)
+        left, top, right, bottom = box
         if (rect.top < list_rect.top or left < list_rect.left or top < list_rect.top
                 or right > min(rect.right, list_rect.right) or bottom > min(rect.bottom, list_rect.bottom)):
             return None
         try:
-            image = ImageGrab.grab(bbox=(left, top, right, bottom), all_screens=True)
+            if shot is None:
+                image = ImageGrab.grab(bbox=box, all_screens=True)
+            else:
+                image = shot.crop((left - rect.left, top - rect.top,
+                                   right - rect.left, bottom - rect.top))
             stream = BytesIO()
             image.save(stream, format='PNG')
-            return normalize_avatar(stream.getvalue())
+            feature = normalize_avatar(stream.getvalue())
+            # 窗口被遮挡或已滚出屏幕时会抓到一片纯色或两色渐变块：位数看着正常，
+            # 但既不是头像也不是身份证据，不能入库。
+            if not 1 < int(feature['hash'], 16).bit_count() < 63 or not avatar_is_informative(feature):
+                return None
+            return feature
         except Exception as exc:
             log.debug('[%s] 读取成员头像失败: %s', self.title, type(exc).__name__)
             return None

@@ -4,9 +4,9 @@ import { fullTime } from '../api'
 import { hbContact, hbStatus, hbStatusError, query } from '../contactState'
 
 const EVENT_LABELS = {
-  scheduler_started: 'Butler 心跳调度启动',
-  scheduled: '下次心跳已安排',
-  trigger_started: '心跳开始执行',
+  scheduler_started: 'Butler 主动问候调度启动',
+  scheduled: '下次主动问候已安排',
+  trigger_started: '主动问候开始执行',
   trigger_skipped: '本轮跳过',
   contact_selected: '选中联系人',
   hermes_call_started: '开始调用 模型运行时',
@@ -22,11 +22,11 @@ const EVENT_LABELS = {
   manual_trigger_rejected: '手动触发未执行'
 }
 const REASONS = {
-  no_enabled_contacts: '没有已开启心跳的联系人',
+  no_enabled_contacts: '没有已开启主动问候的联系人',
   contact_not_configured: '联系人未配置',
   policy_missing: '联系人尚未保存角色和 Skill 配置',
   policy_unavailable: '角色和 Skill 配置不可读取',
-  busy: '已有一轮心跳正在执行',
+  busy: '已有一轮主动问候正在执行',
   start_failed: '无法启动执行'
 }
 
@@ -62,7 +62,7 @@ function title(event) {
     return '模型运行时 返回'
   }
   if (event.event === 'error') return '执行错误（' + (event.phase || '未知阶段') + '）'
-  return EVENT_LABELS[event.event] || event.event || '心跳事件'
+  return EVENT_LABELS[event.event] || event.event || '主动问候事件'
 }
 
 function meta(event) {
@@ -73,7 +73,7 @@ function meta(event) {
     event.elapsed_ms != null && '耗时：' + event.elapsed_ms + ' ms',
     Array.isArray(event.allowed_skills) && event.allowed_skills.length &&
       '允许技能：' + event.allowed_skills.join('、')
-  ].filter(Boolean).join(' · ')
+  ].filter(Boolean).join('，')
 }
 
 function detail(event) {
@@ -91,10 +91,14 @@ function dateText(value) {
 }
 </script>
 
+<style scoped>
+h2{overflow-wrap:break-word;min-width:0;text-wrap:balance}
+</style>
+
 <template>
   <div class="hbstatus">
     <template v-if="hbStatus">
-      <h2>心跳运行记录 <span class="summary">已开启 {{ hbStatus.enabled_contacts || 0 }} 位 · 下次计划：{{ nextRun }}</span></h2>
+      <h2>主动问候运行记录 <span class="summary">已开启 {{ hbStatus.enabled_contacts || 0 }} 位，下次计划：{{ nextRun }}</span></h2>
       <details>
         <summary>展开最近 {{ events.length }} 条执行记录</summary>
         <div v-if="errors.length" class="warn">{{ errors.join('；') }}</div>
@@ -103,11 +107,11 @@ function dateText(value) {
           <div v-if="meta(event)" class="meta">{{ meta(event) }}</div>
           <div v-if="detail(event)" class="detail">{{ detail(event) }}</div>
         </div>
-        <div v-if="!events.length" class="empty">暂无心跳事件记录；Butler 调度启动或下一轮触发后会显示过程。</div>
+        <div v-if="!events.length" class="empty">暂无主动问候事件记录；Butler 调度启动或下一轮触发后会显示过程。</div>
       </details>
     </template>
     <template v-else>
-      <h2>心跳运行记录</h2>
+      <h2>主动问候运行记录</h2>
       <div class="warn">读取运行记录失败：{{ hbStatusError || '未知错误' }}</div>
     </template>
   </div>

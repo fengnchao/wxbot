@@ -1,0 +1,5 @@
+# Personal Obsidian session/cache; preserve existing preferences.
+.obsidian/workspace*.json
+.obsidian/cache/
+.obsidian/plugins/
+.trash/

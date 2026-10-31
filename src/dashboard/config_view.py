@@ -12,7 +12,9 @@ from common.flow_trace import queue_trace_path,butler_trace_path
 from common.paths import REPO_ROOT
 from wxbot.queue_store import FAILURE_TIMEOUT_SECONDS
 from wxbot.model_recovery import MODEL_MAX_ATTEMPTS,MODEL_RETRY_DELAYS
-from dashboard.config_schema import row_metadata
+from dashboard.config_schema import row_metadata,model_hot_path,legacy_model_startup
+from dashboard.config_schema import (ACCESS_HINTS,ACCESS_LABELS,ACCESS_NOTE,ACCESS_PROVIDERS,
+                                     access_fields,access_provider)
 from dashboard.settings import DEFAULTS as LOG_DEFAULTS,config_path
 
 
@@ -37,7 +39,9 @@ BT_DEFAULTS = {
     'reply':{'chunk_chars':500},
     'context':{'group_messages':30,'group_characters':6000},
     'agent':{'provider':'hermes','data_dir':'data'},
-    'codex':{'home':'','plugin_root':'','model':'','timeout':600,'max_workers':2,'idle_seconds':600},
+    'codex':{'home':'','plugin_root':'','model':'','api_key':'','timeout':600,'max_workers':2,'idle_seconds':600},
+    'model':{'provider':'','backend':'openai','url':'','model':'','api_key':'','timeout':600,
+             'executable':'agent','work_dir':'data/cursor','agent':'main','max_history':10,'system_prompt':''},
     'server':{'host':'127.0.0.1','port':8770,'token':''},
     'hermes':{'url':'http://127.0.0.1:8642','api_key':'','model':'hermes-agent','timeout':600,
               'root':'','send_identity':True,'profile_in_path':False},
@@ -201,8 +205,8 @@ class ConfigView:
         unified = configured_store(self.butler_path,bt)
         mode=(wx.get('installation') or {}).get('mode','local')
         model = wx.get('model') or {}
-        backend = model.get('backend','ollama') if isinstance(model,dict) else 'ollama'
-        model_defaults = {'backend':'ollama','max_history':10,'system_prompt':''}
+        backend = model.get('backend','butler') if isinstance(model,dict) else 'butler'
+        model_defaults = {'backend':'butler'}
         if backend in ('openai','hermes','responses','openclaw'):
             model_defaults.update(url='http://127.0.0.1:8642/v1/chat/completions',model='hermes-agent',timeout=300,api_key='')
         elif backend=='cursor':
@@ -211,6 +215,8 @@ class ConfigView:
             model_defaults.update(url='http://localhost:11434/api/chat',model='qwen2.5:7b',timeout=120)
         effective = merge(WX_DEFAULTS,{'model':model_defaults})
         effective = merge(effective,wx)
+        # Model credentials and protocols belong to Butler, never to the delivery service.
+        effective['model']={'backend':backend}
         full_bt = merge(BT_DEFAULTS,bt)
         sections = []
         for source,data,raw in (('wxbot',effective,wx),('butler',full_bt,bt)):
@@ -226,6 +232,8 @@ class ConfigView:
                     rows.append({'key':source+'.'+key,'value':self.sanitize(value,key),
                                  'origin':'file' if key in raw_keys else 'default',
                                  'sensitive':sensitive(key),**row_metadata(source,path,value,default_available=key in default_keys)})
+                    if source=='butler' and legacy_model_startup(bt) and model_hot_path(path):
+                        rows[-1]['effect']='旧版 Hermes 启动方式首次切换模型后需自行重启 Butler；之后模型修改用于后续请求'
                     if sensitive(key):
                         rows[-1]['editor']='secret'
                         if not isinstance(value,str):rows[-1]['description']+=' 新值请使用JSON格式；清空会移除此字段。'
@@ -262,12 +270,12 @@ class ConfigView:
                 return fallback
             if not isinstance(value,str):
                 return None
-            if (bt.get('agent') or {}).get('provider') != 'codex':
+            if (bt.get('agent') or {}).get('provider','hermes') == 'hermes' and not bt.get('model'):
                 return Path(value)
             path = Path(value).expanduser()
             return (path if path.is_absolute() else self.butler_path.resolve().parent/path).resolve()
         home = resolved_path(hermes.get('root'),self.home) if isinstance(hermes,dict) else None
-        if (bt.get('agent') or {}).get('provider')=='codex':
+        if (bt.get('agent') or {}).get('provider','hermes')!='hermes' or bt.get('model'):
             from butler.config import load as load_butler
             home=load_butler(self.butler_path).data_path()
         heartbeat = bt.get('heartbeat') or {}
@@ -281,6 +289,8 @@ class ConfigView:
         dynamic_sources = [('policies','Butler 用户角色 / Skill / 心跳开关',policy_path,policies),
                            ('groups','Butler 用户分组',group_path,group_data)]
         warnings=[]
+        migration_required=mode=='direct' or backend!='butler'
+        if migration_required:warnings.append('旧的模型直连配置需先执行 python -m butler migrate，迁移后由 Butler 统一调用模型。')
         log_policy_path=resolved_path(heartbeat.get('config_file'),self.home/'cache'/'butler_heartbeat.json')
         log_group_path=Path(self.groups_override) if self.groups_override else self.home/'cache'/'butler_groups.json'
         def same_path(a,b):
@@ -332,10 +342,21 @@ class ConfigView:
                              'source':str(self.root/'common'/'flow_trace.py'),'rows':trace_rows})
         except Exception:
             warnings.append('流转记录路径无法由当前配置推导，请检查 wxbot / Butler 配置。')
+        chosen=access_provider(bt)
+        applicable=set(access_fields(chosen))
         for section in sections:
             source=next((s for s in self._sources if s['id']==section.get('source_id')),None)
             for row in section['rows']:
                 row.setdefault('editable',False)
+                if section.get('source_id')=='butler' and tuple(row.get('path') or ())[:1]==('model',):
+                    # 接入方式以外字段由服务端判定是否适用，前端不再维护第二份映射表。
+                    hint=ACCESS_HINTS.get(chosen,{}).get(row['path'][-1])
+                    if hint:row['placeholder']=hint
+                    if tuple(row['path'])==('model','provider'):
+                        row['note']=ACCESS_NOTE.get(chosen,'')
+                        row['choice_labels']=[ACCESS_LABELS[name] for name in ACCESS_PROVIDERS]
+                    elif row['path'][-1] not in applicable:
+                        row['applicable']=False
                 if unified:
                     keys=tuple(row.get('path',[]));sid=section.get('source_id')
                     if (sid in {'directory','contacts','policies','groups','log_policies','log_groups'} or
@@ -344,9 +365,15 @@ class ConfigView:
                         sid=='log_config' and keys==('sources','groups_file')):
                         row['editable']=False
                 if source and source['status']=='error':row['editable']=False
+                if section.get('source_id')=='wxbot' and tuple(row.get('path',[]))[:1] in {('model',),('installation',)}:row['editable']=False
+                if mode=='external' and section.get('source_id')=='butler':row['editable']=False
         # Run the final whole payload through the scrubber: a secret may also occur in a path or a harmless field.
         payload={'read_only':False,'runtime_verified':False,'at':time.time(),'sources':self._sources,'sections':sections,'warnings':warnings,
-                 'connection':{'mode':mode,'business_tools':mode=='local','local_butler':mode=='local'},
+                 'connection':{'mode':mode,'business_tools':mode=='local','local_butler':mode=='local','migration_required':migration_required},
+                 # 接入方式的字段适用规则随接口下发，页面改草稿时能立刻跟着变，不用再维护一份。
+                 'model_access':{'current':chosen,
+                                 'fields':{name:list(access_fields(name)) for name in ACCESS_PROVIDERS},
+                                 'notes':dict(ACCESS_NOTE)},
                  'note':'按来源文件保存修改；保存不等于运行服务已加载。页面逐项标明生效方式，不自动重启任何服务。密钥原值不会回显。'}
         self._catalog=deepcopy(payload)  # Writer authorization uses server metadata, never scrubbed display strings.
         safe=self.scrub(payload)
@@ -383,7 +410,7 @@ class ConfigView:
         log = bt.get('log') or {}
         hermes = bt.get('hermes') or {}
         flow_file = log.get('flow_file') if isinstance(log,dict) else None
-        if (bt.get('agent') or {}).get('provider')=='codex':
+        if (bt.get('agent') or {}).get('provider','hermes')!='hermes' or bt.get('model'):
             from butler.config import load as load_butler
             flow_file=load_butler(self.butler_path).flow_log_path()
         root = hermes.get('root') if isinstance(hermes,dict) else None

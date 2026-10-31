@@ -3,7 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { fullTime } from '../api'
 import {
   audit, auditOffset, closeDialog, contactRequest, data, dialog, dialogBusy, dialogError,
-  load, loadAudit, loadMemory, memory, memoryOffset, memoryQuery, submitDialog, userRequest
+  load, loadAudit, loadMemory, openMerge, memory, memoryOffset, memoryQuery, submitDialog, userRequest
 } from '../contactState'
 
 const shell = ref(null)
@@ -19,9 +19,8 @@ const form = reactive({
 })
 const targets = ref([])
 const linkQuery = ref('')
-const linkPreview = ref(null)
-const linkChoices = reactive({})
 const deleting = ref(null)
+const editingKey = ref(false)
 
 const memoryItems = computed(() => {
   const needle = memoryQuery.value.trim().toLowerCase()
@@ -102,51 +101,11 @@ function submitFind() {
 }
 
 function submitPreview(target) {
-  submitDialog(async () => {
-    const [left, right] = await Promise.all([payload, target].map(row =>
-      userRequest('/api/users/memory?' + new URLSearchParams({ binding_id: row.binding_id }))))
-    const bindings = []
-    for (let offset = 0; ; offset += 100) {
-      const page = await userRequest('/api/users?' + new URLSearchParams({
-        query: right.binding.user_id, offset: String(offset), limit: '100'
-      }))
-      bindings.push(...(page.rows || []).filter(row => row.user_id === right.binding.user_id))
-      if (offset + 100 >= page.total) break
-    }
-    const targetNotes = new Map(right.items.map(item => [item.key, item.value]))
-    const conflicts = left.items.filter(item => targetNotes.has(item.key) && targetNotes.get(item.key) !== item.value)
-    for (const key of Object.keys(linkChoices)) delete linkChoices[key]
-    conflicts.forEach((item, index) => { linkChoices['conflict' + index] = 'source' })
-    linkPreview.value = { left, right, bindings, conflicts, targetNotes }
-    view.value = 'link-confirm'
-  })
-}
-
-function submitLink() {
-  const preview = linkPreview.value
-  if (!preview) return
-  const resolutions = {}
-  preview.conflicts.forEach((item, index) => { resolutions[item.key] = linkChoices['conflict' + index] })
-  submitDialog(async () => {
-    const result = await userRequest('/api/users', {
-      action: 'link',
-      binding_id: preview.left.binding.binding_id,
-      target_id: preview.right.binding.binding_id,
-      version: preview.left.binding.version,
-      resolutions,
-      expected_versions: {
-        source_memory: preview.left.version,
-        target_memory: preview.right.version,
-        target_binding: preview.right.binding.version
-      }
-    })
-    if (result.requires_confirmation) throw new Error('记忆内容已变化，请重新打开关联预览')
-    close()
-    await load()
-  })
+  openMerge(payload.user_id, target.user_id)
 }
 
 function openMemoryEdit(item = null) {
+  editingKey.value = Boolean(item)
   form.memoryKey = item?.key || ''
   form.memoryValue = item?.value || ''
   view.value = 'memory-edit'
@@ -162,7 +121,7 @@ function submitMemory() {
   if (!current) return
   submitDialog(async () => {
     if (current.contact_id) {
-      await contactRequest({
+      data.value = await contactRequest({
         action: 'memory_set',
         id: current.contact_id,
         version: data.value.version,
@@ -180,6 +139,7 @@ function submitMemory() {
       })
     }
     await loadMemory(current.binding.binding_id)
+    view.value = 'memory'
   })
 }
 
@@ -189,7 +149,7 @@ function submitDelete() {
   if (!current || !item) return
   submitDialog(async () => {
     if (current.contact_id) {
-      await contactRequest({
+      data.value = await contactRequest({
         action: 'memory_delete',
         id: current.contact_id,
         version: data.value.version,
@@ -268,44 +228,12 @@ function atText(value) {
             <template v-if="targets.length">
               <p class="monitor-note">最多显示 50 个；可用固定 ID 缩小范围。</p>
               <p v-for="target in targets" :key="'t-' + target.binding_id">
-                {{ userLabel(target) }} · <code>{{ target.user_id }}</code>
+                {{ userLabel(target) }}，<code>{{ target.user_id }}</code>
                 <button @click="submitPreview(target)">预览共享范围</button>
               </p>
             </template>
             <p v-else>没有可关联的目标，请调整搜索。</p>
           </div>
-        </template>
-
-        <template v-else-if="view === 'link-confirm' && linkPreview">
-          <h3>确认共享范围</h3>
-          <p>
-            来源：{{ userLabel(linkPreview.left.binding) }}<br>
-            <code>{{ linkPreview.left.binding.user_id }}</code> · {{ linkPreview.left.items.length }} 条记忆
-          </p>
-          <p>
-            目标：{{ userLabel(linkPreview.right.binding) }}<br>
-            <code>{{ linkPreview.right.binding.user_id }}</code> · {{ linkPreview.right.items.length }} 条记忆
-          </p>
-          <p>目标共享范围内的全部绑定：</p>
-          <ul class="user-link-scope">
-            <li v-for="row in linkPreview.bindings" :key="'sb-' + row.binding_id">
-              {{ userLabel(row) }}（{{ row.channel_type === 'group' ? '群聊' : '私聊 · ' + row.contact }}{{ row.status === 'disabled' ? ' · 已停用' : '' }}）<br>
-              <code>{{ row.binding_id }}</code>
-            </li>
-          </ul>
-          <p class="user-warning">关联后，来源绑定改用目标用户的共享记忆。群聊身份将能够使用目标范围内的私聊记忆；上述目标绑定也会读到合并内容。角色和聊天历史仍各自独立。</p>
-          <form id="user-link-confirm" class="user-form" @submit.prevent="submitLink">
-            <fieldset v-for="(item, index) in linkPreview.conflicts" :key="'cf-' + item.key">
-              <legend>同名 key：{{ item.key }}</legend>
-              <div class="user-conflict">
-                <label><input v-model="linkChoices['conflict' + index]" type="radio" :name="'conflict' + index" value="source" required>保留来源内容<pre>{{ item.value }}</pre></label>
-                <label><input v-model="linkChoices['conflict' + index]" type="radio" :name="'conflict' + index" value="target" required>保留目标内容<pre>{{ linkPreview.targetNotes.get(item.key) }}</pre></label>
-              </div>
-            </fieldset>
-            <p v-if="!linkPreview.conflicts.length">没有同名内容冲突，关联后合并两边记忆。</p>
-            <label class="user-check"><input type="checkbox" required>我已核对两边身份，并同意上述记忆共享范围</label>
-            <button type="submit" :disabled="dialogBusy">确认共享记忆</button>
-          </form>
         </template>
 
         <template v-else-if="view === 'memory'">
@@ -317,7 +245,7 @@ function atText(value) {
               绑定 <code>{{ member.binding_id }}</code>
             </p>
             <p class="monitor-note">
-              当前共享记忆范围：<code>{{ member.memory_owner || member.user_id }}</code> · 版本 {{ memory.version }}。已关联的其他绑定也能使用这里的记忆。
+              当前共享记忆范围：<code>{{ member.memory_owner || member.user_id }}</code>，版本 {{ memory.version }}。已关联的其他绑定也能使用这里的记忆。
             </p>
             <div class="row">
               <button id="user-memory-add" @click="openMemoryEdit()">新增记忆</button>
@@ -343,15 +271,15 @@ function atText(value) {
             </div>
             <div class="pagination">
               <button :disabled="memoryOffset === 0" @click="memoryOffset = Math.max(0, memoryOffset - 20)">上一页</button>
-              <span>{{ memoryItems.length ? memoryOffset + 1 : 0 }}–{{ Math.min(memoryOffset + 20, memoryItems.length) }} / {{ memoryItems.length }}</span>
+              <span>{{ memoryItems.length ? memoryOffset + 1 : 0 }} 至 {{ Math.min(memoryOffset + 20, memoryItems.length) }} / {{ memoryItems.length }}</span>
               <button :disabled="memoryOffset + 20 >= memoryItems.length" @click="memoryOffset += 20">下一页</button>
             </div>
           </template>
         </template>
 
         <form v-else-if="view === 'memory-edit'" id="user-memory-form" class="user-form" @submit.prevent="submitMemory">
-          <h3>{{ form.memoryKey ? '修正记忆' : '新增记忆' }}</h3>
-          <label>记忆 key<input v-model="form.memoryKey" name="key" required maxlength="200" :readonly="Boolean(form.memoryKey)"></label>
+          <h3>{{ editingKey ? '修正记忆' : '新增记忆' }}</h3>
+          <label>记忆 key<input v-model="form.memoryKey" name="key" required maxlength="200" :readonly="editingKey"></label>
           <label>内容<textarea v-model="form.memoryValue" name="value" required rows="6"></textarea></label>
           <p class="monitor-note">保存后会更新共享范围，并使后续模型会话使用新的记忆版本。</p>
           <div class="row">
@@ -371,7 +299,7 @@ function atText(value) {
         </template>
 
         <template v-else-if="view === 'audit'">
-          <h3>修改记录 · {{ userLabel(member) }}</h3>
+          <h3>修改记录，{{ userLabel(member) }}</h3>
           <button id="user-memory-back" @click="backToMemory">返回记忆</button>
           <div v-if="!audit" class="empty">正在读取修改记录…</div>
           <template v-else>

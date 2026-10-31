@@ -11,7 +11,7 @@ Windows 上的个人微信机器人：wxbot 负责微信窗口收发与持久队
 | 管理台 | `python -m dashboard.server` | 8788 | 只读运行事实 + 写配置文件；页面在 `/app/` |
 
 `python -m butler start` 按 `config.wxbot.toml` 的 `[installation].mode` 一次性拉起：
-`local` 启动三个进程，`external` 和 `direct` 只启动管理台与 wxbot。端口被占用时保留已有进程，
+`local` 启动三个进程，`external` 只启动管理台与 wxbot。旧 `direct` 模式先显式迁移。端口被占用时保留已有进程，
 绝不自动重启。
 
 ## 安装
@@ -36,16 +36,28 @@ cd butler-wxbot
 |---|---|---|
 | Codex | local | 可填 API Key，或 `python -m butler login` 登录本人账户（登录存在机器人自己的目录） |
 | 已有 Butler | external | 填现有 Butler 地址和 Token，本机不跑 Butler |
-| Hermes | direct | 填已运行的兼容 API 地址、模型与凭据 |
-| OpenClaw | direct | 网关先开 HTTP 对话端点，填地址、凭据和 agent |
-| Cursor | direct | 已安装并授权的无头 CLI；专属目录、只读 `--mode ask` 与沙箱 |
-| DeepSeek | direct | 填凭据和服务端实际模型名 |
-| 自定义 API | direct | 选 Chat Completions 或 Responses，填地址、模型和凭据 |
+| Hermes | local | Butler 调用已运行的兼容 API，填地址、模型与凭据 |
+| OpenClaw | local | Butler 调用网关 HTTP 对话端点，填地址、凭据和 agent |
+| Cursor | local | Butler 调用本人已授权的无头 CLI；专属目录、只读 `--mode ask` 与沙箱 |
+| DeepSeek | local | Butler 通过兼容 API 调用，填凭据和实际模型名 |
+| 自定义 API | local | Butler 调用 Chat Completions 或 Responses，填地址、模型和凭据 |
 
-`local/external/direct` 写进 `config.wxbot.toml` 的 `[installation].mode`，模型协议写进 `[model]`。
-非 Codex 接入不要求本机 Codex 登录。直接接入只调模型，不提供本机 Butler 记忆、提醒和业务工具；
+`local/external` 写进 `config.wxbot.toml` 的 `[installation].mode`，wxbot 的 `[model].backend` 固定为 `butler`。
+本机模型选择在 `config.butler.toml` 的 `[agent].provider`，Codex 参数在 `[codex]`，其它后端参数在 `[model]`。
+兼容老 Hermes 配置的 `[hermes]`。非 Codex 接入不要求本机 Codex 登录。
+统一链路是 **wxbot → Butler → 所选模型/智能体**；联系人、身份、记忆和提醒由 Butler 持有，模型切换不迁移这些业务数据。
+其它智能体使用已有的兼容协议接入，不假设任意 CLI 都支持 Cursor 协议。
 外部 Butler 能力由远端管理，本机管理台会关闭对应的远端账户／记忆／心跳入口。
 向导只写配置，不验证真实模型连接，也不启动服务。
+
+在管理台「配置管理 → 模型后端」切换 provider，页面按草稿选择显示地址、模型名、密钥或 Cursor 目录等适用字段。
+保存模型设置后由后续请求使用；在途请求继续使用原后端，切换不会重放请求。运行监听、认证和数据目录仍需由使用者自行重启加载。
+旧版 Hermes（没有 `[model]`）启动方式首次换模型需要手动重启 Butler；进入本地模型运行方式后适用热切换。加载本次新版代码也需使用者自行重启 Butler、管理台和 wxbot，前端刷新页面加载新 dist。
+各后端保留各自会话范围，切换不承诺移植远端推理会话；支持的工具能力取决于实际后端协议，API Key 不是 Butler 工具授权。
+
+旧 direct 安装先由使用者停掉本机服务，再执行 `python -m butler migrate --directory <安装目录>`。
+迁移会把本安装的模型参数移到 Butler、将 wxbot 指向本机 Butler，并保留原配置的 `.model-backup-*` 备份。
+备份同样含密钥，只留本机；不会自动启动服务或验证真实连接。
 
 ## 运行
 
@@ -89,9 +101,10 @@ src/dashboard/  管理台 HTTP 服务：server/http/routes/api + 各 *_view / *_
 src/common/     跨包共用：仓库根、配置锁、流转事件、模型观察、图文 schema、新闻配置
 web/            Vue 3 + Vite 管理台源码，构建产物 web/dist 由管理台在 /app/ 提供
 scripts/        启动与运维脚本（栈启停、投递、提醒、安装）
-tools/          探活与打包（probe.py、probe_codex.py、release.py）
+tools/          本机调试与打包（用法见 tools/README.md）
 plugins/butler-wechat/  Codex 插件：安装引导、角色、功能 Skill、MCP 连接
 tests/          离线回归测试（仅本地，不入库）：support/ unit/ butler/ dashboard/ integration/
+llm wiki/wxbot/  Obsidian 知识图谱：模块/接口/表/符号、影响报告、追加修改记录与本地检查
 data/           本机认证和运行数据，禁止提交 Git
 config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，不要改名）
 ```
@@ -170,6 +183,8 @@ config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，�
 | `runtime/install_wizard.py` | 交互式首次安装；不调模型、不复制登录、不启动服务 |
 | `runtime/migration.py` | 旧本地目录字段的显式、可重入导入 |
 | `runtime/upgrade.py` | 显式本地升级，保留连接与认证 |
+| `runtime/model_switch.py` | 请求固定模型代际，后续请求重载模型参数，旧后端在在途完成后关闭 |
+| `runtime/model_migration.py` | 旧 direct 安装显式改为 wxbot → Butler，保留本机私有配置备份 |
 | `runtime/plugin.py` | 可移植插件包与应用之间的版本化契约 |
 
 #### channels/telegram/ —— 外部通道
@@ -208,6 +223,8 @@ config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，�
 | `news/delivery.py` | 日报持久化与逐收件人／分段回执 |
 | `backends/codex.py` | 隔离的、有界的官方 SDK worker；绝不返回未完成的模型输出 |
 | `backends/codex_runtime.py` | 给 SDK 的阻塞启动和模型流都加时限 |
+| `backends/compatible.py` | 通用模型会话隔离、完整结果和 HTTP/CLI 传输适配 |
+| `backends/models.py` | OpenAI/Responses 原生函数工具循环，权限由 Butler 服务签发 |
 
 ### src/common —— 跨包共用
 
@@ -350,7 +367,8 @@ web/dist/                 构建产物，随仓库提交
 | `src/prefs.js` | 仅展示偏好的 localStorage 读写（白名单控制） |
 | `src/flow.js` | 工作流流转文案、事件分组与队列诊断的共用纯函数 |
 | `src/workflowState.js` | 工作流页跨标签页保留的快照、选中与概览状态 |
-| `src/contactState.js` | 联系人页共享状态与动作头请求封装 |
+| `src/contactState.js` | 联系人页分类、详情分区、共享状态与动作头请求封装 |
+| `src/contactPresentation.js` | 联系人状态、待确认原因、组合筛选和有效角色来源的纯展示规则 |
 | `src/configDraft.js` | 配置页草稿、保存状态与文件版本 |
 | `src/queueFocus.js` | 工作流 → 收发队列的一次性筛选传递 |
 | `src/views/WorkflowView.vue` | 实时工作流首页：消息列表、节点详情、模型实时输出 |
@@ -365,11 +383,13 @@ web/dist/                 构建产物，随仓库提交
 | `src/components/ConfigField.vue` | 单个配置项的输入控件 |
 | `src/components/StructuredEditor.vue` | 复杂结构的 JSON 编辑器 |
 | `src/components/ContactDialog.vue` | 联系人详情弹窗 |
+| `src/components/ContactMergeDialog.vue` | 人物身份合并预览、明确确认与过期版本处理 |
 | `src/components/UserDialog.vue` | 用户／记忆管理弹窗 |
 | `src/components/HeartbeatStatus.vue` | 心跳计划时间与最近事件 |
 | `src/styles/theme.css` | 主题层：设计令牌、导航、控件与卡片皮肤 |
 | `src/styles/dashboard.css` | 基础布局与组件类 |
 | `src/styles/workflow.css` | 工作流页专用样式 |
+| `src/styles/contacts.css` | 联系人分类、详情分区与窄窗口布局 |
 | `src/styles/base.css` | 基础样式与相对导入入口 |
 
 改 `src/` 或样式后必须 `cd web && npm run build` 并提交 `dist/`，否则 `/app/` 仍是旧产物。
@@ -407,20 +427,25 @@ web/dist/                 构建产物，随仓库提交
 | `tools/probe_codex.py` | 可选的真实 Codex 探针：临时服务与状态，绝不发微信 |
 | `tools/release.py` | 按显式白名单打两个可移植包，不依赖 Git 状态；内含凭据形状审计 |
 
+参数、脱敏规则与打包白名单明细见 `tools/README.md`。
+
 ### plugins/butler-wechat —— Codex 插件
 
 | 位置 | 职责 |
 |---|---|
-| `skills/setup/SKILL.md` | 安装引导 |
-| `skills/butler-companion/SKILL.md` | 日常陪伴对话 |
-| `skills/butler-memory/SKILL.md` | 记忆读写边界 |
-| `skills/create-cron-job/SKILL.md` | 创建定时任务 |
-| `skills/telegram-relay/SKILL.md` | Telegram 频道窗口转发 |
-| `skills/paimon/SKILL.md` 与同目录 md | 角色扮演（人物设定、关系、记忆、冲突处理） |
-| `skills/tong-jincheng-perspective/` | 视角类 Skill 与其研究参考材料 |
+| `skills/roles/butler-companion/SKILL.md` | 角色：日常陪伴对话 |
+| `skills/roles/paimon/SKILL.md` 与同目录 md | 角色：派蒙（人物设定、关系、记忆、冲突处理） |
+| `skills/roles/tong-jincheng-perspective/` | 角色：童锦程视角及研究参考材料 |
+| `skills/tools/butler-memory/SKILL.md` | 工具：记忆读写边界 |
+| `skills/tools/create-cron-job/SKILL.md` | 工具：创建定时任务 |
+| `skills/tools/telegram-relay/SKILL.md` | 工具：Telegram 频道窗口转发 |
+| `skills/tools/setup/SKILL.md` | 工具：安装引导（仅安装时使用，不进入业务工具白名单） |
 | `THIRD_PARTY.md` | 第三方素材来源与许可 |
 
 插件的 `.md` 是运行时资产，改动会影响模型行为，不当普通文档处理。
+角色放在 `skills/roles/`，工具放在 `skills/tools/`；插件清单分别声明这两个加载目录。
+Butler 递归读取统一的 `skills/` 根目录，按 `roles/` 和 `tools/` 子目录识别类型；角色不需要声明 `metadata.butler.tags`，旧平铺目录仍兼容标签识别。
+工具权限声明保留，并由服务端结合当前会话授权校验；目录分类本身不授予工具执行权限。
 
 ### tests/ —— 离线测试（仅本地，不入 Git）
 
@@ -526,14 +551,29 @@ web/dist/                 构建产物，随仓库提交
 |---|---|
 | 实时工作流 | 每条消息的当前位置、动态连线、工具进度、失败倒计时；点选看正文与完整回复 |
 | 收发队列 | 待处理／异常待核对／历史分区，逐类分页；异常旁有重试、确认已发、立即丢弃 |
-| 联系人 | 监听、群昵称、角色／心跳、订阅与记忆的统一维护（唯一来源 `data/business.sqlite3`） |
+| 联系人 | 默认会话列表按“私聊 / 群聊”分区并分别计数；另有“私聊 / 群聊 / 待确认”分类，私聊只列有私聊窗口的人，纯群成员从群详情打开资料并可返回原群；状态与问题类型单独筛选，详情分概览、基本资料、AI 设置、主动消息、群身份、个人记忆和身份管理（唯一来源 `data/business.sqlite3`） |
 | 定时任务 | 按归属分组的卡片；Butler 提醒可逐条删除 |
 | 配置管理 | 六个分类的可编辑配置：中文名称、用途、来源、生效方式；保留注释、备份与 409 版本冲突 |
 | Telegram 转发 | 转发设置与人工核对 |
 
 - 页面只保存排序与列表收起偏好；配置草稿留在内存，刷新整个浏览器会丢失。
 - 密钥原值不回传，可显式保持／替换／清空；`***` 占位不能写回配置文件。
-- 文件值不代表运行进程已加载的值；页面不会自动重启任何服务，按提示自己重启对应进程。
+- 模型字段按页面的生效提示供后续请求使用，其余文件值不代表运行进程已加载的值；页面不会自动重启服务。
+
+### 联系人管理规则
+
+- 人物显示名、微信窗口名称、群成员昵称分别维护。“微信窗口名称”用于在微信主窗口定位聊天，不是真实微信账号。
+- 修改人物姓名或群昵称不会合并人物；不同人物在同一群可以重名，管理页面保留各自入口。仅有群身份无需创建私聊。
+- 角色与允许功能显示最终配置及来源；会话单独设置优先于联系人默认设置，明确取消继承的会话不会误显示默认角色。
+- 主动消息按窗口维护订阅和自动问候，显示发送目标与运行记录；手动触发会先明确确认可能发送消息。
+- 移除一条成员身份只清除该绑定及识别证据，最后一条被移除后也保留人物、窗口和个人记忆。“删除联系人”会清理该人物的全部身份、私聊窗口、头像和个人记忆，操作不可撤销。
+- 联系人详情头部直接提供“删除联系人”，群聊详情提供“移除群聊”，所有详情分区均可使用，执行前保留原有确认提示。
+- 身份关联和合并统一先读取 `GET /api/contacts/merge-preview?source_id=...&target_id=...`。返回双方身份、窗口、默认策略、记忆冲突、`version` 和 `preview_version`；联系人写动作 `merge`（以及兼容的 `link_binding`）必须提交对应的 `preview_version`。提交前事务内重算版本摘要；记忆、绑定或配置变化返回 409，需重新预览。
+- 同名和相似头像仅作为管理候选；新增窗口/群身份不会隐式合并现有人物。旧管理员用户接口的 `create` 不复用同名人物，统一模式下旧 `link` 请改用上述合并预览流程。微信自动观察识别算法不在本轮重构范围内。
+- 未命名空档案清理移至身份管理下的全局维护工具，展示服务端 `can_cleanup` 候选；`person_cleanup` 必须带明确的 `ids` 列表（最多 1000）。服务器在事务中再次排除带窗口、已确认身份、个人记忆、记忆来源或身份重定向的档案。
+- 本轮无数据库迁移。后端改动由使用者手动重启 Butler 和管理台后加载；前端 `web/dist` 已构建，刷新页面加载。无需为本轮改动重启 wxbot。
+
+前端纯规则回归可运行 `cd web` 后的 `node --test scripts/contactPresentation.test.mjs`；页面交互仍通过 `npm run build` 与 `npm run smoke` 校验，全部使用假数据。
 
 ## 微信 UI 与队列
 
@@ -547,7 +587,8 @@ web/dist/                 构建产物，随仓库提交
 - 发送：每批字符数 `wechat.typing.chunk_size`（默认 5）、间隔 `chunk_interval`（默认 0.5 秒）；
   支持 `full` / `chunked` / `streaming` 三种模式，缺省 `chunked`。
 - 发件失败（`blocked`/`uncertain`）从首次失败起按 `retry_delay_seconds`（默认 20）自动重试，
-  最多 `max_delivery_retries`（默认 2）次；满 `failure_discard_seconds`（默认 60）丢弃并留审计。
+  最多 `max_delivery_retries`（默认 2）次；满 `failure_discard_seconds`（默认 180）丢弃并留审计。
+  同一个参数也是模型失败批次的放行时限：`retry_safe` 为否时不重试，到点后丢弃并继续后续消息。
 - 回车后出现新增的「自己」气泡才算 `sent`；不确定不自动重放。输入框内容读不回来视为 blocked，不清草稿。
 - 剪贴板备份失败时降级为清空写入并在发送后不恢复，但「序号为 0 且已有内容」这类风险仍拒绝。
 - `[wechat.emoji]` 未校准（button/item 为空）时自动改发文字，校准后自动恢复发图。
@@ -582,6 +623,26 @@ cd web; npm.cmd run build; npm.cmd run smoke                 # 前端构建与�
 真实外部连接、Telegram 转发和微信发送必须另行授权验证，离线测试不能代表这些结果。
 
 ## 维护约定
+
+### 项目知识图谱
+
+用 Obsidian 打开 [`llm wiki/wxbot/`](<llm wiki/wxbot/>)，从
+[`index.md`](<llm wiki/wxbot/index.md>) 进入；覆盖范围与步骤见
+[`coverage.md`](<llm wiki/wxbot/coverage.md>) 和 [`guide.md`](<llm wiki/wxbot/guide.md>)。
+改前先查图、核对源码并说明影响面；改后先写 `raw/changes/`，模型整合词条后入库、巡检。
+
+```powershell
+.\.venv\Scripts\python.exe "llm wiki/wxbot/scripts/wiki.py" query /v1/handle reply_complete
+.\.venv\Scripts\python.exe "llm wiki/wxbot/scripts/wiki.py" change topic --title "变更目标"
+# 填完记录、核对代码并更新词条及其来源后：
+.\.venv\Scripts\python.exe "llm wiki/wxbot/scripts/wiki.py" ingest YYYY-MM-DD-topic
+.\.venv\Scripts\python.exe "llm wiki/wxbot/scripts/wiki.py" lint
+```
+
+脚本只检索与登记证据，不调用模型或运行服务；语义更新由开发模型完成。
+首批覆盖消息处理核心，其余模块逐步扩展。图谱不加入应用发布白名单。
+
+### 开发边界
 
 - Butler、wxbot 和管理台都由使用者在 IDE 里手动启停；改代码后明确告知需要重启哪个进程，
   不要代为停止或重启，也不要在未授权时给真人发微信。

@@ -1,0 +1,32 @@
+........................................................................ [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 15%]
+........................................................................ [ 21%]
+........................................................................ [ 26%]
+........................................................................ [ 31%]
+........................................................................ [ 37%]
+...............................F.........................F.....F
+================================== FAILURES ===================================
+__________ test_direct_mode_does_not_offer_butler_business_controls ___________
+tests\dashboard\test_directory_dashboard.py:57: in test_direct_mode_does_not_offer_butler_business_controls
+    assert result['connection']['mode']=='direct'
+E   AssertionError: assert 'local' == 'direct'
+E     
+E     - direct
+E     + local
+_ test_config_includes_raw_defaults_fixed_typing_and_dynamic_policies_and_redacts _
+tests\dashboard\test_log_monitor.py:130: in test_config_includes_raw_defaults_fixed_typing_and_dynamic_policies_and_redacts
+    assert rows['wxbot.model.api_key']['value']=='�����ã����أ�'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'wxbot.model.api_key'
+__ test_configuration_hides_malformed_urls_instead_of_returning_credentials ___
+tests\dashboard\test_log_monitor.py:178: in test_configuration_hides_malformed_urls_instead_of_returning_credentials
+    assert rows['wxbot.model.url']['value']=='URL ��ʽ��Ч�������أ�'
+           ^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'wxbot.model.url'
+=========================== short test summary info ===========================
+FAILED tests/dashboard/test_directory_dashboard.py::test_direct_mode_does_not_offer_butler_business_controls
+FAILED tests/dashboard/test_log_monitor.py::test_config_includes_raw_defaults_fixed_typing_and_dynamic_policies_and_redacts
+FAILED tests/dashboard/test_log_monitor.py::test_configuration_hides_malformed_urls_instead_of_returning_credentials
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 3 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+3 failed, 565 passed in 61.71s (0:01:01)

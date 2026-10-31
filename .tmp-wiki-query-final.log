@@ -1,0 +1,41 @@
+# 改前影响面候选（draft）
+
+关键词：/v1/handle、reply_complete
+
+以下是检索候选，须读词条并核对当前代码后补齐报告。
+
+- [[apis/butler-handle]]：同步消息处理契约，从 wxbot 批次到完整 Butler 回复；`src/butler/server.py:308`、`src/butler/server.py:61`、`src/butler/agent/core.py:67`、`src/wxbot/processor/butler.py:60`、`src/wxbot/processor/butler.py:124`
+- [[apis/butler-handle-stream]]：SSE 增量观察与最终 result，断流不能当完整结果；`src/butler/server.py:329`、`src/wxbot/processor/butler.py:88`、`src/wxbot/processor/butler.py:101`
+- [[concepts/delivery-state]]：完整回复、排队、已发送和结果不确定分别处理；`src/wxbot/queue_store.py:330`、`src/wxbot/queue_store.py:582`、`src/wxbot/queue_store.py:623`、`src/wxbot/delivery_policy.py:5`、`src/wxbot/queue_worker.py:174`
+- [[apis/dashboard-queue]]：队列分页诊断，展示状态和可用动作而不执行恢复；`src/dashboard/routes.py:42`、`src/dashboard/api/queue.py:10`、`src/dashboard/queue_view.py:22`、`src/dashboard/queue_view.py:170`、`web/src/views/QueueView.vue:248`
+- [[apis/dashboard-workflow]]：队列与 Telegram 工作流只读聚合及前端消费；`src/dashboard/routes.py:39`、`src/dashboard/api/workflow.py:10`、`src/dashboard/workflow_view.py:52`、`web/src/views/WorkflowView.vue:356`
+- [[concepts/identity-authority]]：窗口/头像/昵称是证据，服务签发上下文才是工具授权边界；`src/butler/agent/tools.py:47`、`src/butler/agent/tools.py:56`、`src/butler/agent/tools.py:92`、`src/wxbot/queue_store.py:341`
+- [[concepts/message-pipeline]]：窗口→收件→批次→Butler→分句→UI→只读投影；`src/wxbot/inbox.py:229`、`src/wxbot/queue_worker.py:141`、`src/wxbot/processor/butler.py:71`、`src/butler/agent/core.py:277`
+- [[modules/butler]]：身份、权限、模型编排和业务工具的服务边界；`src/butler/server.py:45`、`src/butler/agent/core.py:73`、`src/butler/agent/tools.py:31`
+- [[modules/wxbot]]：微信 UI 主线程与不接触 UI 的模型队列线程；`src/wxbot/inbox.py:38`、`src/wxbot/queue_worker.py:25`、`src/wxbot/queue_store.py:91`
+- [[symbols/butler-handle]]：单轮身份解析、会话互斥、补发优先与最终合成；`src/butler/agent/core.py:205`、`src/butler/agent/core.py:246`、`src/butler/agent/core.py:280`、`src/butler/server.py:341`
+- [[symbols/butler-processor]]：wxbot 的 Butler HTTP 适配及完整结果校验；`src/wxbot/processor/butler.py:60`、`src/wxbot/processor/butler.py:124`、`src/wxbot/processor/router.py:27`
+- [[symbols/butler-result]]：生成 reply/actions/reply_parts/meta 的公开边界；`src/butler/agent/core.py:62`、`src/butler/agent/core.py:67`、`src/butler/server.py:357`
+- [[symbols/model-worker]]：领取批次、调用模型并保存回复，绝不访问 UI；`src/wxbot/queue_worker.py:43`、`src/wxbot/queue_worker.py:141`、`src/wxbot/queue_worker.py:99`
+- [[symbols/queue-finish]]：完整分句入 outbox，模型完成和发送完成分开；`src/wxbot/queue_store.py:330`、`src/wxbot/queue_store.py:312`、`src/wxbot/queue_store.py:350`
+- [[symbols/queue-store]]：短事务管理收件、合批、模型状态与 UI 发件状态；`src/wxbot/queue_store.py:91`、`src/wxbot/queue_store.py:230`、`src/wxbot/queue_store.py:268`、`src/wxbot/queue_store.py:528`
+- [[tables/queue-batches]]：模型请求批次与最终回复完整性，非发送回执；`src/wxbot/queue_schema.py:34`、`src/wxbot/queue_schema.py:84`、`src/wxbot/queue_schema.py:149`、`src/wxbot/queue_schema.py:7`、`src/wxbot/queue_store.py:300`、`src/wxbot/queue_store.py:330`
+- [[tables/queue-inbox]]：原始收件与群成员证据，batch_id 指向合并批次；`src/wxbot/queue_schema.py:34`、`src/wxbot/queue_schema.py:84`、`src/wxbot/queue_schema.py:149`、`src/wxbot/queue_schema.py:7`、`src/wxbot/queue_store.py:230`
+- [[tables/queue-outbox]]：逐分句发件与不确定结果审计，包含迁移新增字段；`src/wxbot/queue_schema.py:34`、`src/wxbot/queue_schema.py:84`、`src/wxbot/queue_schema.py:149`、`src/wxbot/queue_schema.py:7`、`src/wxbot/queue_schema.py:22`、`src/wxbot/queue_store.py:582`
+
+## 要改的文件与调用方
+
+待核对：上述候选及其调用关系。
+
+## 接口与前端消费点
+
+待核对：请求/响应字段、页面、类型与兼容性。
+
+## 数据库与字段血缘
+
+待核对：表/字段、迁移及冗余来源；不涉及时写明不涉及。
+
+## 测试、异步任务与风险
+
+待核对：覆盖、定时任务、消费者、回滚和已知盲区。
+

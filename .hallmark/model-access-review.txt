@@ -1,0 +1,12 @@
+Hallmark model configuration review, 2026-10-31（接入方式下拉）
+Scope: existing configuration app screen; shell, theme, layout, routes and handlers preserved.
+Run 1: node C:/Users/fcc/.agents/skills/hallmark/scripts/sloplint.mjs web/src/views/ConfigurationView.vue web/src/components/ConfigField.vue --scope app --render --url http://127.0.0.1:4181/app/?tab=configuration
+Run 2: same URL, ConfigurationView.vue only.
+Preview: isolated static build + fixtures in cache/preview-model-config.mjs only, no runtime data, API writes or service restarts.
+Result: ConfigurationView.vue 0 FAIL, 2 REFLEX, 1 WARN. ConfigField.vue alone adds FAIL 26a.
+Verified viewports: 1280x800, 1440x900, 1920x1080 folds plus 1440 and 375 full pages; 1440 shows the new 接入方式 select with the derived current value and note, 375 keeps the layout intact.
+Fixed: 接入方式 select shows the server-derived current value when [model].provider is empty, so the control never sits on a blank option; model fields carry placeholder hints; agent.provider moved to 高级配置 to avoid a second competing select.
+Waive 26a (ConfigField.vue): single-file scan cannot see global styles; focus rings come from web/src/styles/theme.css:125 and web/src/styles/dashboard.css:231 for button/input/select/summary.
+Waive 39b: existing two-line category navigation rows are 62px; preserve established layout.
+Waive 75: 10px shell brand/group headings predate the change; global shell restyling is outside this request.
+Remaining warning: existing shell group heading contrast 4.29:1 at 1280. No global restyling performed.

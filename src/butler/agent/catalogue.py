@@ -12,7 +12,8 @@ class SkillCatalogue:
     def _entries(self):
         entries = {}
         for path in sorted(self.root.rglob('SKILL.md')):
-            if not path.resolve().is_relative_to(self.root):
+            resolved = path.resolve()
+            if not resolved.is_relative_to(self.root):
                 continue
             text = path.read_text(encoding='utf-8-sig')
             parts = text.split('---', 2)
@@ -30,9 +31,17 @@ class SkillCatalogue:
             tools = policy.get('tools', [])
             if not isinstance(tags, list) or not isinstance(tools, list):
                 raise ValueError('Invalid skill metadata')
+            group = self.root.name if self.root.name in {'roles', 'tools'} else resolved.relative_to(self.root).parts[0]
+            category = 'role' if 'butler-role' in tags else 'tool'
+            if group in {'roles', 'tools'}:
+                category = 'role' if group == 'roles' else 'tool'
+                # Keep tags in catalogue responses for older clients; grouped
+                # skills declare their role through their directory, not YAML.
+                tags = [tag for tag in tags if tag != 'butler-role']
+                if category == 'role':
+                    tags.append('butler-role')
             entries[name] = {'name': name, 'description': str(fm.get('description', '')),
-                             'tags': list(tags), 'tools': list(tools), 'category':
-                             'role' if 'butler-role' in tags else 'tool', '_path': path}
+                             'tags': list(tags), 'tools': list(tools), 'category': category, '_path': path}
         return entries
 
     def list(self):
@@ -44,11 +53,11 @@ class SkillCatalogue:
         if not isinstance(policy, dict):
             raise ValueError('Role policy is required')
         role, allowed = policy.get('role_skill'), policy.get('allowed_skills')
-        if role not in entries or 'butler-role' not in entries[role]['tags']:
+        if role not in entries or entries[role]['category'] != 'role':
             raise ValueError('Unknown or invalid role skill')
         if not isinstance(allowed, list) or any(not isinstance(n, str) for n in allowed):
             raise ValueError('Invalid skill allowlist')
-        if any(n not in entries or {'butler-role','butler-setup'}.intersection(entries[n]['tags']) for n in allowed):
+        if any(n not in entries or entries[n]['category'] != 'tool' or 'butler-setup' in entries[n]['tags'] for n in allowed):
             raise ValueError('Unknown tool skill or role in tool allowlist')
         return {'role_skill': role, 'allowed_skills': sorted(set(allowed))}
 

@@ -22,6 +22,13 @@ def detail(ctx):
         return 400, {'error': str(exc)}
 
 
+def merge_preview(ctx):
+    try:
+        return 200, ctx.contact_admin().merge_preview(ctx.one('source_id'), ctx.one('target_id'))
+    except ValueError as exc:
+        return 400, {'error': str(exc)}
+
+
 def save(ctx):
     if not ctx.confirm('X-Wxbot-Contact-Action'):
         return 403, {'error': '需要本机页面确认联系人操作'}

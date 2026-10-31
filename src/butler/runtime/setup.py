@@ -35,6 +35,8 @@ def doctor(cfg,*,check_wechat=True):
     checks={}
     from butler.runtime.install_wizard import installation_mode
     mode=installation_mode(cfg.config_dir or REPO)
+    if mode=='direct':
+        checks['model_chain']={'ok':False,'hint':'Stop local services, then run python -m butler migrate'}
     try:
         from butler.runtime.plugin import validate_plugin
         protocol=validate_plugin(cfg.plugin_path())

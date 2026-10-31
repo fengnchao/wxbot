@@ -29,6 +29,7 @@ function onSecretMode(event) {
     <div>
       <div class="config-label">{{ field.label }}</div>
       <div v-if="field.description" class="monitor-note">{{ field.description }}</div>
+      <div v-if="field.note" class="monitor-note">{{ field.note }}</div>
       <div v-if="field.effect" class="monitor-source">生效：{{ field.effect }}</div>
     </div>
     <div class="config-control">
@@ -60,6 +61,7 @@ function onSecretMode(event) {
           type="number"
           :step="field.step"
           :disabled="field.disabled"
+          :placeholder="field.placeholder || ''"
           :value="field.raw"
           @input="onInput"
         >
@@ -68,6 +70,7 @@ function onSecretMode(event) {
           class="config-editor"
           type="text"
           :disabled="field.disabled"
+          :placeholder="field.placeholder || ''"
           :value="field.raw"
           @input="onInput"
         >

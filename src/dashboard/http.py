@@ -171,7 +171,7 @@ class BaseHandler(BaseHTTPRequestHandler):
             roles = {s['name'] for s in skills if is_role(s)}
             tools = {s['name'] for s in skills if not is_role(s)}
             if policy['role_skill'] not in roles:
-                raise ValueError('角色 Skill 不存在或缺少 butler-role 标签')
+                raise ValueError('角色 Skill 不存在或不属于角色分类')
             if not set(policy['allowed_skills']) <= tools:
                 raise ValueError('工具白名单包含目录中不存在的 Skill')
 

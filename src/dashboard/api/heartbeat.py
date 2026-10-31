@@ -103,7 +103,7 @@ def save_config(ctx):
     skill_by_name = {item["name"]: item for item in skills}
     role_skill = skill_by_name.get(role)
     if role_skill is None or not ctx.is_butler_role_skill(role_skill):
-        return 400, {"ok": False, "error": "角色 skill 必须存在且带有 butler-role 标签"}
+        return 400, {"ok": False, "error": "角色 skill 必须存在且属于角色分类"}
     role_names = {item["name"] for item in skills if ctx.is_butler_role_skill(item)}
     requested = {x.strip() for x in allowed if x.strip()}
     # Accept the role in an older browser draft, but never persist it as a tool.

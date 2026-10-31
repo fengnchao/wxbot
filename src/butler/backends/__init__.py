@@ -13,5 +13,13 @@ def create_backend(cfg, log=None, *, locks=None, store=None, tools=None):
     if cfg.provider == 'codex':
         from butler.backends.codex import CodexBackend
         return CodexBackend(cfg,log,locks=locks,store=store,tools=tools)
-    from butler.agent.hermes import HermesClient
-    return HermesClient(cfg,log,locks=locks)
+    if cfg.provider == 'hermes' and not cfg.model_config:
+        from butler.agent.hermes import HermesClient
+        return HermesClient(cfg,log,locks=locks)
+    from butler.backends.compatible import DEFAULTS
+    from butler.backends.models import LocalModelBackend
+    if cfg.provider not in DEFAULTS:
+        raise ValueError('Unsupported model provider: ' + str(cfg.provider))
+    if cfg.provider == 'cursor' and not cfg.model_config.get('work_dir'):
+        raise ValueError('Cursor requires a dedicated model.work_dir')
+    return LocalModelBackend(cfg,log,locks=locks,store=store,tools=tools)

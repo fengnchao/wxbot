@@ -11,7 +11,7 @@ from dashboard.api import (config, contacts, flow, groups, heartbeat, jobs, queu
 # 对接外部管理台时（installation.mode != "local"），这些路径的读写一律 503：
 # 用户、记忆、心跳与转发都由对端维护。列表与原实现的拦截范围逐条对应。
 BUSINESS_GET = frozenset({
-    '/api/contacts', '/api/contacts/memory', '/api/contacts/audit',
+    '/api/contacts', '/api/contacts/memory', '/api/contacts/audit', '/api/contacts/merge-preview',
     '/api/users', '/api/users/memory', '/api/users/audit', '/api/runtime',
     '/api/jobs', '/api/groups', '/api/heartbeat-config', '/api/heartbeat-status',
     '/api/skills', '/api/telegram-relay',
@@ -28,6 +28,7 @@ ROUTES = (
 
     ("GET", "/api/telegram-relay", relay.read),
     ("GET", "/api/contacts", contacts.read),
+    ("GET", "/api/contacts/merge-preview", contacts.merge_preview),
     ("GET", "/api/contacts/memory", contacts.detail),
     ("GET", "/api/contacts/audit", contacts.detail),
     ("GET", "/api/users", users.read),

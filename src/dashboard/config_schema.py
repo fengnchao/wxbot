@@ -3,7 +3,7 @@ import math
 from urllib.parse import urlsplit
 
 LABELS={
- 'provider':('模型运行时','codex 或 hermes；保存后需自行重启 Butler。'),
+ 'provider':('模型运行时','由 Butler 统一调用模型，生效方式见下方提示。'),
  'data_dir':('Butler 数据目录','相对路径按 Butler 配置文件目录解析。'),
  'plugin_root':('Codex 插件目录','留空使用项目内 butler-wechat 插件；插件需匹配协议版本。'),
  'max_workers':('Codex 最大进程数','同时驻留的模型 worker 上限，范围1–8。'),
@@ -62,8 +62,8 @@ LABELS={
  'class_name':('控件类名','UI自动化定位使用的ClassName。'),
  'name':('控件名称','UI自动化定位使用的名称。'),
  'avatar_size':('旧版群头像采样尺寸','兼容旧配置；新身份使用标准化的36×36头像。'),
- 'identity_avatar_left_offset':('身份头像水平偏移','新身份头像相对消息行的水平偏移，按96 DPI布局像素计算，默认12。'),
- 'identity_avatar_top_offset':('身份头像垂直偏移','新身份头像相对消息行的垂直偏移，按96 DPI布局像素计算，默认0。'),
+ 'identity_avatar_left_offset':('身份头像水平偏移','自动量不出头像边界时的兜底偏移，按96 DPI布局像素计算，默认20。'),
+ 'identity_avatar_top_offset':('身份头像垂直偏移','自动量不出头像边界时的兜底偏移，按96 DPI布局像素计算，默认8。'),
  'avatar_left_offset':('头像水平偏移','群成员头像采样区域的水平偏移。'),
  'avatar_top_offset':('头像垂直偏移','群成员头像采样区域的垂直偏移。'),
  'member_names':('群成员昵称映射','稳定头像ID到真实昵称的JSON映射。'),
@@ -80,7 +80,7 @@ LABELS={
  'audit_file':('心跳记录文件','保存心跳执行过程记录。'),
  'min_interval_minutes':('心跳最短间隔（分钟）','随机心跳等待下限。'),
  'max_interval_minutes':('心跳最长间隔（分钟）','随机心跳等待上限。'),
- 'role_skill':('角色 Skill','角色技能名称，需要带 butler-role 标签。'),
+ 'role_skill':('角色 Skill','角色技能名称，需要属于角色分类。'),
  'allowed_skills':('工具 Skill 白名单','允许此用户调用的工具技能列表，不包含角色技能。'),
  'heartbeat_enabled':('开启心跳','允许随机心跳选择此用户。'),
  'users':('用户角色与心跳策略','用户到角色、工具白名单和心跳开关的JSON映射。'),
@@ -90,6 +90,67 @@ LABELS={
  'butler_config':('Butler 配置文件','log 下次启动读取和维护的Butler配置文件；留空使用项目默认。'),
  'groups_file':('log 分组文件','log 下次启动使用的分组文件；留空使用默认。'),
 }
+
+# 接入方式是使用者选的产品名；协议是 Butler 实际走的调用方式，由这里推导。
+# 页面只维护 model.provider，服务端把协议同时写给 [agent].provider 和 [model].backend，
+# 避免同一件事在两个下拉里各填一半。
+ACCESS_PROVIDERS=('codex','hermes','cursor','deepseek','openai','responses','custom','openclaw','ollama','echo')
+ACCESS_LABELS={'codex':'Codex（本机登录）','hermes':'Hermes API','cursor':'Cursor CLI',
+               'deepseek':'DeepSeek API','openai':'OpenAI 兼容（Chat Completions）',
+               'responses':'OpenAI Responses 接口','custom':'自定义 API',
+               'openclaw':'OpenClaw','ollama':'本机 Ollama','echo':'Echo（离线调试）'}
+ACCESS_PROTOCOLS={'codex':'codex','hermes':'hermes','cursor':'cursor','deepseek':'openai',
+                  'openai':'openai','responses':'responses','openclaw':'openclaw',
+                  'ollama':'ollama','echo':'echo'}
+ACCESS_NOTE={'codex':'使用本机 Codex 登录，不需要 API Key。',
+             'hermes':'调用 Hermes 服务；填服务地址、模型名和密钥。',
+             'cursor':'调用 Cursor 命令行；需要程序位置和专属工作目录。',
+             'deepseek':'DeepSeek 官方接口；填模型名和密钥，协议按 OpenAI 兼容处理。',
+             'openai':'任何 OpenAI 兼容的 Chat Completions 接口；填地址、模型名和密钥。',
+             'responses':'任何 OpenAI 兼容的 Responses 接口；填地址、模型名和密钥。',
+             'custom':'自建或第三方接口；先选协议，再填地址、模型名和密钥。',
+             'openclaw':'调用 OpenClaw 网关；填地址、模型名，必要时填目标 Agent。',
+             'ollama':'调用本机 Ollama；填地址和模型名，无鉴权可留空密钥。',
+             'echo':'离线联调用，直接回显输入，不调用任何模型。'}
+# 只用于输入框占位提示；不写入配置文件，留空时由运行时的默认值兜底。
+ACCESS_HINTS={'deepseek':{'url':'https://api.deepseek.com/v1/chat/completions','model':'deepseek-chat'},
+              'openai':{'url':'https://api.openai.com/v1/chat/completions','model':'服务端提供的模型名'},
+              'responses':{'url':'https://api.openai.com/v1/responses','model':'服务端提供的模型名'},
+              'custom':{'url':'https://服务地址/v1/chat/completions','model':'服务端提供的模型名'},
+              'hermes':{'url':'http://127.0.0.1:8642/v1/chat/completions','model':'hermes-agent'},
+              'openclaw':{'url':'http://127.0.0.1:18789/v1/chat/completions','model':'openclaw/main'},
+              'ollama':{'url':'http://127.0.0.1:11434/api/chat','model':'qwen2.5:7b'},
+              'cursor':{'executable':'agent','work_dir':'data/cursor'}}
+
+
+def access_provider(raw):
+    """当前生效的接入方式。旧配置只有 [agent].provider，按协议名回退。"""
+    model=raw.get('model') if isinstance(raw,dict) else None
+    chosen=(model or {}).get('provider') if isinstance(model,dict) else None
+    if isinstance(chosen,str) and chosen.strip() in ACCESS_PROVIDERS:
+        return chosen.strip()
+    provider=((raw.get('agent') or {}).get('provider') if isinstance(raw,dict) else None) or 'hermes'
+    return provider if provider in ACCESS_PROVIDERS else 'hermes'
+
+
+def access_fields(provider):
+    """该接入方式真正要填的字段；其余字段留空即可，不算错。"""
+    return {'codex':(),
+            'echo':(),
+            'cursor':('executable','work_dir','model','api_key','timeout','max_history','system_prompt'),
+            'ollama':('url','model','timeout','max_history','system_prompt'),
+            'openclaw':('url','model','api_key','agent','timeout','max_history','system_prompt')}.get(
+        provider,('url','model','api_key','timeout','max_history','system_prompt'))
+
+
+def legacy_model_startup(raw):
+    return (raw.get('agent') or {}).get('provider','hermes')=='hermes' and not raw.get('model')
+
+
+def model_hot_path(path):
+    path=tuple(path)
+    return (path==('agent','provider') or path[:1]==('model',) or
+            len(path)==2 and path[0]=='codex' and path[1] in {'model','api_key','timeout','max_workers','idle_seconds'})
 
 
 def row_metadata(source,path,value,*,default_available=False):
@@ -101,6 +162,12 @@ def row_metadata(source,path,value,*,default_available=False):
         label,description='Codex 独立登录目录','机器人自己的 Codex 登录和会话目录；不能指向他人的认证目录。'
     if source=='log_config' and key=='home':
         label,description='log 数据来源目录','看板读取业务数据的目录；不改变 Butler 的数据位置。'
+    if source=='butler' and tuple(path)==('model','provider'):
+        label,description='接入方式','选择模型来源；保存后用于后续请求，正在执行的请求继续使用原模型。'
+    if source=='butler' and tuple(path)==('model','backend'):
+        label,description='自定义 API 协议','仅自定义 API 使用：openai 走 Chat Completions，responses 走 Responses。'
+    if source=='butler' and tuple(path)==('agent','provider'):
+        label,description='实际调用协议（由接入方式推导）','保存接入方式时自动写入；单独修改只在手工排障时使用。'
     if source=='wxbot' and tuple(path)==('wechat','typing','mode'):
         label,description='回复方式','full=全量粘贴；chunked=完整回复后分字粘贴；streaming=边生成边粘贴，按完整句发送。不支持流式的后端等待完整结果。'
     editor=('boolean' if type(value) is bool else 'integer' if type(value) is int else
@@ -108,7 +175,11 @@ def row_metadata(source,path,value,*,default_available=False):
     effect=('保存后立即用于后续角色/心跳检查' if source in {'policies','log_policies'} else
             '保存后立即用于后续分组读取' if source in {'groups','log_groups'} else
             '保存后需自行重启 '+{'wxbot':'wxbot','butler':'Butler','log_config':'log'}.get(source,source))
-    choices={('butler','agent','provider'):['codex','hermes'],
+    if source=='butler' and model_hot_path(path):
+        effect='保存后用于后续模型请求；正在执行的请求继续使用原配置'
+    choices={('butler','agent','provider'):['codex','hermes','openai','responses','openclaw','cursor','ollama','echo'],
+             ('butler','model','provider'):list(ACCESS_PROVIDERS),
+             ('butler','model','backend'):['openai','responses'],
              ('wxbot','model','backend'):['butler','hermes','openai','responses','openclaw','cursor','ollama','echo'],
              ('wxbot','queue','restart_chat_policy'):['discard','resume'],
              ('wxbot','wechat','typing','mode'):['full','chunked','streaming'],
@@ -136,7 +207,7 @@ def validate_value(path,value,reference):
                   'failure_discard_seconds','chunk_size','chunk_interval','max_scan_pages','switch_timeout','search_depth',
                   'avatar_size','strip_width','diff_threshold','min_pixels','min_interval_minutes','max_interval_minutes'}
         if (key in nonnegative and value<0) or (key in positive and value<=0):raise ValueError(name+' 数值超出允许范围')
-    if key=='url' and isinstance(value,str):
+    if key=='url' and isinstance(value,str) and value:
         try:
             u=urlsplit(value)
             valid=u.scheme in {'http','https'} and bool(u.hostname) and u.port!=0 and not u.username and not u.password
@@ -144,8 +215,13 @@ def validate_value(path,value,reference):
         if not valid:raise ValueError(name+' 必须是有效的HTTP/HTTPS地址，凭据请填独立密钥项')
     if key in {'bound_users','bound_groups','mention_names','allowed_skills'} or (path[0]=='groups' and isinstance(value,list)):
         if any(not isinstance(v,str) or not v.strip() for v in value):raise ValueError(name+' 必须是非空字符串列表')
-    if key=='backend' and value not in {'butler','hermes','openai','responses','openclaw','cursor','ollama','echo'}:raise ValueError('模型后端无效')
-    if key=='provider' and value not in {'codex','hermes'}:raise ValueError('模型运行时无效')
+    if key=='backend':
+        # [model].backend 是运行协议，不含 wxbot 自己的 butler 模式。
+        allowed={'hermes','openai','responses','openclaw','cursor','ollama','echo'} if tuple(path)==('model','backend') else {'butler','hermes','openai','responses','openclaw','cursor','ollama','echo'}
+        if value not in allowed:raise ValueError('模型后端无效')
+    if tuple(path)==('model','provider'):
+        if value not in ACCESS_PROVIDERS:raise ValueError('接入方式无效')
+    elif key=='provider' and value not in {'codex','hermes','openai','responses','openclaw','cursor','ollama','echo'}:raise ValueError('模型运行时无效')
     if key=='max_workers' and not 1<=value<=8:raise ValueError('Codex 最大进程数范围为1–8')
     if key=='idle_seconds' and value<=0:raise ValueError('空闲回收时间必须为正数')
     if tuple(path)==('wechat','typing','mode'):

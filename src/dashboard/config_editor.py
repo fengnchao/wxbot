@@ -10,7 +10,8 @@ import uuid
 import tomlkit
 
 from common.config_lock import config_lock, edit_lock_path  # noqa: F401  (re-exported)
-from dashboard.config_schema import validate_value
+from dashboard.config_schema import validate_value,model_hot_path,legacy_model_startup
+from dashboard.config_schema import ACCESS_PROTOCOLS,ACCESS_PROVIDERS,access_provider
 from dashboard.config_view import merge,source_version,WX_DEFAULTS,BT_DEFAULTS,sensitive
 
 _HIDDEN={'已配置（隐藏）','未配置'}
@@ -149,6 +150,34 @@ def validate_document(source,data,view,changes,policy_validator=None):
                 raise ValueError('分组编号须为正整数，成员须为非空名称列表')
 
 
+def _access_changes(changes,current):
+    """把「接入方式」展开成实际调用协议。
+
+    页面只给一个下拉：选了产品名，[agent].provider 和 [model].backend 都由这里推导，
+    避免同一件事分两个下拉各填一半，也不会出现一个改了另一个没改的配置。
+    只处理 set；恢复默认表示删字段，按协议名回退，不需要推导。
+    """
+    access_change=next((c for c in changes if c.get('path')==['model','provider'] and c.get('op')=='set'),None)
+    backend_change=next((c for c in changes if c.get('path')==['model','backend'] and c.get('op')=='set'),None)
+    if access_change is None and backend_change is None:return changes
+    access=access_change.get('value') if access_change else access_provider(current)
+    if access not in ACCESS_PROVIDERS:raise ValueError('未知的接入方式')
+    if access=='custom':
+        protocol=backend_change.get('value') if backend_change else (
+            (current.get('model') or {}).get('backend') or 'openai')
+        if protocol not in {'openai','responses'}:raise ValueError('自定义 API 协议只支持 openai 或 responses')
+    else:
+        protocol=ACCESS_PROTOCOLS[access]
+    rest=[c for c in changes if c.get('path') not in (['agent','provider'],['model','backend'])]
+    if access=='codex':
+        # Codex 不走兼容协议；留个 [model].backend 只会让校验和排障多一层歧义。
+        rest.append({'path':['model','backend'],'op':'default'})
+    else:
+        rest.append({'path':['model','backend'],'op':'set','value':protocol})
+    rest.append({'path':['agent','provider'],'op':'set','value':protocol})
+    return rest
+
+
 class ConfigEditor:
     def __init__(self,view,*,policy_validator=None):
         self.view,self.policy_validator=view,policy_validator
@@ -174,9 +203,11 @@ class ConfigEditor:
             if entry.get('version')!=version:raise ConfigConflict('配置文件已变化，请刷新后重新核对')
             rows={tuple(row['path']):row for section in catalog['sections'] if section.get('source_id')==source
                   for row in section['rows'] if row.get('editable') and 'path' in row}
+            changes=_access_changes(changes,self.view._raw[source])
             old=path.read_bytes() if path.exists() else b''
             if source_version(path,old)!=version:raise ConfigConflict('配置文件已更新，请刷新后重新核对')
             plain=deepcopy(self.view._raw[source])
+            legacy_startup=source=='butler' and legacy_model_startup(plain)
             json_source=source in {'policies','log_policies','groups','log_groups'}
             document=deepcopy(plain) if json_source else tomlkit.parse(old.decode('utf-8-sig'))
             seen=set()
@@ -225,5 +256,6 @@ class ConfigEditor:
             finally:
                 if temporary is not None and temporary.exists():temporary.unlink()
             self.view.read()  # Subsequent derived paths/timeouts and scrubbing use the saved values.
-            return {'ok':True,'restart':_RESTART.get(source,[]),'message':'配置已保存；请按页面提示自行重启对应服务' if source in _RESTART else '配置已保存，后续读取生效',
+            hot=source=='butler' and not legacy_startup and all(model_hot_path(c['path']) for c in changes)
+            return {'ok':True,'restart':[] if hot else _RESTART.get(source,[]),'message':'配置已保存，后续模型请求使用新配置' if hot else '配置已保存；请按页面提示自行重启对应服务' if source in _RESTART else '配置已保存，后续读取生效',
                     'backup':str(backup) if backup else ''}

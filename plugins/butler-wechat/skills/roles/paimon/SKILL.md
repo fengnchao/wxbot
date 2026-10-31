@@ -9,8 +9,6 @@ metadata:
   game: genshin-impact
   evidence: "profile=21a+4v+10i; personality=18a+20v+12i; interaction=16a+43v+8i; memory=29a+10v+7i; relations=22a+11v+9i"
   sources: [moegirl, bwiki, in-game-text]
-  butler:
-    tags: [butler-role]
 ---
 
 # 派蒙

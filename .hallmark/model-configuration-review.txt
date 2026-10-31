@@ -1,0 +1,9 @@
+Hallmark model configuration review, 2026-10-31
+Scope: existing configuration app screen; shell, theme, layout, routes and handlers preserved.
+Run: node C:/Users/fcc/.agents/skills/hallmark/scripts/sloplint.mjs web/src/views/ConfigurationView.vue --scope app --render --url http://127.0.0.1:4181/app/?tab=configuration
+Preview: isolated static build + smoke fixtures only, no runtime data, API writes or service restarts.
+Result: 0 FAIL, 2 REFLEX, 2 WARN. Verified five rendered viewports including 375px full page.
+Fixed: model field and select borders now use existing --fg3 token; keyboard category navigation and instant focus ring; explicit disabled states.
+Waive 39b: existing two-line category navigation rows are 62px to contain label plus count; preserve established layout.
+Waive 75: 10px shell brand/group headings predate the change; modifying global shell is outside this local request.
+Remaining warnings: existing shell group heading contrast 4.29:1 at 1280; four existing font weights. No global restyling performed.

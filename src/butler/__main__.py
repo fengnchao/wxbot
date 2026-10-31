@@ -47,6 +47,8 @@ def main(argv=None):
         from butler.runtime.setup import doctor
         result=doctor(cfg,check_wechat=not args.no_wechat)
         print(json.dumps(result,ensure_ascii=False,indent=2));return 0 if result['ok'] else 1
+    if mode=='direct':
+        parser.error('旧 direct 模式需要显式迁移；请先停止本机服务，再运行 python -m butler migrate。')
     if args.command=='login':
         if mode!='local' or cfg.provider!='codex':
             parser.error('当前接入方式不使用本机 Codex 登录，请按对应服务的登录说明操作。')

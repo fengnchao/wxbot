@@ -6,6 +6,7 @@ import random
 import time
 import uuid
 
+from common.avatar_identity import avatar_is_informative
 from common.flow_trace import FlowTrace,queue_trace_path,record
 from .wechat.clipboard import restore_pending
 
@@ -17,6 +18,12 @@ from .queue_worker import ModelWorker
 from .state import new_messages, overlap_end
 from .wechat.chat_window import Message, ReadDeferred
 from .wechat.main_window import MainWindow, Session, preview_sender
+
+
+def member_nickname(value, key=''):
+    """Screenshot placeholders such as `成员-178c1373` carry no name worth keeping."""
+    name = (value or '').strip()
+    return '' if name and name == f'成员-{(key or "unknown")[:8]}' else name
 
 
 def mentioned_text(text: str, names: list[str]) -> str | None:
@@ -108,8 +115,17 @@ class MainInbox:
         # avatar evidence remains usable for enrollment without replaying text.
         captured = {}
         for row in self.store.identity_observations():
+            avatar = row['avatar'] or ''
+            if avatar and not avatar_is_informative(avatar):
+                continue  # 遮挡时抓到的纯色块不是身份证据。
+            # 目录里学到的昵称比入库那一刻的快照新；用当前的才不会反复建待命名档案。
+            name = (self.store.group_member_name(row['contact'], row['member_key'])
+                    or member_nickname(row['member_name'], row['member_key']))
+            if row['group_mode'] and not name:
+                # 无名证据建不出能核对的人，只会在每次启动时多一条「待命名」。
+                continue
             captured.setdefault((row['contact'],row['group_mode']),[]).append(
-                {key:row[key] for key in ('member_key','member_name','avatar')})
+                {'member_key': row['member_key'], 'member_name': name, 'avatar': avatar})
         for (name, group), values in captured.items():
             for offset in range(0,len(values),50):
                 try:
@@ -120,10 +136,18 @@ class MainInbox:
         for name, messages in self.snapshots.items():
             metadata = {}
             for message in messages:
-                if message.sender == 'other':
-                    item = {'member_key': message.sender_key or '', 'member_name': message.sender_name or '',
-                            'avatar': message.avatar or ''}
-                    metadata[(item['member_key'], item['avatar']) if name in self.groups else ('dm','')] = item
+                if message.sender != 'other':
+                    continue
+                avatar = message.avatar or ''
+                if avatar and not avatar_is_informative(avatar):
+                    continue
+                key = message.sender_key or ''
+                nickname = (self.store.group_member_name(name, key)
+                            or member_nickname(message.sender_name, key))
+                if name in self.groups and not nickname:
+                    continue  # 同上：启动快照里的无名观测不重建身份。
+                metadata[(key, avatar) if name in self.groups else ('dm','')] = {
+                    'member_key': key, 'member_name': nickname, 'avatar': avatar}
             values = list(metadata.values())
             for offset in range(0, len(values), 50):
                 try:
@@ -275,10 +299,8 @@ class MainInbox:
                 mentioned = mention is not None
                 text = mention if mentioned else text      # 去掉 @Bot 前缀；无 @ 时保留原文
                 member = message.sender_key or "unknown-" + uuid.uuid4().hex
-                member_name = message.sender_name or ""
-                if member_name == f"成员-{(message.sender_key or 'unknown')[:8]}":
-                    member_name = ""
-                member_name = member_name or self.store.group_member_name(name, member)
+                member_name = (member_nickname(message.sender_name, message.sender_key)
+                               or self.store.group_member_name(name, member))
                 context = (f"[群聊发言人：{member_name or '未知成员'}; "
                            f"member_id={message.sender_key or 'unknown'}]")
                 direct = self._group_direct_request(name, member, text, mentioned,

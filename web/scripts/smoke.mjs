@@ -163,7 +163,7 @@ const payloads = {
           key: 'butler.agent.provider', value: 'hermes', origin: 'file', sensitive: false,
           path: ['agent', 'provider'], label: '模型运行时',
           description: 'codex=本地 Codex，hermes=Hermes 服务。', editor: 'string', widget: 'string',
-          choices: ['codex', 'hermes'], editable: true, effect: '保存后需自行重启 Butler', default_available: false
+          choices: ['codex','hermes','openai','responses','openclaw','cursor','ollama','echo'], editable: true, effect: '保存后需自行重启 Butler', default_available: false
         }]
       },
       {
@@ -186,7 +186,7 @@ const payloads = {
     ]
   },
   '/api/contacts': {
-    active: true, version: 3, total: 2,
+    active: true, version: 3, total: 4,
     rows: [
       {
         id: 'alice', kind: 'person', name: 'Alice', enabled: true, avatar: '', historical_names: [],
@@ -212,23 +212,34 @@ const payloads = {
         memberships: [{
           binding_id: 'b-group-1', contact: '产品群', nickname: '小A', enabled: true,
           identity_confirmed: true, user_id: 'alice', version: 2, channel_type: 'group'
+        }, {
+          binding_id: 'b-member-only', contact: '产品群', nickname: '群内成员', enabled: true,
+          identity_confirmed: true, user_id: 'member-only', channel_type: 'group'
         }],
         bindings: [], memory_count: 0, policy: null
+      },
+      {
+        id: 'member-only', kind: 'person', name: '群内成员', enabled: true,
+        conversations: [], bindings: [], memory_count: 0, policy: null,
+        memberships: [{
+          binding_id: 'b-member-only', contact: '产品群', nickname: '群内成员', enabled: true,
+          identity_confirmed: true, user_id: 'member-only', channel_type: 'group'
+        }]
+      },
+      {
+        id: 'disabled-person', kind: 'person', name: '旧私聊', enabled: false,
+        conversations: [{
+          id: 'disabled-dm', name: '旧私聊', channel_type: 'dm', enabled: false,
+          listening: false, subscriptions: [], needs_route: false
+        }],
+        memberships: [], bindings: [], memory_count: 0, policy: null
       }
     ],
     settings: { bot: { mention_names: ['机器人'] }, wechat: { main_window: { listen_all: false } } },
     aliases: [{ group: '产品群', member_key: 'mk-1', name: '小A', source: 'learned', pending: true }]
   },
   '/api/groups': {
-    message_types: [], contacts: [],
-    news: {
-      schedule: '每日 08:00', note: '保存后下次新闻任务生效。',
-      categories: [{ id: 'tech', label: '科技', description: '科技与数码' }, { id: 'society', label: '社会' }],
-      sources: [{ id: 'chinanews', label: '中新网', description: '' }],
-      settings: { categories: ['tech'], sources: ['chinanews'], count: 5 },
-      latest: { date: '2026-10-30', status: 'sent', article_count: 5, sent: 2 },
-      version: 'n1'
-    }
+    message_types: [], contacts: []
   },
   '/api/heartbeat-status': {
     events: [{
@@ -313,6 +324,50 @@ const payloads = {
   }
 }
 
+payloads['/api/configuration'].sections.push({
+  id: 'butler.model', title: 'Butler · model', source_id: 'butler',
+  rows: [{
+    key: 'butler.model.provider', path: ['model', 'provider'], value: '', origin: 'default',
+    label: '接入方式', description: '选择模型来源；保存后用于后续请求。',
+    editor: 'string', widget: 'string',
+    choices: ['codex','hermes','cursor','deepseek','openai','responses','custom','openclaw','ollama','echo'],
+    choice_labels: ['Codex（本机登录）','Hermes API','Cursor CLI','DeepSeek API','OpenAI 兼容（Chat Completions）',
+      'OpenAI Responses 接口','自定义 API','OpenClaw','本机 Ollama','Echo（离线调试）'],
+    editable: true, default_available: true, effect: '保存后用于后续模型请求'
+  }, {
+    key: 'butler.model.backend', path: ['model', 'backend'], value: '', origin: 'default',
+    label: '自定义 API 协议', description: '仅自定义 API 使用。', editor: 'string', widget: 'string',
+    choices: ['openai', 'responses'], editable: true, default_available: true, effect: '保存后用于后续模型请求'
+  }, ...Object.entries({ url: '', model: '', api_key: '已配置（隐藏）', executable: 'agent', work_dir: 'data/cursor', agent: 'main', timeout: 600 }).map(([key, value]) => ({
+    key: 'butler.model.' + key, path: ['model', key], value, origin: 'default', label: '连接字段 ' + key,
+    editor: key === 'api_key' ? 'secret' : typeof value === 'number' ? 'integer' : 'string',
+    sensitive: key === 'api_key', editable: true, default_available: true, effect: '保存后用于后续模型请求'
+  }))]
+})
+
+// 接入方式决定哪些连接字段生效；服务端下发，页面只读。
+const accessFields = {
+  codex: [], echo: [],
+  hermes: ['url', 'model', 'api_key', 'timeout', 'max_history', 'system_prompt'],
+  deepseek: ['url', 'model', 'api_key', 'timeout', 'max_history', 'system_prompt'],
+  openai: ['url', 'model', 'api_key', 'timeout', 'max_history', 'system_prompt'],
+  responses: ['url', 'model', 'api_key', 'timeout', 'max_history', 'system_prompt'],
+  custom: ['url', 'model', 'api_key', 'timeout', 'max_history', 'system_prompt'],
+  openclaw: ['url', 'model', 'api_key', 'agent', 'timeout', 'max_history', 'system_prompt'],
+  ollama: ['url', 'model', 'timeout', 'max_history', 'system_prompt'],
+  cursor: ['executable', 'work_dir', 'model', 'api_key', 'timeout', 'max_history', 'system_prompt']
+}
+payloads['/api/configuration'].model_access = {
+  current: 'hermes',
+  fields: accessFields,
+  notes: { hermes: '调用已配置的 Hermes 服务。', openai: '按 Chat Completions 协议直连。', cursor: '调用本机 Cursor CLI。' }
+}
+
+payloads['/api/contacts/memory'] = { contact_id: 'alice', version: 1, items: [],
+  binding: { user_id: 'alice', nickname: 'Alice', contact: 'Alice', channel_type: 'dm', binding_id: 'person:alice', memory_owner: 'user:alice' } }
+const mergeRequests = []
+const deleteRequests = []
+let rejectMerge = false
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(typeof input === 'string' ? input : input.url, 'http://127.0.0.1')
   const method = String(init.method || 'GET').toUpperCase()
@@ -323,8 +378,25 @@ globalThis.fetch = async (input, init = {}) => {
       text: async () => JSON.stringify({ ok: true, message: '已保存', restart: ['wxbot'] })
     }
   }
+  if (url.pathname === '/api/contacts/merge-preview') {
+    const rows = payloads['/api/contacts'].rows
+    return { ok: true, status: 200, text: async () => JSON.stringify({
+      source: rows.find(row => row.id === url.searchParams.get('source_id')),
+      target: rows.find(row => row.id === url.searchParams.get('target_id')),
+      conflicts: [], version: 3, preview_version: 'preview-v3', rules: '保留目标人物，记忆保留全部来源。'
+    }) }
+  }
   if (url.pathname === '/api/contacts' && method === 'POST') {
     const body = JSON.parse(init.body || '{}')
+    if (body.action === 'contact_delete') deleteRequests.push(body)
+    if (body.action === 'merge') {
+      mergeRequests.push(body)
+      if (rejectMerge) return { ok: false, status: 409, text: async () => JSON.stringify({ error: 'merge preview version conflict' }) }
+    }
+    if (body.action === 'memory_set') {
+      payloads['/api/contacts/memory'].items.push({ key: body.key, value: body.value, updated: 1 })
+      payloads['/api/contacts/memory'].version++
+    }
     const current = payloads['/api/contacts']
     const next = { ...current, version: current.version + 1 }
     if (body.action === 'aliases') next.aliases = body.aliases
@@ -391,62 +463,165 @@ const contactButton = [...document.querySelectorAll('.nav-group button')].find(n
 contactButton?.click()
 await new Promise(resolve => setTimeout(resolve, 150))
 
-const contactList = text('#list')
-for (const phrase of ['联系人', '新增联系人 / 群', '筛选', '新闻推送设置', '全局监听设置',
-  '群昵称与待核对别名', 'Alice', '1 个所属群']) {
-  expect(contactList.includes(phrase), '联系人左栏缺少「' + phrase + '」')
+const pause = () => new Promise(resolve => setTimeout(resolve, 60))
+async function contactCategory(value) {
+  document.querySelector('[data-category="' + value + '"]')?.click()
+  await pause()
 }
-const contactPane = text('#pane')
-for (const phrase of ['Alice', '会话与投递目的地', '监听开启', '订阅 新闻',
-  '会话覆盖角色：assistant', '自动心跳开启', '所属群与群昵称', '产品群', '小A',
-  '待核对', 'b-group-1', '共享记忆', '2 条', '基本资料', '默认角色与 Skill',
-  '关联已有群成员', '新增所属群', '新增私聊目的地', '心跳运行记录']) {
-  expect(contactPane.includes(phrase), '联系人详情缺少「' + phrase + '」')
+async function contactDetail(value) {
+  document.querySelector('[data-detail="' + value + '"]')?.click()
+  await pause()
 }
-
-document.querySelector('#contact-status')?.click()
-await new Promise(resolve => setTimeout(resolve, 100))
-const statusPane = text('#pane')
-for (const phrase of ['已开启 1 位', '建议已发送', '展开最近 1 条执行记录']) {
-  expect(statusPane.includes(phrase), '心跳运行记录缺少「' + phrase + '」')
+async function contactStatus(value) {
+  const select = document.querySelector('#contact-filter')
+  select.value = value
+  select.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+  await pause()
 }
-
-document.querySelector('#contact-news')?.click()
-await new Promise(resolve => setTimeout(resolve, 100))
-const newsPane = text('#pane')
-for (const phrase of ['新闻推送设置', '新闻类型 · 可多选', '科技', '每日新闻条数',
-  '保存新闻设置', '最近执行']) {
-  expect(newsPane.includes(phrase), '新闻设置缺少「' + phrase + '」')
-}
+expect(document.querySelectorAll('#list .contact-row').length === 2, '默认会话列表只显示启用的私聊与群聊')
+expect(text('[data-contact-section=dm] h3').trim() === '私聊 1', '默认列表应有独立私聊分区及数量')
+expect(text('[data-contact-section=group] h3').trim() === '群聊 1', '默认列表应有独立群聊分区及数量')
+expect(document.querySelectorAll('[data-contact-section=dm] .contact-row').length === 1 &&
+  text('[data-contact-section=dm] .contact-row').includes('Alice'), '私聊分区不能混入群聊或仅群内成员')
+expect(document.querySelectorAll('[data-contact-section=group] .contact-row').length === 1 &&
+  text('[data-contact-section=group] .contact-row').includes('产品群'), '群聊分区不能混入私聊人物')
+await contactCategory('people')
+expect(document.querySelectorAll('#list .contact-row').length === 2, '私聊分类只保留有私聊窗口的人，包括已停用私聊')
+expect(![...document.querySelectorAll('#list .contact-row')].some(row => row.textContent.includes('群内成员')),
+  '群成员不应在私聊列表再出现一套')
+expect(text('#pane').includes('概览'), '默认详情应展示概览')
+expect(!text('#pane').includes('选择要并入的档案'), '默认概览不应堆放合并操作')
+expect(document.querySelector('.contact-head #contact-delete')?.textContent.trim() === '删除联系人',
+  '删除联系人应在详情头部直接可见，不能藏在身份管理折叠区')
+const previousConfirm = dom.window.confirm
+let deleteQuestion = ''
+dom.window.confirm = message => { deleteQuestion = message; return false }
+document.querySelector('#contact-delete')?.click()
+await pause()
+expect(deleteQuestion.includes('Alice') && deleteQuestion.includes('不可撤销') && deleteRequests.length === 0,
+  '取消删除确认不能发送删除请求')
+dom.window.confirm = previousConfirm
+await contactStatus('disabled')
+expect(document.querySelectorAll('#list .contact-row').length === 1 && text('#list').includes('旧私聊'), '状态应独立筛选停用人物')
+await contactStatus('')
+const contactSearch = document.querySelector('.contact-search')
+contactSearch.value = '小A'
+contactSearch.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+await pause()
+expect(document.querySelectorAll('#list .contact-row').length === 1 && text('#pane h2').includes('Alice'), '搜索群昵称应定位所属人物')
+contactSearch.value = ''
+contactSearch.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+await pause()
+document.querySelector('#list .contact-row')?.click()
+await contactDetail('ai')
+expect(text('#pane').includes('assistant') && text('#pane').includes('此窗口单独设置'), 'AI 设置应展示生效角色和覆盖来源')
+expect(text('#pane').includes('news'), 'AI 设置应展示实际允许功能')
+await contactDetail('push')
+expect(text('#pane').includes('发送窗口：Alice') && text('#pane').includes('新闻'), '主动消息应明确订阅与发送目标')
+;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('查看此窗口运行记录'))?.click()
+await pause()
+expect(text('#pane').includes('主动问候运行记录') && text('#pane').includes('建议已发送'), '应展示选定窗口的主动问候记录')
+await contactDetail('basic')
+document.querySelector('#contact-person-edit')?.click()
+await pause()
+expect(!document.querySelector('#contact-profile-form select[name=role]'), '基本资料保存不应混入角色配置')
+expect(!text('#contact-profile-form').includes('确认本次同名归并'), '修改姓名不应夹带合并确认')
+document.querySelector('#user-dialog-close')?.click()
+await pause()
+document.querySelector('#contact-create')?.click()
+await pause()
+expect(text('#contact-create-form').includes('监听与主动问候默认关闭'), '创建窗口应说明主动功能默认关闭')
+document.querySelector('#user-dialog-close')?.click()
+await contactCategory('pending')
+expect(document.querySelectorAll('#list .contact-row').length === 1 && text('#list').includes('Alice'), '待确认应显示未确认身份，已确认的仅群成员不应混入')
+await contactCategory('groups')
+expect(document.querySelectorAll('#list .contact-row').length === 1 && text('#pane h2').includes('产品群'), '群聊应独立展示')
+expect(!document.querySelector('[data-detail=memory]'), '群聊不显示个人记忆入口')
+expect(document.querySelector('.contact-head #contact-delete')?.textContent.trim() === '移除群聊',
+  '群聊头部应直接提供移除入口')
+await contactDetail('groups')
+;[...document.querySelectorAll('#pane .contact-member')].find(row => row.textContent.includes('群内成员'))?.querySelector('button')?.click()
+await pause()
+expect(text('#pane h2').includes('群内成员') && document.querySelector('[data-category=groups]')?.getAttribute('aria-pressed') === 'true',
+  '群成员资料应在群聊上下文内打开，不跳到私聊列表')
+expect(document.querySelectorAll('#list .contact-row').length === 1 && text('#list .contact-row').includes('产品群'),
+  '打开群成员后左栏应保留群聊列表')
+expect(document.querySelector('#contact-member-back') && text('#list .contact-row.sel').includes('产品群'),
+  '群成员资料应有返回群聊入口并保留当前群选中状态')
+expect(document.querySelector('.contact-head #contact-delete')?.textContent.trim() === '删除联系人',
+  '群成员资料头部应保留删除联系人入口')
+document.querySelector('#contact-member-back')?.click()
+await pause()
+expect(text('#pane h2').includes('产品群') && !document.querySelector('#contact-member-back'), '返回群聊应关闭成员详情')
+await contactDetail('groups')
+;[...document.querySelectorAll('#pane .contact-member')].find(row => row.textContent.includes('群内成员'))?.querySelector('button')?.click()
+await pause()
+await contactDetail('maintenance')
+const mergeSelect = document.querySelector('[aria-label="选择并入来源"]')
+mergeSelect.value = 'alice'
+mergeSelect.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+await pause()
+;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('预览并入'))?.click()
+await pause()
+expect(document.querySelector('#contact-merge-dialog') && text('#contact-merge-dialog').includes('保留目标'), '合并必须先展示双方影响范围')
+expect(mergeRequests.length === 0, '查看合并预览不能发送写请求')
+document.querySelector('#contact-merge-dialog button[type=button]')?.click()
+await pause()
+expect(!document.querySelector('#contact-merge-dialog') && mergeRequests.length === 0, '取消合并不能修改数据')
+;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('预览并入'))?.click()
+await pause()
+let ack = document.querySelector('#contact-merge-dialog input[type=checkbox]')
+ack.checked = true
+ack.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+await pause()
+rejectMerge = true
+document.querySelector('#contact-merge-dialog form')?.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+await pause()
+expect(text('#contact-merge-dialog').includes('重新预览') && !document.querySelector('#contact-merge-dialog form'), '冲突后不能沿用旧预览再次提交')
+;[...document.querySelectorAll('#contact-merge-dialog button')].find(button => button.textContent.includes('重新预览'))?.click()
+await pause()
+ack = document.querySelector('#contact-merge-dialog input[type=checkbox]')
+expect(ack && !ack.checked, '重新预览需要重新核对确认')
+ack.checked = true
+ack.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+await pause()
+rejectMerge = false
+document.querySelector('#contact-merge-dialog form')?.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+await pause()
+expect(mergeRequests.length === 2 && mergeRequests[1].preview_version === 'preview-v3' && mergeRequests[1].version === 3 && mergeRequests[1].id === 'member-only', '确认合并必须带上预览版本及目标人物')
+expect(!document.querySelector('#contact-merge-dialog'), '成功后关闭合并弹窗')
+await contactCategory('people')
+document.querySelector('#list .contact-row')?.click()
+await pause()
+await contactDetail('memory')
+;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('查看与整理个人记忆'))?.click()
+await pause()
+document.querySelector('#user-memory-add')?.click()
+await pause()
+const keyInput = document.querySelector('#user-memory-form [name=key]')
+const valueInput = document.querySelector('#user-memory-form [name=value]')
+if (!keyInput || !valueInput) throw new Error('记忆编辑未打开：' + text('dialog') + '；页面：' + text('#pane') + '；控制台：' + problems.join('\n'))
+keyInput.value = '偏好'
+keyInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+await pause()
+expect(!keyInput.readOnly, '新增记忆的 key 在输入过程中应持续可编辑')
+valueInput.value = '简洁回复'
+valueInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+document.querySelector('#user-memory-form')?.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+await pause()
+expect(!document.querySelector('#user-memory-form') && text('dialog').includes('简洁回复'), '保存个人记忆后应返回已更新的记忆列表')
+document.querySelector('#user-dialog-close')?.click()
+await pause()
+dom.window.confirm = () => true
+document.querySelector('#contact-delete')?.click()
+await pause()
+expect(deleteRequests.length === 1 && deleteRequests[0].id === 'alice' && deleteRequests[0].kind === 'person',
+  '确认后应按当前联系人 ID 调用原有删除接口')
+dom.window.confirm = previousConfirm
 
 document.querySelector('#contact-aliases')?.click()
-await new Promise(resolve => setTimeout(resolve, 100))
-const aliasPane = text('#pane')
-for (const phrase of ['群昵称与待核对别名', '所属群', '群昵称', '成员标识', '添加群昵称']) {
-  expect(aliasPane.includes(phrase), '群昵称设置缺少「' + phrase + '」')
-}
-expect(document.querySelectorAll('#pane .alias-editor').length === 1, '群昵称表格未渲染')
-
-document.querySelector('#contact-create')?.click()
-await new Promise(resolve => setTimeout(resolve, 100))
-const contactDialog = document.querySelector('dialog.user-dialog')
-for (const phrase of ['新增联系人 / 群', '微信窗口名称', '监听与心跳默认关闭']) {
-  expect((contactDialog?.textContent || '').includes(phrase), '新增联系人弹窗缺少「' + phrase + '」')
-}
-document.querySelector('#user-dialog-close')?.click()
-await new Promise(resolve => setTimeout(resolve, 50))
-expect(!document.querySelector('dialog.user-dialog'), '关闭后弹窗未移除')
-
-const contactFilter = document.querySelector('#contact-filter')
-contactFilter.value = 'pending'
-contactFilter.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-await new Promise(resolve => setTimeout(resolve, 50))
-expect(document.querySelectorAll('#list .contact-row').length === 1, '待补充资料筛选应只保留 Alice，实际 '
-  + document.querySelectorAll('#list .contact-row').length)
-contactFilter.value = ''
-contactFilter.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
-await new Promise(resolve => setTimeout(resolve, 50))
-expect(document.querySelectorAll('#list .contact-row').length === 2, '清除筛选后应恢复 2 行')
+await pause()
+expect(document.querySelectorAll('#pane .alias-editor').length === 1, '仍能维护群昵称别名')
 
 // 定时任务页：左栏归属、卡片行、删除按钮与「显示已完成」开关
 const jobsButton = [...document.querySelectorAll('.nav-group button')].find(node => node.textContent.trim() === '定时任务')
@@ -514,7 +689,7 @@ for (const phrase of ['基础连接', '微信收发', '模型后端', '联系人
   expect(configList.includes(phrase), '配置左栏缺少「' + phrase + '」')
 }
 const configPane = text('#pane')
-for (const phrase of ['基础连接', '指令前缀', '轮询间隔', '模型运行时', '修改后点击保存',
+for (const phrase of ['基础连接', '指令前缀', '轮询间隔', '修改后点击保存',
   '重新载入配置', '0 项未保存']) {
   expect(configPane.includes(phrase), '配置主区域缺少「' + phrase + '」')
 }
@@ -530,9 +705,36 @@ await new Promise(resolve => setTimeout(resolve, 50))
 const searched = text('#pane')
 expect(searched.includes('配置搜索结果') && searched.includes('模型运行时'), '配置搜索未命中模型运行时')
 expect(!searched.includes('指令前缀'), '配置搜索未过滤不匹配项')
-const providerSelect = [...document.querySelectorAll('#pane select')]
-  .find(node => [...node.options].some(option => option.value === 'codex'))
-expect(providerSelect?.value === 'hermes', '模型运行时未选中当前值，实际 ' + (providerSelect?.value ?? 'null'))
+// 接入方式下拉是唯一同时提供 10 个产品选项的 select，用 deepseek 定位不会和协议下拉混淆。
+const accessSelect = () => [...document.querySelectorAll('#pane select')]
+  .find(node => [...node.options].some(option => option.value === 'deepseek'))
+const providerSelect = accessSelect()
+expect(providerSelect?.value === 'hermes', '接入方式未选中当前值，实际 ' + (providerSelect?.value ?? 'null'))
+
+// 草稿选择立即切换协议字段，切回时保留未启用配置草稿。
+configSearch.value = ''
+configSearch.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+;[...document.querySelectorAll('#list .user')].find(node => node.textContent.includes('模型后端'))?.click()
+await new Promise(resolve => setTimeout(resolve, 50))
+const selectProvider = value => {
+  const node = accessSelect()
+  node.value = value
+  node.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+}
+selectProvider('openai')
+await new Promise(resolve => setTimeout(resolve, 50))
+expect(text('#pane').includes('连接字段 url') && !text('#pane').includes('连接字段 executable'), 'OpenAI 草稿未显示对应连接字段')
+const modelInput = [...document.querySelectorAll('#pane .config-field')].find(node => node.textContent.includes('连接字段 model'))?.querySelector('input[type=text]')
+modelInput.value = 'user-chosen-model'
+modelInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+selectProvider('cursor')
+await new Promise(resolve => setTimeout(resolve, 50))
+expect(text('#pane').includes('连接字段 executable') && !text('#pane').includes('连接字段 url'), 'Cursor 草稿未显示命令行配置')
+selectProvider('openai')
+await new Promise(resolve => setTimeout(resolve, 50))
+expect([...document.querySelectorAll('#pane input')].some(node => node.value === 'user-chosen-model'), '切换模型丢失未启用的连接草稿')
+;[...document.querySelectorAll('#pane .source-actions button')].find(node => node.textContent.trim() === '取消更改')?.click()
+await new Promise(resolve => setTimeout(resolve, 50))
 
 // 联系人与策略：结构化联系人编辑器
 configSearch.value = ''

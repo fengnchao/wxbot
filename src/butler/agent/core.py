@@ -16,6 +16,7 @@ import json
 from pathlib import Path
 from threading import Lock
 from contextvars import ContextVar
+from contextlib import nullcontext
 
 from common.flow_trace import FlowTrace, butler_trace_path, record
 from common.model_stream import bind,emit,answer
@@ -31,6 +32,7 @@ from butler.delivery.push import push_to_wxbot
 from butler.agent.reply import split_reply
 from butler.delivery.message_forwarding import ForwardingError, forward_message
 from butler.runtime.concurrency import RuntimeLocks
+from butler.runtime.model_switch import ModelConfigurationError
 from butler.agent import router, skills
 
 _stream_state=ContextVar('butler_public_stream',default=None)
@@ -81,13 +83,13 @@ class Butler:
         self.store = self.tools = None
         self.registry = self.group_context = None
         self._context_init_lock = Lock()
-        if cfg.provider == 'codex':
+        if cfg.uses_local_runtime:
             from butler.runtime.plugin import validate_plugin
             self.plugin_info=validate_plugin(cfg.plugin_path())
             from butler.business import BusinessStore
             from butler.agent.catalogue import SkillCatalogue
             from butler.agent.tools import ToolService
-            from butler.backends import create_backend
+            from butler.runtime.model_switch import ReloadableBackend
             from butler.identity.contact_store import from_config
             contacts=from_config(cfg)
             self.store = BusinessStore(contacts.path if contacts else cfg.data_path()/'business.sqlite3')
@@ -103,7 +105,7 @@ class Butler:
             status_path=cfg.data_path()/'telegram-relay'/'desktop-status.json'
             self.tools.relay_settings=Settings(cfg.resolve_path('config.telegram-relay.toml'),
                 status_reader=lambda:read_status(status_path))
-            self.hermes = create_backend(cfg,self.log,locks=self.runtime_locks,store=self.store,tools=self.tools)
+            self.hermes = ReloadableBackend(cfg,self.log,locks=self.runtime_locks,store=self.store,tools=self.tools)
             self.pending = EmptyPendingQueue()
         self.flow = FlowLog(cfg.flow_log_path(), self.log)
         self.trace = FlowTrace(butler_trace_path(cfg.flow_log_path()), self.log)
@@ -115,7 +117,7 @@ class Butler:
 
     def policy_for_contact(self,name):
         policy=self.skill_policies.for_contact(name)
-        if self.cfg.provider=='codex':
+        if self.cfg.uses_local_runtime:
             from butler.backends.codex import DEFAULT_POLICY
             return self.catalogue.validate(policy or DEFAULT_POLICY)
         return policy
@@ -204,6 +206,20 @@ class Butler:
     # ---------- 主流程 ----------
     def handle(self, contact_name: str, text: str, msg_id=None,channel_type='dm',member_key='',member_name='',
                avatar='',group_context_seq=0,on_event=None):
+        # Pin through model execution, group cursor/session bookkeeping and the
+        # final SSE envelope; concurrent saves only affect subsequent requests.
+        request = getattr(self.hermes, 'request', nullcontext)
+        try:
+            with request():
+                return self._handle_pinned(contact_name,text,msg_id,channel_type,member_key,member_name,
+                                           avatar,group_context_seq,on_event)
+        except ModelConfigurationError as exc:
+            if on_event is not None:
+                on_event({'type':'error','code':'model_configuration','message':str(exc),'retry_safe':True})
+            return Result(meta={'error':str(exc),'status':exc.status,'reply_complete':False,'retry_safe':True})
+
+    def _handle_pinned(self, contact_name, text, msg_id, channel_type, member_key, member_name,
+                       avatar, group_context_seq, on_event):
         if on_event is None:
             return self._handle_request(contact_name,text,msg_id,channel_type,member_key,member_name,avatar,group_context_seq)
         state={'safe':False,'filter':_FinalCompositionStream()}
@@ -235,7 +251,8 @@ class Butler:
             elif result.meta.get('route') == 'forward':
                 emit('complete')
             else:
-                emit('backend',provider=self.cfg.provider,model=getattr(self.cfg,'codex_model','') if self.cfg.provider=='codex' else getattr(self.cfg,'hermes_model',''),streaming=state['safe'],
+                model_cfg=getattr(self.hermes,'cfg',self.cfg)
+                emit('backend',provider=model_cfg.model_identity,model=(model_cfg.codex_model if model_cfg.provider=='codex' else (model_cfg.model_config.get('model') or '').strip()),streaming=state['safe'],
                      mention_name=result.meta.get('mention_name',''),**({} if state['safe'] else {'fallback':'final_composition'}))
                 prefix=state['filter'].sent
                 if not (result.reply or '').startswith(prefix):
@@ -291,7 +308,7 @@ class Butler:
         if stream_state is not None:
             # Groups wait for the identity/mention envelope and final result;
             # pending replies must remain ahead of the generated answer.
-            stream_state['safe']=self.cfg.provider=='codex' and not pending and c.channel_type=='dm'
+            stream_state['safe']=self.cfg.uses_local_runtime and not pending and c.channel_type=='dm'
 
         # 2. 前置规则
         dec = router.pre_route(c, text)
@@ -346,7 +363,7 @@ class Butler:
         except HermesError as e:
             self.log("[%s] %s", contact_name, e)
             self.flow.api_error(c.name, str(e))
-            if self.cfg.provider=='codex':
+            if self.cfg.uses_local_runtime:
                 return Result(reply=None,meta={'error':str(e),'status':e.status,'reply_complete':False,
                                               'retry_safe':getattr(e,'retry_safe',False) is True})
             if e.status in (401, 403):
@@ -361,7 +378,7 @@ class Butler:
         # 4. 拿结果 → 剥行动标记 → 判断是否调用其他 skill
         clean, acts = router.parse_actions(raw)
         results = []
-        if acts and self.cfg.actions_enabled and self.cfg.provider!='codex':
+        if acts and self.cfg.actions_enabled and not self.cfg.uses_local_runtime:
             ctx = skills.Ctx(cfg=self.cfg, contact=c, hermes=self.hermes, log=self.log,
                              skill_policy=policy, runtime_locks=self.runtime_locks)
             for a in acts:
@@ -446,10 +463,12 @@ class Butler:
             "targets": list(users), "results": results})
 
     def reset(self, contact_name: str, *, channel_type: str = 'dm', member_key: str = "",avatar: str = "") -> Result:
-        c = self._resolved_contact(replace(self._contact(contact_name, channel_type, member_key),avatar=avatar))
-        with self.runtime_locks.session(c):
-            policy = self.policy_for_contact(c.name)
-            self.hermes.reset(c, skill_policy=policy)
+        request = getattr(self.hermes, 'request', nullcontext)
+        with request():
+            c = self._resolved_contact(replace(self._contact(contact_name, channel_type, member_key),avatar=avatar))
+            with self.runtime_locks.session(c):
+                policy = self.policy_for_contact(c.name)
+                self.hermes.reset(c, skill_policy=policy)
         return Result("好，这段翻篇了，重新开始", meta={"reset": True})
 
     def health(self) -> dict:

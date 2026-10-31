@@ -29,6 +29,8 @@ from .inbox import mentioned_text as _mentioned_text, run_main_inbox
 def build_processor(cfg: dict) -> Router:
     mcfg = dict(cfg.get("model", {}))
     backend = mcfg.get("backend", "ollama")
+    if 'installation' in cfg and backend != 'butler':
+        raise ValueError('模型连接须经 Butler；请停止本机服务后显式运行 python -m butler migrate')
     mcfg.setdefault('provider',cfg.get('installation',{}).get('provider') or backend)
     if cfg.get('_config_dir') and backend in ('hermes', 'openclaw'):
         from pathlib import Path

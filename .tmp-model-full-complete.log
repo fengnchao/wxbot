@@ -1,0 +1,65 @@
+........................................................................ [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 15%]
+........................................................................ [ 21%]
+........................................................................ [ 26%]
+........................................................................ [ 31%]
+........................................................................ [ 36%]
+........................................................................ [ 42%]
+........................................................................ [ 47%]
+........................................................................ [ 52%]
+........................................................................ [ 57%]
+........................................................................ [ 63%]
+........................................................................ [ 68%]
+.......F....................................................F........... [ 73%]
+........................................................................ [ 79%]
+........................................................................ [ 84%]
+.........F.............................................................. [ 89%]
+........................................................................ [ 94%]
+......................................................................   [100%]
+================================== FAILURES ===================================
+___________ test_multipart_cli_sent_and_retry_preserve_other_parts ____________
+tests\unit\queue\test_queue_admin.py:68: in test_multipart_cli_sent_and_retry_preserve_other_parts
+    assert store.get_batch(a.id)['state']=='waiting_delivery'
+E   AssertionError: assert 'done' == 'waiting_delivery'
+E     
+E     - waiting_delivery
+E     + done
+---------------------------- Captured stdout call -----------------------------
+{
+  "id": "55e53b8a2e3a4b74822ae2f0dac4bd00:2",
+  "result": "��ȷ�Ϸ���"
+}
+_ test_user_confirmed_actual_text_is_deferred_and_does_not_release_running_old_worker _
+tests\unit\queue\test_queue_store.py:192: in test_user_confirmed_actual_text_is_deferred_and_does_not_release_running_old_worker
+    assert store.get_batch(batch.id)["state"] == "uncertain"
+E   AssertionError: assert 'done' == 'uncertain'
+E     
+E     - uncertain
+E     + done
+___ test_typing_steps_keep_half_second_between_batches_and_one_final_enter ____
+tests\unit\text\test_typing.py:55: in test_typing_steps_keep_half_second_between_batches_and_one_final_enter
+    assert sent == ["{Ctrl}v"]
+E   AssertionError: assert ['{Ctrl}v', '{Ctrl}v'] == ['{Ctrl}v']
+E     
+E     Left contains one more item: '{Ctrl}v'
+E     Use -v to get more diff
+============================== warnings summary ===============================
+tests/unit/text/test_true_mentions.py::test_runtime_avatar_uses_tight_crop_and_shared_normalization
+  D:\work\code\wxbot\src\wxbot\wechat\chat_window.py:195: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    background = Counter(gutter.getdata()).most_common(1)[0][0]
+
+tests/unit/text/test_true_mentions.py::test_runtime_avatar_uses_tight_crop_and_shared_normalization
+  D:\work\code\wxbot\src\wxbot\wechat\chat_window.py:197: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    columns = list(diff.resize((shot.width, 1), Image.Resampling.BOX).getdata())
+
+tests/unit/text/test_true_mentions.py::test_runtime_avatar_uses_tight_crop_and_shared_normalization
+  D:\work\code\wxbot\src\wxbot\wechat\chat_window.py:212: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.
+    rows = list(diff.crop((left, 0, right + 1, shot.height)).resize((1, shot.height), Image.Resampling.BOX).getdata())
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/unit/queue/test_queue_admin.py::test_multipart_cli_sent_and_retry_preserve_other_parts
+FAILED tests/unit/queue/test_queue_store.py::test_user_confirmed_actual_text_is_deferred_and_does_not_release_running_old_worker
+FAILED tests/unit/text/test_typing.py::test_typing_steps_keep_half_second_between_batches_and_one_final_enter
+3 failed, 1363 passed, 3 warnings in 101.27s (0:01:41)

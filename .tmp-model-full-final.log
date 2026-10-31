@@ -1,0 +1,124 @@
+........................................................................ [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 15%]
+........................................................................ [ 21%]
+........................................................................ [ 26%]
+........................................................................ [ 31%]
+........................................................................ [ 36%]
+........................................................................ [ 42%]
+.............................................FFFFFFFF................... [ 47%]
+........................................................................ [ 52%]
+........................................................................ [ 57%]
+........................................................................ [ 63%]
+........................................................................ [ 68%]
+.......F....................................................F
+================================== FAILURES ===================================
+_________ test_generic_runtime_skills_are_fetched_from_butler[hermes] _________
+tests\dashboard\test_unified_model_chain.py:77: in test_generic_runtime_skills_are_fetched_from_butler
+    assert support.fetch_hermes_skills({'profile':'default'}, {'agent':{'provider':provider}, 'model':{'backend':provider}}) == [{'name':'local-role'}]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:264: in fetch_hermes_skills
+    payload=services.get('fetch_butler_data',fetch_butler_data)(config,'/v1/skills')
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:316: in fetch_butler_data
+    raise RuntimeError('Butler ��������ʧ�ܣ�'+type(exc).__name__+'��') from None
+E   RuntimeError: Butler ��������ʧ�ܣ�HTTPError��
+_________ test_generic_runtime_skills_are_fetched_from_butler[openai] _________
+tests\dashboard\test_unified_model_chain.py:77: in test_generic_runtime_skills_are_fetched_from_butler
+    assert support.fetch_hermes_skills({'profile':'default'}, {'agent':{'provider':provider}, 'model':{'backend':provider}}) == [{'name':'local-role'}]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:264: in fetch_hermes_skills
+    payload=services.get('fetch_butler_data',fetch_butler_data)(config,'/v1/skills')
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:316: in fetch_butler_data
+    raise RuntimeError('Butler ��������ʧ�ܣ�'+type(exc).__name__+'��') from None
+E   RuntimeError: Butler ��������ʧ�ܣ�HTTPError��
+_______ test_generic_runtime_skills_are_fetched_from_butler[responses] ________
+tests\dashboard\test_unified_model_chain.py:77: in test_generic_runtime_skills_are_fetched_from_butler
+    assert support.fetch_hermes_skills({'profile':'default'}, {'agent':{'provider':provider}, 'model':{'backend':provider}}) == [{'name':'local-role'}]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:264: in fetch_hermes_skills
+    payload=services.get('fetch_butler_data',fetch_butler_data)(config,'/v1/skills')
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:316: in fetch_butler_data
+    raise RuntimeError('Butler ��������ʧ�ܣ�'+type(exc).__name__+'��') from None
+E   RuntimeError: Butler ��������ʧ�ܣ�HTTPError��
+________ test_generic_runtime_skills_are_fetched_from_butler[openclaw] ________
+tests\dashboard\test_unified_model_chain.py:77: in test_generic_runtime_skills_are_fetched_from_butler
+    assert support.fetch_hermes_skills({'profile':'default'}, {'agent':{'provider':provider}, 'model':{'backend':provider}}) == [{'name':'local-role'}]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:264: in fetch_hermes_skills
+    payload=services.get('fetch_butler_data',fetch_butler_data)(config,'/v1/skills')
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:316: in fetch_butler_data
+    raise RuntimeError('Butler ��������ʧ�ܣ�'+type(exc).__name__+'��') from None
+E   RuntimeError: Butler ��������ʧ�ܣ�HTTPError��
+_________ test_generic_runtime_skills_are_fetched_from_butler[cursor] _________
+tests\dashboard\test_unified_model_chain.py:77: in test_generic_runtime_skills_are_fetched_from_butler
+    assert support.fetch_hermes_skills({'profile':'default'}, {'agent':{'provider':provider}, 'model':{'backend':provider}}) == [{'name':'local-role'}]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:264: in fetch_hermes_skills
+    payload=services.get('fetch_butler_data',fetch_butler_data)(config,'/v1/skills')
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:316: in fetch_butler_data
+    raise RuntimeError('Butler ��������ʧ�ܣ�'+type(exc).__name__+'��') from None
+E   RuntimeError: Butler ��������ʧ�ܣ�HTTPError��
+_________ test_generic_runtime_skills_are_fetched_from_butler[ollama] _________
+tests\dashboard\test_unified_model_chain.py:77: in test_generic_runtime_skills_are_fetched_from_butler
+    assert support.fetch_hermes_skills({'profile':'default'}, {'agent':{'provider':provider}, 'model':{'backend':provider}}) == [{'name':'local-role'}]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:264: in fetch_hermes_skills
+    payload=services.get('fetch_butler_data',fetch_butler_data)(config,'/v1/skills')
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:316: in fetch_butler_data
+    raise RuntimeError('Butler ��������ʧ�ܣ�'+type(exc).__name__+'��') from None
+E   RuntimeError: Butler ��������ʧ�ܣ�HTTPError��
+__________ test_generic_runtime_skills_are_fetched_from_butler[echo] __________
+tests\dashboard\test_unified_model_chain.py:77: in test_generic_runtime_skills_are_fetched_from_butler
+    assert support.fetch_hermes_skills({'profile':'default'}, {'agent':{'provider':provider}, 'model':{'backend':provider}}) == [{'name':'local-role'}]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:264: in fetch_hermes_skills
+    payload=services.get('fetch_butler_data',fetch_butler_data)(config,'/v1/skills')
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:316: in fetch_butler_data
+    raise RuntimeError('Butler ��������ʧ�ܣ�'+type(exc).__name__+'��') from None
+E   RuntimeError: Butler ��������ʧ�ܣ�HTTPError��
+____________ test_local_heartbeat_path_uses_butler_data_directory _____________
+tests\dashboard\test_unified_model_chain.py:85: in test_local_heartbeat_path_uses_butler_data_directory
+    assert support.heartbeat_config_path(str(tmp_path/'legacy-home'), config) == str(tmp_path/'local-data'/'cache'/'butler_heartbeat.json')
+E   AssertionError: assert 'D:\\work\\co...eartbeat.json' == 'D:\\work\\co...eartbeat.json'
+E     
+E     - D:\work\code\wxbot\.tmp-model-full-final\test_local_heartbeat_path_uses0\local-data\cache\butler_heartbeat.json
+E     + D:\work\code\wxbot\local-data\cache\butler_heartbeat.json
+___________ test_multipart_cli_sent_and_retry_preserve_other_parts ____________
+tests\unit\queue\test_queue_admin.py:68: in test_multipart_cli_sent_and_retry_preserve_other_parts
+    assert store.get_batch(a.id)['state']=='waiting_delivery'
+E   AssertionError: assert 'done' == 'waiting_delivery'
+E     
+E     - waiting_delivery
+E     + done
+---------------------------- Captured stdout call -----------------------------
+{
+  "id": "6da97fe13963467a840c9b12e55ab5cd:2",
+  "result": "��ȷ�Ϸ���"
+}
+_ test_user_confirmed_actual_text_is_deferred_and_does_not_release_running_old_worker _
+tests\unit\queue\test_queue_store.py:192: in test_user_confirmed_actual_text_is_deferred_and_does_not_release_running_old_worker
+    assert store.get_batch(batch.id)["state"] == "uncertain"
+E   AssertionError: assert 'done' == 'uncertain'
+E     
+E     - uncertain
+E     + done
+=========================== short test summary info ===========================
+FAILED tests/dashboard/test_unified_model_chain.py::test_generic_runtime_skills_are_fetched_from_butler[hermes]
+FAILED tests/dashboard/test_unified_model_chain.py::test_generic_runtime_skills_are_fetched_from_butler[openai]
+FAILED tests/dashboard/test_unified_model_chain.py::test_generic_runtime_skills_are_fetched_from_butler[responses]
+FAILED tests/dashboard/test_unified_model_chain.py::test_generic_runtime_skills_are_fetched_from_butler[openclaw]
+FAILED tests/dashboard/test_unified_model_chain.py::test_generic_runtime_skills_are_fetched_from_butler[cursor]
+FAILED tests/dashboard/test_unified_model_chain.py::test_generic_runtime_skills_are_fetched_from_butler[ollama]
+FAILED tests/dashboard/test_unified_model_chain.py::test_generic_runtime_skills_are_fetched_from_butler[echo]
+FAILED tests/dashboard/test_unified_model_chain.py::test_local_heartbeat_path_uses_butler_data_directory
+FAILED tests/unit/queue/test_queue_admin.py::test_multipart_cli_sent_and_retry_preserve_other_parts
+FAILED tests/unit/queue/test_queue_store.py::test_user_confirmed_actual_text_is_deferred_and_does_not_release_running_old_worker
+!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 10 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+10 failed, 987 passed in 96.21s (0:01:36)

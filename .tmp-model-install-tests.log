@@ -1,0 +1,32 @@
+.......FF...........................                                     [100%]
+================================== FAILURES ===================================
+_____ test_connection_configs_and_idempotent_install[openai-openai-local] _____
+tests\integration\test_install_wizard.py:29: in test_connection_configs_and_idempotent_install
+    result = install(tmp_path, conn, nickname='Bot')
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\butler\runtime\install_wizard.py:149: in install
+    model = connection_model(conn)
+            ^^^^^^^^^^^^^^^^^^^^^^
+src\butler\runtime\install_wizard.py:98: in connection_model
+    endpoint = normalize_url(conn.url or PRESETS[conn.provider][1])
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\butler\runtime\install_wizard.py:57: in normalize_url
+    raise ValueError('����д��Ч HTTP/HTTPS ��ַ����������Ƕ�˺š����롢��ѯ������Ƭ��')
+E   ValueError: ����д��Ч HTTP/HTTPS ��ַ����������Ƕ�˺š����롢��ѯ������Ƭ��
+__ test_connection_configs_and_idempotent_install[responses-responses-local] __
+tests\integration\test_install_wizard.py:29: in test_connection_configs_and_idempotent_install
+    result = install(tmp_path, conn, nickname='Bot')
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\butler\runtime\install_wizard.py:149: in install
+    model = connection_model(conn)
+            ^^^^^^^^^^^^^^^^^^^^^^
+src\butler\runtime\install_wizard.py:98: in connection_model
+    endpoint = normalize_url(conn.url or PRESETS[conn.provider][1])
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\butler\runtime\install_wizard.py:57: in normalize_url
+    raise ValueError('����д��Ч HTTP/HTTPS ��ַ����������Ƕ�˺š����롢��ѯ������Ƭ��')
+E   ValueError: ����д��Ч HTTP/HTTPS ��ַ����������Ƕ�˺š����롢��ѯ������Ƭ��
+=========================== short test summary info ===========================
+FAILED tests/integration/test_install_wizard.py::test_connection_configs_and_idempotent_install[openai-openai-local]
+FAILED tests/integration/test_install_wizard.py::test_connection_configs_and_idempotent_install[responses-responses-local]
+2 failed, 34 passed in 2.22s

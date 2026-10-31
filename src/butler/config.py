@@ -15,6 +15,7 @@ from butler.identity.contacts import ContactMap, load_contacts
 from butler.delivery.message_forwarding import MessageRoute, load_message_routes
 
 DEFAULT_CONFIG = REPO_ROOT / "config.butler.toml"
+MODEL_PROVIDERS = ('codex', 'hermes', 'openai', 'responses', 'openclaw', 'cursor', 'ollama', 'echo')
 
 
 @dataclass
@@ -23,8 +24,10 @@ class Config:
     group_context_messages: int = 30
     group_context_characters: int = 6000
     provider: str = 'hermes'  # Existing files keep their backend; init creates Codex configs.
+    model_config: dict = field(default_factory=dict, repr=False)
     data_dir: str = 'data'
     config_dir: str = ''
+    config_path: str = ''
     contact_database: str = ''
     codex_home: str = ''
     codex_plugin: str = ''
@@ -74,6 +77,18 @@ class Config:
     def have_token(self) -> bool:
         return bool(self.token)
 
+    @property
+    def uses_local_runtime(self) -> bool:
+        """Only legacy Hermes installations delegate business state to Hermes."""
+        return self.provider != 'hermes' or bool(self.model_config)
+
+    @property
+    def model_identity(self) -> str:
+        """展示用的模型来源：接入方式是产品名时用它，否则用协议名。"""
+        if self.provider == 'codex':
+            return 'codex'
+        return str(self.model_config.get('provider') or self.provider).strip() or self.provider
+
     def resolve_path(self, value):
         p = Path(value).expanduser()
         return (p if p.is_absolute() else Path(self.config_dir or DEFAULT_CONFIG.parent)/p).resolve()
@@ -93,8 +108,8 @@ class Config:
     def flow_log_path(self) -> str:
         """流水日志文件路径。显式配置优先；否则 {hermes_root}/cache/wxbot.log（看板默认读这里）；都无则返回空=禁用。"""
         if self.flow_log:
-            return str(self.resolve_path(self.flow_log)) if self.provider=='codex' else self.flow_log
-        if self.provider == 'codex':
+            return str(self.resolve_path(self.flow_log)) if self.uses_local_runtime else self.flow_log
+        if self.uses_local_runtime:
             return str(self.data_path()/'cache'/'wxbot.log')
         if self.hermes_root:
             return os.path.join(self.hermes_root, "cache", "wxbot.log")
@@ -104,8 +119,8 @@ class Config:
         """用户分组字典路径。显式配置优先；否则 {hermes_root}/cache/butler_groups.json
         （log 看板「用户分组」页默认读写同一路径）；都无则返回空=禁用（群发按无人绑定处理）。"""
         if self.groups_file:
-            return str(self.resolve_path(self.groups_file)) if self.provider=='codex' else self.groups_file
-        if self.provider == 'codex':
+            return str(self.resolve_path(self.groups_file)) if self.uses_local_runtime else self.groups_file
+        if self.uses_local_runtime:
             return str(self.data_path()/'cache'/'butler_groups.json')
         if self.hermes_root:
             return os.path.join(self.hermes_root, "cache", "butler_groups.json")
@@ -113,8 +128,8 @@ class Config:
 
     def heartbeat_config_path(self) -> str:
         if self.heartbeat_config_file:
-            return str(self.resolve_path(self.heartbeat_config_file)) if self.provider=='codex' else self.heartbeat_config_file
-        if self.provider == 'codex':
+            return str(self.resolve_path(self.heartbeat_config_file)) if self.uses_local_runtime else self.heartbeat_config_file
+        if self.uses_local_runtime:
             return str(self.data_path()/'cache'/'butler_heartbeat.json')
         if self.hermes_root:
             return os.path.join(self.hermes_root, "cache", "butler_heartbeat.json")
@@ -122,8 +137,8 @@ class Config:
 
     def heartbeat_state_path(self) -> str:
         if self.heartbeat_state_file:
-            return str(self.resolve_path(self.heartbeat_state_file)) if self.provider=='codex' else self.heartbeat_state_file
-        if self.provider == 'codex':
+            return str(self.resolve_path(self.heartbeat_state_file)) if self.uses_local_runtime else self.heartbeat_state_file
+        if self.uses_local_runtime:
             return str(self.data_path()/'cache'/'butler_heartbeat_state.json')
         if self.hermes_root:
             return os.path.join(self.hermes_root, "cache", "butler_heartbeat_state.json")
@@ -131,8 +146,8 @@ class Config:
 
     def heartbeat_audit_path(self) -> str:
         if self.heartbeat_audit_file:
-            return str(self.resolve_path(self.heartbeat_audit_file)) if self.provider=='codex' else self.heartbeat_audit_file
-        if self.provider == 'codex':
+            return str(self.resolve_path(self.heartbeat_audit_file)) if self.uses_local_runtime else self.heartbeat_audit_file
+        if self.uses_local_runtime:
             return str(self.data_path()/'cache'/'butler_heartbeat_audit.jsonl')
         if self.hermes_root:
             return os.path.join(self.hermes_root, "cache", "butler_heartbeat_audit.jsonl")
@@ -156,8 +171,11 @@ def load(path: str | os.PathLike | None = None) -> Config:
     agent = raw.get('agent') or {}
     codex = raw.get('codex') or {}
     provider = str(agent.get('provider') or 'hermes')
-    if provider not in ('hermes','codex'):
-        raise ValueError('agent.provider must be codex or hermes')
+    if provider not in MODEL_PROVIDERS:
+        raise ValueError('agent.provider must be one of '+', '.join(MODEL_PROVIDERS))
+    model = raw.get('model') or {}
+    if not isinstance(model, dict):
+        raise ValueError('model must be a configuration table')
 
     from butler.agent.reply import validate_chunk_chars
     chunk_chars = validate_chunk_chars((raw.get('reply') or {}).get('chunk_chars', 500))
@@ -174,7 +192,7 @@ def load(path: str | os.PathLike | None = None) -> Config:
     return Config(
         reply_chunk_chars=chunk_chars,
         group_context_messages=context_messages,group_context_characters=context_characters,
-        provider=provider, config_dir=str(p.resolve().parent),
+        provider=provider, model_config=dict(model), config_dir=str(p.resolve().parent), config_path=str(p.resolve()),
         contact_database=str(directory_path(p,raw)) if directory_enabled(p,raw) else '',
         data_dir=str(agent.get('data_dir') or 'data'),
         codex_home=str(codex.get('home') or ''), codex_plugin=str(codex.get('plugin_root') or ''),

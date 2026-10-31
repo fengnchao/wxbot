@@ -7,18 +7,15 @@ export const error = ref('')
 export const activeId = ref('')
 export const section = ref('details')
 export const kind = ref('')
+export const category = ref('chats')
+export const statusFilter = ref('')
+export const issueFilter = ref('')
+export const detailTab = ref('overview')
 export const busy = ref(false)
 export const query = ref('')
 
 export const aliasDraft = ref(null)
 export const aliasVersion = ref(0)
-
-export const news = ref(null)
-export const newsDraft = ref(null)
-export const newsVersion = ref(0)
-export const newsBusy = ref(false)
-export const newsMessage = ref('')
-export const newsError = ref('')
 
 export const hbStatus = ref(null)
 export const hbContact = ref('')
@@ -104,6 +101,11 @@ export function pick(id) {
   activeId.value = id
   section.value = 'details'
   hbShown.value = false
+  detailTab.value = 'overview'
+}
+
+export function openMerge(sourceId, targetId) {
+  openDialog('merge', '确认人物身份合并', { source_id: sourceId, target_id: targetId })
 }
 
 export function openDialog(nextKind, title, payload = null) {
@@ -162,56 +164,6 @@ export async function saveAliases() {
   } finally {
     busy.value = false
   }
-}
-
-export async function loadNews() {
-  try {
-    const payload = await apiGet('/api/groups')
-    news.value = payload.news || null
-  } catch (err) {
-    news.value = { error: err.message || String(err) }
-  }
-}
-
-export async function saveNews() {
-  if (newsBusy.value) return
-  const current = news.value
-  const settings = newsDraft.value || current?.settings
-  if (!settings) return
-  if (!settings.categories.length || !settings.sources.length ||
-    !Number.isInteger(settings.count) || settings.count < 1 || settings.count > 10) {
-    newsError.value = '请至少选择一种新闻类型、一个新闻来源，并填写 1～10 的整数条数'
-    return
-  }
-  newsBusy.value = true
-  newsError.value = ''
-  newsMessage.value = ''
-  try {
-    const response = await fetch('/api/news-config', {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'X-Wxbot-Config-Action': '1'
-      },
-      body: JSON.stringify({ settings, version: newsDraft.value ? newsVersion.value : current.version })
-    })
-    const result = await readJson(response)
-    if (!response.ok || !result || !result.ok) throw new Error((result && result.error) || '保存失败')
-    news.value = result.news
-    newsDraft.value = null
-    newsMessage.value = '已保存，下次新闻任务生效'
-  } catch (err) {
-    newsError.value = String(err.message || err)
-  } finally {
-    newsBusy.value = false
-  }
-}
-
-export function cancelNews() {
-  newsDraft.value = null
-  newsMessage.value = ''
-  newsError.value = ''
 }
 
 export async function loadStatus(row) {

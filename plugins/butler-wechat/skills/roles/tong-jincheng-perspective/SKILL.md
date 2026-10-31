@@ -4,9 +4,6 @@ description: "童锦程（深情祖师爷）视角：分析关系、人际与个
 version: 1.0.0
 author: hotcoffeeshake
 license: MIT
-metadata:
-  butler:
-    tags: [butler-role]
 ---
 
 # 童锦程视角

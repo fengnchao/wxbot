@@ -60,6 +60,7 @@ class ButlerProcessor(Processor):
     def handle_reply(self, contact: str, text: str, *, request_id=None, member_key="", member_name="",
                      avatar='', group_context_seq=None,channel_type='dm',on_event=None) -> Reply:
         started = time.monotonic()
+        safe_configuration_error = False
         record('wxbot_butler','started')
         try:
             channel_type = "group" if member_key or channel_type=='group' else "dm"
@@ -79,7 +80,7 @@ class ButlerProcessor(Processor):
             if on_event is None:
                 data = resp.json()
             else:
-                data=None;prefix=''
+                data=None;prefix='';observed_model_event=False
                 try:
                     with bind(on_event):
                         for event in json_frames(resp.iter_lines()):
@@ -92,8 +93,12 @@ class ButlerProcessor(Processor):
                                     raise ValueError('Butler final answer differs from streamed prefix')
                                 break
                             if kind=='error':
+                                safe_configuration_error = (event.get('code')=='model_configuration'
+                                    and event.get('retry_safe') is True and not observed_model_event)
                                 detail=': '.join(str(part) for part in (event.get('code'),event.get('message')) if part)
                                 raise ValueError('Butler stream failed'+(': '+detail if detail else ''))
+                            if kind in {'backend','tool','answer_delta','summary_delta','complete'}:
+                                observed_model_event=True
                             if kind=='answer_delta' and event.get('sendable') is True:
                                 if not isinstance(event.get('text'),str):raise ValueError('Invalid Butler answer delta')
                                 prefix+=event['text']
@@ -107,7 +112,7 @@ class ButlerProcessor(Processor):
                    elapsed_ms=round((time.monotonic()-started)*1000))
             log.error("butler 调用失败: %s", type(e).__name__)
             if self.raise_errors or on_event is not None:
-                if on_event is not None:e.retry_safe=False
+                if on_event is not None:e.retry_safe=safe_configuration_error
                 raise
             return Reply.from_text("抱歉，我这边暂时出了点问题，稍后再试。")
         try:

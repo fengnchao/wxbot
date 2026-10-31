@@ -20,6 +20,7 @@ export function tabTitle(id) {
 // 只认 ?tab=；兼容手输的 #contacts。
 function fromLocation() {
   const query = new URLSearchParams(location.search).get('tab') || ''
+  if (['runtime', 'users', 'heartbeat', 'groups'].includes(query)) return 'contacts'
   if (KNOWN.has(query)) return query
   const hash = (location.hash || '').replace(/^#\/?/, '')
   return KNOWN.has(hash) ? hash : 'workflow'

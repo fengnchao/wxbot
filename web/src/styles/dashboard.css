@@ -310,16 +310,7 @@ textarea.config-editor{min-height:70px;font-family:Consolas,"Microsoft YaHei",mo
 @media(max-width:1100px){body{grid-template-columns:165px minmax(0,1fr)}main{grid-template-columns:190px minmax(0,1fr)}header{padding:16px}section#pane{padding:18px 16px 90px}.config-field{grid-template-columns:1fr;gap:8px}.primary-nav{padding:20px 8px}}
 @media(max-width:900px){main{grid-template-columns:minmax(0,1fr)}aside{display:none}body.list-open main{grid-template-columns:190px minmax(0,1fr)}body.list-open aside{display:block}#refresh-status{font-size:10px}.nav-foot{display:none}}
 @media(max-width:600px){body{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr)}.primary-nav{flex-direction:row;gap:10px;padding:10px;overflow-x:auto;border-bottom:1px solid var(--line)}.brand{display:none}.nav-group{display:flex;gap:4px}.nav-group h2{display:none}.nav-group button{width:auto;font-size:12px;padding:7px 9px;margin:0}.workspace{min-height:0}.contact-row{grid-template-columns:1fr}h1{font-size:18px}#b-expand,#b-collapse{font-size:11px}body.list-open main{grid-template-columns:145px minmax(0,1fr)}.head{padding:14px}.flow-card{padding:13px}section#pane{padding:14px 12px 90px}}
-.news-settings{margin-top:24px;padding-top:20px;border-top:1px solid var(--line)}
-.news-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.news-title h3{margin:0;font-size:16px}
-.news-settings fieldset{border:1px solid var(--line);border-radius:10px;padding:14px;margin:16px 0;min-width:0}
-.news-settings legend{padding:0 6px;color:var(--fg2)}
-.news-choices{display:flex;flex-wrap:wrap;gap:12px 20px}.news-choice{display:flex;gap:8px;align-items:flex-start;cursor:pointer}
-.news-choice input{margin-top:4px;accent-color:var(--wx)}.news-choice small{display:block;color:var(--fg3);font-size:12px;margin-top:4px}
-.news-sources{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}
-.news-actions{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:14px}.news-actions input[type=number]{width:88px}
-.news-feedback{color:var(--wx);font-size:13px}.news-last{padding:12px;background:var(--bg);border-radius:8px;font-size:13px}
-.news-settings code{overflow-wrap:anywhere}.news-settings .muted{color:var(--fg3);font-size:13px;line-height:1.7}
+
 .user-filters{padding:16px}.user-filters h2{font-size:15px}.user-filters form{margin:20px 0;display:grid;gap:14px}
 .user-filters label,.user-form>label{display:grid;gap:7px;font-size:13px;color:var(--fg2)}
 .user-filters input,.user-filters select,.user-form input:not([type=checkbox]):not([type=radio]),.user-form textarea,.user-form select{width:100%;max-width:100%;box-sizing:border-box}
@@ -328,15 +319,17 @@ textarea.config-editor{min-height:70px;font-family:Consolas,"Microsoft YaHei",mo
 .user-table small{display:block;color:var(--fg3);margin:6px 0}.user-table td:first-child{min-width:52px;width:60px}.user-table td:nth-child(2){max-width:260px}
 .user-avatar{width:48px;height:48px;border-radius:10px;object-fit:cover;display:inline-block;vertical-align:middle;background:var(--bg3)}
 .user-avatar-empty{text-align:center;line-height:48px;color:var(--fg3)}
-.user-dialog{background:var(--bg2);color:var(--fg);border:1px solid var(--line);border-radius:14px;padding:24px;width:min(900px,calc(100vw - 40px));max-height:85vh;overflow:auto;box-sizing:border-box}
-.user-dialog::backdrop{background:#0009}.user-dialog-title{display:flex;align-items:center;justify-content:space-between;gap:20px}.user-dialog-title h2{font-size:20px;margin:0}
+.user-dialog{background:var(--bg2);color:var(--fg);border:1px solid #35414f;border-radius:14px;padding:22px 22px 18px;width:min(900px,calc(100vw - 40px));max-height:85vh;overflow:auto;box-sizing:border-box;box-shadow:0 24px 64px rgba(0,0,0,.6)}
+.user-dialog::backdrop{background:rgba(6,9,13,.66);backdrop-filter:blur(3px)}.user-dialog-title{display:flex;align-items:center;justify-content:space-between;gap:20px}.user-dialog-title h2{font-size:20px;margin:0}
 .user-dialog p{line-height:1.75;overflow-wrap:anywhere}.user-dialog pre{white-space:pre-wrap;overflow-wrap:anywhere}.user-form{display:grid;gap:18px}.user-form textarea{font:inherit;padding:12px;border-radius:7px;background:var(--bg);color:var(--fg);border:1px solid var(--line)}
 .user-form .user-check{display:flex;align-items:flex-start;gap:10px}.user-check input{margin-top:4px}.user-error{color:#ffb3a5;white-space:pre-wrap}.user-error:empty{display:none}
+/* 技能目录读不到时保存会清空角色，用警告色把这句话留在按钮上方。 */
+.user-form .user-hint{color:var(--warn);font-size:12px;margin:0}
 .user-warning{border-left:3px solid #d4a457;background:#58442333;padding:12px 16px}.user-conflict{display:grid;grid-template-columns:1fr 1fr;gap:18px}.user-conflict label{min-width:0}.user-form fieldset{border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
 @media(max-width:600px){.user-dialog{padding:16px;width:calc(100vw - 20px)}.user-conflict{grid-template-columns:1fr}.user-dialog .row{flex-wrap:wrap}}
 
 /* Unified contacts */
-.contact-row{display:block;width:100%;text-align:left;border-radius:0;white-space:normal}.contact-row small{display:block;margin-top:6px;color:var(--muted)}.contact-section{margin:20px;padding:18px;border:1px solid var(--line);border-radius:12px}.contact-section h3{margin-top:0}.contact-conversation{padding:12px 0;border-bottom:1px solid var(--line)}.contact-conversation:last-child{border:0}.contact-section button,.head button{margin:4px}.contact-section pre{white-space:pre-wrap;overflow-wrap:anywhere}.user-form fieldset label{display:block;margin:8px 0}
+.contact-row{display:block;width:100%;text-align:left;border-radius:0;white-space:normal}.contact-row small{display:block;margin-top:6px;color:var(--fg3)}.contact-section{margin:20px;padding:18px;border:1px solid var(--line);border-radius:12px}.contact-section h3{margin-top:0}.contact-conversation{padding:12px 0;border-bottom:1px solid var(--line)}.contact-conversation:last-child{border:0}.contact-section button,.head button{margin:4px}.contact-section pre{white-space:pre-wrap;overflow-wrap:anywhere}.user-form fieldset label{display:block;margin:8px 0}
 
 /* A single contact list, with typed group nickname fields. */
 .config-field-list{grid-template-columns:1fr;gap:12px}.config-field-list .config-control{min-width:0}
@@ -347,3 +340,251 @@ textarea.config-editor{min-height:70px;font-family:Consolas,"Microsoft YaHei",mo
 .alias-editor .alias-pending{display:flex;align-items:center;gap:6px;white-space:nowrap}
 .alias-editor input[type=checkbox],.directory-contact-editor input[type=checkbox]{width:auto;min-width:0}
 .directory-contact-editor details label{display:block;margin:8px 0}.directory-contact-editor details{min-width:140px}
+
+/* 联系人页：紧凑工具区 + 头像行 + 卡片化详情 */
+/* 左栏是四列表格（头像 / 昵称 / 微信号 / 路由），表头与数据行共用同一套列宽。 */
+main:has(#contact-filter){--contact-cols:32px minmax(0,1fr) 96px 58px;
+  grid-template-columns:402px minmax(0,1fr)}
+.contact-tools{position:sticky;top:0;z-index:3;background:#141b22;border-bottom:1px solid var(--line);
+  padding:0 2px 10px;margin-bottom:6px}
+.contact-tools-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.contact-tools-title h2{margin:0;font-size:15px;display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+.contact-tools-title h2 small{color:var(--fg3);font-size:12px;font-weight:400}
+.contact-tools-title button{padding:6px 10px;font-size:12px}
+.contact-tools-title button.wx{background:var(--wx);border-color:var(--wx);color:#08150f;font-weight:600}
+.contact-tools-title button.wx:hover{background:#7ce8c6;border-color:#7ce8c6;color:#08150f}
+.contact-filter{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;color:var(--fg2)}
+.contact-filter span{flex:none}
+.contact-filter select{flex:1;min-width:0;padding:6px 8px;font-size:12px}
+.contact-tools-more{margin-top:6px}
+.contact-tools-more>summary{font-size:12px;color:var(--fg3);padding:2px 0;list-style:none;cursor:pointer}
+.contact-tools-more>summary::-webkit-details-marker{display:none}
+.contact-tools-more>summary::after{content:' ＋'}
+.contact-tools-more[open]>summary::after{content:' －'}
+.contact-tools-body{display:grid;gap:6px;margin-top:8px}
+.contact-tools-body button{width:100%;font-size:12px;padding:6px 9px;text-align:left;
+  background:transparent;border-color:transparent;color:var(--fg2);border-radius:7px}
+.contact-tools-body button:hover{background:#1f2833;border-color:transparent;color:var(--fg)}
+.contact-tools-more .muted{font-size:11px;margin:8px 0 0;line-height:1.6}
+
+/* 联系人表头：abbr 的 title 就是字段说明，hover 时浏览器给出提示。 */
+.contact-table-head{display:grid;grid-template-columns:var(--contact-cols);gap:10px;align-items:center;
+  padding:2px 9px 6px;margin-bottom:2px;font-size:10.5px;line-height:1.4;color:var(--fg3);
+  border-bottom:1px solid #1c232e}
+.contact-table-head abbr{text-decoration:none;cursor:help;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contact-table-head abbr:nth-child(1){text-align:center}
+.contact-table-head abbr:nth-child(3),.contact-table-head abbr:nth-child(4){text-align:right}
+
+#list .contact-row{display:grid;grid-template-columns:var(--contact-cols);align-items:center;gap:10px;
+  width:100%;text-align:left;padding:8px 9px;border-radius:8px;border-left:3px solid transparent;
+  background:transparent;white-space:normal;color:var(--fg)}
+#list .contact-row:hover{background:#19212c}
+#list .contact-row.sel{background:#20372f;border-color:var(--wx)}
+.contact-cell{min-width:0}
+.contact-cell-avatar{display:flex;align-items:center;justify-content:center}
+.contact-cell-name{display:flex;flex-direction:column;gap:2px}
+.contact-cell-name strong{font-size:13px;font-weight:600;line-height:1.35;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contact-cell-name small{font-size:10.5px;line-height:1.45;color:var(--fg3);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contact-cell-wechat{font-size:11px;line-height:1.5;color:var(--fg2);text-align:right;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.contact-cell-route{font-size:10.5px;line-height:1.6;color:var(--fg3);text-align:right;white-space:nowrap}
+.contact-cell-route.is-off{color:#7a5a24}
+#list .contact-row.sel .contact-cell-route{color:var(--fg2)}
+
+.contact-avatar{display:grid;place-items:center;flex:none;width:30px;height:30px;border-radius:9px;
+  background:var(--bg3);border:1px solid var(--line);color:var(--fg2);font-size:13px;font-weight:600}
+.contact-avatar.is-group{border-radius:9px;background:#1b3d35;border-color:#2d5144;color:#a4f0d5}
+.contact-avatar.is-off{opacity:.45}
+.contact-thumb{display:block;width:30px;height:30px;border-radius:9px;object-fit:cover;
+  background:var(--bg3);border:1px solid var(--line)}
+
+.tag{display:inline-block;flex:none;font-size:10.5px;line-height:1.75;padding:0 6px;border-radius:5px;
+  border:1px solid var(--line);color:var(--fg2);background:transparent}
+.tag-group{color:#a4f0d5;border-color:#2d5144;background:#1b3d35}
+.tag-dm{color:#bcd4ee;border-color:#2b4460;background:#182636}
+.tag-on{color:#a4f0d5;border-color:#2d5144;background:#1b3d35}
+.tag-off{color:var(--fg3);border-color:var(--line)}
+.tag-todo{color:#ffcf9e;border-color:#5a4326;background:#2a2115}
+
+.contact-head{display:grid;gap:12px}
+.contact-head-row{display:flex;align-items:flex-start;gap:14px;min-width:0}
+.contact-head-main{min-width:0;flex:1}
+.contact-avatar-lg{width:64px;height:64px;font-size:24px;border-radius:16px}
+.user-avatar-lg{width:64px;height:64px;border-radius:16px}
+.contact-head-avatar{flex:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;justify-items:center}
+.contact-head-avatar>.user-avatar-lg,
+.contact-head-avatar>.contact-avatar-lg{grid-column:1/-1}
+.contact-avatar-edit,.contact-avatar-clear{position:relative;min-width:0;display:block;margin:0;
+  padding:2px 7px;font-size:10.5px;line-height:1.6;font-family:inherit;text-align:center;
+  border-radius:6px;border:1px solid transparent;background:transparent;color:var(--fg3);cursor:pointer}
+.contact-avatar-edit:hover,.contact-avatar-clear:hover{background:#1f2833;border-color:transparent;color:var(--fg)}
+.contact-avatar-edit input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;font-size:0}
+
+/* 详情头部四要素：字段名 + 值 + 一句人话解释。 */
+.contact-fields{display:grid;gap:2px;margin:7px 0 0}
+.contact-fields>div{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;align-items:baseline}
+.contact-fields dt{font-size:11px;line-height:1.7;color:var(--fg3)}
+.contact-fields dd{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:0;min-width:0;
+  font-size:12.5px;line-height:1.7;color:var(--fg);overflow-wrap:anywhere}
+.contact-fields dd small{font-size:10.5px;color:var(--fg3)}
+.contact-head-main h2{margin:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:19px}
+.contact-head-meta{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:7px 0 0;
+  font-size:12px;color:var(--fg3)}
+.contact-actions{display:flex;align-items:center;gap:2px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:10px}
+.contact-action-sep{display:block;flex:none;width:1px;height:14px;background:#2b3642;margin:0 7px}
+
+/* 联系人页按钮：幽灵按钮 hover 浮现，主操作实心绿 */
+.contact-actions button,
+.contact-card-actions button,
+.contact-member-actions button,
+.contact-merge-pick button,
+.contact-memory-row button{margin:0;padding:5px 10px;font-size:12px;font-weight:500;line-height:1.5;
+  border-radius:7px;background:transparent;border:1px solid transparent;color:var(--fg2);
+  transition:background .15s,color .15s}
+.contact-actions button:hover,
+.contact-card-actions button:hover,
+.contact-member-actions button:hover,
+.contact-merge-pick button:hover,
+.contact-memory-row button:hover{background:#1f2833;color:var(--fg);border-color:transparent}
+.contact-actions button.wx,
+.contact-card-actions button.wx,
+.contact-member-actions button.wx,
+.contact-memory-row button.wx{background:var(--wx);border-color:var(--wx);color:#08150f;font-weight:600}
+.contact-actions button.wx:hover,
+.contact-card-actions button.wx:hover,
+.contact-member-actions button.wx:hover,
+.contact-memory-row button.wx:hover{background:#7ce8c6;border-color:#7ce8c6;color:#08150f}
+
+.contact-section{margin:0 0 12px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--bg2)}
+.contact-section>h3{display:flex;align-items:baseline;gap:8px;margin:0 0 11px;font-size:14px;font-weight:600;color:var(--fg)}
+.contact-section>h3 small{font-size:11px;font-weight:400;color:var(--fg3)}
+.contact-cards{display:grid;gap:0}
+.contact-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:3px 16px;
+  padding:10px 0;border:0;border-bottom:1px solid #1c232e;border-radius:0;background:transparent}
+.contact-card:last-child{border-bottom:0}
+.contact-card-head{grid-column:1;display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:0;background:transparent;border-bottom:0}
+.contact-card-head strong{font-size:13.5px}
+.contact-card-line{grid-column:1;margin:0;font-size:12.5px;color:var(--fg2)}
+.contact-card-line.muted{color:var(--fg3);font-size:12px}
+.contact-card-actions{grid-column:2;grid-row:1/span 3;display:flex;gap:2px;flex-wrap:wrap;justify-content:flex-end;margin:0}
+
+.contact-members{display:grid;gap:0}
+#pane .contact-member{display:flex;align-items:center;gap:14px;margin:0;padding:9px 0;border-bottom:1px solid #1c232e}
+#pane .contact-member:last-child{border-bottom:0}
+.contact-member-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.contact-member-name{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0}
+.contact-member-name strong{font-size:13px}
+.contact-member-name .muted{font-size:12px}
+.contact-member-main code{align-self:flex-start;font-size:10.5px;color:var(--fg3);background:transparent;padding:0}
+.contact-member-actions{display:flex;gap:2px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.contact-memory-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.contact-memory{margin:0;font-size:12.5px;color:var(--fg2)}
+/* 合并重复档案：自动识别的候选列表 + 手动指定并入对象。 */
+.contact-merge-pick{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.contact-merge-pick select{flex:1;min-width:180px;font-size:12px}
+.contact-merge-pick button{flex:none;border-color:var(--line)}
+/* 删除档案是破坏性操作，放到操作行最右侧并保持弱化，避免误点。 */
+.contact-actions button.danger{margin-left:auto;color:var(--warn)}
+.contact-actions button.danger:hover{background:#2a1712;color:var(--warn)}
+.contact-member-actions button.danger{color:var(--warn)}
+.contact-member-actions button.danger:hover{background:#2a1712;color:var(--warn)}
+
+@media(max-width:1400px){
+  main:has(#contact-filter){--contact-cols:30px minmax(0,1fr) 84px 54px;grid-template-columns:360px minmax(0,1fr)}
+}
+@media(max-width:1100px){
+  main:has(#contact-filter){--contact-cols:28px minmax(0,1fr) 70px 50px;grid-template-columns:312px minmax(0,1fr)}
+}
+@media(max-width:900px){
+  main:has(#contact-filter){grid-template-columns:minmax(0,1fr)}
+  body.list-open main:has(#contact-filter){--contact-cols:28px minmax(0,1fr);
+    grid-template-columns:minmax(220px,300px) minmax(0,1fr)}
+  /* 窄抽屉放不下四列，只留头像和昵称，微信号与路由进详情看。 */
+  body.list-open .contact-table-head abbr:nth-child(n+3),
+  body.list-open #list .contact-row .contact-cell-wechat,
+  body.list-open #list .contact-row .contact-cell-route{display:none}
+}
+@media(max-width:600px){
+  body.list-open main:has(#contact-filter){grid-template-columns:minmax(150px,200px) minmax(0,1fr)}
+  .contact-avatar{width:26px;height:26px;font-size:12px;border-radius:8px}
+  .contact-thumb{width:26px;height:26px;border-radius:8px}
+  .contact-tools-title h2{font-size:14px}
+  .contact-head-avatar{grid-template-columns:1fr}
+  .contact-card{grid-template-columns:minmax(0,1fr)}
+  .contact-card-actions{grid-column:1;grid-row:auto;justify-content:flex-start;margin-top:4px}
+}
+
+/* 联系人弹窗：按内容收口宽度 + 字段 / 复选项 / 操作行统一 */
+.user-dialog:has(#contact-create-form),
+.user-dialog:has(#contact-settings-form){width:min(520px,calc(100vw - 40px))}
+.user-dialog:has(#contact-profile-form),
+.user-dialog:has(#contact-link-form),
+.user-dialog:has(#contact-conversation-form),
+.user-dialog:has(#contact-policy-form){width:min(680px,calc(100vw - 40px))}
+.user-dialog-title{align-items:center;padding-bottom:12px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.user-dialog-title h2{font-size:17px}
+.user-dialog-title button{padding:5px 10px;font-size:12px;border-radius:7px;
+  background:transparent;border-color:transparent;color:var(--fg3)}
+.user-dialog-title button:hover{background:#1f2833;border-color:transparent;color:var(--fg)}
+.user-form{gap:13px}
+.user-form>label{font-size:12px;color:var(--fg3);gap:5px}
+.user-form>label>input:not([type=checkbox]):not([type=radio]),
+.user-form>label>select,
+.user-form>label>textarea{font-size:13px;color:var(--fg);background:var(--bg3);border:1px solid var(--line);border-radius:7px;padding:8px 10px}
+.user-form>p:not([class]),
+.user-section>p:not([class]){font-size:12px;color:var(--fg3);line-height:1.7;margin:0;padding:1px 0 1px 11px;background:transparent;border-left:2px solid #2f3d4b;border-radius:0}
+.user-form .user-check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--fg2);cursor:pointer}
+.user-form .user-check input{margin:0;width:auto;min-width:0;flex:none;accent-color:var(--wx)}
+.user-check-row{display:flex;align-items:center;gap:22px;flex-wrap:wrap}
+.user-form>button[type=submit]{justify-self:end;padding:7px 20px;font-size:13px;font-weight:600;
+  background:var(--wx);border-color:var(--wx);color:#08150f}
+.user-form button[type=submit]:hover{background:#7ce8c6;border-color:#7ce8c6;color:#08150f}
+
+/* 合并弹窗内的分组卡片：基本信息 / 角色与 Skill / 群成员关系 */
+.user-section{display:grid;gap:11px;padding:12px 14px;border:1px solid var(--line);border-radius:11px;background:#141b22}
+.user-section>h3{margin:0;font-size:13px;font-weight:600;color:var(--fg)}
+.user-section>label{display:grid;gap:5px;font-size:12px;color:var(--fg3)}
+
+/* 联系人弹窗：分组框 / 高级路由折叠区统一 */
+#contact-policy-form fieldset,
+#contact-profile-form fieldset,
+#contact-conversation-form fieldset{padding:8px 13px 10px;margin:0;border:1px solid var(--line);border-radius:10px;background:#181f27}
+#contact-policy-form legend,
+#contact-profile-form legend,
+#contact-conversation-form legend{padding:0 7px;font-size:12px;line-height:1.6;color:var(--fg3);background:#181f27}
+#contact-policy-form fieldset label,
+#contact-profile-form fieldset label,
+#contact-conversation-form fieldset label{display:flex;align-items:flex-start;gap:9px;margin:6px 0;font-size:13px;color:var(--fg2);line-height:1.5}
+#contact-policy-form fieldset label>input,
+#contact-profile-form fieldset label>input,
+#contact-conversation-form fieldset label>input{flex:none;width:auto;min-width:0;margin:3px 0 0;accent-color:var(--wx)}
+#contact-policy-form fieldset label:first-of-type,
+#contact-profile-form fieldset label:first-of-type,
+#contact-conversation-form fieldset label:first-of-type{margin-top:3px}
+#contact-policy-form .user-skill>span,
+#contact-profile-form .user-skill>span{display:flex;flex-direction:column;gap:2px;min-width:0}
+#contact-policy-form .user-skill small,
+#contact-profile-form .user-skill small{font-size:11.5px;line-height:1.55;color:var(--fg3)}
+#contact-conversation-form details{padding:7px 12px;border:1px solid #26313d;border-radius:9px}
+#contact-conversation-form summary{font-size:12px;color:var(--fg3);list-style:none;cursor:pointer}
+#contact-conversation-form summary::before{content:'▸  '}
+#contact-conversation-form details[open] summary::before{content:'▾  '}
+#contact-conversation-form details[open] summary{padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid #26313d}
+#contact-conversation-form details label{display:grid;gap:4px;margin:8px 0;font-size:12px;color:var(--fg3)}
+
+/* 弹窗复选项：自定义方框，避免原生 checkbox 在暗底上发灰 */
+.user-form input[type=checkbox]{appearance:none;-webkit-appearance:none;flex:none;
+  width:15px;height:15px;min-width:0;border-radius:4px;box-sizing:border-box;
+  border:1px solid #3b4a59;background:#141b22;cursor:pointer;
+  background-position:center;background-repeat:no-repeat;background-size:13px;
+  transition:background-color .15s,border-color .15s}
+.user-form input[type=checkbox]:hover{border-color:#4c5e70}
+.user-form input[type=checkbox]:checked{
+  border-color:var(--wx);background-color:var(--wx);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M3.4 8.6l3 3 6.2-7.2' fill='none' stroke='%2308150f' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+.user-form input[type=checkbox]:focus-visible{outline:2px solid var(--wx);outline-offset:2px}
+#contact-policy-form fieldset label>input[type=checkbox],
+#contact-profile-form fieldset label>input[type=checkbox],
+#contact-conversation-form fieldset label>input[type=checkbox]{width:15px;height:15px;border-radius:4px}

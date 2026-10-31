@@ -40,7 +40,7 @@ class SkillPolicyStore:
                 raise RuntimeError(f"联系人 {name!r} 的技能白名单无效")
             names = sorted({str(v).strip() for v in allowed if isinstance(v, str) and v.strip()})
             # The role skill is configured separately; Hermes adds it to the effective
-            # runtime allowlist after validating its butler-role tag.
+            # runtime allowlist after validating its role category.
             names = [skill for skill in names if skill != role.strip()]
             out[name] = {
                 "role_skill": role.strip(),

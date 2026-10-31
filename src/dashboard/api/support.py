@@ -106,10 +106,15 @@ def effective_heartbeat_policies(path):
 
 def _heartbeat_path(home, config, key, filename):
     path = str((config.get("heartbeat") or {}).get(key) or "").strip()
+    local=(config.get('agent') or {}).get('provider','hermes')!='hermes' or bool(config.get('model'))
     if not path:
+        if local:
+            base=Path(services.get('butler_config_path',butler_config_path)()).resolve().parent
+            data=Path(str((config.get('agent') or {}).get('data_dir') or 'data')).expanduser()
+            return str((data if data.is_absolute() else base/data)/'cache'/filename)
         return os.path.join(home, "cache", filename)
     # Legacy Hermes resolves these paths in its process working directory.
-    if (config.get('agent') or {}).get('provider') != 'codex':
+    if not local:
         return path
     target = Path(path).expanduser()
     if not target.is_absolute():
@@ -238,7 +243,7 @@ def validate_policy_skills(users,changed,config):
         roles={s['name'] for s in skills if is_butler_role_skill(s)}
         tools={s['name'] for s in skills if not is_butler_role_skill(s)}
         policy=users[name]
-        if policy['role_skill'] not in roles:raise ValueError('角色Skill不存在或缺少butler-role标签')
+        if policy['role_skill'] not in roles:raise ValueError('角色Skill不存在或不属于角色分类')
         if not set(policy['allowed_skills'])<=tools:raise ValueError('工具白名单包含不存在的技能或角色技能')
 
 
@@ -254,9 +259,36 @@ def save_heartbeat_config(path, users):
     os.replace(tmp, path)
 
 
+def local_skill_catalogue(config):
+    """直接读插件目录的技能清单。
+
+    管理台可以单独启动，不必等 Butler 服务；而技能目录本身就是 SKILL.md 文件，
+    没有运行时状态，所以本地扫出来的结果和 Butler 返回的一致。
+    """
+    from butler.agent.catalogue import SkillCatalogue
+    root = str((config.get('codex') or {}).get('plugin_root') or '').strip()
+    if root:
+        base = Path(root).expanduser()
+        if not base.is_absolute():
+            base = Path(services.get('butler_config_path', butler_config_path)()).resolve().parent / base
+    else:
+        base = REPO_ROOT / 'plugins' / 'butler-wechat'
+    skills_root = base / 'skills'
+    if not skills_root.is_dir():
+        raise RuntimeError('缺少技能目录 ' + str(skills_root))
+    return SkillCatalogue(skills_root).list()
+
+
 def fetch_hermes_skills(contact, config):
-    if (config.get('agent') or {}).get('provider')=='codex':
-        payload=services.get('fetch_butler_data',fetch_butler_data)(config,'/v1/skills')
+    if (config.get('agent') or {}).get('provider','hermes')!='hermes' or config.get('model'):
+        try:
+            payload=services.get('fetch_butler_data',fetch_butler_data)(config,'/v1/skills')
+        except RuntimeError:
+            # Butler 服务没起时回退到本地目录，否则角色配置入口会直接失效。
+            try:
+                return local_skill_catalogue(config)
+            except Exception as exc:
+                raise RuntimeError(f'技能目录读取失败（{type(exc).__name__}）') from None
         rows=payload.get('data')
         if not isinstance(rows,list):raise RuntimeError('Butler 技能目录格式无效')
         return rows
@@ -312,5 +344,7 @@ def fetch_butler_data(config,path):
 
 
 def is_butler_role_skill(skill):
+    if 'category' in skill:
+        return skill['category'] == 'role'
     return any(str(tag).strip().casefold() == "butler-role"
                for tag in skill.get("tags", []))

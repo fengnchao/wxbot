@@ -39,10 +39,13 @@ def _log(msg, *args):
 def backend_description(cfg: Config) -> str:
     if cfg.provider=='codex':
         return f"Codex model={cfg.codex_model or '(runtime default)'} home={cfg.codex_home_path()}"
+    if cfg.uses_local_runtime:
+        return f"{cfg.provider} model={cfg.model_config.get('model') or '(runtime default)'}"
     return f"Hermes {cfg.hermes_url} ({masked(cfg.hermes_key)})"
 
 
 def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | None = None):
+    local_runtime = getattr(cfg, 'uses_local_runtime', getattr(cfg, 'provider', 'hermes') == 'codex')
     class Handler(BaseHTTPRequestHandler):
         server_version = "butler/1.0"
 
@@ -110,7 +113,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 if not self._authed(): return
                 registry = getattr(butler, 'registry', None)
                 if registry is None:
-                    self._send(503, {'error': '用户管理仅在 Codex 后端可用'}); return
+                    self._send(503, {'error': '用户管理需要本机 Butler 运行时'}); return
                 from butler.identity.user_api import dispatch_user_get
                 try:
                     self._send(200, dispatch_user_get(registry, path.path, parse_qs(path.query)))
@@ -119,14 +122,15 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 return
             if self.path == '/v1/skills':
                 if not self._authed(): return
-                if cfg.provider!='codex':
+                if not local_runtime:
                     self._send(400,{'error':'Use the configured Hermes catalogue'})
                 else:
                     self._send(200,{'object':'list','data':butler.catalogue.list()})
                 return
             if self.path == '/v1/runtime':
                 if not self._authed(): return
-                self._send(200,{'backend':cfg.provider,'protocol_version':1,
+                state=(butler.backend.runtime_status() if hasattr(butler.backend,'runtime_status') else {'backend':cfg.provider,'configured_backend':cfg.provider})
+                self._send(200,{**state,'protocol_version':1,
                     'reminders':butler.store.reminders(order='due') if butler.store else [],
                     'memory':butler.store.runtime_memory() if butler.store else [],
                     'events':butler.store.events() if butler.store else []})
@@ -140,15 +144,15 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
             if self.path.startswith("/v1/catalogue"):
                 if not self._authed():
                     return
-                self._send(200, {"skills": (butler.catalogue.list() if cfg.provider=='codex' else skills.catalogue()),
-                                 "hint": '' if cfg.provider=='codex' else skills.HERMES_HINT})
+                self._send(200, {"skills": (butler.catalogue.list() if local_runtime else skills.catalogue()),
+                                 "hint": '' if local_runtime else skills.HERMES_HINT})
                 return
             self._send(404, {"error": "not found"})
 
         def do_POST(self):
             if self.path=='/v1/jobs/delete':
                 if not self._authed():return
-                if cfg.provider!='codex' or getattr(butler,'store',None) is None:
+                if not local_runtime or getattr(butler,'store',None) is None:
                     self._send(503,{'error':'此任务由其他调度器管理，请到对应调度器删除'});return
                 from butler.runtime.job_admin import delete_job,JobConflict,JobMissing
                 try:self._send(200,delete_job(butler.store,self._body()))
@@ -232,7 +236,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 if not self._authed(): return
                 registry = getattr(butler, 'registry', None)
                 if registry is None:
-                    self._send(503, {'error': '用户管理仅在 Codex 后端可用'}); return
+                    self._send(503, {'error': '用户管理需要本地 Butler 业务运行时'}); return
                 from butler.identity.user_api import dispatch_user_post
                 from butler.identity.user_registry import VersionConflict
                 try:
@@ -261,7 +265,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 return
             if self.path == '/mcp':
                 if butler.tools is None:
-                    self._send(503,{'error':'Codex tools unavailable'}); return
+                    self._send(503,{'error':'Butler local tools unavailable'}); return
                 try:
                     from butler.runtime.mcp_gateway import dispatch
                     origin=self.headers.get('Origin')
@@ -426,14 +430,14 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
 
 
 def serve(cfg: Config) -> int:
-    if cfg.provider=='codex' and cfg.host not in ('127.0.0.1','localhost','::1'):
-        raise ValueError('Codex Butler must listen on loopback')
+    if cfg.uses_local_runtime and cfg.host not in ('127.0.0.1','localhost','::1'):
+        raise ValueError('Local Butler runtime must listen on loopback')
     if not cfg.have_token:
         _log("!! server.token 没配 —— 接口会拒绝所有请求。先在 config.toml 里配一个。")
     butler = Butler(cfg, log=_log)
     heartbeat = HeartbeatScheduler(butler, cfg, log=_log)
     reminders=None
-    if cfg.provider=='codex':
+    if cfg.uses_local_runtime:
         from butler.delivery.reminders import ReminderScheduler
         reminders=ReminderScheduler(butler)
     _log("管家启动 → http://%s:%s  |  Profile: %s  |  后端: %s",
@@ -449,7 +453,7 @@ def serve(cfg: Config) -> int:
     finally:
         heartbeat.stop()
         if reminders: reminders.stop()
-        if cfg.provider=='codex': butler.backend.close()
+        if cfg.uses_local_runtime: butler.backend.close()
         httpd.server_close()
     return 0
 

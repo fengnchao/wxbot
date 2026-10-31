@@ -22,8 +22,31 @@ let request = 0
 
 const allRows = computed(() => (data.value?.sections || []).flatMap(item => item.rows))
 // 兼容配置判定依赖当前选择的后端，用 computed 缓存一次计算结果。
-const backendName = computed(() => allRows.value.find(row => row.key === 'butler.agent.provider')?.value || 'hermes')
-const modelBackend = computed(() => allRows.value.find(row => row.key === 'wxbot.model.backend')?.value)
+function selectedValue(key) {
+  const row = allRows.value.find(row => row.key === key)
+  const sourceId = key.split('.')[0]
+  const draft = row && draftOf(sourceId, row)
+  return draft?.op === 'set' ? draft.raw : draft?.op === 'default' ? (key === 'butler.agent.provider' ? 'hermes' : '') : row?.value
+}
+// 草稿优先；没有草稿或恢复默认时用服务端按文件算出的接入方式。
+function draftRaw(key) {
+  const row = allRows.value.find(item => item.key === key)
+  const draft = row && draftOf(key.split('.')[0], row)
+  return draft?.op === 'set' ? draft.raw : undefined
+}
+const backendName = computed(() =>
+  draftRaw('butler.model.provider') ?? data.value?.model_access?.current ?? 'hermes')
+const modelBackend = computed(() => selectedValue('wxbot.model.backend'))
+const genericModel = computed(() => allRows.value.some(row => row.key.startsWith('butler.model.') && row.origin === 'file') || Boolean(drafts.value.butler && Object.values(drafts.value.butler.changes).some(change => change.path[0] === 'model')))
+
+// 哪些字段要填由接入方式决定；规则随接口下发，草稿改动后立刻生效。
+function applicable(item, row) {
+  if (item.id !== 'butler.model') return true
+  const last = row.path?.at(-1)
+  if (last === 'provider') return true
+  const fields = data.value?.model_access?.fields?.[backendName.value]
+  return (fields || ['url', 'model', 'api_key', 'timeout', 'max_history', 'system_prompt']).includes(last)
+}
 const searching = computed(() => Boolean(search.value.trim()))
 
 const paneTitle = computed(() => {
@@ -39,7 +62,7 @@ const navCategories = computed(() => {
   return CATEGORIES.concat([['all', '全部参数']]).map(([id, title]) => ({
     id,
     title,
-    count: rows.filter(({ item, row }) => (id === 'all' || categoryOf(item, row) === id) && matches(item, row)).length
+    count: rows.filter(({ item, row }) => (id === 'all' || categoryOf(item, row) === id) && (id === 'all' || id === 'advanced' || applicable(item, row)) && matches(item, row)).length
   }))
 })
 
@@ -47,7 +70,7 @@ const visibleSections = computed(() => {
   const list = (data.value?.sections || []).filter(item => !HIDDEN_SECTIONS.has(item.id))
   return list
     .map(item => {
-      const rows = item.rows.filter(row => matches(item, row) &&
+      const rows = item.rows.filter(row => (section.value === 'advanced' || section.value === 'all' || applicable(item, row)) && matches(item, row) &&
         (searching.value || section.value === 'all' || section.value === item.id || categoryOf(item, row) === section.value))
       return {
         id: item.id,
@@ -87,7 +110,10 @@ function matches(item, row) {
 
 function compatibilityOf(item, row) {
   const id = item.id || ''
-  return (id === 'butler.hermes' && backendName.value !== 'hermes') ||
+  // 接入方式是模型页的入口，任何情况下都要能改，否则选了 Codex 就切不回来。
+  if (row.path?.join('.') === 'model.provider') return false
+  return (id === 'butler.hermes' && (backendName.value !== 'hermes' || genericModel.value || Boolean(drafts.value.butler?.changes[JSON.stringify(['agent','provider'])]))) ||
+    (id === 'butler.model' && (['codex', 'echo'].includes(backendName.value) || backendName.value === 'hermes' && !genericModel.value && !drafts.value.butler?.changes[JSON.stringify(['agent','provider'])] || !applicable(item, row))) ||
     (id === 'butler.codex' && backendName.value !== 'codex') ||
     id === 'butler.dispatch' ||
     (id === 'wxbot.model' && row.path?.at(-1) !== 'backend' && modelBackend.value === 'butler')
@@ -100,7 +126,9 @@ function categoryOf(item, row) {
   if (['contacts', 'directory', 'policies', 'log_policies', 'groups', 'log_groups'].includes(item.source_id) ||
     key.startsWith('butler.contacts')) return 'contacts'
   if (id === 'log_config' || id === 'butler.log') return 'logging'
-  if (['butler.codex', 'butler.hermes', 'wxbot.model'].includes(id)) return 'model'
+  if (['butler.codex', 'butler.hermes', 'butler.model', 'wxbot.model'].includes(id)) return 'model'
+  // 实际调用协议由接入方式推导，放进高级配置，避免同一件事占两个下拉。
+  if (key === 'butler.agent.provider') return 'advanced'
   if (['wxbot.butler', 'butler.server', 'butler.agent'].includes(id)) return 'basic'
   if (['butler.heartbeat', 'butler.groups'].includes(id)) return 'contacts'
   if (item.source_id === 'wxbot') return 'wechat'
@@ -138,8 +166,12 @@ function kindOf(row, raw) {
 function choicesOf(row, raw) {
   if (row.choices?.length) {
     const list = [...new Set([...row.choices, ...(raw && !row.choices.includes(raw) ? [raw] : [])])]
+    const labels = row.choice_labels || []
     const typed = row.path?.join('.') === 'wechat.typing.mode'
-    return list.map(value => ({ value, label: typed ? (MODE_LABELS[value] || value) : value }))
+    return list.map(value => ({
+      value,
+      label: typed ? (MODE_LABELS[value] || value) : (labels[row.choices.indexOf(value)] || value)
+    }))
   }
   if (row.editor === 'boolean') {
     return [{ value: 'true', label: '开启（true）' }, { value: 'false', label: '关闭（false）' }]
@@ -151,7 +183,10 @@ function choicesOf(row, raw) {
 function fieldOf(item, row) {
   const source = sourceById(item.source_id)
   const draft = draftOf(item.source_id, row)
-  const raw = draft?.op === 'set' ? draft.raw : rawOf(row)
+  // 接入方式没显式存过时显示服务端推导出的当前值，避免下拉停在空选项。
+  const isAccess = row.path?.join('.') === 'model.provider'
+  const raw = draft?.op === 'set' ? draft.raw
+    : isAccess ? (row.value || data.value?.model_access?.current || '') : rawOf(row)
   const editable = isEditable(source, row)
   const disabled = Boolean(busy.value[item.source_id])
   return {
@@ -161,6 +196,9 @@ function fieldOf(item, row) {
     raw,
     label: row.label || String(row.key || '').split('.').at(-1),
     description: row.description || '',
+    note: row.path?.join('.') === 'model.provider'
+      ? (data.value?.model_access?.notes?.[backendName.value] || row.note || '') : '',
+    placeholder: row.placeholder || '',
     effect: row.effect || '',
     sensitive: Boolean(row.sensitive),
     defaultAvailable: Boolean(row.default_available),
@@ -370,6 +408,10 @@ function pickSection(id) {
       :key="category.id"
       class="user"
       :class="{ sel: section === category.id }"
+      role="button"
+      tabindex="0"
+      @keydown.enter="pickSection(category.id)"
+      @keydown.space.prevent="pickSection(category.id)"
       @click="pickSection(category.id)"
     >
       <div class="nm">{{ category.title }}</div>
@@ -384,6 +426,7 @@ function pickSection(id) {
         <h2>{{ paneTitle }}</h2>
         <div class="monitor-note">{{ data.note }}</div>
         <p class="monitor-note">修改后点击保存；生效方式见各项提示。刷新页面会丢失未保存的修改。</p>
+        <p v-if="section === 'model'" class="monitor-note">微信消息固定走 wxbot → Butler → 所选模型。切换接入方式后保存，下一请求即用新模型，正在处理的请求继续用原模型；用不到的字段收在高级配置里。</p>
         <div v-if="section === 'contacts'" class="hbnote">
           联系人、监听、角色、心跳、订阅和记忆统一在 <button @click="go('contacts')">联系人</button> 维护。
         </div>
@@ -447,3 +490,14 @@ function pickSection(id) {
     </template>
   </section>
 </template>
+
+<style scoped>
+/* Hallmark · checked: 2026-10-31 · genre: modern-minimal (inferred)
+ * built: the project · redesign: polish · shape: app screen · v2.0.0 */
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible,
+.user:focus-visible { outline: 2px solid var(--wx); outline-offset: 2px; }
+button:active:not(:disabled) { background: var(--bg3); }
+button:disabled { color: var(--fg3); background: var(--bg2); cursor: not-allowed; }
+.config-actions button { white-space: nowrap; }
+:deep(.config-editor), :deep(.config-field select) { border-color: var(--fg3); }
+</style>

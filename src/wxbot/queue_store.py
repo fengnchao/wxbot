@@ -190,7 +190,11 @@ class QueueStore(StreamQueue, DeliveryPolicy):
                 'WHERE batch_id=? AND group_mode=1 ORDER BY id', (batch_id,))]
 
     def identity_observations(self):
-        """Bounded latest captured avatar evidence; no historical message bodies."""
+        """Bounded latest captured avatar evidence; no historical message bodies.
+
+        Blank captures stay in the table like any other message; the replay drops
+        them with `avatar_is_informative`, so one rule decides picture evidence.
+        """
         with self._lock:
             return [dict(row) for row in self._db.execute('''
                 SELECT contact,group_mode,member_key,member_name,avatar FROM inbox

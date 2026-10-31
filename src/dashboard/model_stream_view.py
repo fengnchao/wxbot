@@ -20,11 +20,13 @@ def resolve_model(wx,bt):
         provider,name='external',''
     elif via:
         provider=(bt.get('agent') or {}).get('provider','hermes')
-        name=(bt.get(provider) or {}).get('model','')
+        settings=(bt.get('codex') or {}) if provider=='codex' else (bt.get('model') or bt.get('hermes') or {})
+        name=settings.get('model','')
+        provider=settings.get('provider') or provider
     else:
         provider=installation.get('provider') or transport
         name=model.get('model','')
-    return {'provider':str(provider)[:64], 'label':str(model.get('display_name') or LABELS.get(provider,'模型'))[:100],
+    return {'provider':str(provider)[:64], 'label':str((model.get('display_name') if not via else '') or LABELS.get(provider,'模型'))[:100],
             'model':str(name)[:150],'via_butler':via}
 
 

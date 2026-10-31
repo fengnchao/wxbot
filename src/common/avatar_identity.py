@@ -8,6 +8,9 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 MAX_AVATAR_BYTES = 512 * 1024
 MAX_AVATAR_PIXELS = 4_000_000
 ALGORITHM = 'dhash-v1'
+# 窗口被遮挡时抓到的是纯色块，dhash 照样算得出值，只能靠颜色种类挡。
+# 阈值只挡“几乎没有变化”的块：真实的纯色块图形头像只有十几种颜色，不能误杀。
+BLANK_AVATAR_COLORS = 2
 
 
 def decode_avatar(value):
@@ -49,6 +52,31 @@ def normalize_avatar(data):
     stream = BytesIO()
     image.save(stream, format='PNG')
     return {'image': base64.b64encode(stream.getvalue()).decode('ascii'), 'hash': f'{bits:016x}', 'algorithm': ALGORITHM}
+
+
+def avatar_is_informative(value, blank_colors=BLANK_AVATAR_COLORS):
+    """False for a flat capture: window occluded, minimized or scrolled out of view.
+
+    Accepts a normalized feature, a data URI or raw base64. A blank capture is not
+    identity evidence, so both collectors and the registry drop it. Colour count is
+    the only usable signal: luminance spread and dhash both overlap with real avatars.
+    """
+    data = value['image'] if isinstance(value, dict) else value
+    if isinstance(data, str):
+        data = decode_avatar(data)
+    if not isinstance(data, bytes) or not data:
+        return False
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter('error', Image.DecompressionBombWarning)
+            with Image.open(BytesIO(data)) as source:
+                source.load()
+                colors = source.convert('RGB').getcolors(maxcolors=blank_colors)
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError, Image.DecompressionBombWarning):
+        return False
+    # getcolors returns None once the image holds more than blank_colors colours;
+    # at most that many distinct colours means the capture carries no picture.
+    return colors is None
 
 
 def avatar_distance(first, second):

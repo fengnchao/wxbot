@@ -9,6 +9,7 @@ config.telegram-relay.toml
 *.session-*
 *.session.relay.lock
 *.config-backup-*
+*.model-backup-*
 *.backup-*
 *.bak
 *.old

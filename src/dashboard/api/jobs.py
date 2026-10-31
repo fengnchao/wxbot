@@ -6,7 +6,7 @@
 def read(ctx):
     """codex 模式直接读 Butler 运行时；否则扫 jobs.json + 脚本文本推断归属。"""
     config = ctx.load_butler_config()
-    if (config.get('agent') or {}).get('provider') == 'codex':
+    if (config.get('agent') or {}).get('provider','hermes') != 'hermes' or config.get('model'):
         from dashboard.runtime_view import reminder_jobs
         return 200, reminder_jobs(ctx.fetch_butler_data(config, '/v1/runtime'))
     uid_filter = ctx.one("uid", "all")

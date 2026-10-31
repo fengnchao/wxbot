@@ -1,0 +1,36 @@
+........................................................................ [  5%]
+........................................................................ [ 10%]
+........................................................................ [ 15%]
+........................................................................ [ 21%]
+........................................................................ [ 26%]
+........................................................................ [ 31%]
+.....................................................................F.. [ 37%]
+..................F......F
+================================== FAILURES ===================================
+_ test_nonlocal_install_can_edit_local_listening_without_local_identity[deepseek-direct] _
+tests\dashboard\test_contact_admin.py:234: in test_nonlocal_install_can_edit_local_listening_without_local_identity
+    assert data['connection']['mode']==mode
+E   AssertionError: assert 'local' == 'direct'
+E     
+E     - direct
+E     + local
+___________ test_direct_dashboard_never_falls_back_to_local_butler ____________
+tests\dashboard\test_dashboard_connections.py:27: in test_direct_dashboard_never_falls_back_to_local_butler
+    with pytest.raises(ValueError,match='Butler'):server.fetch_butler_data(cfg,'/v1/runtime')
+                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+src\dashboard\api\support.py:316: in fetch_butler_data
+    raise RuntimeError('Butler ��������ʧ�ܣ�'+type(exc).__name__+'��') from None
+E   RuntimeError: Butler ��������ʧ�ܣ�HTTPError��
+_____________ test_configuration_form_metadata_and_context_labels _____________
+tests\dashboard\test_dashboard_redesign.py:46: in test_configuration_form_metadata_and_context_labels
+    assert row_metadata('butler', ['agent','provider'], 'codex')['choices'] == ['codex','hermes']
+E   AssertionError: assert ['codex', 'he...'cursor', ...] == ['codex', 'hermes']
+E     
+E     Left contains 6 more items, first extra item: 'openai'
+E     Use -v to get more diff
+=========================== short test summary info ===========================
+FAILED tests/dashboard/test_contact_admin.py::test_nonlocal_install_can_edit_local_listening_without_local_identity[deepseek-direct]
+FAILED tests/dashboard/test_dashboard_connections.py::test_direct_dashboard_never_falls_back_to_local_butler
+FAILED tests/dashboard/test_dashboard_redesign.py::test_configuration_form_metadata_and_context_labels
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 3 failures !!!!!!!!!!!!!!!!!!!!!!!!!!
+3 failed, 527 passed in 60.51s (0:01:00)

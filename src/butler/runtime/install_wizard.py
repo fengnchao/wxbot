@@ -21,6 +21,10 @@ PRESETS = {
     'deepseek': ('DeepSeek 模型 API', 'https://api.deepseek.com/v1/chat/completions', ''),
     'butler': ('已有 Butler 服务', 'http://127.0.0.1:8770', ''),
     'custom': ('自定义 API（Chat Completions / Responses）', '', ''),
+    'openai': ('OpenAI 兼容 Chat Completions API', '', ''),
+    'responses': ('OpenAI 兼容 Responses API', '', ''),
+    'ollama': ('本机 Ollama', 'http://127.0.0.1:11434/api/chat', 'qwen2.5:7b'),
+    'echo': ('Echo（离线调试）', '', ''),
 }
 CONFIG_NAMES = ('config.butler.toml', 'config.wxbot.toml', 'config.log.toml')
 
@@ -36,6 +40,8 @@ class Connection:
     executable: str = 'agent'
     work_dir: str = 'data/cursor'
     timeout: int = 600
+    max_history: int = 10
+    system_prompt: str = ''
 
 
 def normalize_url(value, *, suffix=''):
@@ -79,23 +85,25 @@ def installation_mode(root):
 def connection_model(conn):
     if conn.provider not in PRESETS: raise ValueError('不支持的智能体类型')
     if type(conn.timeout) is not int or not 1 <= conn.timeout <= 86400: raise ValueError('超时须为 1–86400 秒')
+    if type(conn.max_history) is not int or not 1 <= conn.max_history <= 1000: raise ValueError('历史轮数须为 1–1000')
     if conn.provider in {'codex', 'butler'}: return {'backend': 'butler'}
+    common = {'provider': conn.provider, 'api_key': conn.api_key, 'timeout': conn.timeout,
+              'max_history': conn.max_history, 'system_prompt': conn.system_prompt}
+    if conn.provider == 'echo': return dict(common, backend='echo', model=conn.model)
     if conn.provider == 'cursor':
         if not conn.executable.strip() or not conn.work_dir.strip(): raise ValueError('Cursor 需要程序位置和专属目录')
-        return {'backend': 'cursor', 'executable': conn.executable, 'work_dir': conn.work_dir,
-                'api_key': conn.api_key, 'model': conn.model, 'timeout': conn.timeout}
-    backend = {'hermes':'hermes', 'openclaw':'openclaw', 'deepseek':'openai'}.get(conn.provider, conn.protocol)
-    if backend not in {'hermes','openclaw','openai','responses'}: raise ValueError('请选择已支持的 API 协议')
+        return dict(common, backend='cursor', executable=conn.executable, work_dir=conn.work_dir, model=conn.model)
+    backend = {'deepseek':'openai', 'custom':conn.protocol}.get(conn.provider, conn.provider)
+    if backend not in {'hermes','openclaw','openai','responses','ollama'}: raise ValueError('请选择已支持的 API 协议')
     endpoint = normalize_url(conn.url or PRESETS[conn.provider][1])
     path = urlsplit(endpoint).path
-    suffix = '/responses' if backend == 'responses' else '/chat/completions'
+    suffix = '/api/chat' if backend == 'ollama' else ('/responses' if backend == 'responses' else '/chat/completions')
     if not path.endswith(suffix):
-        endpoint += suffix if path.endswith('/v1') else '/v1' + suffix
+        endpoint += suffix if backend == 'ollama' or path.endswith('/v1') else '/v1' + suffix
     model = conn.model or PRESETS[conn.provider][2]
     if backend=='openclaw': model = model or 'openclaw/' + (conn.agent or 'main')
     if not model: raise ValueError('请填写模型名（按服务端实际提供的名称）')
-    result = {'backend':backend, 'url':endpoint, 'api_key':conn.api_key, 'model':model,
-              'timeout':conn.timeout, 'max_history':10}
+    result = dict(common, backend=backend, url=endpoint, model=model)
     if backend=='openclaw': result['agent']=conn.agent or 'main'
     return result
 
@@ -142,7 +150,7 @@ def install(root, connection=None, *, nickname='', wxbot_url='http://127.0.0.1:8
     wxhost, wxport, wxbase = listener(wxbot_url, suffix='/send')
     bhost, bport, bbase = listener(butler_url, suffix='/v1/handle')
     lhost, lport, lbase = listener(log_url)
-    mode = 'local' if conn.provider=='codex' else ('external' if conn.provider=='butler' else 'direct')
+    mode = 'external' if conn.provider=='butler' else 'local'
     ports = [wxport, lport] + ([bport] if mode=='local' else [])
     if len(ports)!=len(set(ports)): raise ValueError('本机服务端口不能相同')
     bt, wx, lg = butler_defaults(), wxbot_defaults(), log_defaults()
@@ -153,11 +161,13 @@ def install(root, connection=None, *, nickname='', wxbot_url='http://127.0.0.1:8
     bt['codex']['model'] = conn.model if conn.provider=='codex' else ''
     if conn.provider=='codex' and conn.api_key:bt['codex']['api_key']=conn.api_key
     wx['outbound'].update(host=wxhost, port=wxport, token=bt['wxbot']['token'])
-    wx['model'] = model
+    wx['model'] = {'backend':'butler'}
+    if conn.provider not in {'codex','butler'}:
+        bt['agent']['provider'] = model['backend']
+        bt['model'] = model
     if mode=='external':
         wx['butler'].update(url=normalize_url(conn.url or PRESETS['butler'][1], suffix='/v1/handle'), token=conn.api_key)
     elif mode=='local': wx['butler'].update(url=bbase, token=bt['server']['token'])
-    else: wx.pop('butler', None)
     lg['server'].update(host=lhost, port=lport)
     root.mkdir(parents=True, exist_ok=True)
     created = []
@@ -175,8 +185,8 @@ def install(root, connection=None, *, nickname='', wxbot_url='http://127.0.0.1:8
     return {'ok':True, 'provider':conn.provider, 'mode':mode,
             'config_directory':str(root), 'send_url':wxbase+'/send', 'dashboard':lbase,
             'receive_url':wx['butler']['url']+'/v1/handle' if mode in {'local','external'} else model.get('url','Cursor CLI'),
-            'next':(([prefix+' login'] if mode=='local' and not conn.api_key else []) + [prefix+' doctor', prefix+' start']),
-            'note':'安装完成；未启动服务。直接模型接入不提供 Butler 记忆或业务工具。'}
+            'next':(([prefix+' login'] if conn.provider=='codex' and not conn.api_key else []) + [prefix+' doctor', prefix+' start']),
+            'note':'安装完成；未启动服务。微信消息经 Butler 调用模型。'}
 
 
 def run_wizard(root, *, input_fn=input, secret_fn=getpass, output=print):
@@ -198,7 +208,7 @@ def run_wizard(root, *, input_fn=input, secret_fn=getpass, output=print):
             conn.work_dir=ask('专属工作目录（相对安装目录）', 'data/cursor')
             conn.model=ask('模型名（可留空）')
             conn.api_key=secret_fn('Cursor API Key（留空使用本机登录，输入不回显）: ').strip()
-        else:
+        elif choice != 'echo':
             if choice=='custom': conn.protocol=ask('协议 openai / responses', 'openai')
             conn.url=ask('接口地址', PRESETS[choice][1])
             conn.api_key=secret_fn('API Key / Token（本机无鉴权可留空，输入不回显）: ').strip()
@@ -206,7 +216,7 @@ def run_wizard(root, *, input_fn=input, secret_fn=getpass, output=print):
             elif choice!='butler': conn.model=ask('模型名', PRESETS[choice][2])
         wxurl=ask('本机 wxbot 消息地址', 'http://127.0.0.1:8765')
         wxtoken=secret_fn('消息服务 Token（留空随机生成）: ').strip()
-        bturl=ask('本机 Butler 接收地址', 'http://127.0.0.1:8770') if choice=='codex' else 'http://127.0.0.1:8770'
+        bturl=ask('本机 Butler 接收地址', 'http://127.0.0.1:8770') if choice!='butler' else 'http://127.0.0.1:8770'
         logurl=ask('管理台地址', 'http://127.0.0.1:8788')
         nickname=ask('机器人微信昵称（稍后可在管理台修改）')
         connection_model(conn)

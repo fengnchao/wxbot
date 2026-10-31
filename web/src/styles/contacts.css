@@ -1,0 +1,42 @@
+/* Hallmark · checked: 2026-10-31 · genre: modern-minimal (inferred)
+ * built: the project · redesign: polish · scope: app · v2.0.0 */
+/* Hallmark · dismissed 49 · contact rows contain structured name, window and state columns; multiline names must remain readable instead of forcing the whole row onto one line */
+.contact-tabs{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.contact-tabs button{font:inherit;font-size:12px;border-radius:8px;padding:8px 12px;background:transparent;color:var(--fg2);border:1px solid var(--line);white-space:nowrap}
+.contact-tabs button[aria-pressed=true]{background:color-mix(in srgb,var(--wx) 14%,var(--bg2));border-color:var(--wx);color:var(--wx)}
+.contact-search{width:100%;box-sizing:border-box;margin:8px 0;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg3);color:var(--fg)}
+.contact-table-head span{font-size:10px;overflow-wrap:anywhere}
+.contact-detail-tabs{margin-bottom:0}
+.contact-section .contact-card{display:block;padding:16px;margin:12px 0}
+.contact-section .contact-card h3{font-size:14px;margin:0 0 8px}
+.contact-section .contact-card p{overflow-wrap:anywhere;line-height:1.7}
+.contact-section .row{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.contact-notice{margin:16px 0;padding:16px;border:1px solid var(--warn);border-radius:8px;background:var(--bg3)}
+.contact-maintenance{margin-top:24px;border-top:1px solid var(--line);padding-top:16px}
+.contact-head-main{min-width:0;overflow-wrap:anywhere}
+.contact-head-actions{display:flex;justify-content:flex-end}
+.contact-head-actions #contact-delete{margin:0;max-width:100%;min-height:36px;color:var(--warn);border-color:var(--warn)}
+.contact-head-actions #contact-delete:hover{background:var(--bg3)}
+.contact-head-actions #contact-delete:active{background:var(--bg2)}
+.contact-head-actions #contact-delete:focus-visible{outline:2px solid var(--warn);outline-offset:4px}
+.contact-head h2,.contact-section h3,.user-dialog h2,.hbstatus h2{min-width:0;overflow-wrap:break-word;text-wrap:balance}
+.contact-tabs button:focus-visible,.contact-section button:focus-visible,.contact-search:focus-visible,
+.user-dialog button:focus-visible,.user-dialog input:focus-visible,.user-dialog select:focus-visible,
+.contact-filter select:focus-visible{outline:2px solid var(--wx);outline-offset:4px}
+.contact-tabs button:active:not(:disabled){background:var(--bg3)}
+.contact-section button:disabled,.contact-tabs button:disabled,.user-dialog button:disabled{opacity:.5;cursor:not-allowed}
+.contact-section .contact-member{flex-wrap:wrap;gap:12px;overflow-wrap:anywhere}
+#contact-merge-dialog{max-width:780px}
+#contact-merge-dialog li{overflow-wrap:anywhere;line-height:1.8}
+.contact-list-section{margin:0 0 16px;padding:0;overflow:visible}
+.contact-list-section+.contact-list-section{border-top:1px solid var(--line);padding-top:12px}
+.contact-list-section>h3{display:flex;align-items:baseline;gap:8px;margin:12px 9px 8px;
+  min-width:0;overflow-wrap:break-word;font-size:13px;font-weight:600;color:var(--fg2)}
+.contact-list-section>h3 span{font-size:12px;font-weight:400;font-variant-numeric:tabular-nums;color:var(--fg3)}
+@media(max-width:1100px){body.list-open .contact-table-head span:nth-child(n+3){display:none}}
+@media(max-width:600px){
+  .contact-tools-title{flex-wrap:wrap;gap:8px}
+  .contact-detail-tabs{gap:4px}
+  .contact-tabs button{padding:8px}
+  .contact-section{padding:16px}
+}

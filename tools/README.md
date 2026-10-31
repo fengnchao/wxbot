@@ -6,6 +6,7 @@
 | 文件 | 用途 | 是否需要网络 |
 |---|---|---|
 | `probe.py` | 微信控件树探测，用来校准 `config.wxbot.toml` 的 `[wechat.*]` 选择器 | 否 |
+| `avatar_calibration.py` | 头像采样校准：对比自动边界检测与旧的固定 36px 裁剪 | 否 |
 | `debug_read.py` | 检查窗口／消息列表／输入框，并打印每条消息被判成谁发的 | 否 |
 | `probe_codex.py` | Codex 端到端联调：真实模型调用 + MCP 记忆 + 线程续接 | 是（调模型） |
 | `release.py` | 按白名单打两个可移植包，并做凭据形状审计 | 否 |
@@ -39,6 +40,19 @@
   找的是独立聊天窗口 `mmui::ChatSingleWindow`。用 `[wechat].mode = "main"` 主窗口模式时，
   它检查的不是正在跑的那条链路，只能用来核对控件配置。
 - 绑定列表为空时会直接提示"没有独立聊天窗口可检查"并退出，不报错。
+
+## avatar_calibration.py
+
+把当前群聊窗口里每一行消息的头像截成两版并排放大：左列按像素边界自动定位，
+右列是旧的固定 36px 裁剪。左边出现完整头像、右边露出被切掉的右下角，就说明采样正常。
+
+```powershell
+.\.venv\Scripts\python.exe tools\avatar_calibration.py
+```
+
+- 微信要停在一个群聊窗口，且窗口可见、不遮挡、不最小化——被挡住时会抓到桌面像素。
+- 输出 `cache/avatar-calibration.png`，标签里带实测偏移量（正常是 `(+8,+8)`）。
+- 只读屏幕，不发消息、不改配置。换了显示器缩放或微信大版本更新后跑一次即可。
 
 ## probe_codex.py
 

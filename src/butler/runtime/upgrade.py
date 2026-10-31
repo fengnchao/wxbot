@@ -53,6 +53,8 @@ def relative_log_sources(root):
 
 def upgrade_installation(root):
     root=Path(root).resolve()
+    from butler.runtime.model_migration import migrate_model_connection
+    model_connection = migrate_model_connection(root)
     from butler.identity.contact_store import ContactStore, is_unified
     from butler.identity.directory import directory_path
     database=directory_path(root/'config.butler.toml')
@@ -61,5 +63,6 @@ def upgrade_installation(root):
     else:
         result=migrate_installation(root)
         result['contacts_next']='python -m butler contacts-preview --directory "'+str(root)+'"'
-    result.update(ok=True, log_sources_updated=relative_log_sources(root),locks=clean_legacy_locks(root))
+    result.update(ok=True, model_connection=model_connection,
+                  log_sources_updated=relative_log_sources(root),locks=clean_legacy_locks(root))
     return result
