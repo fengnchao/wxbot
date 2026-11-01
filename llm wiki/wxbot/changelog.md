@@ -56,3 +56,13 @@
 来源：[[raw/changes/2026-10-31-identity-placeholder-names]]
 
 [[concepts/group-identity-evidence]]、[[concepts/message-pipeline]]、[[modules/wxbot]]
+
+## [2026-11-01] change | model request failure keeps redacted status
+
+来源：[[raw/changes/2026-11-01-model-request-error-visibility]]
+
+## [2026-11-01] ingest | 模型请求失败保留脱敏状态码
+
+来源：[[raw/changes/2026-11-01-model-request-error-visibility]]
+
+[[symbols/local-model-backend]]、[[modules/models]]

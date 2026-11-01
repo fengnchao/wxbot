@@ -108,6 +108,14 @@
         "modules/wxbot"
       ],
       "date": "2026-10-31"
+    },
+    "raw/changes/2026-11-01-model-request-error-visibility": {
+      "sha256": "d82d9938a71726d5c16c19962dd618ce198f95fd0540f2fb274961e85ea73214",
+      "pages": [
+        "symbols/local-model-backend",
+        "modules/models"
+      ],
+      "date": "2026-11-01"
     }
   },
   "pages": {
@@ -321,21 +329,21 @@
       }
     },
     "modules/models": {
-      "sha256": "284f291930512e9b33936fee96ee0c6757d5b55a438bca90fe2f72ed64d8359d",
+      "sha256": "ffe8bd6d771812ed62ebaaeaa644b2ba16168d38a93fd1dc973f515c8ef206ce",
       "sources": {
         "src/butler/backends/__init__.py": "41607d953c7a3e04d098c01e7e84eb50256a247a39d3ee4ab17511d6436f01c4",
-        "src/butler/backends/models.py": "03e5cf36282b5242a515ce0f769bcdc94ea85b6a5b4baa7afee9ae308e2428ff",
-        "src/butler/backends/compatible.py": "0e121658531faa1380d075b7783d61ac7cff8506954b968ad66c86f5d4d2123d",
+        "src/butler/backends/models.py": "f8dfea4dd5d74727cd4b9a13401e109e2ddec4d9337ce6cd0c5fd14a623c2cb3",
+        "src/butler/backends/compatible.py": "ffe7b0f4321afd249fbcbe44a25e83998bed17c56169db3ce2333df0c868ebb6",
         "src/butler/runtime/model_switch.py": "329a2162b85c1fec22c3fa1f9d0a2185ef115702f436abc04c680e622f6ba91e",
         "src/dashboard/config_schema.py": "e1d989630c81244b57e806633afbc250292d240f5e9faec0782d006887e20a65",
         "web/src/views/ConfigurationView.vue": "2bfc2c95a5ebf3c682c57abbb1f9e7589bd1b56e661b6f3ae37c2d7a82ee760a"
       }
     },
     "symbols/local-model-backend": {
-      "sha256": "8e58a86fa81fe51bbc15832548313b395ec8cf8c4e4562e0f38bc20a260bcb5a",
+      "sha256": "83298811c7a6d82a220206597ee4bbb4ef72e124ba67e95507405eb4a6782d08",
       "sources": {
-        "src/butler/backends/models.py": "03e5cf36282b5242a515ce0f769bcdc94ea85b6a5b4baa7afee9ae308e2428ff",
-        "src/butler/backends/compatible.py": "0e121658531faa1380d075b7783d61ac7cff8506954b968ad66c86f5d4d2123d"
+        "src/butler/backends/models.py": "f8dfea4dd5d74727cd4b9a13401e109e2ddec4d9337ce6cd0c5fd14a623c2cb3",
+        "src/butler/backends/compatible.py": "ffe7b0f4321afd249fbcbe44a25e83998bed17c56169db3ce2333df0c868ebb6"
       }
     },
     "symbols/reloadable-backend": {

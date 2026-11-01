@@ -3,7 +3,7 @@ type: module
 module: models
 coverage: core
 summary: Butler 管理可切换模型与服务授权工具，wxbot 只调用 Butler
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/butler/backends/__init__.py
   line: 12
@@ -14,6 +14,9 @@ sources:
 - path: src/butler/backends/compatible.py
   line: 31
   anchor: PRODUCT_ENDPOINTS =
+- path: src/butler/backends/compatible.py
+  line: 36
+  anchor: _STATUS_HINTS =
 - path: src/butler/runtime/model_switch.py
   line: 50
   anchor: class ReloadableBackend
@@ -29,6 +32,7 @@ sources:
 changes:
 - raw/changes/2026-10-31-switchable-models
 - raw/changes/2026-10-31-model-access-switch
+- raw/changes/2026-11-01-model-request-error-visibility
 ---
 # 统一模型后端
 
@@ -41,6 +45,8 @@ changes:
 
 模型通过 [[symbols/reloadable-backend]] 在后续请求切换；身份、业务库、认证、端口和监听目录仍是启动配置，不随模型重载。配置保存并非网络验证，真实服务可用性需另行授权验证。
 
+配置保存只校验地址格式，不会补全路径也不会比对模型名：`[model].url` 必须是可以直接 POST 的完整端点（通常是 `.../v1/chat/completions` 或 `.../v1/responses`），`model` 必须是服务端实际提供的名称。填错时下一次请求即失败，失败原因由 `CompatibleBackend._error_detail` 保留状态码与本地提示（401 查密钥、404 查地址路径、400 查模型名）。
+
 [[symbols/local-model-backend]] 对 OpenAI/Responses 支持经 ToolService 许可的原生函数工具；Codex 保留原工具实现。Hermes/OpenClaw/Cursor/Ollama 是完整结果路径，不宣称具有 Butler 原生工具桥；未处理的工具调用会失败。Cursor 始终 ask/sandbox 且独立目录，不执行来自聊天的 CLI 选项。
 
 旧 direct 安装使用 `python -m butler migrate` 显式迁移；迁移仅将本机参数移到 Butler 并备份，禁止把备份提交 Git。业务表结构不变；远端模型对话会话不保证跨后端移植。模型 API Key 不是本地身份授权，见 [[concepts/identity-authority]]。
@@ -51,6 +57,7 @@ changes:
 - `src/butler/backends/__init__.py:12` — `def create_backend(`
 - `src/butler/backends/models.py:16` — `class LocalModelBackend`
 - `src/butler/backends/compatible.py:31` — `PRODUCT_ENDPOINTS =`
+- `src/butler/backends/compatible.py:36` — `_STATUS_HINTS =`
 - `src/butler/runtime/model_switch.py:50` — `class ReloadableBackend`
 - `src/dashboard/config_schema.py:156` — `def row_metadata(`
 - `src/dashboard/config_schema.py:126` — `def access_provider(`
@@ -62,3 +69,5 @@ changes:
 [[raw/changes/2026-10-31-switchable-models]]
 
 [[raw/changes/2026-10-31-model-access-switch]]
+
+[[raw/changes/2026-11-01-model-request-error-visibility]]

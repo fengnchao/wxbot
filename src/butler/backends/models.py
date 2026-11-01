@@ -69,9 +69,14 @@ class LocalModelBackend(CompatibleBackend):
                 self.last_error = ''
                 answer(reply)
                 return reply
+        except HermesError as exc:
+            # 内层已给出脱敏原因（含状态码），再包一层只会把它换成 HermesError。
+            # 工具可能已产生副作用，重放不安全。
+            exc.retry_safe = False
+            raise
         except Exception as exc:
-            self.last_error = type(exc).__name__
-            error = HermesError(f'{self.provider} model request failed ({type(exc).__name__})')
+            self.last_error = self._error_detail(exc)
+            error = HermesError(f'{self.provider} model request failed ({self.last_error})')
             error.retry_safe = False
             raise error from None
 

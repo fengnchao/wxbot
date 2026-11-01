@@ -11,7 +11,7 @@
 | [[modules/dashboard]] | 聚合运行事实，读取队列不初始化或迁移数据库 | `src/dashboard/routes.py:26` | 2026-10-31 |
 | [[modules/delivery]] | 主动推送、补发、媒体与提醒归业务服务所有 | `src/butler/delivery/push.py:19` | 2026-10-31 |
 | [[modules/identity]] | 统一人物、窗口和成员绑定，身份能力由服务端签发 | `src/butler/identity/contact_store.py:37` | 2026-10-31 |
-| [[modules/models]] | Butler 管理可切换模型与服务授权工具，wxbot 只调用 Butler | `src/butler/backends/__init__.py:12` | 2026-10-31 |
+| [[modules/models]] | Butler 管理可切换模型与服务授权工具，wxbot 只调用 Butler | `src/butler/backends/__init__.py:12` | 2026-11-01 |
 | [[modules/plugin]] | 角色和工具 Skill 分类，权限仍由业务服务验证 | `src/butler/agent/catalogue.py:8` | 2026-10-31 |
 | [[modules/runtime]] | 安装、迁移、并发和 MCP 等运行基础设施 | `src/butler/runtime/setup.py:28` | 2026-10-31 |
 | [[modules/telegram]] | Telethon、Bot API 和桌面中继三个不同边界 | `src/butler/channels/telegram/bot/queue.py:9` | 2026-10-31 |
@@ -43,7 +43,7 @@
 | [[symbols/butler-handle]] | 单轮身份解析、会话互斥、补发优先与最终合成 | `src/butler/agent/core.py:207` | 2026-10-31 |
 | [[symbols/butler-processor]] | wxbot 的 Butler HTTP 适配及完整结果校验 | `src/wxbot/processor/butler.py:60` | 2026-10-31 |
 | [[symbols/butler-result]] | 生成 reply/actions/reply_parts/meta 的公开边界 | `src/butler/agent/core.py:64` | 2026-10-31 |
-| [[symbols/local-model-backend]] | 原生函数工具走服务签发身份，完整结果才进入历史 | `src/butler/backends/models.py:16` | 2026-10-31 |
+| [[symbols/local-model-backend]] | 原生函数工具走服务签发身份，完整结果才进入历史 | `src/butler/backends/models.py:16` | 2026-11-01 |
 | [[symbols/model-worker]] | 领取批次、调用模型并保存回复，绝不访问 UI | `src/wxbot/queue_worker.py:43` | 2026-10-31 |
 | [[symbols/queue-finish]] | 完整分句入 outbox，模型完成和发送完成分开 | `src/wxbot/queue_store.py:334` | 2026-10-31 |
 | [[symbols/queue-store]] | 短事务管理收件、合批、模型状态与 UI 发件状态 | `src/wxbot/queue_store.py:91` | 2026-10-31 |
@@ -72,3 +72,4 @@
 - [[raw/changes/2026-10-31-model-access-switch]]
 - [[raw/changes/2026-10-31-queue-batches-format]]
 - [[raw/changes/2026-10-31-switchable-models]]
+- [[raw/changes/2026-11-01-model-request-error-visibility]]

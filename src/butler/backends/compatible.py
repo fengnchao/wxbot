@@ -32,6 +32,15 @@ PRODUCT_ENDPOINTS = {
     'deepseek': ('https://api.deepseek.com/v1/chat/completions', 'deepseek-chat'),
 }
 
+# 常见状态码的一句话本地提示：说明该查哪一项，不回显远端正文。
+_STATUS_HINTS = {
+    400: '请求被拒绝，检查 model 名是否与服务端一致',
+    401: '密钥被服务端拒绝',
+    403: '密钥无权访问该模型',
+    404: '地址路径不存在，通常缺少 /v1/chat/completions',
+    429: '请求被限流或额度不足',
+}
+
 
 class CompatibleBackend:
     def __init__(self, cfg, log=None, *, locks=None):
@@ -99,6 +108,15 @@ class CompatibleBackend:
             self._transport(scope).reset(scope)
             self._ids[scope] = uuid.uuid4().hex
 
+    @staticmethod
+    def _error_detail(exc):
+        """失败原因只保留类型名与状态码，不带地址、密钥或远端响应正文。"""
+        status = getattr(getattr(exc, 'response', None), 'status_code', None)
+        if not isinstance(status, int):
+            return type(exc).__name__
+        hint = _STATUS_HINTS.get(status, '')
+        return f'{type(exc).__name__} {status}' + (f'：{hint}' if hint else '')
+
     def alive(self, profile='default'):
         # Configured readiness only: no model request or process launch as a probe.
         return self.provider in ('cursor', 'echo') or bool(self.settings['url'])
@@ -129,9 +147,10 @@ class CompatibleBackend:
                 if not isinstance(reply, str) or not reply.strip():
                     raise ValueError('Model has no complete final reply')
             except Exception as exc:
-                # Do not expose request URLs, credentials or remote error bodies.
-                self.last_error = type(exc).__name__
-                raise HermesError(f'{self.provider} model request failed ({type(exc).__name__})') from None
+                # Do not expose request URLs, credentials or remote error bodies;
+                # the status code alone tells which setting to check.
+                self.last_error = self._error_detail(exc)
+                raise HermesError(f'{self.provider} model request failed ({self.last_error})') from None
             self._ids.setdefault(scope, uuid.uuid4().hex)
             self.last_error = ''
             answer(reply)
