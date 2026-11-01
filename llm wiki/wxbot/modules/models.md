@@ -21,10 +21,10 @@ sources:
   line: 50
   anchor: class ReloadableBackend
 - path: src/dashboard/config_schema.py
-  line: 156
+  line: 166
   anchor: def row_metadata(
 - path: src/dashboard/config_schema.py
-  line: 126
+  line: 136
   anchor: def access_provider(
 - path: web/src/views/ConfigurationView.vue
   line: 37
@@ -33,6 +33,9 @@ changes:
 - raw/changes/2026-10-31-switchable-models
 - raw/changes/2026-10-31-model-access-switch
 - raw/changes/2026-11-01-model-request-error-visibility
+- raw/changes/2026-11-01-model-error-contract
+- raw/changes/2026-11-01-knowledge-auto
+- raw/changes/2026-11-01-knowledge-vault-graph
 ---
 # 统一模型后端
 
@@ -45,7 +48,7 @@ changes:
 
 模型通过 [[symbols/reloadable-backend]] 在后续请求切换；身份、业务库、认证、端口和监听目录仍是启动配置，不随模型重载。配置保存并非网络验证，真实服务可用性需另行授权验证。
 
-配置保存只校验地址格式，不会补全路径也不会比对模型名：`[model].url` 必须是可以直接 POST 的完整端点（通常是 `.../v1/chat/completions` 或 `.../v1/responses`），`model` 必须是服务端实际提供的名称。填错时下一次请求即失败，失败原因由 `CompatibleBackend._error_detail` 保留状态码与本地提示（401 查密钥、404 查地址路径、400 查模型名）。
+配置保存只校验地址格式，不会补全路径也不会比对模型名：`[model].url` 必须是可以直接 POST 的完整端点（通常是 `.../v1/chat/completions` 或 `.../v1/responses`），`model` 必须是服务端实际提供的名称。填错时下一次请求即失败，失败原因由 `CompatibleBackend._error_detail` 保留状态码与本地提示（401 查密钥、404 查地址路径、400 查模型名）。失败后到底重试还是放弃、多久放行后续消息，统一见 [[concepts/model-error-contract]]。
 
 [[symbols/local-model-backend]] 对 OpenAI/Responses 支持经 ToolService 许可的原生函数工具；Codex 保留原工具实现。Hermes/OpenClaw/Cursor/Ollama 是完整结果路径，不宣称具有 Butler 原生工具桥；未处理的工具调用会失败。Cursor 始终 ask/sandbox 且独立目录，不执行来自聊天的 CLI 选项。
 
@@ -59,8 +62,8 @@ changes:
 - `src/butler/backends/compatible.py:31` — `PRODUCT_ENDPOINTS =`
 - `src/butler/backends/compatible.py:36` — `_STATUS_HINTS =`
 - `src/butler/runtime/model_switch.py:50` — `class ReloadableBackend`
-- `src/dashboard/config_schema.py:156` — `def row_metadata(`
-- `src/dashboard/config_schema.py:126` — `def access_provider(`
+- `src/dashboard/config_schema.py:166` — `def row_metadata(`
+- `src/dashboard/config_schema.py:136` — `def access_provider(`
 - `web/src/views/ConfigurationView.vue:37` — `const backendName =`
 
 ## 入库来源
@@ -71,3 +74,5 @@ changes:
 [[raw/changes/2026-10-31-model-access-switch]]
 
 [[raw/changes/2026-11-01-model-request-error-visibility]]
+
+[[raw/changes/2026-11-01-knowledge-auto]]

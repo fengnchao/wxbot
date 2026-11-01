@@ -49,7 +49,7 @@ class Config:
     send_identity: bool = True
     # Hermes URL 是否带命名 Profile 前缀 /p/{profile}/。
     # True  → {base}/p/{profile}/v1/...（Hermes 侧配了命名 Profile 时）
-    # False → {base}/v1/...（扁平接口，默认；记忆隔离仍靠 X-Hermes-Session-Key 头）
+    # False → {base}/v1/...（扁平接口，默认；会话隔离仍靠 X-Hermes-Session-Key 头）
     hermes_profile_in_path: bool = False
     # wxbot（主动推送）
     wxbot_url: str = "http://127.0.0.1:8765"
@@ -69,6 +69,19 @@ class Config:
     heartbeat_audit_file: str = ""
     heartbeat_min_interval_minutes: int = 180
     heartbeat_max_interval_minutes: int = 360
+    # 知识库：一个人一个 Obsidian vault（原文 Markdown + 事实节点，双链成图）
+    knowledge_enabled: bool = True
+    knowledge_retention_days: int = 90
+    # 自动提炼：定时扫一遍有积压的人，一批一批交给模型。代码默认关，由配置显式打开。
+    knowledge_auto_extract: bool = False
+    knowledge_extract_interval_minutes: int = 60
+    knowledge_extract_batch: int = 40
+    knowledge_extract_max_owners: int = 5
+    knowledge_extract_min_backlog: int = 1
+    knowledge_extract_idle_seconds: int = 120
+    knowledge_extract_retry_minutes: int = 30
+    knowledge_auto_prune: bool = False
+    knowledge_prune_interval_hours: int = 24
     # 联系人
     contacts: ContactMap = field(default_factory=ContactMap)
     message_routes: tuple[MessageRoute, ...] = field(default_factory=tuple)
@@ -153,6 +166,20 @@ class Config:
             return os.path.join(self.hermes_root, "cache", "butler_heartbeat_audit.jsonl")
         return ""
 
+    def knowledge_dir_path(self):
+        return self.data_path()/'knowledge'
+
+    def knowledge_extract_state_path(self) -> str:
+        """自动提炼的进度与下次时间；管理台只读这个文件，不碰库。"""
+        return str(self.data_path()/'cache'/'knowledge_extract_state.json')
+
+    def knowledge_extract_audit_path(self) -> str:
+        return str(self.data_path()/'cache'/'knowledge_extract_audit.jsonl')
+
+    def knowledge_extract_lock_path(self) -> str:
+        """CLI 与调度器共用的单飞锁：同一批原文不送两次模型。"""
+        return str(self.data_path()/'cache'/'knowledge_extract.lock')
+
 
 def load(path: str | os.PathLike | None = None) -> Config:
     p = Path(path) if path else DEFAULT_CONFIG
@@ -186,6 +213,27 @@ def load(path: str | os.PathLike | None = None) -> Config:
         raise ValueError('context.group_messages must be an integer from 1 to 200')
     if type(context_characters)is not int or not 1<=context_characters<=30000:
         raise ValueError('context.group_characters must be an integer from 1 to 30000')
+    knowledge = raw.get('knowledge') or {}
+    knowledge_retention = knowledge.get('retention_days', 90)
+    if type(knowledge_retention)is not int or not 1<=knowledge_retention<=3650:
+        raise ValueError('knowledge.retention_days must be an integer from 1 to 3650')
+
+    def bounded(key, default, low, high):
+        """自动提炼的数值项：越界直接报错，不默默取默认值。"""
+        value = knowledge.get(key, default)
+        if type(value)is not int or not low<=value<=high:
+            raise ValueError(f'knowledge.{key} must be an integer from {low} to {high}')
+        return value
+
+    knowledge_auto_extract = bool(knowledge.get('auto_extract', False))
+    knowledge_auto_prune = bool(knowledge.get('auto_prune', False))
+    extract_interval = bounded('extract_interval_minutes', 60, 1, 1440)
+    extract_batch = bounded('extract_batch', 40, 1, 200)
+    extract_max_owners = bounded('extract_max_owners', 5, 1, 50)
+    extract_min_backlog = bounded('extract_min_backlog', 1, 1, 200)
+    extract_idle = bounded('extract_idle_seconds', 120, 0, 3600)
+    extract_retry = bounded('extract_retry_minutes', 30, 1, 1440)
+    prune_hours = bounded('prune_interval_hours', 24, 1, 720)
     from butler.identity.directory import DirectoryContactMap, directory_path, directory_enabled
     contacts = (DirectoryContactMap(directory_path(p, raw))
                 if directory_enabled(p, raw) else load_contacts(raw.get("contacts")))
@@ -223,6 +271,17 @@ def load(path: str | os.PathLike | None = None) -> Config:
         heartbeat_audit_file=str(hb.get("audit_file") or "").strip(),
         heartbeat_min_interval_minutes=max(1, int(hb.get("min_interval_minutes") or 180)),
         heartbeat_max_interval_minutes=max(1, int(hb.get("max_interval_minutes") or 360)),
+        knowledge_enabled=bool(knowledge.get('enabled', True)),
+        knowledge_retention_days=knowledge_retention,
+        knowledge_auto_extract=knowledge_auto_extract,
+        knowledge_extract_interval_minutes=extract_interval,
+        knowledge_extract_batch=extract_batch,
+        knowledge_extract_max_owners=extract_max_owners,
+        knowledge_extract_min_backlog=extract_min_backlog,
+        knowledge_extract_idle_seconds=extract_idle,
+        knowledge_extract_retry_minutes=extract_retry,
+        knowledge_auto_prune=knowledge_auto_prune,
+        knowledge_prune_interval_hours=prune_hours,
         contacts=contacts,
         message_routes=load_message_routes(raw.get('message_routes', [])),
     )

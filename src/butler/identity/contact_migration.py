@@ -163,7 +163,7 @@ def _collect(root):
                                      'from agent.data_dir/business.sqlite3 containing identity or business data; '
                                      'resolve the sources before contact migration')
     directory = dict(contacts=[], channel={}, aliases=[])
-    bindings, profiles, imported, memory_conflicts, memories, identities = [], [], set(), [], [], []
+    bindings, profiles, imported, identities = [], [], set(), []
     if database.exists():
         with _read_database(database) as db:
             if _table(db, 'unified_contacts'):
@@ -171,7 +171,7 @@ def _collect(root):
                 if row and row['active']:
                     return dict(ok=True, active=True, mode=wx.get('installation', {}).get('mode', 'local'),
                                 database=str(database), state=ContactStore._snapshot(db),
-                                sources=sources, errors=[], counts={}, same_name_merges=[], memory_conflicts=[])
+                                sources=sources, errors=[], counts={}, same_name_merges=[])
             if _table(db, 'directory_state'):
                 row = db.execute('SELECT payload FROM directory_state WHERE id=1').fetchone()
                 if row:
@@ -182,8 +182,6 @@ def _collect(root):
                 bindings = [dict(row) for row in db.execute('SELECT * FROM user_bindings')]
             if _table(db, 'user_profiles'):
                 profiles = [dict(row) for row in db.execute('SELECT * FROM user_profiles')]
-            if _table(db, 'memory'):
-                memories = [dict(row) for row in db.execute('SELECT owner,key,value FROM memory WHERE owner LIKE "user:%"')]
             if _table(db, 'identities'):
                 identities = [dict(row) for row in db.execute('SELECT * FROM identities ORDER BY rowid DESC')]
     conversations = {}
@@ -328,20 +326,12 @@ def _collect(root):
         if name:
             named.setdefault(name, set()).add(binding['user_id'])
     merges = [dict(name=name, user_ids=sorted(ids)) for name, ids in sorted(named.items()) if len(ids) > 1]
-    for merge in merges:
-        by_key = {}
-        owners = {'user:' + person for person in merge['user_ids']}
-        for row in memories:
-            if row['owner'] in owners:
-                by_key.setdefault(row['key'], set()).add(row['value'])
-        memory_conflicts.extend(dict(name=merge['name'], key=key, variants=len(values), user_ids=merge['user_ids'])
-                                for key, values in sorted(by_key.items()) if len(values) > 1)
     return dict(ok=True, active=False, mode=wx.get('installation', {}).get('mode', 'local'),
                 database=str(database), state=state, sources=sources, errors=[],
                 counts=dict(conversations=len(conversations), bindings=len(bindings), aliases=len(aliases),
                             policies=sum(c['policy'] is not None for c in conversations.values()),
                             subscriptions=sum(len(c['subscriptions']) for c in conversations.values())),
-                same_name_merges=merges, memory_conflicts=memory_conflicts)
+                same_name_merges=merges)
 
 
 def preview_contacts(root):
@@ -386,7 +376,7 @@ def _stage_contacts(path, report):
     from butler.business import BusinessStore
     from butler.identity.user_registry import UserRegistry
     from butler.identity.directory import DirectoryStore
-    from butler.identity.contact_identity import ensure_schema, merge_same_named, normalize_name, adopt_legacy_notes
+    from butler.identity.contact_identity import ensure_schema, merge_same_named, normalize_name
     # These constructors can perform additive upgrades: only call them on staging.
     DirectoryStore(path)
     business = BusinessStore(path)
@@ -435,26 +425,15 @@ def _stage_contacts(path, report):
                        if name and normalize_name(r['display_name']) == name]
             person = matches[0] if matches else uuid.uuid5(uuid.NAMESPACE_URL, 'butler-person:' + c['name']).hex
             if not matches:
-                db.execute('INSERT INTO user_profiles(user_id,display_name,memory_version,created_at) VALUES(?,?,0,?)',
+                db.execute('INSERT INTO user_profiles(user_id,display_name,created_at) VALUES(?,?,?)',
                            (person, c['name'], time.time()))
             c['person_id'] = person
-        by_name = {c['name']: c for c in state['conversations']}
-        for identity in db.execute('SELECT owner,contact,channel_type FROM identities'):
-            destination = by_name.get(identity['contact'])
-            if destination and destination['channel_type'] == 'dm' and identity['channel_type'] in {'dm', 'private'}:
-                adopt_legacy_notes(db, destination['person_id'], identity['owner'])
-        for old in db.execute('SELECT l.old_owner,b.user_id FROM user_legacy_owners l JOIN user_bindings b ON b.binding_id=l.binding_id'):
-            adopt_legacy_notes(db, old['user_id'], old['old_owner'])
         db.execute('CREATE TABLE IF NOT EXISTS contact_migrations(source TEXT PRIMARY KEY,digest TEXT,retired INTEGER NOT NULL)')
         for source in report['sources']:
             if source['present']:
                 db.execute('INSERT OR REPLACE INTO contact_migrations VALUES(?,?,1)', (source['path'], source['sha256']))
         saved = store._save(db, state, store._snapshot(db)['version'], activate=True)
-    # Memory contents remain in the database and authorized memory UI, never a
-    # console report or backup manifest that might be shared for diagnostics.
-    safe_merge = dict(merged=merged.get('merged', []),
-                      conflicts=[dict(key=r['key'], source_user_id=r['source_user_id'])
-                                 for r in merged.get('conflicts', [])])
+    safe_merge = dict(merged=merged.get('merged', []))
     return saved, safe_merge
 
 

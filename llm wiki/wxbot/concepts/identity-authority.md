@@ -3,23 +3,25 @@ type: concept
 module: identity
 summary: 窗口/头像/昵称是证据，服务签发上下文才是工具授权边界
 coverage: core
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/butler/agent/tools.py
-  line: 47
+  line: 43
   anchor: def issue(
 - path: src/butler/agent/tools.py
-  line: 56
+  line: 51
   anchor: def verify(
 - path: src/butler/agent/tools.py
-  line: 92
+  line: 85
   anchor: def call(
 - path: src/wxbot/queue_store.py
-  line: 345
+  line: 350
   anchor: member_name = str(mention_name or '').strip()
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
+- raw/changes/2026-11-01-mention-fallback-unread-retry
+- raw/changes/2026-11-01-knowledge-vault-graph
 ---
 # 观察证据与身份权限
 
@@ -42,8 +44,10 @@ changes:
 - `src/butler/agent/tools.py:47` — `def issue(`
 - `src/butler/agent/tools.py:56` — `def verify(`
 - `src/butler/agent/tools.py:92` — `def call(`
-- `src/wxbot/queue_store.py:345` — `member_name = str(mention_name or '').strip()`
+- `src/wxbot/queue_store.py:350` — `member_name = str(mention_name or '').strip()`
 
 ## 入库来源
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
+
+[[raw/changes/2026-11-01-mention-fallback-unread-retry]]

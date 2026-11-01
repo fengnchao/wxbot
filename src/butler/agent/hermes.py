@@ -1,7 +1,7 @@
 """Hermes 客户端：管家和 Hermes（大模型 + skill 运行时的唯一入口）之间的那一层。
 
 两件事必须同时给：
-  X-Hermes-Session-Key → 长期记忆/档案的归属（跨会话）
+  X-Hermes-Session-Key → 会话档案的归属（跨会话）
   X-Hermes-Session-Id  → 会话连续性（同一段对话的历史从 state.db 读回来）
 只给 Key 不给 Id 时，服务端按 (system_prompt, 首条用户消息) 派生新会话 —— 表现就是
 "每条消息一段新对话"，管家每轮都从零重读档案，又慢又失忆。
@@ -26,7 +26,7 @@ def header_value(value: str) -> str:
     """HTTP 头只接受 latin-1：非 ASCII（群聊兜底联系人的 uid 就是中文群名）必须转义，
     否则 urllib 在发包前就抛 UnicodeEncodeError: 'latin-1' codec ... position 23-27。
 
-    百分号转义是确定性的：同一个群每轮得到同一个 Key，记忆归属不变。
+    百分号转义是确定性的：同一个群每轮得到同一个 Key，归属不变。
     中文原文照旧走 body（身份提示，UTF-8），不受影响。
     """
     s = str(value or "")
@@ -68,7 +68,9 @@ class HermesClient:
                         if skill_policy else {})
         encoded = json.dumps(scoped_policy, ensure_ascii=False, sort_keys=True).encode("utf-8")
         policy_tag = hashlib.sha256(encoded).hexdigest()[:12]
-        kind = "heartbeat" if session_kind == "heartbeat" else "chat"
+        # 心跳与提炼各占一个作用域：常驻进程里反复提炼不能和聊天共用会话，
+        # 否则历史越堆越长，还会和真实回复抢同一把锁。
+        kind = session_kind if session_kind in ("heartbeat", "extract") else "chat"
         key = (*identity, kind, policy_tag)
         return key, f"{contact.session_id()}-{kind}-{policy_tag}"
 

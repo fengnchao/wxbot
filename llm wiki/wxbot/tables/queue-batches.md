@@ -3,7 +3,7 @@ type: table
 module: wxbot
 summary: 模型请求批次与最终回复完整性，非发送回执
 coverage: core
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/wxbot/queue_schema.py
   line: 34
@@ -18,15 +18,16 @@ sources:
   line: 7
   anchor: VERSION = 10
 - path: src/wxbot/queue_store.py
-  line: 304
+  line: 309
   anchor: def claim_batch(
 - path: src/wxbot/queue_store.py
-  line: 334
+  line: 339
   anchor: def finish_batch_parts(
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-queue-batches-format
 - raw/changes/2026-10-31-group-identity-nickname
+- raw/changes/2026-11-01-mention-fallback-unread-retry
 ---
 # SQLite batches
 
@@ -71,11 +72,13 @@ prepare 合并 inbox 得 text/context/member/回复模式；claim_batch 标记 p
 - `src/wxbot/queue_schema.py:84` — `def initialize(`
 - `src/wxbot/queue_schema.py:149` — `for sql in ('CREATE INDEX`
 - `src/wxbot/queue_schema.py:7` — `VERSION = 10`
-- `src/wxbot/queue_store.py:304` — `def claim_batch(`
-- `src/wxbot/queue_store.py:334` — `def finish_batch_parts(`
+- `src/wxbot/queue_store.py:309` — `def claim_batch(`
+- `src/wxbot/queue_store.py:339` — `def finish_batch_parts(`
 
 ## 入库来源
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
 
 [[raw/changes/2026-10-31-queue-batches-format]]
+
+[[raw/changes/2026-11-01-mention-fallback-unread-retry]]

@@ -226,6 +226,11 @@ class QueueStore(StreamQueue, DeliveryPolicy):
             return [dict(row) for row in self._db.execute(
                 "SELECT * FROM pending_sessions ORDER BY updated_at,contact")]
 
+    def forget_session(self, contact):
+        """Drop a read task whose unread rows WeChat never exposes as text."""
+        with self._transaction() as db:
+            db.execute("DELETE FROM pending_sessions WHERE contact=?", (contact,))
+
     def snapshots(self):
         with self._lock:
             return {row["contact"]: (json.loads(row["snapshot"]), bool(row["group_mode"]))

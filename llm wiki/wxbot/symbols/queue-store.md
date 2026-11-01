@@ -3,23 +3,24 @@ type: symbol
 module: wxbot
 summary: 短事务管理收件、合批、模型状态与 UI 发件状态
 coverage: core
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/wxbot/queue_store.py
   line: 91
   anchor: class QueueStore(
 - path: src/wxbot/queue_store.py
-  line: 234
+  line: 239
   anchor: def capture(
 - path: src/wxbot/queue_store.py
-  line: 272
+  line: 277
   anchor: def prepare(
 - path: src/wxbot/queue_store.py
-  line: 532
+  line: 537
   anchor: def claim_delivery(
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
+- raw/changes/2026-11-01-mention-fallback-unread-retry
 ---
 # QueueStore
 
@@ -30,6 +31,8 @@ changes:
 ## 调用关系
 
 MainInbox.capture 写 [[tables/queue-inbox]]；[[symbols/model-worker]] 的 prepare/claim_batch 处理 [[tables/queue-batches]]；[[symbols/queue-finish]] 写 [[tables/queue-outbox]]；UI delivery 使用 claim_delivery、save_baseline、confirming、finish_delivery 保存可核对结果。各方法持短事务，模型/窗口操作不在数据库事务内执行。
+
+`forget_session` 是 `pending_sessions` 除 capture 之外唯一的删除路径，专供「未读始终读不到可采内容」的放弃场景，否则该联系人的 prepare 永远被跳过；重试与放弃规则见 [[concepts/unread-capture-retry]]。
 
 ## 副作用与反向消费
 
@@ -42,10 +45,15 @@ SQLite 状态、队列事件和辅助流；只读消费使用 [[apis/dashboard-q
 ## 代码依据
 
 - `src/wxbot/queue_store.py:91` — `class QueueStore(`
-- `src/wxbot/queue_store.py:234` — `def capture(`
-- `src/wxbot/queue_store.py:272` — `def prepare(`
-- `src/wxbot/queue_store.py:532` — `def claim_delivery(`
+- `src/wxbot/queue_store.py:239` — `def capture(`
+- `src/wxbot/queue_store.py:277` — `def prepare(`
+- `src/wxbot/queue_store.py:537` — `def claim_delivery(`
+- `src/wxbot/queue_store.py:229` — `def forget_session(self, contact):`
 
 ## 入库来源
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
+
+[[raw/changes/2026-10-31-group-identity-nickname]]
+
+[[raw/changes/2026-11-01-mention-fallback-unread-retry]]

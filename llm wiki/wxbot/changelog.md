@@ -66,3 +66,129 @@
 来源：[[raw/changes/2026-11-01-model-request-error-visibility]]
 
 [[symbols/local-model-backend]]、[[modules/models]]
+
+## [2026-11-01] change | model failure contract archived as concept
+
+来源：[[raw/changes/2026-11-01-model-error-contract]]
+
+## [2026-11-01] ingest | 模型失败契约补齐为概念词条
+
+来源：[[raw/changes/2026-11-01-model-error-contract]]
+
+[[concepts/model-error-contract]]、[[concepts/delivery-state]]、[[modules/models]]
+
+## [2026-11-01] ingest | L1 聊天原文落库与只读看板
+
+来源：[[raw/changes/2026-11-01-knowledge-episodes]]
+
+[[tables/kb-episodes]]、[[apis/dashboard-knowledge]]、[[modules/butler]]、[[modules/dashboard]]、[[modules/web]]、[[apis/butler-handle]]、[[apis/dashboard-queue]]、[[apis/dashboard-workflow]]、[[symbols/butler-handle]]、[[symbols/butler-result]]、[[concepts/message-pipeline]]、[[concepts/model-error-contract]]
+
+## [2026-11-01] change | 知识库拆分为一人一库并新增提炼事实库
+
+来源：[[raw/changes/2026-11-01-knowledge-sharding]]
+
+## [2026-11-01] ingest | 知识库拆分为一人一库并新增提炼事实库
+
+来源：[[raw/changes/2026-11-01-knowledge-sharding]]
+
+[[tables/kb-episodes]]、[[tables/kb-facts]]、[[tables/kb-owners]]、[[apis/dashboard-knowledge]]、[[apis/butler-handle]]、[[apis/dashboard-queue]]、[[apis/dashboard-workflow]]、[[concepts/message-pipeline]]、[[concepts/model-error-contract]]、[[symbols/knowledge-extract]]、[[symbols/butler-handle]]、[[symbols/butler-result]]、[[modules/butler]]、[[modules/dashboard]]、[[modules/web]]、[[modules/runtime]]
+
+## [2026-11-01] change | 会话维度：左栏按人、右栏按私聊/群聊再筛
+
+来源：[[raw/changes/2026-11-01-knowledge-sessions]]
+
+## [2026-11-01] ingest | 会话维度：左栏按人、右栏按私聊/群聊再筛
+
+来源：[[raw/changes/2026-11-01-knowledge-sessions]]
+
+[[apis/dashboard-knowledge]]、[[tables/kb-episodes]]、[[tables/kb-facts]]、[[tables/kb-owners]]、[[symbols/knowledge-extract]]、[[modules/web]]
+
+## [2026-11-01] change | 自动提炼：进程内调度器、跨进程单飞与管理台状态
+
+来源：[[raw/changes/2026-11-01-knowledge-auto]]
+
+## [2026-11-01] ingest | 自动提炼：进程内调度器、跨进程单飞与管理台状态
+
+来源：[[raw/changes/2026-11-01-knowledge-auto]]
+
+[[apis/butler-handle]]、[[apis/butler-handle-stream]]、[[apis/dashboard-knowledge]]、[[apis/dashboard-queue]]、[[apis/dashboard-workflow]]、[[concepts/model-error-contract]]、[[modules/butler]]、[[modules/dashboard]]、[[modules/models]]、[[modules/runtime]]、[[modules/web]]、[[modules/wiki]]、[[symbols/butler-handle]]、[[symbols/butler-result]]、[[symbols/knowledge-auto]]、[[symbols/knowledge-extract]]、[[tables/kb-episodes]]、[[tables/kb-facts]]、[[tables/kb-owners]]
+
+## [2026-11-01] change | 群聊提及回退清理与不可读未读的退避放弃
+
+来源：[[raw/changes/2026-11-01-mention-fallback-unread-retry]]
+
+## [2026-11-01] ingest | 群聊提及回退清理与不可读未读的退避放弃
+
+来源：[[raw/changes/2026-11-01-mention-fallback-unread-retry]]
+
+[[concepts/delivery-state]]、[[concepts/group-identity-evidence]]、[[concepts/identity-authority]]、[[concepts/message-pipeline]]、[[concepts/model-error-contract]]、[[concepts/unread-capture-retry]]、[[modules/telegram]]、[[modules/wxbot]]、[[symbols/mention-selection]]、[[symbols/queue-finish]]、[[symbols/queue-store]]、[[tables/queue-batches]]、[[tables/queue-inbox]]、[[tables/queue-outbox]]
+
+## [2026-11-01] change | 词条代码引用行号复核
+
+来源：[[raw/changes/2026-11-01-citation-sweep]]
+
+## [2026-11-01] ingest | 词条代码引用行号复核
+
+来源：[[raw/changes/2026-11-01-citation-sweep]]
+
+[[concepts/group-identity-evidence]]
+
+## [2026-11-01] change | README 补不可采集未读的说明与图谱来源修正
+
+来源：[[raw/changes/2026-11-01-readme-unread-note]]
+
+## [2026-11-01] ingest | README 补不可采集未读的说明与图谱来源修正
+
+来源：[[raw/changes/2026-11-01-readme-unread-note]]
+
+[[modules/wiki]]
+
+## [2026-11-01] change | 用户知识库改为一人一个 Obsidian vault 并删除 memory 链路
+
+来源：[[raw/changes/2026-11-01-knowledge-vault-graph]]
+
+## [2026-11-01] ingest | 用户知识库改为一人一个 Obsidian vault 并删除 memory 链路
+
+来源：[[raw/changes/2026-11-01-knowledge-vault-graph]]
+
+[[tables/knowledge-vault]]、[[tables/kb-episodes]]、[[tables/kb-facts]]、[[tables/kb-owners]]、[[apis/dashboard-knowledge]]、[[symbols/knowledge-extract]]、[[symbols/knowledge-auto]]、[[modules/butler]]、[[modules/runtime]]、[[modules/dashboard]]、[[modules/identity]]、[[modules/plugin]]、[[modules/web]]、[[modules/wiki]]、[[modules/common]]、[[modules/models]]、[[apis/butler-handle]]、[[apis/butler-handle-stream]]、[[apis/dashboard-queue]]、[[apis/dashboard-workflow]]、[[symbols/butler-handle]]、[[symbols/butler-result]]、[[symbols/local-model-backend]]、[[concepts/message-pipeline]]、[[concepts/identity-authority]]、[[concepts/group-identity-evidence]]、[[concepts/model-error-contract]]
+
+## [2026-11-01] change | 知识库 vault 词条与实现对齐
+
+来源：[[raw/changes/2026-11-01-knowledge-vault-alignment]]
+
+## [2026-11-01] ingest | 知识库 vault 词条与实现对齐
+
+来源：[[raw/changes/2026-11-01-knowledge-vault-alignment]]
+
+[[tables/knowledge-vault]]
+
+## [2026-11-01] change | 知识库迁移改名留底前先合并 WAL
+
+来源：[[raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint]]
+
+## [2026-11-01] ingest | 知识库迁移改名留底前先合并 WAL
+
+来源：[[raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint]]
+
+[[tables/knowledge-vault]]、[[tables/kb-episodes]]、[[tables/kb-facts]]、[[tables/kb-owners]]
+
+## [2026-11-01] change | 迁移改动后复核知识库词条来源
+
+来源：[[raw/changes/2026-11-01-knowledge-migrate-source-recheck]]
+
+## [2026-11-01] ingest | 迁移改动后复核知识库词条来源
+
+来源：[[raw/changes/2026-11-01-knowledge-migrate-source-recheck]]
+
+[[apis/dashboard-knowledge]]、[[symbols/knowledge-extract]]
+
+## [2026-11-01] change | 知识库加中心索引页与七类事实分组
+
+来源：[[raw/changes/2026-11-01-knowledge-atlas-index]]
+
+## [2026-11-01] ingest | 知识库加中心索引页与七类事实分组
+
+来源：[[raw/changes/2026-11-01-knowledge-atlas-index]]
+
+[[tables/knowledge-vault]]、[[tables/kb-episodes]]、[[tables/kb-facts]]、[[tables/kb-owners]]、[[symbols/knowledge-extract]]、[[symbols/knowledge-auto]]、[[modules/web]]、[[apis/dashboard-knowledge]]、[[concepts/message-pipeline]]

@@ -3,7 +3,7 @@ type: table
 module: wxbot
 summary: 原始收件与群成员证据，batch_id 指向合并批次
 coverage: core
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/wxbot/queue_schema.py
   line: 34
@@ -18,11 +18,12 @@ sources:
   line: 7
   anchor: VERSION = 10
 - path: src/wxbot/queue_store.py
-  line: 234
+  line: 239
   anchor: def capture(
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
+- raw/changes/2026-11-01-mention-fallback-unread-retry
 ---
 # SQLite inbox
 
@@ -64,8 +65,10 @@ MainInbox 收件 → QueueStore.capture：窗口标题进入 contact，正文进
 - `src/wxbot/queue_schema.py:84` — `def initialize(`
 - `src/wxbot/queue_schema.py:149` — `for sql in ('CREATE INDEX`
 - `src/wxbot/queue_schema.py:7` — `VERSION = 10`
-- `src/wxbot/queue_store.py:234` — `def capture(`
+- `src/wxbot/queue_store.py:239` — `def capture(`
 
 ## 入库来源
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
+
+[[raw/changes/2026-11-01-mention-fallback-unread-retry]]

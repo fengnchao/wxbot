@@ -3,7 +3,7 @@ type: table
 module: wxbot
 summary: 逐分句发件与不确定结果审计，包含迁移新增字段
 coverage: core
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/wxbot/queue_schema.py
   line: 34
@@ -21,11 +21,12 @@ sources:
   line: 22
   anchor: OUTBOX_SQL =
 - path: src/wxbot/queue_store.py
-  line: 586
+  line: 591
   anchor: def finish_delivery(
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
+- raw/changes/2026-11-01-mention-fallback-unread-retry
 ---
 # SQLite outbox
 
@@ -71,8 +72,10 @@ uncertain/confirming 记录需要保守保留及人工核对，不能任意自�
 - `src/wxbot/queue_schema.py:149` — `for sql in ('CREATE INDEX`
 - `src/wxbot/queue_schema.py:7` — `VERSION = 10`
 - `src/wxbot/queue_schema.py:22` — `OUTBOX_SQL =`
-- `src/wxbot/queue_store.py:586` — `def finish_delivery(`
+- `src/wxbot/queue_store.py:591` — `def finish_delivery(`
 
 ## 入库来源
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
+
+[[raw/changes/2026-11-01-mention-fallback-unread-retry]]

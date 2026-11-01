@@ -26,7 +26,7 @@ const metadata = computed(() => {
   if (message.user_id) rows.push(['固定用户 ID', message.user_id])
   if (message.binding_id) rows.push(['通道绑定 ID', message.binding_id])
   if (message.identity_status) rows.push(['身份', WF_IDENTITIES[message.identity_status] || message.identity_status])
-  if (Number.isInteger(message.memory_count)) rows.push(['召回记忆', message.memory_count + ' 条'])
+  if (Number.isInteger(message.fact_count)) rows.push(['知识召回', message.fact_count + ' 条'])
   if (Number.isInteger(message.context_count)) {
     rows.push(['群公共上下文', message.context_count + ' 条 · 序号 ' +
       (message.context_from ?? 0) + '–' + (message.context_to ?? 0)])

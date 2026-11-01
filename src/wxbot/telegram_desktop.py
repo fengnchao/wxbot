@@ -192,7 +192,7 @@ class _Scan:
             if value==query and self.driver.guard(self.win) and self.search.HasKeyboardFocus:
                 auto.SendKeys('{Ctrl}a',waitTime=0)
                 if not self.driver.guard(self.win) or _value(self.search)!=query or not self.search.HasKeyboardFocus:return False
-                auto.SendKeys('{Backspace}',waitTime=0)
+                auto.SendKeys('{Back}',waitTime=0)
                 return _value(self.search)==''
             if _value(self.search):return False
         return True

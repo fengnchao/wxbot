@@ -1,3 +1,10 @@
+> **已废弃（2026-11-01）：仅作归档留证，不要按本文件执行。**
+> 本文件是早期引入的另一套 Wiki 规范模板，与项目现行体系不一致。唯一有效的图谱维护规范是 [[guide]]（配合根目录 `AGENTS.md`）。
+> 冲突时以 `guide.md` 和源码为准：现行体系允许修改 `src/`，图谱根为 `llm wiki/wxbot/`，实体类型只有 module/api/table/symbol/concept/change/impact，流程为 query → change → ingest → lint。
+> 本文件中的 `/code-wiki/` 目录、files/enums/tasks/biz_flows/third_deps/risks 类型、`status`/`last_sync`/`static_analysis_uncertain` 字段与 shturl 日志，在本项目中均未实现。
+
+---
+
 ```
 # CLAUDE.md｜LLM Code Wiki 项目知识图谱 Schema 规范
 > 本文件为 Claude Code 专用约束文档，强制遵循【LLM Code Wiki】范式。

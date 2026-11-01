@@ -89,6 +89,16 @@ LABELS={
  'wxbot_config':('wxbot 配置文件','log 下次启动读取和维护的wxbot配置文件；留空使用项目默认。'),
  'butler_config':('Butler 配置文件','log 下次启动读取和维护的Butler配置文件；留空使用项目默认。'),
  'groups_file':('log 分组文件','log 下次启动使用的分组文件；留空使用默认。'),
+ 'retention_days':('原文留存天数','L1 原文保留天数，1–3650；过期只删原文，不删已提炼的事实。'),
+ 'auto_extract':('自动提炼','开启后 Butler 定时把新原文提炼成事实；关闭仍可用 python -m butler knowledge-extract 手动跑。'),
+ 'auto_prune':('自动清理过期原文','按 prune_interval_hours 清除 retention_days 之前的原文；事实库不参与清理。'),
+ 'extract_interval_minutes':('提炼扫描间隔（分钟）','定时扫一遍有积压的人，1–1440。'),
+ 'extract_batch':('单批提炼条数','每人每次交给模型的原文条数，1–200。'),
+ 'extract_max_owners':('单轮最多人数','一轮最多处理多少人，1–50。'),
+ 'extract_min_backlog':('最少积压条数','游标之后攒够多少条原文才值得调模型，1–200。'),
+ 'extract_idle_seconds':('消息间隙（秒）','最近这么久内有人说话就顺延，不和回复抢上游配额，0–3600。'),
+ 'extract_retry_minutes':('失败重试间隔（分钟）','失败后指数退避的基准间隔，1–1440，上限 6 小时。'),
+ 'prune_interval_hours':('清理间隔（小时）','自动清理的运行间隔，1–720。'),
 }
 
 # 接入方式是使用者选的产品名；协议是 Butler 实际走的调用方式，由这里推导。

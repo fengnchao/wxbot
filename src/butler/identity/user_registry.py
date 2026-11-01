@@ -1,10 +1,9 @@
-"""Administrator-owned identities and memory scopes. Avatar hashes are evidence, not IDs."""
+"""Administrator-owned identities. Avatar hashes are evidence, not IDs."""
 import json
 from pathlib import Path
 import sqlite3
 import time
 import uuid
-import heapq
 from contextlib import closing
 from threading import RLock
 
@@ -38,8 +37,7 @@ class UserRegistry:
                     db.backup(target)
         with store.transaction() as db:
             db.execute('''CREATE TABLE IF NOT EXISTS user_profiles (
-                user_id TEXT PRIMARY KEY, display_name TEXT NOT NULL,
-                memory_version INTEGER NOT NULL DEFAULT 0, created_at REAL NOT NULL)''')
+                user_id TEXT PRIMARY KEY, display_name TEXT NOT NULL, created_at REAL NOT NULL)''')
             db.execute('''CREATE TABLE IF NOT EXISTS user_bindings (
                 binding_id TEXT PRIMARY KEY, user_id TEXT NOT NULL,
                 channel_type TEXT NOT NULL, contact TEXT NOT NULL, nickname TEXT NOT NULL,
@@ -83,10 +81,6 @@ class UserRegistry:
         picture = db.execute('SELECT image FROM user_avatars WHERE binding_id=? ORDER BY created_at DESC LIMIT 1', (binding_id,)).fetchone()
         row['avatar'] = 'data:image/png;base64,' + picture[0] if picture else ''
         row['memory_owner'] = 'user:' + row['user_id']
-        row['memory_count'] = db.execute('SELECT COUNT(*)FROM memory WHERE owner=?', (row['memory_owner'],)).fetchone()[0]
-        if contact_identity.is_active(db):
-            row['memory_count'] = len(contact_identity.memory_items(db, row['user_id']))
-        row['memory_version'] = db.execute('SELECT memory_version FROM user_profiles WHERE user_id=?', (row['user_id'],)).fetchone()[0]
         row['status'] = ('confirmed' if row['identity_confirmed'] else 'observed') if row['enabled'] else 'disabled'
         row['mention_name'] = row['nickname'] if row['nickname_confirmed'] and row['status'] == 'confirmed' else ''
         row['observed_member_keys'] = [r[0] for r in db.execute(
@@ -129,7 +123,8 @@ class UserRegistry:
             nickname = nickname[:160] + '（' + binding_id[:12] + '）'
         if user_id is None:
             user_id = uuid.uuid4().hex
-            db.execute('INSERT INTO user_profiles VALUES(?,?,0,?)', (user_id, effective_name, time.time()))
+            db.execute('INSERT INTO user_profiles(user_id,display_name,created_at) VALUES(?,?,?)',
+                       (user_id, effective_name, time.time()))
         try:
             db.execute('INSERT INTO user_bindings(binding_id,user_id,channel_type,contact,nickname,enabled,'
                        'version,created_at,identity_confirmed,nickname_confirmed) VALUES(?,?,?,?,?,1,1,?,?,?)',
@@ -382,7 +377,7 @@ class UserRegistry:
                     with self.store.transaction() as db:
                         row = self._get(db, resolved['binding_id'])
                         if resolved['status'] == 'observed' and row['identity_confirmed']:
-                            # 已确认档案在缺昵称时的降级观测：不登记、不改名，免得抢走别人的记忆。
+                            # 已确认档案在缺昵称时的降级观测：不登记、不改名，免得抢走别人的档案。
                             return resolved
                         db.execute('INSERT OR IGNORE INTO user_observation_keys VALUES(?,?)', (row['binding_id'],key))
                         if feature and len(feature['image']) >= 1024:
@@ -458,63 +453,26 @@ class UserRegistry:
 
     @staticmethod
     def _unknown(status):
-        return {'binding_id': '', 'user_id': '', 'memory_owner': '', 'memory_version': 0, 'status': status}
+        return {'binding_id': '', 'user_id': '', 'memory_owner': '', 'status': status}
 
-    def memories(self, binding_id):
-        with self.store.transaction() as db:
-            row = self._row(db, binding_id)
-            items = [dict(r) for r in db.execute('SELECT key,value,updated FROM memory WHERE owner=? ORDER BY key', (row['memory_owner'],))]
-            if contact_identity.is_active(db):
-                items = contact_identity.memory_items(db, row['user_id'])
-            return {'binding': row, 'items': items, 'version': row['memory_version']}
-
-    def change_memory(self, binding_id, key, value, version, delete=False):
-        key = _text(key, '记忆 key')
-        with self.store.transaction() as db:
-            row = self._row(db, binding_id)
-            if type(version) is not int or version != row['memory_version']:
-                raise VersionConflict('记忆已更新，请刷新后重试')
-            old = db.execute('SELECT value FROM memory WHERE owner=? AND key=?', (row['memory_owner'], key)).fetchone()
-            if delete:
-                self.store.delete_memory(row['memory_owner'], key, db=db,source='administrator')
-            else:
-                self.store.set_memory(row['memory_owner'], key, value, db=db,source='administrator')
-            if contact_identity.is_active(db):
-                db.execute('DELETE FROM user_memory_variants WHERE user_id=? AND key=?', (row['user_id'], key))
-            self._audit(db, binding_id, 'memory_deleted' if delete else 'memory_set', {'key': key, 'previous': old[0] if old else None, 'value': None if delete else value, 'source': 'administrator'})
-            return {'ok': True, 'version': self._row(db, binding_id)['memory_version']}
-
-    def link(self, binding_id, target_id, version, resolutions=None, expected_versions=None):
+    def link(self, binding_id, target_id, version):
         with self.store.transaction() as db:
             source, target = self._row(db, binding_id), self._row(db, target_id)
             if source['version'] != version:
                 raise VersionConflict('绑定已更新，请刷新后重试')
-            if expected_versions is not None and expected_versions != {'source_memory':source['memory_version'],
-                    'target_memory':target['memory_version'],'target_binding':target['version']}:
-                raise VersionConflict('合并预览已过期，请重新查看两侧记忆')
             if source['user_id'] == target['user_id']:
                 return source
             if contact_identity.is_active(db):
-                result = contact_identity.merge_users(db, source['user_id'], target['user_id'])
+                contact_identity.merge_users(db, source['user_id'], target['user_id'])
                 db.execute('UPDATE user_bindings SET identity_confirmed=1 WHERE binding_id=?', (binding_id,))
                 self._confirm_observation_keys(db, binding_id)
                 self._audit(db, binding_id, 'linked', {'previous_user_id': source['user_id'],
-                    'user_id': target['user_id'], 'retained_conflicts': len(result['conflicts'])})
+                    'user_id': target['user_id']})
                 contact_identity.touch_version(db)
                 return self._row(db, binding_id)
-            source_notes = dict(db.execute('SELECT key,value FROM memory WHERE owner=?',(source['memory_owner'],)))
-            target_notes = dict(db.execute('SELECT key,value FROM memory WHERE owner=?',(target['memory_owner'],)))
-            conflicts = [{'key': k, 'source': v, 'target': target_notes[k]} for k, v in source_notes.items() if k in target_notes and v != target_notes[k]]
-            if conflicts and (not isinstance(resolutions, dict) or any(resolutions.get(c['key']) not in {'source', 'target'} for c in conflicts)):
-                return {'conflicts': conflicts, 'source': source, 'target': target, 'requires_confirmation': True}
-            for key, value in source_notes.items():
-                if key not in target_notes or resolutions and resolutions.get(key) == 'source':
-                    self.store.set_memory(target['memory_owner'], key, value, db=db,source='administrator')
             db.execute('UPDATE user_bindings SET user_id=?,identity_confirmed=1,version=version+1 WHERE binding_id=?', (target['user_id'], binding_id))
             self._confirm_observation_keys(db,binding_id)
-            # Invalidate both memory-derived and binding-derived thread scopes even when no notes were merged.
-            db.execute('UPDATE user_profiles SET memory_version=memory_version+1 WHERE user_id=?', (target['user_id'],))
-            self._audit(db, binding_id, 'linked', {'previous_user_id': source['user_id'], 'user_id': target['user_id'], 'resolutions': resolutions or {}})
+            self._audit(db, binding_id, 'linked', {'previous_user_id': source['user_id'], 'user_id': target['user_id']})
             return self._row(db, binding_id)
 
     def audit(self, binding_id, offset=0, limit=50):
@@ -531,46 +489,10 @@ class UserRegistry:
             row = self._row(db, binding_id)
             if db.execute('SELECT 1 FROM user_legacy_owners WHERE old_owner=?', (old_owner,)).fetchone():
                 return
-            notes = [dict(r)for r in db.execute('SELECT key,value FROM memory WHERE owner=?',(old_owner,))]
-            if contact_identity.is_active(db):
-                contact_identity.adopt_legacy_notes(db, row['user_id'], old_owner)
-            else:
-                for note in notes:
-                    current = db.execute('SELECT value FROM memory WHERE owner=? AND key=?', (row['memory_owner'], note['key'])).fetchone()
-                    if current and current[0] != note['value']:
-                        raise ValueError('旧记忆存在冲突，需要在用户管理中处理')
-                    self.store.set_memory(row['memory_owner'], note['key'], note['value'], db=db,source='legacy_import')
-            # Reminder authority remains tied to the original conversation binding,
-            # even if its memory is explicitly shared with another conversation.
+            # Reminder authority stays with the conversation binding that created it.
             db.execute('UPDATE reminders SET owner=? WHERE owner=? AND contact=?',
                 ('binding:'+binding_id,old_owner,row['contact']))
             db.execute('INSERT INTO user_legacy_owners VALUES(?,?)', (old_owner, binding_id))
-            if notes:
-                self._audit(db, binding_id, 'legacy_imported', {'old_owner': old_owner, 'count': len(notes)})
+            self._audit(db, binding_id, 'legacy_imported', {'old_owner': old_owner})
 
-    def recall(self, memory_owner, query, max_chars=2000):
-        tokens = set(query.lower().split()) | {query[i:i + 2] for i in range(max(0, len(query) - 1))}
-        def relevance(row):
-            return (sum(t in (row['key']+' '+row['value']).lower() for t in tokens if len(t)>1),row['updated'])
-        # Stream this owner's notes into a bounded heap; recent-100 truncation
-        # before ranking can permanently hide an older but exact preference.
-        with self.store.transaction() as db:
-            if contact_identity.is_active(db) and memory_owner.startswith('user:'):
-                available = contact_identity.memory_items(db, memory_owner[5:])
-                best = heapq.nlargest(10, available, key=relevance)
-                keys = {row['key'] for row in best}
-                rows = sorted((row for row in available if row['key'] in keys), key=relevance, reverse=True)
-            else:
-                available = (dict(row) for row in db.execute('SELECT key,value,updated FROM memory WHERE owner=?', (memory_owner,)))
-                rows = heapq.nlargest(10, available, key=relevance)
-        selected, used = [], 0
-        for row in rows:
-            text = row['key'] + ': ' + row['value']
-            if used + len(text) > max_chars:
-                continue
-            item = {'key': row['key'], 'value': row['value']}
-            for field in ('source', 'source_label', 'source_user_id', 'source_user_ids', 'source_labels'):
-                if field in row:
-                    item[field] = row[field]
-            selected.append(item); used += len(text)
-        return selected
+

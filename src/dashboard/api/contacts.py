@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""联系人档案：读取、记忆与审计流水、保存（需本机页面确认）。"""
+"""联系人档案：读取、审计流水、保存（需本机页面确认）。"""
 
 
 def read(ctx):
@@ -12,12 +12,9 @@ def read(ctx):
 
 
 def detail(ctx):
-    """`/api/contacts/memory` 与 `/api/contacts/audit` 共用：按 id 读明细。"""
+    """`/api/contacts/audit`：按 id 读审计流水。"""
     try:
-        service = ctx.contact_admin()
-        if ctx.path.endswith('/memory'):
-            return 200, service.memory(ctx.one('id'))
-        return 200, service.audit(ctx.one('id'), ctx.num('offset', 0), ctx.num('limit', 20))
+        return 200, ctx.contact_admin().audit(ctx.one('id'), ctx.num('offset', 0), ctx.num('limit', 20))
     except ValueError as exc:
         return 400, {'error': str(exc)}
 

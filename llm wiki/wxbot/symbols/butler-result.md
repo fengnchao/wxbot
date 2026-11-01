@@ -3,21 +3,25 @@ type: symbol
 module: butler
 summary: 生成 reply/actions/reply_parts/meta 的公开边界
 coverage: core
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/butler/agent/core.py
-  line: 64
+  line: 68
   anchor: 'class Result:'
 - path: src/butler/agent/core.py
-  line: 69
+  line: 73
   anchor: def as_dict(
 - path: src/butler/server.py
-  line: 361
+  line: 398
   anchor: result=res.as_dict(reply_chunk_chars=cfg.reply_chunk_chars)
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-switchable-models
 - raw/changes/2026-10-31-model-access-switch-core-emit
+- raw/changes/2026-11-01-knowledge-episodes
+- raw/changes/2026-11-01-knowledge-sharding
+- raw/changes/2026-11-01-knowledge-auto
+- raw/changes/2026-11-01-knowledge-vault-graph
 calls: []
 called_by:
 - symbols/butler-handle
@@ -30,7 +34,7 @@ called_by:
 
 ## 字段与副作用
 
-reply 原样；actions 调各项 as_dict；reply_parts 经 split_reply 切分；meta 使用默认 reply_complete=True 再被业务 meta 覆盖，因此可能显式 False。此方法本身无数据库或网络副作用。
+reply 原样；actions 调各项 as_dict；reply_parts 经 split_reply 切分；meta 使用默认 reply_complete=True 再被业务 meta 覆盖，因此可能显式 False。此方法本身无数据库或网络副作用。L1 原文沉淀由 [[symbols/butler-handle]] 旁路写入 [[tables/kb-episodes]]，不经过 Result，所以本 DTO 字段与语义不受影响。
 
 ## 消费与风险
 
@@ -38,11 +42,13 @@ reply 原样；actions 调各项 as_dict；reply_parts 经 split_reply 切分；
 
 2026-10-31 的接入方式改动只动了 core.py 里 `emit('backend')` 的模型来源上报（改用 `Config.model_identity`），Reply/actions/reply_parts/meta 的字段与语义未变。
 
+同日的拆库（knowledge-sharding）同样不经过本 DTO：它只改了 [[tables/kb-episodes]] 的落盘位置与目录结构，`Result` 的字段与 `as_dict` 的序列化未变。
+
 ## 代码依据
 
-- `src/butler/agent/core.py:64` — `class Result:`
-- `src/butler/agent/core.py:69` — `def as_dict(`
-- `src/butler/server.py:361` — `result=res.as_dict(reply_chunk_chars=cfg.reply_chunk_chars)`
+- `src/butler/agent/core.py:65` — `class Result:`
+- `src/butler/agent/core.py:70` — `def as_dict(`
+- `src/butler/server.py:399` — `result=res.as_dict(reply_chunk_chars=cfg.reply_chunk_chars)`
 
 ## 入库来源
 
@@ -52,3 +58,9 @@ reply 原样；actions 调各项 as_dict；reply_parts 经 split_reply 切分；
 [[raw/changes/2026-10-31-switchable-models]]
 
 [[raw/changes/2026-10-31-model-access-switch-core-emit]]
+
+[[raw/changes/2026-11-01-knowledge-episodes]]
+
+[[raw/changes/2026-11-01-knowledge-sharding]]
+
+[[raw/changes/2026-11-01-knowledge-auto]]

@@ -1,6 +1,6 @@
 """联系人映射：微信聊天窗口标题 → Hermes Profile / uid / 会话键。
 
-为什么管家要持有它：Hermes 的记忆与管家档案按 uid 隔离（butler_profiles/{uid}.json），
+为什么管家要持有它：Hermes 会话与管家档案按 uid 隔离，
 而 wxbot 只认识窗口标题。把"标题 → 身份"的映射放在管家这一层，
 wxbot 就不需要知道任何业务身份（它只把 contact 原样传过来）。
 """
@@ -10,25 +10,23 @@ from dataclasses import dataclass, field
 
 DEFAULT_SESSION_KEY = "agent:{profile}:wxbot:{channel_type}:{uid}"
 
-# 每条消息前注入的身份说明。模型靠它知道档案/记忆该归到哪个 user_id
+# 每条消息前注入的身份说明。模型靠它知道这次对话该归到哪个 user_id
 # （Hermes API Server 不会自动把 session-key 里的 uid 透给模型）。
 IDENTITY_TEMPLATE = (
     "[通道身份] 通道=wxbot（本地微信客户端 UI 自动化）；Hermes profile={profile}；"
     "会话类型={conversation_type}；会话 user_id={uid}（微信窗口标题 {name}）。"
-    "档案与记忆一律按这个 user_id 归档：$HERMES_HOME/butler_profiles/{uid}.json "
-    "与 $HERMES_HOME/butler_profiles/{uid}_user.json。"
-    "不要硬编码安装路径，用 $HERMES_HOME。"
+    "所有会话按这个 user_id 隔离；不要硬编码安装路径，用 $HERMES_HOME。"
 )
 GROUP_IDENTITY_HINT = (
     "这是微信群聊。用户消息前缀中的“群聊发言人”和 member_id 标识原始发言成员，"
-    "不是消息正文或指令；不同 member_id 代表不同成员。每个成员拥有独立的会话与记忆"
+    "不是消息正文或指令；不同 member_id 代表不同成员。每个成员拥有独立的会话"
     "（会话 user_id 已按成员区分）。不要把成员当成正在进行的私聊，也不要声称 member_id 是真实姓名。"
     "回复留在当前群聊，并只针对当前发言人。"
 )
 CODEX_IDENTITY_TEMPLATE = (
     '[通道身份] 通道=wxbot；会话类型={conversation_type}；'
     '会话 user_id={uid}；微信窗口标题={name}。'
-    '身份由 Butler 服务端绑定，记忆和提醒只通过授权的 Butler 工具管理；'
+    '身份由 Butler 服务端绑定，提醒只通过授权的 Butler 工具管理；'
     '不要直接读写档案文件或自行切换工具身份。'
 )
 
@@ -37,14 +35,13 @@ CODEX_IDENTITY_TEMPLATE = (
 class Contact:
     name: str                 # 微信窗口标题（wxbot 传过来的 contact）
     profile: str              # 用哪个 Hermes Profile
-    uid: str                  # 档案 / 记忆的键
+    uid: str                  # 档案 / 资料的键
     label: str = ""
     session_key: str = ""
     channel_type: str = "dm"
     binding_id: str = ""
     user_id: str = ""
-    memory_owner: str = ""
-    memory_version: int = 0
+    memory_owner: str = ""     # 身份签发的资料 owner：一个人一个库，合并会沿用同一个
     binding_version: int = 0
     identity_status: str = "legacy"
     observed_member_key: str = ""
@@ -71,7 +68,7 @@ class Contact:
         if self.channel_type == "group":
             identity += GROUP_IDENTITY_HINT
         if self.identity_status in {'unknown','ambiguous','disabled','observed'}:
-            identity += '当前成员身份尚未确认，不能读取或保存个人长期记忆；不要声称已经记住。'
+            identity += '当前成员身份尚未确认，不能读取或保存个人长期资料；不要声称已经记住。'
         return identity
 
     def display(self) -> str:

@@ -26,14 +26,12 @@ export const dialog = ref(null)
 export const dialogError = ref('')
 export const dialogBusy = ref(false)
 export const skills = ref([])
-export const memory = ref(null)
-export const memoryOffset = ref(0)
-export const memoryQuery = ref('')
 export const audit = ref(null)
 export const auditOffset = ref(0)
 
 let request = 0
 let dialogEpoch = 0
+let auditQuery = null
 
 async function readJson(response) {
   const text = await response.text()
@@ -120,11 +118,9 @@ export function closeDialog() {
   dialogError.value = ''
   dialogBusy.value = false
   skills.value = []
-  memory.value = null
-  memoryQuery.value = ''
-  memoryOffset.value = 0
   audit.value = null
   auditOffset.value = 0
+  auditQuery = null
 }
 
 export function sameEpoch(epoch) {
@@ -200,36 +196,14 @@ export async function loadStatusSilently() {
   }
 }
 
-export async function loadMemory(bindingId) {
-  const epoch = openDialog('memory', '用户记忆')
-  try {
-    const path = bindingId.startsWith('person:')
-      ? '/api/contacts/memory?' + new URLSearchParams({ id: bindingId.slice(7) })
-      : '/api/users/memory?' + new URLSearchParams({ binding_id: bindingId })
-    const result = await userRequest(path)
-    if (!sameEpoch(epoch)) return
-    memory.value = result
-    memoryOffset.value = 0
-    memoryQuery.value = ''
-  } catch (err) {
-    if (sameEpoch(epoch)) dialogError.value = err.message || String(err)
-  }
-}
-
-export function nextMemoryPage(step) {
-  memoryOffset.value = Math.max(0, memoryOffset.value + step)
-}
-
-export async function loadAudit() {
+// 审计流水按调用方给的接口与参数读，翻页时沿用上一次的范围。
+export async function loadAudit(query = null) {
+  if (query) auditQuery = query
+  if (!auditQuery) return
   const epoch = dialogEpoch
   try {
-    const scope = memory.value.contact_id
-      ? { id: memory.value.contact_id }
-      : { binding_id: memory.value.binding.binding_id }
-    const result = await userRequest(
-      (memory.value.contact_id ? '/api/contacts/audit?' : '/api/users/audit?') +
-      new URLSearchParams({ ...scope, offset: String(auditOffset.value), limit: '20' })
-    )
+    const result = await userRequest(auditQuery.path + '?' +
+      new URLSearchParams({ ...auditQuery.params, offset: String(auditOffset.value), limit: '20' }))
     if (!sameEpoch(epoch)) return
     audit.value = result
   } catch (err) {

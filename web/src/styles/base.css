@@ -4,6 +4,7 @@
 /* 主题层：统一令牌、控件与组件皮肤。 */
 @import './theme.css';
 @import './contacts.css';
+@import './knowledge.css';
 
 /* Vue 根节点不参与布局，让 .primary-nav 与 .workspace 保持 body 的直接子元素。 */
 #app{display:contents}

@@ -1,0 +1,67 @@
+/* Hallmark · theme: wxbot 管理台既有暗色系统 · shape: app screen · posture: restrained · nav: 左侧分组侧栏 · footer: 状态行 · hero: none */
+/* 对话记录与知识库两页共用：只读列表。沿用管理台既有的表格、侧栏与分页皮肤，不新增令牌。 */
+/* Hallmark · dismissed 49 · .session-bar .chip 与新加的 .extract-bar button 都在本文件里设了 white-space:nowrap，views 目录单独成组时看不到这条规则 */
+
+/* 时间与联系人两列不折行，窄屏时靠表格自身的横向滚动。 */
+.kb-table th,
+.kb-table .kb-when,
+.kb-table .kb-who{white-space:nowrap}
+.kb-table .kb-when{color:var(--fg3);font-variant-numeric:tabular-nums}
+
+/* 原文与回复保留用户自己的换行，长串不撑破单元格。 */
+.kb-table .kb-text{white-space:pre-wrap;overflow-wrap:anywhere;min-width:0}
+.kb-table .kb-reply{color:var(--fg2)}
+
+/* 失败的那一轮降权：记录留着，但不该抢正常对话的注意力。 */
+.kb-table tr.kb-failed td{color:var(--fg3)}
+.kb-table tr.kb-failed .kb-text{color:var(--fg2)}
+
+.kb-table .kb-gap{color:var(--fg3);font-size:12px}
+
+/* 事实列表：名称当小标题，原话降权，置信度右对齐成可比较的列。 */
+.fact-table .fact-key{color:var(--fg3);font-size:12px}
+.fact-table .kb-quote{color:var(--fg2)}
+.fact-table .kb-conf{text-align:right}
+
+/* 侧面栏的人名是可点击的：键盘也要能选中，焦点环用既有强调色。 */
+#list .user:focus-visible{outline:2px solid var(--wx);outline-offset:-2px}
+
+/* 会话筛选：同一个人名下的私聊与群聊，选中态只换边框和字色，不新增色板。 */
+.session-bar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+.session-bar .chip{font:inherit;font-size:12px;padding:8px 12px;border-radius:6px;cursor:pointer;color:var(--fg2);white-space:nowrap}
+.session-bar .chip:hover{color:var(--fg);border-color:var(--line-2)}
+.session-bar .chip:active{background:var(--bg3)}
+.session-bar .chip:disabled{color:var(--fg3);cursor:default}
+.session-bar .chip.on{color:var(--fg);border-color:var(--wx);background:var(--bg2)}
+.session-bar .chip:focus-visible{outline:2px solid var(--wx);outline-offset:2px}
+/* 计数靠 margin 拉开，不靠模板里的空白：Vue 会把换行压缩没，数字就贴着群名了。 */
+.session-bar .chip .n{margin-left:8px;font-weight:600;color:var(--fg);font-variant-numeric:tabular-nums}
+
+/* 自动提炼状态条：一句状态 + 一个「立即提炼」，窄屏时按钮换到下一行。 */
+.extract-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0 0}
+.extract-bar .note{flex:1 1 280px;min-width:0;font-size:12px;color:var(--fg2);overflow-wrap:anywhere}
+.extract-bar .note.warn{color:var(--warn)}
+.extract-bar button{
+  flex:none;margin:0;font:inherit;font-size:12px;min-height:0;padding:8px 16px;
+  border:1px solid var(--line);border-radius:6px;background:var(--bg2);color:var(--fg2);
+  white-space:nowrap;cursor:pointer;
+}
+.extract-bar button:hover:not(:disabled){color:var(--fg);border-color:var(--line-2)}
+.extract-bar button:active:not(:disabled){background:var(--bg3)}
+.extract-bar button:disabled{color:var(--fg3);cursor:default}
+.extract-bar button:focus-visible{outline:2px solid var(--wx);outline-offset:2px}
+
+/* 窄屏：多列塞不进一屏时按行堆叠，而不是让人横向拖动去找原文。 */
+@media (max-width:560px){
+  .kb-table thead{display:none}
+  .kb-table,.kb-table tbody,.kb-table tr{display:block}
+  .kb-table tr{border-top:1px solid var(--line);padding:8px 0}
+  .kb-table tr:first-child{border-top:0}
+  .kb-table td{display:block;width:auto;min-width:0;padding:4px 16px;border:0}
+  .kb-table td.kb-text::before{display:none}
+  .kb-table:not(.fact-table) td.kb-text::before{content:'用户';display:block;color:var(--fg3);font-size:12px}
+  .kb-table:not(.fact-table) td.kb-reply::before{content:'机器人'}
+  .fact-table td.kb-text::before{content:'事实';display:block;color:var(--fg3);font-size:12px}
+  .fact-table td.kb-quote::before{content:'原话'}
+  .fact-table .kb-conf{text-align:left}
+}

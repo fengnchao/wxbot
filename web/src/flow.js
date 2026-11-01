@@ -10,7 +10,7 @@ export const FLOW_STAGE_LABELS = {
   wxbot_result: 'wxbot 完整回复入发件箱', wxbot_outbox: '回复分句入队', wechat_submitted: '微信已按回车',
   wechat_delivery: '微信分句发送', wxbot_reply_mode: '群回复方式决策', telegram_media: 'Telegram 图片准备',
   telegram_received: 'Telegram 机器人收件', telegram_butler: 'Butler 确认收件', telegram_news: '新闻投递回执',
-  butler_identity: '身份解析', butler_memory: '相关记忆召回', butler_context: '群公共上下文',
+  butler_identity: '身份解析', butler_knowledge: '知识召回', butler_context: '群公共上下文',
   wxbot_group_context: '群消息归档', wxbot_group_decision: '本地群回复决策', wechat_mention: '微信提及对象核验'
 }
 

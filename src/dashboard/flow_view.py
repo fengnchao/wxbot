@@ -12,10 +12,10 @@ from .queue_view import QueueView
 STAGES = {'wxbot_model','wxbot_butler','butler_received','butler_session','hermes_request',
           'hermes_tool','hermes_status','hermes_approval','hermes_generating','hermes_result',
           'butler_action','butler_result','wxbot_result','wxbot_reply_mode',
-          'butler_identity','butler_memory','butler_context','wxbot_group_context',
+          'butler_identity','butler_knowledge','butler_context','wxbot_group_context',
           'wxbot_group_decision','wechat_mention'}
 MILESTONES = ('wxbot_butler','butler_received','hermes_request','hermes_result','wxbot_result','wechat_delivery')
-SUMMARY_FIELDS = ('user_id','binding_id','identity_status','memory_count','context_count',
+SUMMARY_FIELDS = ('user_id','binding_id','identity_status','fact_count','context_count',
                   'context_from','context_to','decision','mention_stage')
 
 
@@ -26,7 +26,7 @@ def summarize(flow):
             flow['identity_status'] = event['status'][:100]
         for field in SUMMARY_FIELDS:
             value = event.get(field)
-            if field in ('memory_count','context_count','context_from','context_to'):
+            if field in ('fact_count','context_count','context_from','context_to'):
                 if type(value) is int and 0 <= value <= 2**63-1:
                     flow[field] = value
             elif isinstance(value, str) and len(value) <= 256:

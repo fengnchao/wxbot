@@ -94,6 +94,8 @@ class MainInbox:
         self._next_poll = 0
         self._next_ui = 'receive'
         self._receive_retry = {}
+        self._receive_failures = {}
+        self._receive_abandoned = {}
         self.telegram=telegram
         self._telegram_turn=False
 
@@ -316,6 +318,8 @@ class MainInbox:
         self.snapshots[name] = messages  # 事务成功后才移动锚点。
         chat.expected_group = chat.group_mode
         self.pending.pop(name, None)
+        self._receive_failures.pop(name, None)
+        self._receive_abandoned.pop(name, None)
         if chat.group_mode:
             self.groups.add(name)
         if ids:
@@ -360,6 +364,9 @@ class MainInbox:
         for session in sessions:
             if not session.unread_count or not self._allowed(session.contact):
                 continue
+            if self._receive_abandoned.get(session.contact) == (session.unread_count, session.mentioned):
+                continue  # 同一批不可采集的未读：不再反复切换窗口抢采集。
+            self._receive_abandoned.pop(session.contact, None)
             if session.contact not in self.pending:
                 log.info("[%s] 发现未读 %d 条；有人@我=%s", session.contact,
                          session.unread_count, session.mentioned)
@@ -442,14 +449,43 @@ class MainInbox:
         try:
             succeeded = self._receive(session)
         except Exception as exc:
-            log.error('[%s] 采集失败，未读任务保留待下轮处理: %s%s',
+            log.error('[%s] 采集失败，稍后重试: %s%s',
                       session.contact, type(exc).__name__,
                       '（'+exc.read_code+'）' if isinstance(exc,ReadDeferred) else '')
         if succeeded:
             self._receive_retry.pop(session.contact, None)
+            self._receive_failures.pop(session.contact, None)
+            self._receive_abandoned.pop(session.contact, None)
+            return True
+        failures = self._receive_failures.get(session.contact, 0) + 1
+        self._receive_failures[session.contact] = failures
+        limit = max(1, int(self.bot.get('unread_give_up_attempts', 5)))
+        if failures >= limit:
+            self._abandon_unread(session, failures)
         else:
-            self._receive_retry[session.contact] = now + self._poll_interval()
+            # Back off instead of taking the UI turn every poll: 1.5s, 3s, 6s…
+            self._receive_retry[session.contact] = now + self._poll_interval() * 2 ** (failures - 1)
         return True
+
+    def _abandon_unread(self, session, attempts):
+        """Stop retrying unread rows that never become readable text.
+
+        A card-only row or an unloaded message region keeps ``read_bundle``
+        deferring forever, and the leftover task also stops ``prepare`` from
+        building this contact's batch. Drop the task, remember which unread
+        state already failed, and let a different unread count start afresh.
+        """
+        name = session.contact
+        self._receive_retry.pop(name, None)
+        self._receive_failures.pop(name, None)
+        self._receive_abandoned[name] = (session.unread_count, bool(session.mentioned))
+        self.pending.pop(name, None)
+        try:
+            self.store.forget_session(name)
+        except Exception as exc:
+            log.warning('[%s] 清理不可采集的未读任务失败: %s', name, type(exc).__name__)
+        log.warning('[%s] 连续 %d 次读不到可采集内容（可能只有卡片/小程序），'
+                    '已暂停该会话的未读采集，未读变化时再重试', name, attempts)
 
     def _poll_interval(self):
         return max(0.1, float(self.bot.get('poll_interval', 1.5)))

@@ -439,23 +439,19 @@ main:has(#contact-filter){--contact-cols:32px minmax(0,1fr) 96px 58px;
 .contact-actions button,
 .contact-card-actions button,
 .contact-member-actions button,
-.contact-merge-pick button,
-.contact-memory-row button{margin:0;padding:5px 10px;font-size:12px;font-weight:500;line-height:1.5;
+.contact-merge-pick button{margin:0;padding:5px 10px;font-size:12px;font-weight:500;line-height:1.5;
   border-radius:7px;background:transparent;border:1px solid transparent;color:var(--fg2);
   transition:background .15s,color .15s}
 .contact-actions button:hover,
 .contact-card-actions button:hover,
 .contact-member-actions button:hover,
-.contact-merge-pick button:hover,
-.contact-memory-row button:hover{background:#1f2833;color:var(--fg);border-color:transparent}
+.contact-merge-pick button:hover{background:#1f2833;color:var(--fg);border-color:transparent}
 .contact-actions button.wx,
 .contact-card-actions button.wx,
-.contact-member-actions button.wx,
-.contact-memory-row button.wx{background:var(--wx);border-color:var(--wx);color:#08150f;font-weight:600}
+.contact-member-actions button.wx{background:var(--wx);border-color:var(--wx);color:#08150f;font-weight:600}
 .contact-actions button.wx:hover,
 .contact-card-actions button.wx:hover,
-.contact-member-actions button.wx:hover,
-.contact-memory-row button.wx:hover{background:#7ce8c6;border-color:#7ce8c6;color:#08150f}
+.contact-member-actions button.wx:hover{background:#7ce8c6;border-color:#7ce8c6;color:#08150f}
 
 .contact-section{margin:0 0 12px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--bg2)}
 .contact-section>h3{display:flex;align-items:baseline;gap:8px;margin:0 0 11px;font-size:14px;font-weight:600;color:var(--fg)}
@@ -479,8 +475,6 @@ main:has(#contact-filter){--contact-cols:32px minmax(0,1fr) 96px 58px;
 .contact-member-name .muted{font-size:12px}
 .contact-member-main code{align-self:flex-start;font-size:10.5px;color:var(--fg3);background:transparent;padding:0}
 .contact-member-actions{display:flex;gap:2px;flex:none;flex-wrap:wrap;justify-content:flex-end}
-.contact-memory-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.contact-memory{margin:0;font-size:12.5px;color:var(--fg2)}
 /* 合并重复档案：自动识别的候选列表 + 手动指定并入对象。 */
 .contact-merge-pick{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:10px}
 .contact-merge-pick select{flex:1;min-width:180px;font-size:12px}

@@ -11,7 +11,7 @@ const ctx = inject('logWebCtx', null)
 
 const CATEGORIES = [
   ['basic', '基础连接'], ['wechat', '微信收发'], ['model', '模型后端'],
-  ['contacts', '联系人与策略'], ['logging', '日志'], ['advanced', '高级配置']
+  ['contacts', '联系人与策略'], ['knowledge', '知识库'], ['logging', '日志'], ['advanced', '高级配置']
 ]
 const HIDDEN_SECTIONS = new Set(['log', 'log.flow_trace', 'wxbot.typing', 'wxbot.failure_policy'])
 const EDITORS = ['boolean', 'integer', 'number', 'string', 'json', 'secret']
@@ -131,6 +131,7 @@ function categoryOf(item, row) {
   if (key === 'butler.agent.provider') return 'advanced'
   if (['wxbot.butler', 'butler.server', 'butler.agent'].includes(id)) return 'basic'
   if (['butler.heartbeat', 'butler.groups'].includes(id)) return 'contacts'
+  if (id === 'butler.knowledge') return 'knowledge'
   if (item.source_id === 'wxbot') return 'wechat'
   return 'advanced'
 }
@@ -428,7 +429,7 @@ function pickSection(id) {
         <p class="monitor-note">修改后点击保存；生效方式见各项提示。刷新页面会丢失未保存的修改。</p>
         <p v-if="section === 'model'" class="monitor-note">微信消息固定走 wxbot → Butler → 所选模型。切换接入方式后保存，下一请求即用新模型，正在处理的请求继续用原模型；用不到的字段收在高级配置里。</p>
         <div v-if="section === 'contacts'" class="hbnote">
-          联系人、监听、角色、心跳、订阅和记忆统一在 <button @click="go('contacts')">联系人</button> 维护。
+          联系人、监听、角色、心跳和订阅统一在 <button @click="go('contacts')">联系人</button> 维护。
         </div>
         <button id="c-reload" :disabled="busyTotal() > 0" @click="reload">重新载入配置</button>
         <span class="monitor-source"> 有草稿时会确认放弃更改</span>

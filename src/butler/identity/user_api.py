@@ -48,8 +48,6 @@ def dispatch_user_get(registry, path, query):
     binding_id = one('binding_id')
     if not binding_id:
         raise ValueError('缺少 binding_id')
-    if path == '/v1/users/memory':
-        return registry.memories(binding_id)
     if path == '/v1/users/audit':
         return registry.audit(binding_id, **_page(query))
     raise ValueError('未知用户接口')
@@ -63,9 +61,7 @@ def dispatch_user_post(registry, payload):
         'create': {'channel_type', 'contact', 'nickname', 'avatar'},
         'update': {'binding_id', 'version', 'nickname', 'contact', 'enabled', 'member_key', 'avatar'},
         'avatar': {'binding_id', 'version', 'avatar'},
-        'link': {'binding_id', 'target_id', 'version', 'resolutions', 'expected_versions'},
-        'memory_set': {'binding_id', 'version', 'key', 'value'},
-        'memory_delete': {'binding_id', 'version', 'key'},
+        'link': {'binding_id', 'target_id', 'version'},
     }
     if action not in fields or set(payload) - fields[action] - {'action'}:
         raise ValueError('未知用户操作或字段')
@@ -75,7 +71,7 @@ def dispatch_user_post(registry, payload):
             raise ValueError('channel_type 只支持 group / dm')
         return registry.create(**values, reuse_name=False)
     binding_id = _text(payload, 'binding_id')
-    version = _version(payload, minimum=0 if action.startswith('memory_') else 1)
+    version = _version(payload)
     if action == 'update':
         changes = {key: _text(payload, key) for key in ('nickname', 'contact') if key in payload}
         if 'member_key' in payload:
@@ -92,19 +88,8 @@ def dispatch_user_post(registry, payload):
     if action == 'avatar':
         return registry.update_binding(binding_id, version, avatar=_text(payload, 'avatar'))
     if action == 'link':
-        target = _text(payload, 'target_id')
-        expected = payload.get('expected_versions')
-        if not isinstance(expected, dict) or set(expected) != {'source_memory', 'target_memory', 'target_binding'} or any(
-                type(value) is not int or value < (1 if key == 'target_binding' else 0) for key, value in expected.items()):
-            raise ValueError('请先预览两个绑定及其记忆版本')
-        resolutions = payload.get('resolutions')
-        if resolutions is not None and (not isinstance(resolutions, dict) or any(
-                not isinstance(key, str) or value not in ('source', 'target') for key, value in resolutions.items())):
-            raise ValueError('冲突处理必须逐项选择 source / target')
         from butler.identity.contact_store import is_unified
         if is_unified(registry.store.path):
             raise ValueError('统一联系人请使用联系人身份合并预览，再确认合并')
-        return registry.link(binding_id, target, version, resolutions=resolutions, expected_versions=expected)
-    key = _text(payload, 'key')
-    value = _text(payload, 'value', required=False) if action == 'memory_set' else ''
-    return registry.change_memory(binding_id, key, value, version, delete=action == 'memory_delete')
+        return registry.link(binding_id, _text(payload, 'target_id'), version)
+    raise ValueError('未知用户操作')

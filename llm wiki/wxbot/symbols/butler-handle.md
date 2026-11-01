@@ -3,24 +3,28 @@ type: symbol
 module: butler
 summary: 单轮身份解析、会话互斥、补发优先与最终合成
 coverage: core
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/butler/agent/core.py
-  line: 207
+  line: 213
   anchor: 'def handle(self, contact_name:'
 - path: src/butler/agent/core.py
-  line: 263
+  line: 269
   anchor: def _handle_request(
 - path: src/butler/agent/core.py
-  line: 297
+  line: 331
   anchor: 'def _handle(self, c:'
 - path: src/butler/server.py
-  line: 345
+  line: 382
   anchor: res = butler.handle(contact, text,
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-switchable-models
 - raw/changes/2026-10-31-model-access-switch-core-emit
+- raw/changes/2026-11-01-knowledge-episodes
+- raw/changes/2026-11-01-knowledge-sharding
+- raw/changes/2026-11-01-knowledge-auto
+- raw/changes/2026-11-01-knowledge-vault-graph
 calls:
 - symbols/butler-result
 called_by: []
@@ -39,16 +43,20 @@ called_by: []
 
 写 flow/trace；可能读取记忆、归档群上下文、执行经授权工具并认领补发；具体业务表待建档。msg_id 回填 meta。流式 sendable 前缀受最终合成约束，群身份/补发时不可随意提早发送。关联 [[concepts/message-pipeline]]、[[concepts/identity-authority]] 和 [[symbols/butler-processor]]。
 
+`_handle_request` 还旁路写一条 [[tables/kb-episodes]] 原文：成功、无回复和异常各对应一个 outcome。写入在 `_record_episode` 内部全包异常，失败只落流水日志，不影响返回值和异常上抛。
+
+拆库（同日的 knowledge-sharding）只把落盘位置从 `data/knowledge.sqlite3` 换成 `data/knowledge/` 下按 owner 分库（目录见 [[tables/kb-owners]]），三态 outcome 与全包异常的约定未变。
+
 ## 测试
 
 本地 tests/butler/test_pipeline.py、test_butler_concurrency.py、tests/unit/model_stream/test_model_stream_pipeline.py。
 
 ## 代码依据
 
-- `src/butler/agent/core.py:207` — `def handle(self, contact_name:`
-- `src/butler/agent/core.py:263` — `def _handle_request(`
-- `src/butler/agent/core.py:297` — `def _handle(self, c:`
-- `src/butler/server.py:345` — `res = butler.handle(contact, text,`
+- `src/butler/agent/core.py:210` — `def handle(self, contact_name:`
+- `src/butler/agent/core.py:266` — `def _handle_request(`
+- `src/butler/agent/core.py:317` — `def _handle(self, c:`
+- `src/butler/server.py:383` — `res = butler.handle(contact, text,`
 
 ## 入库来源
 
@@ -64,3 +72,9 @@ handle 在 [[symbols/reloadable-backend]] 的 request 上下文中固定后端�
 [[raw/changes/2026-10-31-switchable-models]]
 
 [[raw/changes/2026-10-31-model-access-switch-core-emit]]
+
+[[raw/changes/2026-11-01-knowledge-episodes]]
+
+[[raw/changes/2026-11-01-knowledge-sharding]]
+
+[[raw/changes/2026-11-01-knowledge-auto]]

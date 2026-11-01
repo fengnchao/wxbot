@@ -1,9 +1,9 @@
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { fullTime } from '../api'
 import {
-  audit, auditOffset, closeDialog, contactRequest, data, dialog, dialogBusy, dialogError,
-  load, loadAudit, loadMemory, openMerge, memory, memoryOffset, memoryQuery, submitDialog, userRequest
+  audit, auditOffset, closeDialog, dialog, dialogBusy, dialogError,
+  load, loadAudit, openMerge, submitDialog, userRequest
 } from '../contactState'
 
 const shell = ref(null)
@@ -13,23 +13,10 @@ const form = reactive({
   contact: payload?.contact || '',
   nickname: payload?.nickname || '',
   enabled: Boolean(payload?.enabled),
-  memberKey: '',
-  memoryKey: '',
-  memoryValue: ''
+  memberKey: ''
 })
 const targets = ref([])
 const linkQuery = ref('')
-const deleting = ref(null)
-const editingKey = ref(false)
-
-const memoryItems = computed(() => {
-  const needle = memoryQuery.value.trim().toLowerCase()
-  return (memory.value?.items || []).filter(item =>
-    !needle || (item.key + ' ' + item.value).toLowerCase().includes(needle))
-})
-const memoryPage = computed(() =>
-  memoryItems.value.slice(memoryOffset.value, memoryOffset.value + 20))
-const member = computed(() => memory.value?.binding || null)
 
 onMounted(() => {
   const node = shell.value
@@ -104,84 +91,16 @@ function submitPreview(target) {
   openMerge(payload.user_id, target.user_id)
 }
 
-function openMemoryEdit(item = null) {
-  editingKey.value = Boolean(item)
-  form.memoryKey = item?.key || ''
-  form.memoryValue = item?.value || ''
-  view.value = 'memory-edit'
-}
-
-function openMemoryDelete(item) {
-  deleting.value = item
-  view.value = 'memory-delete'
-}
-
-function submitMemory() {
-  const current = memory.value
-  if (!current) return
-  submitDialog(async () => {
-    if (current.contact_id) {
-      data.value = await contactRequest({
-        action: 'memory_set',
-        id: current.contact_id,
-        version: data.value.version,
-        memory_version: current.version,
-        key: form.memoryKey.trim(),
-        value: form.memoryValue
-      })
-    } else {
-      await userRequest('/api/users', {
-        action: 'memory_set',
-        binding_id: current.binding.binding_id,
-        version: current.version,
-        key: form.memoryKey.trim(),
-        value: form.memoryValue
-      })
-    }
-    await loadMemory(current.binding.binding_id)
-    view.value = 'memory'
-  })
-}
-
-function submitDelete() {
-  const current = memory.value
-  const item = deleting.value
-  if (!current || !item) return
-  submitDialog(async () => {
-    if (current.contact_id) {
-      data.value = await contactRequest({
-        action: 'memory_delete',
-        id: current.contact_id,
-        version: data.value.version,
-        memory_version: current.version,
-        key: item.key
-      })
-    } else {
-      await userRequest('/api/users', {
-        action: 'memory_delete',
-        binding_id: current.binding.binding_id,
-        version: current.version,
-        key: item.key
-      })
-    }
-    await loadMemory(current.binding.binding_id)
-    view.value = 'memory'
-  })
-}
-
 function openAudit() {
   auditOffset.value = 0
+  audit.value = null
   view.value = 'audit'
-  loadAudit()
+  loadAudit({ path: '/api/users/audit', params: { binding_id: payload.binding_id } })
 }
 
 function auditPage(step) {
   auditOffset.value = Math.max(0, auditOffset.value + step)
   loadAudit()
-}
-
-function backToMemory() {
-  view.value = 'memory'
 }
 
 function atText(value) {
@@ -204,7 +123,7 @@ function atText(value) {
           <label>群名／私聊会话名<input v-model="form.contact" name="contact" required maxlength="200"></label>
           <label>群昵称／私聊昵称<input v-model="form.nickname" name="nickname" required maxlength="200"></label>
           <label class="user-check"><input v-model="form.enabled" name="enabled" type="checkbox">启用此绑定</label>
-          <p v-if="payload.status === 'observed'" class="user-warning">此记录尚待核对。确认身份后保存，才允许使用个人记忆。</p>
+          <p v-if="payload.status === 'observed'" class="user-warning">此记录尚待核对。确认身份后保存，才会进入这个人的知识库。</p>
           <p v-if="payload.observed_member_keys?.length" class="monitor-note">
             已观测成员 ID：{{ payload.observed_member_keys.join(' / ') }}
           </p>
@@ -215,6 +134,7 @@ function atText(value) {
           <div class="row">
             <button type="submit" :disabled="dialogBusy">保存绑定</button>
             <button type="button" id="user-link" @click="openUserLink">手工绑定为同一用户</button>
+            <button type="button" id="user-audit" @click="openAudit">修改记录</button>
           </div>
         </form>
 
@@ -236,71 +156,9 @@ function atText(value) {
           </div>
         </template>
 
-        <template v-else-if="view === 'memory'">
-          <p v-if="!memory">正在读取记忆…</p>
-          <template v-else>
-            <p>
-              <strong>{{ userLabel(member) }}</strong><br>
-              用户 <code>{{ member.user_id }}</code><br>
-              绑定 <code>{{ member.binding_id }}</code>
-            </p>
-            <p class="monitor-note">
-              当前共享记忆范围：<code>{{ member.memory_owner || member.user_id }}</code>，版本 {{ memory.version }}。已关联的其他绑定也能使用这里的记忆。
-            </p>
-            <div class="row">
-              <button id="user-memory-add" @click="openMemoryEdit()">新增记忆</button>
-              <button id="user-audit" @click="openAudit">修改记录</button>
-              <input id="user-memory-search" v-model="memoryQuery" type="search" aria-label="搜索记忆" placeholder="搜索记忆">
-            </div>
-            <div class="monitor-table-wrap">
-              <table class="monitor-table">
-                <thead><tr><th>记忆 key</th><th>内容</th><th>更新</th><th>操作</th></tr></thead>
-                <tbody>
-                  <tr v-for="item in memoryPage" :key="'mi-' + item.key">
-                    <td>{{ item.key }}</td>
-                    <td class="preview">{{ item.value }}<small v-if="item.source_label">来源：{{ item.source_label }}</small></td>
-                    <td>{{ atText(item.updated) }}</td>
-                    <td>
-                      <button @click="openMemoryEdit(item)">修正</button>
-                      <button @click="openMemoryDelete(item)">删除</button>
-                    </td>
-                  </tr>
-                  <tr v-if="!memoryPage.length"><td colspan="4">此范围暂无匹配记忆。</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="pagination">
-              <button :disabled="memoryOffset === 0" @click="memoryOffset = Math.max(0, memoryOffset - 20)">上一页</button>
-              <span>{{ memoryItems.length ? memoryOffset + 1 : 0 }} 至 {{ Math.min(memoryOffset + 20, memoryItems.length) }} / {{ memoryItems.length }}</span>
-              <button :disabled="memoryOffset + 20 >= memoryItems.length" @click="memoryOffset += 20">下一页</button>
-            </div>
-          </template>
-        </template>
-
-        <form v-else-if="view === 'memory-edit'" id="user-memory-form" class="user-form" @submit.prevent="submitMemory">
-          <h3>{{ editingKey ? '修正记忆' : '新增记忆' }}</h3>
-          <label>记忆 key<input v-model="form.memoryKey" name="key" required maxlength="200" :readonly="editingKey"></label>
-          <label>内容<textarea v-model="form.memoryValue" name="value" required rows="6"></textarea></label>
-          <p class="monitor-note">保存后会更新共享范围，并使后续模型会话使用新的记忆版本。</p>
-          <div class="row">
-            <button type="submit" :disabled="dialogBusy">保存记忆</button>
-            <button type="button" id="user-memory-back" @click="backToMemory">返回</button>
-          </div>
-        </form>
-
-        <template v-else-if="view === 'memory-delete' && deleting">
-          <h3>删除记忆 {{ deleting.key }}</h3>
-          <p class="pre">{{ deleting.value }}</p>
-          <p>该内容将从当前共享范围移除，后续模型不再召回。修改记录会保留。</p>
-          <div class="row">
-            <button id="user-memory-delete-confirm" :disabled="dialogBusy" @click="submitDelete">确认删除</button>
-            <button id="user-memory-back" @click="backToMemory">返回</button>
-          </div>
-        </template>
-
         <template v-else-if="view === 'audit'">
-          <h3>修改记录，{{ userLabel(member) }}</h3>
-          <button id="user-memory-back" @click="backToMemory">返回记忆</button>
+          <h3>修改记录，{{ userLabel(payload) }}</h3>
+          <button id="user-audit-back" @click="view = 'binding'">返回绑定</button>
           <div v-if="!audit" class="empty">正在读取修改记录…</div>
           <template v-else>
             <div class="monitor-table-wrap">

@@ -201,7 +201,7 @@ const payloads = {
           status: 'observed', observed_member_keys: ['mk-1']
         }],
         bindings: [{ binding_id: 'b-dm-1', contact: 'Alice', nickname: 'Alice', channel_type: 'dm', enabled: true, version: 1 }],
-        memory_count: 2, policy: null, memory_conflicts: []
+        policy: null
       },
       {
         id: 'group-1', kind: 'group', name: '产品群', enabled: true, avatar: '',
@@ -216,11 +216,11 @@ const payloads = {
           binding_id: 'b-member-only', contact: '产品群', nickname: '群内成员', enabled: true,
           identity_confirmed: true, user_id: 'member-only', channel_type: 'group'
         }],
-        bindings: [], memory_count: 0, policy: null
+        bindings: [], policy: null
       },
       {
         id: 'member-only', kind: 'person', name: '群内成员', enabled: true,
-        conversations: [], bindings: [], memory_count: 0, policy: null,
+        conversations: [], bindings: [], policy: null,
         memberships: [{
           binding_id: 'b-member-only', contact: '产品群', nickname: '群内成员', enabled: true,
           identity_confirmed: true, user_id: 'member-only', channel_type: 'group'
@@ -232,7 +232,7 @@ const payloads = {
           id: 'disabled-dm', name: '旧私聊', channel_type: 'dm', enabled: false,
           listening: false, subscriptions: [], needs_route: false
         }],
-        memberships: [], bindings: [], memory_count: 0, policy: null
+        memberships: [], bindings: [], policy: null
       }
     ],
     settings: { bot: { mention_names: ['机器人'] }, wechat: { main_window: { listen_all: false } } },
@@ -258,7 +258,7 @@ const payloads = {
       {
         kind: 'batch', id: 'b1', contact: 'Alice', uid: 'alice', label: 'Alice', group: false, members: [],
         request_id: 'req-abcdef123456', inbox_ids: ['i1'], user_id: 'user-alice', binding_id: 'b-dm-1',
-        identity_status: 'confirmed', memory_count: 2, context_count: 0, context_from: 0, context_to: 0,
+        identity_status: 'confirmed', fact_count: 2, context_count: 0, context_from: 0, context_to: 0,
         decision: 'direct', mention_stage: '', preview: '帮我查一下明天的天气', reply_preview: '', error: '',
         at: 1699999995, updated_at: 1700000000, order: 1, terminal: false, scope: 'active',
         stage: 3, status: 'processing', attempts: 1, part_count: 0, sent_parts: 0,
@@ -266,7 +266,7 @@ const payloads = {
         events: [
           { node: 1, stage: 'wxbot_inbox', status: 'ok', ts: 1699999980, key: 'e1' },
           { node: 2, stage: 'butler_identity', status: 'confirmed', ts: 1699999985, key: 'e2' },
-          { node: 2, stage: 'butler_memory', status: 'ok', ts: 1699999986, key: 'e3' },
+          { node: 2, stage: 'butler_knowledge', status: 'ok', ts: 1699999986, key: 'e3' },
           { node: 3, stage: 'hermes_request', status: 'started', ts: 1699999990, key: 'e4' },
           { node: 3, stage: 'hermes_tool', status: 'started', tool: 'news_search', ts: 1699999995, key: 'e5' }
         ]
@@ -274,7 +274,7 @@ const payloads = {
       {
         kind: 'batch', id: 'b2', contact: '产品群', uid: 'group-1', label: '产品群', group: true, members: ['小A', '小B'],
         request_id: 'req-group-2', inbox_ids: ['i2'], user_id: '', binding_id: 'b-group-1',
-        identity_status: 'observed', memory_count: 0, context_count: 3, context_from: 1, context_to: 3,
+        identity_status: 'observed', fact_count: 0, context_count: 3, context_from: 1, context_to: 3,
         decision: 'random', mention_stage: 'fallback_plain',
         preview: '群里讨论发布计划', reply_preview: '收到，我来整理', error: '窗口未就绪',
         at: 1699999901, updated_at: 1699999990, order: 2, terminal: false, scope: 'issues',
@@ -283,7 +283,7 @@ const payloads = {
         events: [
           { node: 1, stage: 'wxbot_inbox', status: 'ok', ts: 1699999901, key: 'f1' },
           { node: 2, stage: 'butler_received', status: 'ok', ts: 1699999902, key: 'f2' },
-          { node: 2, stage: 'butler_memory', status: 'ok', ts: 1699999903, key: 'f3' },
+          { node: 2, stage: 'butler_knowledge', status: 'ok', ts: 1699999903, key: 'f3' },
           { node: 3, stage: 'hermes_result', status: 'ok', ts: 1699999950, key: 'f4' },
           { node: 5, stage: 'wxbot_outbox', status: 'ok', ts: 1699999951, key: 'f5' },
           { node: 6, stage: 'wechat_delivery', status: 'blocked', ts: 1699999990, key: 'f6', error: '窗口未就绪' }
@@ -345,6 +345,22 @@ payloads['/api/configuration'].sections.push({
   }))]
 })
 
+payloads['/api/configuration'].sections.push({
+  id: 'butler.knowledge', title: 'Butler · knowledge', source_id: 'butler', source: 'config.butler.toml',
+  rows: [
+    {
+      key: 'butler.knowledge.auto_extract', path: ['knowledge', 'auto_extract'], value: true, origin: 'file',
+      label: '自动提炼', description: '开启后定时把新原文提炼成事实。', editor: 'boolean', widget: 'boolean',
+      choices: null, editable: true, default_available: true, effect: '保存后需自行重启 Butler'
+    },
+    {
+      key: 'butler.knowledge.extract_batch', path: ['knowledge', 'extract_batch'], value: 40, origin: 'default',
+      label: '单批提炼条数', description: '每人每次交给模型的原文条数。', editor: 'integer', widget: 'integer',
+      choices: null, editable: true, default_available: true, effect: '保存后需自行重启 Butler'
+    }
+  ]
+})
+
 // 接入方式决定哪些连接字段生效；服务端下发，页面只读。
 const accessFields = {
   codex: [], echo: [],
@@ -363,14 +379,50 @@ payloads['/api/configuration'].model_access = {
   notes: { hermes: '调用已配置的 Hermes 服务。', openai: '按 Chat Completions 协议直连。', cursor: '调用本机 Cursor CLI。' }
 }
 
-payloads['/api/contacts/memory'] = { contact_id: 'alice', version: 1, items: [],
-  binding: { user_id: 'alice', nickname: 'Alice', contact: 'Alice', channel_type: 'dm', binding_id: 'person:alice', memory_owner: 'user:alice' } }
+payloads['/api/knowledge'] = {
+  available: true, total: 2, limit: 50, offset: 0, has_more: false,
+  owners: [
+    { owner: 'anon:dm:101', name: '101', contact: '101', channel_type: 'dm', episodes: 1, facts: 1, last_at: 1700000000 },
+    { owner: 'anon:group:产品群', name: '产品群', contact: '产品群', channel_type: 'group', episodes: 1, facts: 0, last_at: 1699999000 }
+  ],
+  rows: [
+    { owner: 'anon:dm:101', at: 1700000000, contact: '101', channel_type: 'dm', user_text: '在吗', reply_text: '在的，你说。', outcome: 'ok' },
+    { owner: 'anon:group:产品群', at: 1699999000, contact: '产品群', channel_type: 'group', user_text: '明天几点开会', reply_text: null, outcome: 'error' }
+  ]
+}
+payloads['/api/knowledge/facts'] = {
+  available: true, total: 1, limit: 50, offset: 0, has_more: false,
+  owners: payloads['/api/knowledge'].owners,
+  rows: [
+    { owner: 'anon:dm:101', contact: '101', kind: 'preference', fact_key: '常喝的口味',
+      fact_value: '喜欢喝美式，不加糖。', quote: '我一般只要美式', episode_at: 1700000000,
+      confidence: 0.8, source: 'extract', created: 1700000100 }
+  ]
+}
+payloads['/api/knowledge/extract'] = {
+  available: true, enabled: true, knowledge_enabled: true, auto_extract: true, auto_prune: true,
+  interval_minutes: 60, batch: 40, max_owners: 5, min_backlog: 1, idle_seconds: 120,
+  next_run_at: 1700003600, last_run_at: 1700000000,
+  last_report: {
+    ok: true, batch: 40, scanned: 2,
+    owners: [{ owner: 'anon:dm:101', contact: '101', read: 2, written: 1, parsed: 1 }]
+  },
+  failures: 0, last_error: '', next_prune_at: 1700086400
+}
 const mergeRequests = []
 const deleteRequests = []
+const extractRequests = []
 let rejectMerge = false
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(typeof input === 'string' ? input : input.url, 'http://127.0.0.1')
   const method = String(init.method || 'GET').toUpperCase()
+  if (url.pathname === '/api/knowledge/extract' && method === 'POST') {
+    extractRequests.push(JSON.parse(init.body || '{}'))
+    return {
+      ok: true, status: 202,
+      text: async () => JSON.stringify({ ok: true, status: 'started', owner: '' })
+    }
+  }
   if (url.pathname === '/api/configuration' && method === 'POST') {
     return {
       ok: true,
@@ -383,7 +435,7 @@ globalThis.fetch = async (input, init = {}) => {
     return { ok: true, status: 200, text: async () => JSON.stringify({
       source: rows.find(row => row.id === url.searchParams.get('source_id')),
       target: rows.find(row => row.id === url.searchParams.get('target_id')),
-      conflicts: [], version: 3, preview_version: 'preview-v3', rules: '保留目标人物，记忆保留全部来源。'
+      conflicts: [], version: 3, preview_version: 'preview-v3', rules: '保留目标人物；群身份与窗口并入，窗口现有策略保持原行为。'
     }) }
   }
   if (url.pathname === '/api/contacts' && method === 'POST') {
@@ -394,8 +446,7 @@ globalThis.fetch = async (input, init = {}) => {
       if (rejectMerge) return { ok: false, status: 409, text: async () => JSON.stringify({ error: 'merge preview version conflict' }) }
     }
     if (body.action === 'memory_set') {
-      payloads['/api/contacts/memory'].items.push({ key: body.key, value: body.value, updated: 1 })
-      payloads['/api/contacts/memory'].version++
+      throw new Error('个人记忆接口已下线，前端不应再调用')
     }
     const current = payloads['/api/contacts']
     const next = { ...current, version: current.version + 1 }
@@ -446,7 +497,7 @@ const failures = []
 const expect = (ok, message) => { if (!ok) failures.push(message) }
 
 const navButtons = [...document.querySelectorAll('.nav-group button')].map(node => node.textContent.trim())
-expect(navButtons.length === 6, '导航应渲染 6 个标签，实际 ' + navButtons.length + '：' + navButtons.join('/'))
+expect(navButtons.length === 8, '导航应渲染 8 个标签，实际 ' + navButtons.length + '：' + navButtons.join('/'))
 expect(navButtons.includes('Telegram 转发'), '导航缺少「Telegram 转发」')
 
 const pane = text('#pane')
@@ -536,7 +587,7 @@ await contactCategory('pending')
 expect(document.querySelectorAll('#list .contact-row').length === 1 && text('#list').includes('Alice'), '待确认应显示未确认身份，已确认的仅群成员不应混入')
 await contactCategory('groups')
 expect(document.querySelectorAll('#list .contact-row').length === 1 && text('#pane h2').includes('产品群'), '群聊应独立展示')
-expect(!document.querySelector('[data-detail=memory]'), '群聊不显示个人记忆入口')
+expect(!document.querySelector('[data-detail=memory]'), '个人记忆入口已随知识库改版下线')
 expect(document.querySelector('.contact-head #contact-delete')?.textContent.trim() === '移除群聊',
   '群聊头部应直接提供移除入口')
 await contactDetail('groups')
@@ -593,25 +644,10 @@ expect(!document.querySelector('#contact-merge-dialog'), '成功后关闭合并�
 await contactCategory('people')
 document.querySelector('#list .contact-row')?.click()
 await pause()
-await contactDetail('memory')
-;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('查看与整理个人记忆'))?.click()
-await pause()
-document.querySelector('#user-memory-add')?.click()
-await pause()
-const keyInput = document.querySelector('#user-memory-form [name=key]')
-const valueInput = document.querySelector('#user-memory-form [name=value]')
-if (!keyInput || !valueInput) throw new Error('记忆编辑未打开：' + text('dialog') + '；页面：' + text('#pane') + '；控制台：' + problems.join('\n'))
-keyInput.value = '偏好'
-keyInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
-await pause()
-expect(!keyInput.readOnly, '新增记忆的 key 在输入过程中应持续可编辑')
-valueInput.value = '简洁回复'
-valueInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
-document.querySelector('#user-memory-form')?.dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
-await pause()
-expect(!document.querySelector('#user-memory-form') && text('dialog').includes('简洁回复'), '保存个人记忆后应返回已更新的记忆列表')
-document.querySelector('#user-dialog-close')?.click()
-await pause()
+// 个人记忆已并入 vault 知识库，人物详情不再有记忆页签与编辑弹窗。
+expect(!document.querySelector('[data-detail=memory]'), '人物详情不应再有个人记忆页签')
+expect(![...document.querySelectorAll('#pane button')].some(button => button.textContent.includes('记忆编辑')),
+  '人物详情不应再出现记忆编辑按钮')
 dom.window.confirm = () => true
 document.querySelector('#contact-delete')?.click()
 await pause()
@@ -682,10 +718,10 @@ const configButton = [...document.querySelectorAll('.nav-group button')].find(no
 configButton?.click()
 await new Promise(resolve => setTimeout(resolve, 150))
 
-expect(document.querySelectorAll('#list .user').length === 7, '配置左栏应为 7 个分类，实际 '
+expect(document.querySelectorAll('#list .user').length === 8, '配置左栏应为 8 个分类，实际 '
   + document.querySelectorAll('#list .user').length)
 const configList = text('#list')
-for (const phrase of ['基础连接', '微信收发', '模型后端', '联系人与策略', '日志', '高级配置', '全部参数']) {
+for (const phrase of ['基础连接', '微信收发', '模型后端', '联系人与策略', '知识库', '日志', '高级配置', '全部参数']) {
   expect(configList.includes(phrase), '配置左栏缺少「' + phrase + '」')
 }
 const configPane = text('#pane')
@@ -747,6 +783,14 @@ const contactsPane = text('#pane')
 expect(contactsPane.includes('联系人列表') && contactsPane.includes('微信会话名称'), '联系人结构化编辑器未渲染')
 expect(contactsPane.includes('添加联系人'), '联系人编辑器缺少添加按钮')
 expect(contactsPane.includes('高级 JSON 编辑'), '联系人编辑器缺少高级 JSON 入口')
+
+// 知识库分类：自动提炼开关与批大小要能在页面改，而不是只能改文件。
+;[...document.querySelectorAll('#list .user')].find(node => node.textContent.includes('知识库'))?.click()
+await new Promise(resolve => setTimeout(resolve, 50))
+const knowledgePane = text('#pane')
+for (const phrase of ['自动提炼', '单批提炼条数', '保存后需自行重启 Butler']) {
+  expect(knowledgePane.includes(phrase), '知识库配置分类缺少「' + phrase + '」')
+}
 
 // 编辑字段产生草稿，保存后提示需重启的服务。
 const prefixCategory = [...document.querySelectorAll('#list .user')]
@@ -816,7 +860,7 @@ document.querySelector('[data-wf-select="b1"]')?.click()
 await new Promise(resolve => setTimeout(resolve, 150))
 const traceText = text('.wf-inspect')
 for (const phrase of ['Alice · 流转详情', '消息正文', '回复正文', '明天有小雨，记得带伞。',
-  '固定用户 ID', 'user-alice', '身份 · 已确认', '召回记忆 · 2 条', '回复决策 · 主动请求',
+  '固定用户 ID', 'user-alice', '身份 · 已确认', '知识召回 · 2 条', '回复决策 · 主动请求',
   '身份解析', 'Butler 请求 模型运行时', '在收发队列中查看 / 处理', '未记录的阶段保持未确认']) {
   expect(traceText.includes(phrase), '流转详情缺少「' + phrase + '」')
 }
@@ -858,6 +902,50 @@ expect(text('#pane').includes('收发队列 · Alice'), '诊断入口未切换�
 expect(text('#pane').includes('按实际处理序号排列'), '诊断入口未带上待处理范围')
 expect(document.querySelector('#page-tools select')?.value === 'all', '诊断入口未清除队列状态筛选')
 
+// 对话记录页：只读原文列表、失败标注与按联系人筛选
+const knowledgeButton = [...document.querySelectorAll('.nav-group button')]
+  .find(node => node.textContent.trim() === '对话记录')
+knowledgeButton?.click()
+await new Promise(resolve => setTimeout(resolve, 200))
+expect(text('#pane h2').includes('对话记录 · 全部会话'), '对话记录页未渲染标题，实际 ' + text('#pane h2'))
+expect(document.querySelectorAll('#list .user').length === 3,
+  '对话记录左栏应有全部会话与 2 个人，实际 ' + document.querySelectorAll('#list .user').length)
+expect(document.querySelectorAll('#pane .kb-table tbody tr').length === 2, '对话记录应渲染 2 行原文')
+expect(text('#pane').includes('在吗') && text('#pane').includes('在的，你说。'), '对话记录未展示用户原文与回复')
+expect(text('#pane').includes('本轮失败'), '失败的那一轮应显式标注')
+expect(text('#pane .pagination').includes('共 2 条'), '对话记录分页应显示总数，实际 ' + text('#pane .pagination'))
+
+document.querySelectorAll('#list .user')[1]?.click()
+await new Promise(resolve => setTimeout(resolve, 150))
+expect(text('#pane h2').includes('对话记录 · 101'), '对话记录应能按人筛选，实际 ' + text('#pane h2'))
+
+document.querySelectorAll('#list .user')[0]?.click()
+await new Promise(resolve => setTimeout(resolve, 150))
+expect(text('#pane h2').includes('对话记录 · 全部会话'), '对话记录应能回到全部会话')
+
+// 知识库页：提炼事实、类型标签与置信度
+const factsButton = [...document.querySelectorAll('.nav-group button')]
+  .find(node => node.textContent.trim() === '知识库')
+factsButton?.click()
+await new Promise(resolve => setTimeout(resolve, 200))
+expect(text('#pane h2').includes('知识库 · 全部知识'), '知识库页未渲染标题，实际 ' + text('#pane h2'))
+expect(document.querySelectorAll('#pane .fact-table tbody tr').length === 1, '知识库应渲染 1 行事实')
+expect(text('#pane').includes('喜欢喝美式，不加糖。'), '知识库未展示事实内容')
+expect(text('#pane').includes('偏好习惯'), '知识库未把 kind 翻成中文标签')
+expect(text('#pane').includes('我一般只要美式'), '知识库未展示支撑原话')
+expect(text('#pane').includes('80%'), '知识库应显示置信度百分比，实际 ' + text('#pane .fact-table tbody tr'))
+expect(document.querySelectorAll('#list .user').length === 3, '知识库左栏应与对话记录同样列出全部人')
+expect(text('#pane .extract-bar').includes('写入 1 条'),
+  '知识库页应显示自动提炼的上次结果，实际 ' + text('#pane .extract-bar'))
+const extractButton = [...document.querySelectorAll('#pane .extract-bar button')]
+  .find(node => node.textContent.includes('立即提炼'))
+expect(Boolean(extractButton) && !extractButton.disabled, '知识库页缺少可用的「立即提炼」按钮')
+extractButton?.click()
+await new Promise(resolve => setTimeout(resolve, 80))
+expect(extractRequests.length === 1, '点击「立即提炼」应发一次 POST，实际 ' + extractRequests.length)
+expect(text('#pane .extract-bar').includes('已开始提炼'),
+  '点击后状态条应给出反馈，实际 ' + text('#pane .extract-bar'))
+
 console.warn = warn
 console.error = error
 
@@ -866,6 +954,6 @@ if (failures.length) {
   console.error('smoke failed:\n- ' + failures.join('\n- '))
   process.exit(1)
 }
-console.log('smoke passed：导航、实时工作流、联系人、定时任务、收发队列、配置管理、Telegram 转发页均正常渲染')
+console.log('smoke passed：导航、实时工作流、联系人、定时任务、收发队列、对话记录、知识库、配置管理、Telegram 转发页均正常渲染')
 // 页面带着 1 秒倒计时定时器，断言完成后必须显式退出。
 process.exit(0)

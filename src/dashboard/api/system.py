@@ -7,7 +7,7 @@ def connection(ctx):
     """本机管理台还是对接外部管理台 —— 决定业务页面是否只读。"""
     mode = ctx.dashboard_mode()
     return 200, {'mode': mode, 'local_butler': mode == 'local', 'business_tools': mode == 'local',
-                 'note': '外部服务的用户、记忆和心跳请在对端管理台维护' if mode != 'local' else ''}
+                 'note': '外部服务的用户、联系人和心跳请在对端管理台维护' if mode != 'local' else ''}
 
 
 def health(ctx):

@@ -13,7 +13,8 @@ class RuntimeLocks:
             return self._locks.setdefault(key, RLock())
 
     def session(self, contact, *, session_kind='chat'):
-        kind = 'heartbeat' if session_kind == 'heartbeat' else 'chat'
+        # 与 HermesClient 的作用域保持一致：提炼独占一把锁，不挡真实回复。
+        kind = session_kind if session_kind in ('heartbeat', 'extract') else 'chat'
         return self._get(('session', self.endpoint, contact.profile, contact.key(), kind))
 
     def profile(self, profile):

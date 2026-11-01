@@ -17,7 +17,6 @@ export function pendingReasons(row) {
   if ((row.conversations || []).some(item => item.needs_route)) reasons.push('窗口信息待补充')
   if ([...(row.bindings || []), ...(row.memberships || [])].some(item => item.identity_confirmed === false || item.identity_confirmed === 0)) reasons.push('身份待确认')
   if (row.merge_candidates?.length) reasons.push('疑似重复档案')
-  if (row.memory_conflicts?.length) reasons.push('记忆冲突')
   if (row.kind === 'person' && !row.conversations?.length && !row.bindings?.length && !row.memberships?.length) {
     reasons.push('缺少身份或窗口')
   }

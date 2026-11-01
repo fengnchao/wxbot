@@ -3,7 +3,7 @@ type: module
 module: common
 summary: 仓库根、事件追踪、流和 wire schema 的跨包纯基础层
 coverage: overview
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/common/paths.py
   line: 29
@@ -20,6 +20,7 @@ sources:
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
+- raw/changes/2026-11-01-knowledge-vault-graph
 ---
 # 共享基础能力
 

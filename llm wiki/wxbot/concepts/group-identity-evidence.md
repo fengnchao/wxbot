@@ -3,16 +3,16 @@ type: concept
 module: identity
 summary: 群成员先按同群 member_key 与昵称认人，头像 dhash 只作证据且不足以区分个体
 coverage: core
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/butler/identity/user_registry.py
-  line: 355
+  line: 350
   anchor: def observe(
 - path: src/butler/identity/user_registry.py
-  line: 244
+  line: 239
   anchor: def _learn_nickname(
 - path: src/wxbot/inbox.py
-  line: 109
+  line: 111
   anchor: def sync_users(
 - path: src/wxbot/inbox.py
   line: 23
@@ -26,9 +26,15 @@ sources:
 - path: src/wxbot/wechat/chat_window.py
   line: 236
   anchor: def _runtime_avatar(
+- path: src/wxbot/wechat/main_window.py
+  line: 28
+  anchor: 'def plausible_nickname(name: str) -> bool:'
 changes:
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-10-31-identity-placeholder-names
+- raw/changes/2026-11-01-mention-fallback-unread-retry
+- raw/changes/2026-11-01-citation-sweep
+- raw/changes/2026-11-01-knowledge-vault-graph
 ---
 # 群成员身份：昵称优先，头像退为证据
 
@@ -48,18 +54,26 @@ wxbot 启动时 `sync_users` 会重放 `inbox` 里的头像证据，这是「每
 
 ## 已知取舍
 
-同群两个人用完全相同的昵称会被并成一条，接受这个取舍：现有头像证据本来就没有区分度，靠相似度防误并只会让重复继续增长。昵称是消息预览文本这类脏数据（如群分红通知）时仍会被当成昵称，属于消息预览解析的问题，不在本规则内。
+同群两个人用完全相同的昵称会被并成一条，接受这个取舍：现有头像证据本来就没有区分度，靠相似度防误并只会让重复继续增长。
+
+昵称来自消息预览时另受 `preview_sender` 的格式约束（`src/wxbot/wechat/main_window.py:45`）：长度超过 16（微信昵称上限）、含换行或句读、以 `[` 开头、以「你/我」开头且含空白的整句都不当昵称（`plausible_nickname`，`src/wxbot/wechat/main_window.py:28`）。这条约束是 2026-11-01 补的：此前「你收到一笔群分红 请在手机上查看」这类卡片文案被学成成员昵称，进而成为 `mention_name`，让 @ 永远选不中候选。人工在管理台确认的昵称不受此约束。
 
 ## 代码依据
 
 - `src/butler/identity/user_registry.py:355` — `def observe(`
 - `src/butler/identity/user_registry.py:244` — `def _learn_nickname(`
-- `src/wxbot/inbox.py:109` — `def sync_users(`
+- `src/wxbot/inbox.py:111` — `def sync_users(`
 - `src/wxbot/inbox.py:23` — `def member_nickname(`
 - `src/wxbot/queue_store.py:192` — `def identity_observations(`
 - `src/common/avatar_identity.py:57` — `def avatar_is_informative(`
 - `src/wxbot/wechat/chat_window.py:236` — `def _runtime_avatar(`
+- `src/wxbot/wechat/main_window.py:28` — `def plausible_nickname(name: str) -> bool:`
+- `src/wxbot/wechat/main_window.py:45` — `def preview_sender(preview: str, text: str) -> str | None:`
 
 ## 入库来源
 
 [[raw/changes/2026-10-31-group-identity-nickname]]
+
+[[raw/changes/2026-11-01-mention-fallback-unread-retry]]
+
+[[raw/changes/2026-11-01-citation-sweep]]

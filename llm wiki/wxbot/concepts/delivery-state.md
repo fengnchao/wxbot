@@ -3,16 +3,16 @@ type: concept
 module: wxbot
 summary: 完整回复、排队、已发送和结果不确定分别处理
 coverage: core
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/wxbot/queue_store.py
-  line: 334
+  line: 339
   anchor: def finish_batch_parts(
 - path: src/wxbot/queue_store.py
-  line: 586
+  line: 591
   anchor: def finish_delivery(
 - path: src/wxbot/queue_store.py
-  line: 627
+  line: 632
   anchor: def retry_failed_deliveries(
 - path: src/wxbot/delivery_policy.py
   line: 5
@@ -23,6 +23,8 @@ sources:
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
+- raw/changes/2026-11-01-model-error-contract
+- raw/changes/2026-11-01-mention-fallback-unread-retry
 ---
 # 模型完成与投递状态
 
@@ -34,7 +36,7 @@ changes:
 
 ## 重试、时限与人工核对
 
-模型失败时 retry_safe 默认 False；已提交结果未知不能自动重放。投递重试和整轮失败时限是另一套规则：首次失败起计时，过期可结束剩余未发送块并推进后续轮次；_end_reply 对 uncertain/confirming 保留 uncertain + detached/review，不能抹掉不确定证据。
+模型失败时 retry_safe 默认 False；已提交结果未知不能自动重放。这套判定与重试上限的完整契约见 [[concepts/model-error-contract]]。投递重试和整轮失败时限是另一套规则：首次失败起计时，过期可结束剩余未发送块并推进后续轮次；_end_reply 对 uncertain/confirming 保留 uncertain + detached/review，不能抹掉不确定证据。
 
 [[apis/dashboard-queue]] 展示剩余时限/动作，[[apis/dashboard-workflow]] 展示当前阶段；它们不能恢复队列。超时默认值从配置及实现读，不在图谱额外写死第二份。
 
@@ -44,12 +46,14 @@ changes:
 
 ## 代码依据
 
-- `src/wxbot/queue_store.py:334` — `def finish_batch_parts(`
-- `src/wxbot/queue_store.py:586` — `def finish_delivery(`
-- `src/wxbot/queue_store.py:627` — `def retry_failed_deliveries(`
+- `src/wxbot/queue_store.py:339` — `def finish_batch_parts(`
+- `src/wxbot/queue_store.py:591` — `def finish_delivery(`
+- `src/wxbot/queue_store.py:632` — `def retry_failed_deliveries(`
 - `src/wxbot/delivery_policy.py:5` — `def _end_reply(`
 - `src/wxbot/queue_worker.py:174` — `safe=getattr(exc,'retry_safe',False) is True`
 
 ## 入库来源
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
+
+[[raw/changes/2026-11-01-mention-fallback-unread-retry]]

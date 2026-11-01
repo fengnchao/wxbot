@@ -3,16 +3,16 @@ type: api
 module: butler
 summary: 同步消息处理契约，从 wxbot 批次到完整 Butler 回复
 coverage: core
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/butler/server.py
-  line: 312
+  line: 349
   anchor: 'if self.path in ("/v1/handle","/v1/handle-stream"):'
 - path: src/butler/server.py
-  line: 64
+  line: 68
   anchor: def _authed(
 - path: src/butler/agent/core.py
-  line: 69
+  line: 73
   anchor: def as_dict(
 - path: src/wxbot/processor/butler.py
   line: 60
@@ -24,6 +24,10 @@ changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-switchable-models
 - raw/changes/2026-10-31-model-access-switch-core-emit
+- raw/changes/2026-11-01-knowledge-episodes
+- raw/changes/2026-11-01-knowledge-sharding
+- raw/changes/2026-11-01-knowledge-auto
+- raw/changes/2026-11-01-knowledge-vault-graph
 ---
 # POST /v1/handle
 
@@ -68,11 +72,17 @@ POST `/v1/handle`；Bearer token 经 Handler._authed 校验，无服务 token �
 
 2026-10-31 的接入方式改动只影响 `emit('backend')` 的模型来源上报，请求/响应字段与校验未变。
 
+2026-11-01 的 L1 原文沉淀只在 `_handle_request` 内部旁路写 [[tables/kb-episodes]]，失败只记日志：请求体、响应字段与 `meta.reply_complete` 契约均未变，handle 的调用方无需改动。
+
+同日的拆库把 [[tables/kb-episodes]] 的库根从单文件 `data/knowledge.sqlite3` 改成 `data/knowledge/` 目录（一人一库 + 目录库，见 [[tables/kb-owners]]，另加 [[tables/kb-facts]]）：`_record_episode` 的入参、三态 `outcome` 与全包异常的约定未变，`Result.as_dict` 的字段也没动，所以本端点的请求/响应契约同样不变。
+
+2026-11-01 的自动提炼批次（[[symbols/knowledge-auto]]）在 server 里新增的是 `/v1/knowledge/extract` 两条旁路路由，只把 `make_handler` 往下推了几行：`/v1/handle` 的入参校验、响应字段与 `meta.reply_complete` 约定一条未动。
+
 ## 代码依据
 
-- `src/butler/server.py:312` — `if self.path in ("/v1/handle","/v1/handle-stream"):`
-- `src/butler/server.py:64` — `def _authed(`
-- `src/butler/agent/core.py:69` — `def as_dict(`
+- `src/butler/server.py:350` — `if self.path in ("/v1/handle","/v1/handle-stream"):`
+- `src/butler/server.py:68` — `def _authed(`
+- `src/butler/agent/core.py:70` — `def as_dict(`
 - `src/wxbot/processor/butler.py:60` — `def handle_reply(`
 - `src/wxbot/processor/butler.py:129` — `def _decode_reply(`
 
@@ -84,3 +94,9 @@ POST `/v1/handle`；Bearer token 经 Handler._authed 校验，无服务 token �
 [[raw/changes/2026-10-31-switchable-models]]
 
 [[raw/changes/2026-10-31-model-access-switch-core-emit]]
+
+[[raw/changes/2026-11-01-knowledge-episodes]]
+
+[[raw/changes/2026-11-01-knowledge-sharding]]
+
+[[raw/changes/2026-11-01-knowledge-auto]]

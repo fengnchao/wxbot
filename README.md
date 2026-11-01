@@ -1,13 +1,13 @@
 # wxbot / Butler
 
 Windows 上的个人微信机器人：wxbot 负责微信窗口收发与持久队列，Butler 负责用户身份、权限、
-记忆、提醒、心跳和消息接口，管理台负责展示与配置；模型可以是本机 Codex，也可以是已有的
+提醒、心跳、知识库和消息接口，管理台负责展示与配置；模型可以是本机 Codex，也可以是已有的
 智能体或 OpenAI 兼容 API。
 
 | 进程 | 入口 | 端口 | 职责 |
 |---|---|---|---|
 | wxbot | `python -m wxbot.main` | 8765（外发 HTTP） | 微信主窗口监听、群聊 @ 判定、收发队列、分批输入与发送 |
-| Butler | `python -m butler.server --config config.butler.toml` | 8770 | 用户、权限、记忆、提醒、心跳、消息接口、插件 MCP |
+| Butler | `python -m butler.server --config config.butler.toml` | 8770 | 用户、权限、提醒、心跳、知识库、消息接口、插件 MCP |
 | 管理台 | `python -m dashboard.server` | 8788 | 只读运行事实 + 写配置文件；页面在 `/app/` |
 
 `python -m butler start` 按 `config.wxbot.toml` 的 `[installation].mode` 一次性拉起：
@@ -45,9 +45,9 @@ cd butler-wxbot
 `local/external` 写进 `config.wxbot.toml` 的 `[installation].mode`，wxbot 的 `[model].backend` 固定为 `butler`。
 本机模型选择在 `config.butler.toml` 的 `[agent].provider`，Codex 参数在 `[codex]`，其它后端参数在 `[model]`。
 兼容老 Hermes 配置的 `[hermes]`。非 Codex 接入不要求本机 Codex 登录。
-统一链路是 **wxbot → Butler → 所选模型/智能体**；联系人、身份、记忆和提醒由 Butler 持有，模型切换不迁移这些业务数据。
+统一链路是 **wxbot → Butler → 所选模型/智能体**；联系人、身份、知识库和提醒由 Butler 持有，模型切换不迁移这些业务数据。
 其它智能体使用已有的兼容协议接入，不假设任意 CLI 都支持 Cursor 协议。
-外部 Butler 能力由远端管理，本机管理台会关闭对应的远端账户／记忆／心跳入口。
+外部 Butler 能力由远端管理，本机管理台会关闭对应的远端账户／心跳入口。
 向导只写配置，不验证真实模型连接，也不启动服务。
 
 在管理台「配置管理 → 模型后端」切换 provider，页面按草稿选择显示地址、模型名、密钥或 Cursor 目录等适用字段。
@@ -86,6 +86,9 @@ cd butler-wxbot
 | `migrate` | 旧目录升级、路径整理、过期编辑锁清理 |
 | `contacts-preview` | 只读预览统一联系人迁移结果 |
 | `contacts-migrate` | 显式切换统一联系人，需 `--acknowledge-stopped` |
+| `knowledge-extract` | 手动提炼一批事实（`--owner`、`--batch`、`--dry-run`），与自动提炼共用一把锁 |
+| `knowledge-migrate` | 把 SQLite 时代的 `kb_*` 库与遗留 memory 表搬进 Obsidian vault，原文件改名留底 |
+| `knowledge-prune` | 按 `retention_days` 删除过期原文，事实节点不动 |
 
 服务一律由使用者手动启动与重启，不要去停止或重启别人的进程。
 统一联系人迁移、备份和回退步骤见 `python -m butler contacts-preview --help` 与
@@ -105,7 +108,7 @@ tools/          本机调试与打包（用法见 tools/README.md）
 plugins/butler-wechat/  Codex 插件：安装引导、角色、功能 Skill、MCP 连接
 tests/          离线回归测试（仅本地，不入库）：support/ unit/ butler/ dashboard/ integration/
 llm wiki/wxbot/  Obsidian 知识图谱：模块/接口/表/符号、影响报告、追加修改记录与本地检查
-data/           本机认证和运行数据，禁止提交 Git
+data/           本机认证和运行数据（含知识图谱 vault），禁止提交 Git
 config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，不要改名）
 ```
 
@@ -153,7 +156,7 @@ config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，�
 | `identity/contact_identity.py` | 事务内的「同一个人」匹配，成员关系证据留在绑定上 |
 | `identity/contact_admin.py` | 面向业务的统一联系人管理；路径只从服务端配置来 |
 | `identity/contact_migration.py` | 从旧联系人来源到单一业务库的显式离线切换（预览 + 迁移） |
-| `identity/user_registry.py` | 管理员持有的身份与记忆范围；头像哈希是证据不是 ID |
+| `identity/user_registry.py` | 管理员持有的身份与知识库归属；头像哈希是证据不是 ID |
 | `identity/user_api.py` | 带类型的运维操作，调用方必须先通过服务 token |
 | `identity/directory.py` | Butler 自己的本地通道目录；不授予身份或工具权限 |
 | `identity/groups.py` | 用户分组（订阅字典）：`messageType` → 绑定的联系人 |
@@ -186,6 +189,9 @@ config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，�
 | `runtime/model_switch.py` | 请求固定模型代际，后续请求重载模型参数，旧后端在在途完成后关闭 |
 | `runtime/model_migration.py` | 旧 direct 安装显式改为 wxbot → Butler，保留本机私有配置备份 |
 | `runtime/plugin.py` | 可移植插件包与应用之间的版本化契约 |
+| `runtime/knowledge_store.py` | 知识图谱存储：一人一个 Obsidian vault，节点是 Markdown，关联靠 `[[双链]]` |
+| `runtime/knowledge_extract.py` | 用模型把原文提炼成节点事实；独立会话作用域，不占用聊天上下文 |
+| `runtime/knowledge_auto.py` | 自动提炼的单线程调度：空闲窗口、批量上限、指数退避与进程内单飞 |
 
 #### channels/telegram/ —— 外部通道
 
@@ -259,7 +265,7 @@ config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，�
 | 文件 | 职责 |
 |---|---|
 | `api/config.py` | 配置总览与保存：wxbot／Butler 配置、新闻分组设置 |
-| `api/contacts.py` | 联系人档案：读取、记忆与审计流水、保存（需本机页面确认） |
+| `api/contacts.py` | 联系人档案：读取、审计流水、保存（需本机页面确认） |
 | `api/users.py` | Butler 用户目录代理；凭证只留服务端，浏览器只看脱敏结果 |
 | `api/groups.py` | 用户分组字典：读取与 bind／unbind |
 | `api/heartbeat.py` | 角色心跳：策略读写、执行状态、技能目录、立即触发 |
@@ -292,6 +298,7 @@ config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，�
 | `dashboard/directory_view.py` | 目录投影与带版本编辑（走 Butler 的目录服务） |
 | `dashboard/runtime_view.py` | 与后端无关的运行时投影；模型凭据不会到浏览器 |
 | `dashboard/user_admin.py` | 服务端鉴权的用户管理代理；浏览器不持凭据 |
+| `dashboard/knowledge_view.py` | 只读投影：把 vault 里的原文与事实读成页面要的列表 |
 | `dashboard/job_admin.py` | 管理台 → Butler 的提醒删除代理 |
 | `dashboard/telegram_view.py` | 只读 Telegram 入库／新闻投影；绝不迁移或恢复数据库 |
 | `dashboard/telegram_relay_admin.py` | 本机转发配置编辑；不做生命周期或投递操作 |
@@ -373,10 +380,12 @@ web/dist/                 构建产物，随仓库提交
 | `src/queueFocus.js` | 工作流 → 收发队列的一次性筛选传递 |
 | `src/views/WorkflowView.vue` | 实时工作流首页：消息列表、节点详情、模型实时输出 |
 | `src/views/QueueView.vue` | 收发队列：分区、筛选、异常核对按钮与失败记录 |
-| `src/views/ContactsView.vue` | 联系人：监听、群昵称、角色／心跳、订阅与记忆 |
+| `src/views/ContactsView.vue` | 联系人：监听、群昵称、角色／心跳与订阅 |
 | `src/views/JobsView.vue` | 定时任务：按归属分组，支持逐条删除 |
 | `src/views/ConfigurationView.vue` | 配置管理：分类、搜索、草稿、保存与版本冲突提示 |
 | `src/views/TelegramRelayView.vue` | Telegram 转发设置与核对 |
+| `src/views/KnowledgeView.vue` | 对话记录：按人与会话筛选的原文与回复（只读） |
+| `src/views/FactsView.vue` | 知识库：vault 里提炼出的事实、类型、原话与置信度（只读） |
 | `src/components/WorkflowNode.vue` | 工作流节点卡片 |
 | `src/components/WorkflowTrace.vue` | 单条消息的流转详情与阶段耗时 |
 | `src/components/WorkflowWires.vue` | 服务之间的动态连线 |
@@ -384,7 +393,7 @@ web/dist/                 构建产物，随仓库提交
 | `src/components/StructuredEditor.vue` | 复杂结构的 JSON 编辑器 |
 | `src/components/ContactDialog.vue` | 联系人详情弹窗 |
 | `src/components/ContactMergeDialog.vue` | 人物身份合并预览、明确确认与过期版本处理 |
-| `src/components/UserDialog.vue` | 用户／记忆管理弹窗 |
+| `src/components/UserDialog.vue` | 用户绑定编辑：身份、头像参考与修改流水 |
 | `src/components/HeartbeatStatus.vue` | 心跳计划时间与最近事件 |
 | `src/styles/theme.css` | 主题层：设计令牌、导航、控件与卡片皮肤 |
 | `src/styles/dashboard.css` | 基础布局与组件类 |
@@ -436,7 +445,6 @@ web/dist/                 构建产物，随仓库提交
 | `skills/roles/butler-companion/SKILL.md` | 角色：日常陪伴对话 |
 | `skills/roles/paimon/SKILL.md` 与同目录 md | 角色：派蒙（人物设定、关系、记忆、冲突处理） |
 | `skills/roles/tong-jincheng-perspective/` | 角色：童锦程视角及研究参考材料 |
-| `skills/tools/butler-memory/SKILL.md` | 工具：记忆读写边界 |
 | `skills/tools/create-cron-job/SKILL.md` | 工具：创建定时任务 |
 | `skills/tools/telegram-relay/SKILL.md` | 工具：Telegram 频道窗口转发 |
 | `skills/tools/setup/SKILL.md` | 工具：安装引导（仅安装时使用，不进入业务工具白名单） |
@@ -501,7 +509,8 @@ Butler 递归读取统一的 `skills/` 根目录，按 `roles/` 和 `tools/` 子
 | POST | `/v1/push/bundle` | 图文组合投递 |
 | POST/GET | `/v1/media`、`/v1/media/<id>` | 媒体登记与取回（只认服务端签发的不透明 ID） |
 | GET | `/v1/runtime` | 运行时状态 |
-| GET/POST | `/v1/users`、`/v1/users/observe`、`/v1/users/memory`、`/v1/users/audit` | 用户目录、身份观测、记忆与审计 |
+| GET/POST | `/v1/knowledge/extract` | 自动提炼的开关与进度；POST 立即跑一轮（202，正在跑时 409） |
+| GET/POST | `/v1/users`、`/v1/users/observe`、`/v1/users/audit` | 用户目录、身份观测与审计 |
 | GET | `/v1/skills` | 技能目录（服务端读 Hermes） |
 | POST | `/v1/jobs/delete` | 删除提醒任务 |
 | POST | `/v1/group/archive` | 群归档 |
@@ -510,7 +519,7 @@ Butler 递归读取统一的 `skills/` 根目录，按 `roles/` 和 `tools/` 子
 | POST | `/v1/telegram-relay/authorize`、`/v1/telegram-relay/resolve` | 中继授权快照与核对 |
 | POST | `/mcp` | 插件用 MCP 网关（无状态 Streamable HTTP） |
 
-- 调用 Hermes 时同时传 `X-Hermes-Session-Key`（长期身份／记忆归属）与
+- 调用 Hermes 时同时传 `X-Hermes-Session-Key`（长期身份与知识库归属）与
   `X-Hermes-Session-Id`（同一段对话连续性）；只传前者会每轮派生新会话。
 - 模型行动标记 `<<butler:action {"skill":"...","args":{...}}>>` 由 `agent/router.py`
   去掉并交 `agent/skills.py` 白名单执行；未知 skill 失败留痕。`<<butler:silent>>` 表示不回复。
@@ -526,10 +535,12 @@ Butler 递归读取统一的 `skills/` 根目录，按 `roles/` 和 `tools/` 子
 - 主要 GET：`/api/workflow`、`/api/workflow-content`、`/api/workflow-stream`、`/api/flow`、
   `/api/wxbot`、`/api/queue`、`/api/configuration`、`/api/contacts`、`/api/users`、`/api/jobs`、
   `/api/groups`、`/api/heartbeat-config`、`/api/heartbeat-status`、`/api/skills`、
-  `/api/runtime`、`/api/connection`、`/api/telegram-relay`、`/api/news-config`、`/api/health`。
+  `/api/runtime`、`/api/connection`、`/api/telegram-relay`、`/api/news-config`、`/api/health`、
+  `/api/knowledge`、`/api/knowledge/facts`、`/api/knowledge/extract`。
 - 主要写：`/api/configuration`、`/api/queue-action`、`/api/queue-delete-unsent`、
   `/api/workflow-delete`、`/api/jobs/delete`、`/api/contacts`、`/api/users`、`/api/groups`、
-  `/api/heartbeat-config`、`/api/heartbeat-trigger`、`/api/telegram-relay`、`/api/news-config`。
+  `/api/heartbeat-config`、`/api/heartbeat-trigger`、`/api/telegram-relay`、`/api/news-config`、
+  `/api/knowledge/extract`。
 
 ## 配置
 
@@ -540,7 +551,48 @@ Butler 递归读取统一的 `skills/` 根目录，按 `roles/` 和 `tools/` 子
 - 相对运行路径以对应配置文件所在目录为基准，切换工作目录不会改变数据库或队列位置。
 - 管理台自身配置是 `config.log.toml`（`LOG_CONFIG` 可覆盖）；命令行与环境变量优先于文件。
 - 队列默认 `cache/wxbot_queue.sqlite3`；业务数据在 `data/business.sqlite3`；
-  Codex 登录与会话在 `data/codex/`。这些目录与所有实际配置均不提交。
+  Codex 登录与会话在 `data/codex/`；知识图谱在 `data/knowledge/`（一人一个 vault）。
+  这些目录与所有实际配置均不提交。
+- `[knowledge]` 控制知识图谱：`enabled` 默认开，`auto_extract` 与 `auto_prune` 默认关，
+  需要显式打开；其余键见下一节。
+
+## 知识库
+
+一个人一个 Obsidian vault：`data/knowledge/p-<slug>/vault/`。节点是 Markdown，关联只靠正文里的
+`[[双链]]`，所以用 Obsidian 打开就能在 graph view 里看到这个人的人物、组织、话题和对话原文怎么连起来。
+
+```
+data/knowledge/
+  index.json                 目录缓存：owner、条数、提炼游标；删掉也能从 vault 重建
+  p-<slug>/vault/
+    人物/冯草草.md            事实按 kind 分小节：身份 / 偏好 / 关系 / 事件 / 话题
+    组织/鸭王集训营.md
+    话题/AI 编程.md
+    对话/2026-11-01.md       按天记录的原文，事实里可以 [[对话/2026-11-01]] 溯源
+```
+
+- 原文（L1）在处理完成时写成当天的 `对话/YYYY-MM-DD.md` 块；事实（L2）由模型从中提炼，
+  写成对应节点小节里的一行，行尾 HTML 注释带指纹、key、kind、置信度、来源和原话。
+  同一 `kind|key|value` 指纹去重，矛盾的说法各记一条。
+- 为什么不是表：字段能存进表，节点之间的拓扑存不进；`[[双链]]` 是 Obsidian 唯一认的边。
+  为什么一人一个 vault：一个人的数据坏了或整体清空都不牵连别人，图也不会被别人的节点淹没。
+  为什么原文也写 Markdown：事实要能点回原话才站得住，按天一个文件把文件数压到每年 365 个。
+- 自动提炼：Butler 进程内一个单线程调度器，按 `extract_interval_minutes`（默认 60）扫一遍。
+  只有「最近 `extract_idle_seconds`（默认 120）没有新消息」且某人游标之后还有
+  `extract_min_backlog`（默认 1）条原文时，才把一批（`extract_batch`，默认 40 条）交给模型；
+  一轮最多 `extract_max_owners`（默认 5）人。模型失败按 `extract_retry_minutes` 指数退避，上限 6 小时。
+  游标是时间戳，只在整批成功后前移；模型给出空数组也算成功，非 JSON 不前移。
+- 关掉 `auto_extract` 不影响 `python -m butler knowledge-extract` 手动跑。`auto_prune` 打开后按
+  `prune_interval_hours`（默认 24）清 `retention_days` 之前的原文文件，事实节点不参与清理。
+- 单飞：`data/cache/knowledge_extract.lock` 由调度器与 CLI 共用，锁文件超过 30 分钟视为上次进程
+  崩溃并回收。状态与审计写在 `data/cache/knowledge_extract_state.json` 和
+  `knowledge_extract_audit.jsonl`，只记条数与错误类型，不写原文。
+- 提炼使用独立的会话作用域，不占用聊天上下文。对话注入的事实条数由 `KNOWLEDGE_INJECT_FACTS`
+  控制（默认 20），`/v1/handle` 前一次性读出来放进提示，不额外多一轮模型调用。
+- 写 Markdown 没有事务：先写同目录 `.tmp` 再 `os.replace`，读侧永远看到完整文件。
+- 老库升级：`python -m butler knowledge-migrate` 把 SQLite 时代的 `kb_*` 库和遗留 `memory` 表
+  搬进 vault，成功后原文件改名留底。这一步是显式的，只在停服后由使用者手动执行。
+- 删除联系人档案不删 vault：文件操作不在 SQLite 事务里，回滚会把已写的 Markdown 一起带走。
 
 ## 管理台
 
@@ -551,9 +603,11 @@ Butler 递归读取统一的 `skills/` 根目录，按 `roles/` 和 `tools/` 子
 |---|---|
 | 实时工作流 | 每条消息的当前位置、动态连线、工具进度、失败倒计时；点选看正文与完整回复 |
 | 收发队列 | 待处理／异常待核对／历史分区，逐类分页；异常旁有重试、确认已发、立即丢弃 |
-| 联系人 | 默认会话列表按“私聊 / 群聊”分区并分别计数；另有“私聊 / 群聊 / 待确认”分类，私聊只列有私聊窗口的人，纯群成员从群详情打开资料并可返回原群；状态与问题类型单独筛选，详情分概览、基本资料、AI 设置、主动消息、群身份、个人记忆和身份管理（唯一来源 `data/business.sqlite3`） |
+| 联系人 | 默认会话列表按“私聊 / 群聊”分区并分别计数；另有“私聊 / 群聊 / 待确认”分类，私聊只列有私聊窗口的人，纯群成员从群详情打开资料并可返回原群；状态与问题类型单独筛选，详情分概览、基本资料、AI 设置、主动消息、群身份和身份管理（唯一来源 `data/business.sqlite3`） |
 | 定时任务 | 按归属分组的卡片；Butler 提醒可逐条删除 |
-| 配置管理 | 六个分类的可编辑配置：中文名称、用途、来源、生效方式；保留注释、备份与 409 版本冲突 |
+| 对话记录 | 每条消息的用户原文、机器人回复与失败标注，按人与会话筛选（只读） |
+| 知识库 | vault 里提炼出的长期事实、类型、支撑原话与置信度；顶部显示自动提炼的上次结果与下次时间，可「立即提炼」一批 |
+| 配置管理 | 七个分类的可编辑配置：中文名称、用途、来源、生效方式；保留注释、备份与 409 版本冲突 |
 | Telegram 转发 | 转发设置与人工核对 |
 
 - 页面只保存排序与列表收起偏好；配置草稿留在内存，刷新整个浏览器会丢失。
@@ -566,11 +620,11 @@ Butler 递归读取统一的 `skills/` 根目录，按 `roles/` 和 `tools/` 子
 - 修改人物姓名或群昵称不会合并人物；不同人物在同一群可以重名，管理页面保留各自入口。仅有群身份无需创建私聊。
 - 角色与允许功能显示最终配置及来源；会话单独设置优先于联系人默认设置，明确取消继承的会话不会误显示默认角色。
 - 主动消息按窗口维护订阅和自动问候，显示发送目标与运行记录；手动触发会先明确确认可能发送消息。
-- 移除一条成员身份只清除该绑定及识别证据，最后一条被移除后也保留人物、窗口和个人记忆。“删除联系人”会清理该人物的全部身份、私聊窗口、头像和个人记忆，操作不可撤销。
+- 移除一条成员身份只清除该绑定及识别证据，最后一条被移除后也保留人物和窗口。“删除联系人”会清理该人物的全部身份、私聊窗口和头像，操作不可撤销；知识库里的 Markdown 文件不跟着删。
 - 联系人详情头部直接提供“删除联系人”，群聊详情提供“移除群聊”，所有详情分区均可使用，执行前保留原有确认提示。
-- 身份关联和合并统一先读取 `GET /api/contacts/merge-preview?source_id=...&target_id=...`。返回双方身份、窗口、默认策略、记忆冲突、`version` 和 `preview_version`；联系人写动作 `merge`（以及兼容的 `link_binding`）必须提交对应的 `preview_version`。提交前事务内重算版本摘要；记忆、绑定或配置变化返回 409，需重新预览。
+- 身份关联和合并统一先读取 `GET /api/contacts/merge-preview?source_id=...&target_id=...`。返回双方身份、窗口、默认策略、`version` 和 `preview_version`；联系人写动作 `merge`（以及兼容的 `link_binding`）必须提交对应的 `preview_version`。提交前事务内重算版本摘要；绑定或配置变化返回 409，需重新预览。
 - 同名和相似头像仅作为管理候选；新增窗口/群身份不会隐式合并现有人物。旧管理员用户接口的 `create` 不复用同名人物，统一模式下旧 `link` 请改用上述合并预览流程。微信自动观察识别算法不在本轮重构范围内。
-- 未命名空档案清理移至身份管理下的全局维护工具，展示服务端 `can_cleanup` 候选；`person_cleanup` 必须带明确的 `ids` 列表（最多 1000）。服务器在事务中再次排除带窗口、已确认身份、个人记忆、记忆来源或身份重定向的档案。
+- 未命名空档案清理移至身份管理下的全局维护工具，展示服务端 `can_cleanup` 候选；`person_cleanup` 必须带明确的 `ids` 列表（最多 1000）。服务器在事务中再次排除带窗口、已确认身份或身份重定向的档案。
 - 本轮无数据库迁移。后端改动由使用者手动重启 Butler 和管理台后加载；前端 `web/dist` 已构建，刷新页面加载。无需为本轮改动重启 wxbot。
 
 前端纯规则回归可运行 `cd web` 后的 `node --test scripts/contactPresentation.test.mjs`；页面交互仍通过 `npm run build` 与 `npm run smoke` 校验，全部使用假数据。
@@ -582,6 +636,9 @@ Butler 递归读取统一的 `skills/` 根目录，按 `roles/` 和 `tools/` 子
 - 群聊按右侧人数标签识别，`[bot].mention_names` 配机器人昵称；
   `[bot].group_reply_chance`（默认 0.1）与 `[bot].emoji_chance`（默认 0.2）决定非 @ 消息
   是否回复、发文字还是发表情。所有群消息都会进模型上下文。
+- 未读只有读到文字才算采集成功：同一条未读持续读不到内容（例如只有小程序卡片、红包）时按
+  `poll_interval` 的倍数退避，满 `[bot].unread_give_up_attempts`（默认 5）次后放弃并清掉该会话的
+  待读任务；未读数或「有人@我」变化后重新纳入。放弃前该会话的发送也会被待读任务挡住。
 - 队列：`quiet_seconds` 默认 3、`max_wait_seconds` 10、`confirm_timeout` 5，模型并发由
   `[queue].max_model_requests` 控制（默认 2）。同会话同成员连续文本合并，命令与其他成员发言形成边界。
 - 发送：每批字符数 `wechat.typing.chunk_size`（默认 5）、间隔 `chunk_interval`（默认 0.5 秒）；

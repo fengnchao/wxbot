@@ -22,7 +22,7 @@ EVENT_NODE = dict(wxbot_received=0, wxbot_inbox=1, wxbot_merge=1, wxbot_model=1,
                   butler_received=2, butler_session=2, hermes_request=3, hermes_tool=3,
                   hermes_generating=3, hermes_status=3, hermes_approval=3, hermes_result=4,
                   butler_action=4, butler_result=4, wxbot_result=5, wxbot_outbox=5, wechat_submitted=6)
-EVENT_NODE.update(butler_identity=2,butler_memory=2,butler_context=2,wxbot_group_context=2,
+EVENT_NODE.update(butler_identity=2,butler_knowledge=2,butler_context=2,wxbot_group_context=2,
                   wxbot_group_decision=1,wechat_mention=6)
 IGNORED = {'not_started', 'unconfirmed', 'missing'}
 

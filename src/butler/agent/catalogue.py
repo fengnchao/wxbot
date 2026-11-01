@@ -6,8 +6,10 @@ import yaml
 
 
 class SkillCatalogue:
-    def __init__(self, root):
+    def __init__(self, root, log=None):
         self.root = Path(root).resolve()
+        self.log = log or (lambda *a, **k: None)
+        self._warned = set()
 
     def _entries(self):
         entries = {}
@@ -57,9 +59,15 @@ class SkillCatalogue:
             raise ValueError('Unknown or invalid role skill')
         if not isinstance(allowed, list) or any(not isinstance(n, str) for n in allowed):
             raise ValueError('Invalid skill allowlist')
-        if any(n not in entries or entries[n]['category'] != 'tool' or 'butler-setup' in entries[n]['tags'] for n in allowed):
-            raise ValueError('Unknown tool skill or role in tool allowlist')
-        return {'role_skill': role, 'allowed_skills': sorted(set(allowed))}
+        usable = {name for name, item in entries.items()
+                  if item['category'] == 'tool' and 'butler-setup' not in item['tags']}
+        dropped = {n for n in allowed if n not in usable}
+        if dropped - self._warned:
+            # 技能目录是跟着安装走的：某个安装没装这个技能时降级为不可用，
+            # 不能让一个过期的白名单把该联系人的全部工具一起判死。
+            self._warned |= dropped
+            self.log('技能白名单里有未安装的工具技能，已忽略: %s', ', '.join(sorted(dropped)))
+        return {'role_skill': role, 'allowed_skills': sorted({n for n in allowed if n in usable})}
 
     def read(self, name, file_path='SKILL.md'):
         entries = self._entries()

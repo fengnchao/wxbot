@@ -3,10 +3,10 @@ type: module
 module: dashboard
 summary: 聚合运行事实，读取队列不初始化或迁移数据库
 coverage: overview
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/dashboard/routes.py
-  line: 26
+  line: 28
   anchor: ROUTES = (
 - path: src/dashboard/queue_view.py
   line: 15
@@ -15,14 +15,21 @@ sources:
   line: 41
   anchor: 'class WorkflowView:'
 - path: src/dashboard/config_view.py
-  line: 90
+  line: 95
   anchor: 'class ConfigView:'
 - path: src/dashboard/config_editor.py
   line: 153
   anchor: def _access_changes(
+- path: src/dashboard/api/knowledge.py
+  line: 47
+  anchor: 'def extract_status(ctx):'
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-model-access-switch
+- raw/changes/2026-11-01-knowledge-episodes
+- raw/changes/2026-11-01-knowledge-sharding
+- raw/changes/2026-11-01-knowledge-auto
+- raw/changes/2026-11-01-knowledge-vault-graph
 depends_on:
 - modules/common
 ---
@@ -36,6 +43,12 @@ depends_on:
 
 [[apis/dashboard-workflow]] 被 [[modules/web]] 的 WorkflowView 消费；[[apis/dashboard-queue]] 被 QueueView 消费。数据库是 [[modules/wxbot]] 的队列，视图使用 SQLite `mode=ro`；GET 不允许初始化、迁移或恢复。
 
+[[apis/dashboard-knowledge]] 同属只读投影，但读的是 Butler 侧的 [[tables/kb-episodes]]（L1 原文）与 [[tables/kb-facts]]（L2 事实），枚举靠 [[tables/kb-owners]]。`KnowledgeView` 先读索引库列人；索引库缺失或损坏时退回扫目录，从各库内的 `distinct owner` 反推。每个库都用 `mode=ro` 打开，**不建库不建表**：默认就没有历史，空态不是错误。
+
+同一词条里还有自动提炼两条：`GET /api/knowledge/extract`（`src/dashboard/routes.py:47`）把 Butler 的调度器状态包一层 `available` 转发给页面，Butler 不可达只是 `available: false`；`POST /api/knowledge/extract`（`:68`）只做参数收拢再转给 Butler（`api/support.py:172`），**管理台自己不跑模型、不写库**。两条都受 `BUSINESS_GET` / `BUSINESS_POST` 门禁（`routes.py:18`、`:25`），非本机部署返回 503。
+
+两个视图都不写库：事实上游是 Butler 的调度器（[[symbols/knowledge-auto]] → [[symbols/knowledge-extract]]），管理台只负责展示，外加把「立即提炼」转发给 Butler 一次。
+
 ## 边界与缺口
 
 写操作需专用动作头、JSON、明确 acknowledge、可信 Host 和同源；队列写操作和联系人写操作不在本批接口词条范围。身份管理归 [[modules/identity]]，不是页面自行授予。配置与业务操作细节仍见 README 和实际处理器。
@@ -44,14 +57,21 @@ depends_on:
 
 ## 代码依据
 
-- `src/dashboard/routes.py:26` — `ROUTES = (`
+- `src/dashboard/routes.py:28` — `ROUTES = (`
 - `src/dashboard/queue_view.py:15` — `class QueueView:`
 - `src/dashboard/workflow_view.py:41` — `class WorkflowView:`
-- `src/dashboard/config_view.py:90` — `class ConfigView:`
+- `src/dashboard/config_view.py:95` — `class ConfigView:`
 - `src/dashboard/config_editor.py:153` — `def _access_changes(`
+- `src/dashboard/api/knowledge.py:47` — `def extract_status(ctx):`
 
 ## 入库来源
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
 
 [[raw/changes/2026-10-31-model-access-switch]]
+
+[[raw/changes/2026-11-01-knowledge-episodes]]
+
+[[raw/changes/2026-11-01-knowledge-sharding]]
+
+[[raw/changes/2026-11-01-knowledge-auto]]

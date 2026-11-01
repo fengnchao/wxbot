@@ -3,7 +3,7 @@ type: module
 module: wxbot
 summary: 微信 UI 主线程与不接触 UI 的模型队列线程
 coverage: overview
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/wxbot/inbox.py
   line: 45
@@ -18,7 +18,7 @@ sources:
   line: 29
   anchor: def build_processor(
 - path: src/wxbot/inbox.py
-  line: 109
+  line: 111
   anchor: def sync_users(
 - path: src/wxbot/queue_store.py
   line: 192
@@ -28,6 +28,7 @@ changes:
 - raw/changes/2026-10-31-switchable-models
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-10-31-identity-placeholder-names
+- raw/changes/2026-11-01-mention-fallback-unread-retry
 depends_on:
 - modules/common
 ---
@@ -47,6 +48,12 @@ depends_on:
 
 改队列字段需检查 [[modules/dashboard]] 的只读 SQL 和 [[modules/web]] 展示。改分句/流式协议需检查 [[symbols/queue-finish]]、[[concepts/delivery-state]] 及 [[concepts/message-pipeline]]。用户自己重启服务，离线验证不能发送真人微信。
 
+## 采集与提及
+
+未读任务只在采集成（`_capture`）时清除；读不到可采内容的未读按指数退避，达到 `[bot].unread_give_up_attempts`（默认 5）后放弃并清掉 `pending_sessions`，否则同一行记录会让 `prepare` 永远跳过该联系人。细节见 [[concepts/unread-capture-retry]]。
+
+群聊 @ 提及由 [[symbols/mention-selection]] 完成，候选不唯一或昵称不可信时回退为不带 @ 的纯正文；回退清理只能使用 uiautomation `SpecialKeyNames` 里声明过的键。
+
 ## 启动时的身份补登
 
 `MainInbox.sync_users` 只重放头像证据，不重放历史消息正文，也不建回复。重放时丢弃空白头像（遮挡时抓到的纯色块）和没有昵称的群成员观测：这两类建不出可核对的人，只会在每次启动时多出一条「待命名」。昵称取群目录当前映射，而不是入库那一刻的快照；截图给不出真名时的占位名（`成员-<ID前8位>`）也当作无名，否则照样建出待命名档案。见 [[concepts/group-identity-evidence]]。
@@ -58,7 +65,7 @@ depends_on:
 - `src/wxbot/queue_store.py:91` — `class QueueStore(`
 - `src/wxbot/main.py:29` — `def build_processor(`
 - `src/wxbot/inbox.py:23` — `def member_nickname(`
-- `src/wxbot/inbox.py:109` — `def sync_users(`
+- `src/wxbot/inbox.py:111` — `def sync_users(`
 - `src/wxbot/queue_store.py:192` — `def identity_observations(`
 
 ## 入库来源

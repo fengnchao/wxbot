@@ -38,8 +38,6 @@ class BusinessStore:
             db.executescript('''
               CREATE TABLE IF NOT EXISTS sessions(scope TEXT PRIMARY KEY, thread_id TEXT NOT NULL);
               CREATE TABLE IF NOT EXISTS identities(owner TEXT PRIMARY KEY,contact TEXT,profile TEXT,uid TEXT,channel_type TEXT);
-              CREATE TABLE IF NOT EXISTS memory(owner TEXT,key TEXT,value TEXT,updated REAL,
-                PRIMARY KEY(owner,key));
               CREATE TABLE IF NOT EXISTS reminders(id TEXT PRIMARY KEY,owner TEXT,contact TEXT,
                 text TEXT,schedule TEXT,recurring INTEGER,due REAL,status TEXT,detail TEXT,
                 delivery_id TEXT,created REAL);
@@ -80,73 +78,9 @@ class BusinessStore:
             row=db.execute('SELECT * FROM identities WHERE contact=? ORDER BY rowid DESC LIMIT 1',(contact,)).fetchone()
             return dict(row) if row else None
 
-    def runtime_memory(self):
-        with self.transaction() as db:
-            return [dict(r) for r in db.execute('SELECT i.contact,m.key,m.value,m.updated FROM memory m '
-                'LEFT JOIN identities i ON i.owner=m.owner ORDER BY m.updated DESC,m.owner,m.key LIMIT 100')]
-
     def set_session(self, scope, thread_id):
         with self.transaction() as db:
             db.execute('INSERT OR REPLACE INTO sessions VALUES(?,?)',(scope,thread_id))
-
-    def memories(self, owner, query='', *, db=None):
-        if db is None:
-            with self.transaction() as conn:
-                return self.memories(owner, query, db=conn)
-        from butler.identity import contact_identity
-        if owner.startswith('user:') and contact_identity.is_active(db):
-            items=contact_identity.memory_items(db,owner[5:])
-            query=query.casefold()
-            return sorted((r for r in items if query in (r['key']+' '+r['value']).casefold()),key=lambda r:r['updated'],reverse=True)[:100]
-        return [dict(r) for r in db.execute('SELECT key,value,updated FROM memory WHERE owner=? '
-                'AND (key LIKE ? OR value LIKE ?) ORDER BY updated DESC LIMIT 100',
-                (owner,'%'+query+'%','%'+query+'%'))]
-
-    def set_memory(self, owner, key, value, *, db=None, source='authorized_tool', source_label=''):
-        if not isinstance(key,str) or not key.strip() or len(key)>200 or not isinstance(value,str) or len(value)>10000:
-            raise ValueError('Invalid memory key/value')
-        if db is None:
-            with self.transaction() as conn:
-                return self.set_memory(owner,key,value,db=conn,source=source,source_label=source_label)
-        from butler.identity import contact_identity
-        active=owner.startswith('user:') and contact_identity.is_active(db)
-        if active:
-            owner='user:'+contact_identity.canonical_user(db,owner[5:])
-            if source!='administrator' and any(r['key']==key for r in contact_identity.conflict_memories(db,owner[5:])):
-                db.execute('INSERT OR IGNORE INTO user_memory_variants VALUES(?,?,?,?,?,?)',
-                    (owner[5:],key,value,owner[5:],source_label or '模型更新',time.time()))
-            else:
-                db.execute('DELETE FROM user_memory_variants WHERE user_id=? AND key=?',(owner[5:],key))
-        old=db.execute('SELECT value FROM memory WHERE owner=? AND key=?',(owner,key)).fetchone()
-        db.execute('INSERT OR REPLACE INTO memory VALUES(?,?,?,?)',(owner,key,value,time.time()))
-        self._memory_changed(db, owner, key, 'model_memory_set',source,old[0] if old else None,value)
-        return {'ok':True}
-
-    @staticmethod
-    def _memory_changed(db, owner, key, action,source='authorized_tool',previous=None,value=None):
-        if not owner.startswith('user:') or not db.execute("SELECT 1 FROM sqlite_master WHERE name='user_profiles'").fetchone():
-            return
-        user_id = owner[5:]
-        db.execute('UPDATE user_profiles SET memory_version=memory_version+1 WHERE user_id=?', (user_id,))
-        for row in db.execute('SELECT binding_id FROM user_bindings WHERE user_id=?', (user_id,)).fetchall() if source=='authorized_tool' else []:
-            db.execute('INSERT INTO user_audit(binding_id,action,details,at)VALUES(?,?,?,?)',
-                       (row[0],action,json.dumps({'key':key,'source':source,'previous':previous,'value':value},ensure_ascii=False),time.time()))
-
-    def delete_memory(self, owner, key, *, db=None, source='authorized_tool'):
-        if not isinstance(key,str) or not key.strip() or len(key)>200:
-            raise ValueError('Invalid memory key')
-        if db is None:
-            with self.transaction() as conn:
-                return self.delete_memory(owner,key,db=conn,source=source)
-        from butler.identity import contact_identity
-        if owner.startswith('user:') and contact_identity.is_active(db):
-            owner='user:'+contact_identity.canonical_user(db,owner[5:])
-            contact_identity.ensure_schema(db)
-            db.execute('DELETE FROM user_memory_variants WHERE user_id=? AND key=?',(owner[5:],key))
-        old=db.execute('SELECT value FROM memory WHERE owner=? AND key=?',(owner,key)).fetchone()
-        db.execute('DELETE FROM memory WHERE owner=? AND key=?',(owner,key))
-        self._memory_changed(db,owner,key,'model_memory_delete',source,old[0] if old else None)
-        return {'ok':True}
 
     def reminders(self, owner=None, *, db=None, order='recent'):
         if db is None:

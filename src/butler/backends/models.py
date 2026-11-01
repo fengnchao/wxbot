@@ -83,9 +83,8 @@ class LocalModelBackend(CompatibleBackend):
     def _native_chat(self, contact, text, scope, policy, extra_system, timeout, kind):
         limit = self.timeout if timeout is None else max(0.001, float(timeout))
         deadline = time.monotonic() + limit
-        token = self.tools.issue(owner=tool_owner_key(contact), memory_owner=owner_key(contact),
+        token = self.tools.issue(owner=tool_owner_key(contact),
             contact=contact.name, policy=policy, read_only=kind=='heartbeat',
-            memory_allowed=contact.identity_status not in {'unknown','ambiguous','disabled','observed'},
             request_id=current_request_id() or uuid.uuid4().hex, ttl=limit+60)
         definitions = self.tools.definitions(token)
         system = '\n'.join(filter(None, [self.base_system, contact.identity(backend='codex'), extra_system]))

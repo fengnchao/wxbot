@@ -10,12 +10,17 @@
 - 核心符号/显式调用关系、[[concepts/message-pipeline]]、[[concepts/delivery-state]]、[[concepts/identity-authority]]。
 - 管理台读队列接口及 Vue 消费点：[[apis/dashboard-workflow]]、[[apis/dashboard-queue]]。
 - 统一模型链路、请求代际热切换和原生工具边界：[[modules/models]]、[[symbols/reloadable-backend]]、[[symbols/local-model-backend]]。
+- 模型失败的跨层契约（脱敏、`retry_safe` 来源、自动重试上限、超时放行）：[[concepts/model-error-contract]]。
+- 群提及的两段验证与回退清理链（含 uiautomation 特殊键名约束）：[[symbols/mention-selection]]。
+- 未读采集的重试退避、放弃出口及与 `pending_sessions`／`prepare` 的关系：[[concepts/unread-capture-retry]]。
+- 用户知识库的 vault 存储形态、文件格式、迁移路径：[[tables/knowledge-vault]]；提炼链路 [[symbols/knowledge-extract]]、调度与游标 [[symbols/knowledge-auto]]；管理台只读投影：[[apis/dashboard-knowledge]]。三张 `kb_*` 平表已退场，留档页保留迁移说明。
 
 ## 待扩展
 
 - 联系人完整业务表、身份合并端点/血缘，目前只有 [[modules/identity]] 概览。
 - 提醒/心跳、媒体/新闻、Telegram Bot/桌面中继的详细表与端点。
-- 安装配置、全部模型后端的错误/重试契约及其余前端页面。
+- 安装配置与其余前端页面。
+- 单个后端各自的失败细节（Codex 提交边界、Cursor 工作目录、Ollama 完整判据）尚未逐项建页，目前只在 [[concepts/model-error-contract]] 里写了公共部分。
 - 未为每个文件/函数建页；调用关系只声明已核对的关键边，不声称静态分析覆盖全部。
 - `tests/` 仅在开发机存在且不入 Git；测试路径作导航，不作为跨安装可用的证据。巡检不读取真实数据。
 

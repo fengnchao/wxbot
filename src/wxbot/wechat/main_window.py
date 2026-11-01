@@ -25,6 +25,23 @@ class Session:
     preview: str = field(default="", compare=False)
 
 
+def plausible_nickname(name: str) -> bool:
+    """Reject card and notice copy that only looks like a sender prefix.
+
+    WeChat caps a nickname at 16 characters. Client notices address the reader
+    ("你收到一笔群分红 请在手机上查看"), so a name led by 你/我 and split into
+    whitespace-separated phrases is notice text, never a member name. Card
+    bodies also end in sentence punctuation.
+    """
+    if not name or len(name) > 16 or "\n" in name:
+        return False
+    if name in {"我", "你"} or name.startswith("["):
+        return False
+    if name[0] in "你我" and any(character.isspace() for character in name):
+        return False
+    return not any(mark in name for mark in "。！？!?；;")
+
+
 def preview_sender(preview: str, text: str) -> str | None:
     """Only associate a nickname when the complete preview body matches the message."""
     normalize = lambda value: " ".join(value.split())
@@ -35,7 +52,7 @@ def preview_sender(preview: str, text: str) -> str | None:
         if normalize(preview[separator.end():]) != body:
             continue
         name = preview[:separator.start()].strip()
-        if name and name not in {"我", "你"} and not name.startswith("[") and "\n" not in name:
+        if plausible_nickname(name):
             return name
     return None
 

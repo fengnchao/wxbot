@@ -36,7 +36,8 @@ from dashboard.api.support import (EXPORT_DIR, HERMES_HOME, WXBOT_CHANNEL,
                                    is_butler_role_skill, load_butler_contacts,
                                    load_heartbeat_config, load_heartbeat_events,
                                    load_heartbeat_status, save_heartbeat_config,
-                                   trigger_butler_heartbeat, unified_contact_store,
+                                   trigger_butler_extract, trigger_butler_heartbeat,
+                                   unified_contact_store,
                                    validate_policy_skills, wxbot_config_path)
 from dashboard.config_editor import ConfigConflict, ConfigEditor, config_lock
 from dashboard.config_view import ConfigView
@@ -46,6 +47,7 @@ from dashboard.flowlog import (_iso_to_epoch, build_groups_payload, collect_wxbo
                                merge_outbound, parse_wxbot_log, read_message_flow,
                                save_groups_file)
 from dashboard.http import BaseHandler, RequestContext
+from dashboard.knowledge_view import KnowledgeView
 from dashboard.queue_actions import QueueActions
 from dashboard.queue_view import QueueView
 from dashboard.settings import config_path as log_config_path, load_settings

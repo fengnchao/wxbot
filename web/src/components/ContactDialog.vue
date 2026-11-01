@@ -129,7 +129,7 @@ function candidates() {
   return (data.value?.rows || [])
     .filter(row => row.kind === 'person' && row.id !== payload.id)
     .flatMap(row => (row.memberships || []).map(member => ({
-      ...member, person: row.name, memory_count: row.memory_count
+      ...member, person: row.name
     })))
 }
 
@@ -327,11 +327,11 @@ function submitSettings() {
               <select v-model="form.binding" name="binding" required>
                 <option value="">选择已核对的成员</option>
                 <option v-for="member in candidates()" :key="'cand-' + member.binding_id" :value="member.binding_id">
-                  {{ member.person }}，{{ member.contact }}－{{ member.nickname }}，{{ member.memory_count }} 条记忆{{ member.enabled ? '' : '，已停用' }}
+                  {{ member.person }}，{{ member.contact }}－{{ member.nickname }}{{ member.enabled ? '' : '，已停用' }}
                 </option>
               </select>
             </label>
-            <p>所选成员及同一固定用户的全部关系归并到「{{ payload.name }}」。保留各群昵称与停用开关，双方个人记忆全部共享；同 key 的不同内容保留来源，进入待整理记忆。</p>
+            <p>所选成员及同一固定用户的全部关系归并到「{{ payload.name }}」。保留各群昵称与停用开关；具体资料在各自的知识库里维护。</p>
             <label class="user-check"><input v-model="form.ack" name="ack" type="checkbox" required>我已核对成员身份，继续查看合并范围</label>
             <button type="submit" :disabled="dialogBusy">预览身份合并</button>
           </form>
@@ -344,7 +344,7 @@ function submitSettings() {
               </select>
             </label>
             <label>此人在该群的昵称<input v-model="form.nickname" name="nickname" required></label>
-            <p>此操作明确确认身份，并将成员关系关联到当前联系人的共享记忆。</p>
+            <p>此操作明确确认身份，并将成员关系关联到当前联系人。</p>
             <label class="user-check"><input type="checkbox" required>已核对群成员身份</label>
             <button type="submit" :disabled="dialogBusy">保存所属群</button>
           </form>

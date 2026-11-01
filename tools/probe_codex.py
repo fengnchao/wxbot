@@ -25,7 +25,7 @@ def main():
                    contacts=load_contacts([{'name':'probe-alice','uid':'probe-alice'},{'name':'probe-bob','uid':'probe-bob'}]))
         policy=Path(cfg.heartbeat_config_path());policy.parent.mkdir(parents=True)
         policy.write_text(json.dumps({'users':{
-            'probe-alice':{'role_skill':'paimon','allowed_skills':['butler-memory'],'heartbeat_enabled':False},
+            'probe-alice':{'role_skill':'paimon','allowed_skills':[],'heartbeat_enabled':False},
             'probe-bob':{'role_skill':'tong-jincheng-perspective','allowed_skills':[],'heartbeat_enabled':False}}}),encoding='utf-8')
         butler=Butler(cfg)
         def forbidden(*a,**kw):raise AssertionError('Probe forbids all outbound delivery')
@@ -35,20 +35,13 @@ def main():
         threading.Thread(target=server.serve_forever,daemon=True).start()
         outputs=[]
         try:
-            for contact,text in [('probe-alice','这轮聊天的暗号是青柠。请调用 memory_set 保存 key=probe-code、value=青柠，然后用一句角色口吻说你是谁。'),
+            for contact,text in [('probe-alice','这轮聊天的暗号是青柠。请用一句角色口吻说你是谁。'),
                                  ('probe-bob','你是谁？请用一句话回答。')]:
                 result=butler.handle(contact,text)
                 if result.meta.get('error'):raise RuntimeError(result.meta['error']+' / '+butler.backend.last_error)
+                if not (result.reply or '').strip():raise RuntimeError('Codex returned an empty reply')
                 outputs.append({'contact':contact,'reply':result.reply})
             butler.backend.close()
-            from butler.backends.codex import owner_key
-            stored=butler.store.memories(owner_key(butler.contact_of('probe-alice')))
-            if not any(x['key']=='probe-code' and x['value']=='青柠' for x in stored):
-                raise RuntimeError('Real MCP memory_set was not executed')
-            result=butler.handle('probe-alice','这轮聊天的暗号是什么？请用 memory_get 核对，只回暗号。')
-            if result.meta.get('error') or '青柠' not in (result.reply or ''):
-                raise RuntimeError('Thread/memory resume check did not succeed')
-            outputs.append({'contact':'probe-alice','reply':result.reply})
             print(json.dumps({'ok':True,'outputs':outputs,'events':butler.store.events(20),'wechat_sent':False},ensure_ascii=False,indent=2))
         finally:
             butler.backend.close();server.shutdown();server.server_close()

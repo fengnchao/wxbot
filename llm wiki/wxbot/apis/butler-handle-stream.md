@@ -3,10 +3,10 @@ type: api
 module: butler
 summary: SSE 增量观察与最终 result，断流不能当完整结果
 coverage: core
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/butler/server.py
-  line: 333
+  line: 370
   anchor: streaming=self.path=='/v1/handle-stream'
 - path: src/wxbot/processor/butler.py
   line: 89
@@ -17,6 +17,8 @@ sources:
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-switchable-models
+- raw/changes/2026-11-01-knowledge-auto
+- raw/changes/2026-11-01-knowledge-vault-graph
 ---
 # POST /v1/handle-stream
 
@@ -40,7 +42,7 @@ changes:
 
 ## 代码依据
 
-- `src/butler/server.py:333` — `streaming=self.path=='/v1/handle-stream'`
+- `src/butler/server.py:371` — `streaming=self.path=='/v1/handle-stream'`
 - `src/wxbot/processor/butler.py:89` — `if kind=='result':`
 - `src/wxbot/processor/butler.py:106` — `if data is None:raise ValueError('Butler stream disconnected before result')`
 

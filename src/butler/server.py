@@ -4,6 +4,8 @@
   GET  /v1/catalogue              → 能调的 skill 白名单（给运维看）
   POST /v1/handle  {contact,text} → {"reply":..., "actions":[...], "meta":{...}}
   POST /v1/heartbeat/trigger {contact} → 立即为指定联系人执行心跳
+  POST /v1/knowledge/extract {owner?,batch?,dry_run?} → 立即提炼一批（后台执行）
+  GET  /v1/knowledge/extract      → 提炼开关、进度与上次结果
   POST /v1/reset   {contact}      → 开新会话
   POST /v1/push    {contact?,text,type?,messageType?}
       主动推送（不走模型）：记外发日志 + 转发 wxbot 代发。
@@ -27,6 +29,7 @@ from butler.agent import skills
 from butler.config import Config, load, masked
 from butler.agent.core import Butler
 from butler.runtime.heartbeat import HeartbeatScheduler
+from butler.runtime.knowledge_auto import ExtractScheduler
 from butler.identity.groups import parse_int as _as_int
 
 MAX_BODY = 1 << 20
@@ -44,7 +47,8 @@ def backend_description(cfg: Config) -> str:
     return f"Hermes {cfg.hermes_url} ({masked(cfg.hermes_key)})"
 
 
-def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | None = None):
+def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | None = None,
+                 extract: ExtractScheduler | None = None):
     local_runtime = getattr(cfg, 'uses_local_runtime', getattr(cfg, 'provider', 'hermes') == 'codex')
     class Handler(BaseHTTPRequestHandler):
         server_version = "butler/1.0"
@@ -109,7 +113,7 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 self.send_header('Content-Length',str(len(data)))
                 self.send_header('Cache-Control','no-store')
                 self.end_headers();self.wfile.write(data);return
-            if path.path in ('/v1/users', '/v1/users/memory', '/v1/users/audit'):
+            if path.path in ('/v1/users', '/v1/users/audit'):
                 if not self._authed(): return
                 registry = getattr(butler, 'registry', None)
                 if registry is None:
@@ -132,8 +136,13 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 state=(butler.backend.runtime_status() if hasattr(butler.backend,'runtime_status') else {'backend':cfg.provider,'configured_backend':cfg.provider})
                 self._send(200,{**state,'protocol_version':1,
                     'reminders':butler.store.reminders(order='due') if butler.store else [],
-                    'memory':butler.store.runtime_memory() if butler.store else [],
                     'events':butler.store.events() if butler.store else []})
+                return
+            if self.path == '/v1/knowledge/extract':
+                if not self._authed(): return
+                if extract is None:
+                    self._send(503,{'error':'knowledge extract scheduler unavailable'}); return
+                self._send(200, extract.status())
                 return
             if self.path.startswith("/health"):
                 if not self._authed():
@@ -309,6 +318,34 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                     return
                 self._send(202, {"ok": True, "status": "started", "contact": contact})
                 return
+            if self.path == '/v1/knowledge/extract':
+                if not self._authed():
+                    return
+                if extract is None:
+                    self._send(503, {'error': 'knowledge extract scheduler unavailable'})
+                    return
+                body = self._body()
+                owner = str(body.get('owner') or '').strip()
+                if len(owner) > 200:
+                    self._send(400, {'error': 'owner 过长'})
+                    return
+                batch = body.get('batch')
+                if batch is not None:
+                    batch = _as_int(batch)
+                    if batch is None:
+                        self._send(400, {'error': 'batch 必须是整数'})
+                        return
+                dry_run = body.get('dry_run', False)
+                if not isinstance(dry_run, bool):
+                    self._send(400, {'error': 'dry_run 必须是布尔值'})
+                    return
+                started, reason = extract.trigger(owner=owner, batch=batch, dry_run=dry_run)
+                if not started:
+                    self._send(409, {'ok': False, 'code': reason,
+                                     'error': '提炼正在执行，请稍后重试'})
+                    return
+                self._send(202, {'ok': True, 'status': 'started', 'owner': owner})
+                return
             if self.path in ("/v1/handle","/v1/handle-stream"):
                 if not self._authed():
                     return
@@ -436,6 +473,7 @@ def serve(cfg: Config) -> int:
         _log("!! server.token 没配 —— 接口会拒绝所有请求。先在 config.toml 里配一个。")
     butler = Butler(cfg, log=_log)
     heartbeat = HeartbeatScheduler(butler, cfg, log=_log)
+    knowledge_extract = ExtractScheduler(butler, cfg, log=_log)
     reminders=None
     if cfg.uses_local_runtime:
         from butler.delivery.reminders import ReminderScheduler
@@ -443,8 +481,10 @@ def serve(cfg: Config) -> int:
     _log("管家启动 → http://%s:%s  |  Profile: %s  |  后端: %s",
          cfg.host, cfg.port, ", ".join(sorted(cfg.contacts.profiles())) or "(无联系人)",
          backend_description(cfg))
-    httpd = ThreadingHTTPServer((cfg.host, cfg.port), make_handler(butler, cfg, heartbeat))
+    httpd = ThreadingHTTPServer((cfg.host, cfg.port),
+                                make_handler(butler, cfg, heartbeat, knowledge_extract))
     heartbeat.start()
+    knowledge_extract.start()
     if reminders: reminders.start()
     try:
         httpd.serve_forever()
@@ -452,6 +492,7 @@ def serve(cfg: Config) -> int:
         _log("收到 Ctrl+C，退出")
     finally:
         heartbeat.stop()
+        knowledge_extract.stop()
         if reminders: reminders.stop()
         if cfg.uses_local_runtime: butler.backend.close()
         httpd.server_close()

@@ -135,10 +135,10 @@ def heartbeat_audit_path(home, config):
     return _heartbeat_path(home, config, "audit_file", "butler_heartbeat_audit.jsonl")
 
 
-def trigger_butler_heartbeat(contact, config):
+def _butler_post(config, path, payload, *, timeout=10):
     """Use Butler's server token locally; its credential never reaches the browser."""
     if (config.get('_connection') or {}).get('mode','local')!='local':
-        raise ValueError('当前模式的心跳由对端管理台维护')
+        raise ValueError('当前模式由对端管理台维护')
     server = config.get("server") or {}
     host = "127.0.0.1"  # The bearer token is sent only over the local loopback interface.
     port = int(server.get("port") or 8770)
@@ -146,23 +146,32 @@ def trigger_butler_heartbeat(contact, config):
     if not token:
         raise RuntimeError("Butler API token 未配置")
     request = Request(
-        f"http://{host}:{port}/v1/heartbeat/trigger",
-        data=json.dumps({"contact": contact}, ensure_ascii=False).encode("utf-8"),
+        f"http://{host}:{port}{path}",
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
         headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
         method="POST")
     try:
-        with urlopen(request, timeout=10) as response:
+        with urlopen(request, timeout=timeout) as response:
             return response.status, json.loads(response.read().decode("utf-8", "replace"))
     except HTTPError as exc:
         try:
-            payload = json.loads(exc.read().decode("utf-8", "replace"))
+            body = json.loads(exc.read().decode("utf-8", "replace"))
         except Exception:
-            payload = {"error": f"Butler 返回 HTTP {exc.code}"}
-        return exc.code, payload
+            body = {"error": f"Butler 返回 HTTP {exc.code}"}
+        return exc.code, body
     except (URLError, TimeoutError) as exc:
         raise RuntimeError(f"无法连接 Butler（{type(exc).__name__}）") from None
     except Exception as exc:
         raise RuntimeError(f"Butler 触发请求失败（{type(exc).__name__}）") from None
+
+
+def trigger_butler_heartbeat(contact, config):
+    return _butler_post(config, "/v1/heartbeat/trigger", {"contact": contact})
+
+
+def trigger_butler_extract(config, payload):
+    """立即提炼一批：真正写库发生在 Butler 侧，管理台只转发。"""
+    return _butler_post(config, "/v1/knowledge/extract", payload)
 
 
 def load_heartbeat_events(path, limit=30):

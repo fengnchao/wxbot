@@ -3,29 +3,30 @@ type: module
 module: identity
 summary: 统一人物、窗口和成员绑定，身份能力由服务端签发
 coverage: overview
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/butler/identity/contact_store.py
   line: 37
   anchor: 'class ContactStore:'
 - path: src/butler/identity/user_registry.py
-  line: 25
+  line: 24
   anchor: 'class UserRegistry:'
 - path: src/butler/agent/tools.py
-  line: 47
+  line: 43
   anchor: def issue(
 - path: src/butler/agent/tools.py
-  line: 56
+  line: 51
   anchor: def verify(
 - path: src/butler/identity/user_registry.py
-  line: 355
+  line: 350
   anchor: def observe(
 - path: src/butler/identity/user_registry.py
-  line: 244
+  line: 239
   anchor: def _learn_nickname(
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
+- raw/changes/2026-11-01-knowledge-vault-graph
 ---
 # 联系人身份与权限
 

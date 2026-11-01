@@ -49,23 +49,6 @@ class ContactAdmin:
             result['row'] = row
         return result
 
-    def memory(self, person_id):
-        data=self.read(id=person_id)
-        if not data['active']:raise ValueError('联系人尚未迁移')
-        row=data['row']
-        if row['kind']!='person':raise ValueError('只有联系人有个人记忆')
-        with closing(sqlite3.connect(self.path.as_uri()+'?mode=ro',uri=True)) as db:
-            db.row_factory=sqlite3.Row
-            person=db.execute('SELECT * FROM user_profiles WHERE user_id=?',(person_id,)).fetchone()
-            if person is None:raise ValueError('此目的地尚无个人档案')
-            items=[dict(r) for r in db.execute('SELECT key,value,updated FROM memory WHERE owner=? ORDER BY key',('user:'+person_id,))]
-            conflicts=row.get('memory_conflicts',[])
-            keys={r['key'] for r in conflicts}
-            items=[r for r in items if r['key'] not in keys]+conflicts
-            return {'contact_id':person_id,'version':person['memory_version'],'items':items,
-                'binding':dict(next(iter(row['bindings']),{}),user_id=person_id,nickname=person['display_name'],
-                    contact=person['display_name'],channel_type='dm',memory_owner='user:'+person_id,binding_id='person:'+person_id)}
-
     def merge_preview(self, source_id, target_id):
         if not is_unified(self.path):
             raise ValueError('联系人尚未迁移')
@@ -87,25 +70,18 @@ class ContactAdmin:
         people = {row['id']: row for row in ContactAdmin._rows(db, state) if row['kind'] == 'person'}
         if source_id not in people or target_id not in people:
             raise ValueError('联系人不存在，请刷新列表')
-        summaries, notes, fingerprint = [], [], [state]
+        summaries, fingerprint = [], [state]
         for value in (source_id, target_id):
             row = people[value]
             profile = dict(db.execute('SELECT * FROM user_profiles WHERE user_id=?', (value,)).fetchone())
             bindings = [dict(b) for b in db.execute('SELECT * FROM user_bindings WHERE user_id=? ORDER BY binding_id', (value,))]
-            items = [dict(n) for n in db.execute('SELECT key,value,updated FROM memory WHERE owner=? ORDER BY key', ('user:'+value,))]
-            variants = row.get('memory_conflicts', [])
-            fingerprint.append([profile, bindings, items, variants, row['memberships']])
-            summaries.append({key: row[key] for key in ('id','name','bindings','conversations','memberships','memory_count','policy')})
-            notes.append([dict(n, source_user_id=value, source_label=row['name']) for n in items] + variants)
-        by_key = {}
-        for item in notes[0] + notes[1]:
-            by_key.setdefault(item['key'], []).append(item)
-        conflicts = [item for values in by_key.values() if len({n['value'] for n in values}) > 1 for item in values]
+            fingerprint.append([profile, bindings, row['memberships']])
+            summaries.append({key: row[key] for key in ('id','name','bindings','conversations','memberships','policy')})
         version = hashlib.sha256(json.dumps(fingerprint, sort_keys=True, ensure_ascii=False,
                                             separators=(',', ':')).encode()).hexdigest()
-        return {'source': summaries[0], 'target': summaries[1], 'conflicts': conflicts,
+        return {'source': summaries[0], 'target': summaries[1], 'conflicts': [],
                 'version': state['version'], 'preview_version': version,
-                'rules': '保留目标人物；群身份与窗口并入，窗口现有策略保持原行为；个人记忆保留全部来源，冲突待整理。'}
+                'rules': '保留目标人物；群身份与窗口并入，窗口现有策略保持原行为。'}
 
     def _checked_merge(self, db, state, source, target, preview_version):
         if not isinstance(preview_version, str) or not preview_version:
@@ -116,7 +92,9 @@ class ContactAdmin:
         return self._merge(db, state, source, target)
 
     def audit(self,person_id,offset=0,limit=20):
-        self.memory(person_id)
+        data=self.read(id=person_id)
+        if not data['active']:raise ValueError('联系人尚未迁移')
+        if data['row']['kind']!='person':raise ValueError('只有联系人有个人审计记录')
         offset=max(0,int(offset));limit=min(100,max(1,int(limit)))
         with closing(sqlite3.connect(self.path.as_uri()+'?mode=ro',uri=True)) as db:
             db.row_factory=sqlite3.Row
@@ -228,12 +206,6 @@ class ContactAdmin:
             return '联系人不存在'
         if any(c.get('person_id') == user_id for c in state['conversations']):
             return '该档案还挂着投递窗口，请先删除会话'
-        if db.execute('SELECT 1 FROM memory WHERE owner=? LIMIT 1', ('user:'+user_id,)).fetchone():
-            return '该档案有个人记忆，不允许自动删除'
-        tables = {row[0] for row in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-        if 'user_memory_variants' in tables and db.execute(
-                'SELECT 1 FROM user_memory_variants WHERE user_id=? LIMIT 1', (user_id,)).fetchone():
-            return '该档案有记忆来源，不允许自动删除'
         rows = related if related is not None else \
             [dict(r) for r in db.execute('SELECT * FROM user_bindings WHERE user_id=?', (user_id,))]
         if not rows:
@@ -247,7 +219,7 @@ class ContactAdmin:
 
     @staticmethod
     def _delete_binding(db, binding_id):
-        """删掉一条身份及其采集证据；记忆归档案所有，不跟着单条绑定消失。"""
+        """删掉一条身份及其采集证据；档案里的资料不跟着单条绑定消失。"""
         tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         for table in ('user_avatars', 'user_observation_keys', 'user_member_aliases', 'user_binding_names'):
             if table in tables:
@@ -258,7 +230,11 @@ class ContactAdmin:
 
     @staticmethod
     def _delete_person(db, user_id):
-        """删掉一份档案：群身份、头像、观测 ID、共享记忆一并清除。"""
+        """删掉一份档案：群身份、头像、观测 ID 一并清除。
+
+        个人资料存在独立的知识库文件树里，不在这个事务内，因此档案删除不会
+        连带删掉已提炼的知识，也不会因事务回滚造成不可恢复的文件丢失。
+        """
         tables = {r[0] for r in db.execute("SELECT name FROM sqlite_master WHERE type='table'")}
         binding_ids = [r[0] for r in db.execute('SELECT binding_id FROM user_bindings WHERE user_id=?', (user_id,))]
         for table in ('user_avatars', 'user_observation_keys', 'user_member_aliases', 'user_binding_names'):
@@ -269,9 +245,6 @@ class ContactAdmin:
             for binding_id in binding_ids:
                 db.execute('DELETE FROM user_legacy_owners WHERE binding_id=?', (binding_id,))
         db.execute('DELETE FROM user_bindings WHERE user_id=?', (user_id,))
-        db.execute('DELETE FROM memory WHERE owner=?', ('user:' + user_id,))
-        if 'user_memory_variants' in tables:
-            db.execute('DELETE FROM user_memory_variants WHERE user_id=?', (user_id,))
         if 'user_name_history' in tables:
             db.execute('DELETE FROM user_name_history WHERE user_id=?', (user_id,))
         db.execute('DELETE FROM user_profiles WHERE user_id=?', (user_id,))
@@ -316,7 +289,6 @@ class ContactAdmin:
         for p in profiles:
             related = [b for b in bindings if b['user_id'] == p['user_id']]
             conversations = [deepcopy(c) for c in state['conversations'] if c.get('person_id')==p['user_id']]
-            count = db.execute('SELECT COUNT(*) FROM memory WHERE owner=?', ('user:'+p['user_id'],)).fetchone()[0] if 'memory' in tables else 0
             for b in related:
                 b['memory_owner'] = 'user:'+p['user_id']
             groups = [b for b in related if b['channel_type']=='group']
@@ -329,7 +301,7 @@ class ContactAdmin:
             row = {'id':p['user_id'],'kind':'person','name':shown[p['user_id']],
                    'enabled':any(bool(b['enabled']) for b in related) if related else any(c['enabled'] for c in conversations),
                    'conversations':conversations,'memberships':primary,
-                   'bindings':related,'memory_count':count,'policy':state['person_policies'].get(p['user_id']),
+                   'bindings':related,'policy':state['person_policies'].get(p['user_id']),
                    'avatar':'data:image/png;base64,'+picture['image'] if picture.get('image') else '',
                    'avatar_count':picture.get('count', 0),
                    'avatar_issues':picture.get('unusable', 0),
@@ -341,10 +313,6 @@ class ContactAdmin:
                 db, state, p['user_id'], related)
             if 'user_name_history' in tables:
                 row['historical_names']=[r[0] for r in db.execute('SELECT name FROM user_name_history WHERE user_id=? ORDER BY name',(p['user_id'],))]
-            if 'user_memory_variants' in tables:
-                from butler.identity.contact_identity import conflict_memories
-                row['memory_conflicts'] = conflict_memories(db,p['user_id'])
-                row['memory_count']=count-len({r['key'] for r in row['memory_conflicts']})+len(row['memory_conflicts'])
             rows.append(row)
         people = {p['user_id'] for p in profiles}
         for c in state['conversations']:
@@ -360,7 +328,7 @@ class ContactAdmin:
             route = deepcopy(c)
             rows.append({'id':c['id'],'kind':'group' if c['channel_type']=='group' else 'person',
                          'name':c['name'],'enabled':c['enabled'],'conversations':[route],
-                         'memberships':kept or members,'bindings':members,'memory_count':0,'policy':c.get('policy'),
+                         'memberships':kept or members,'bindings':members,'policy':c.get('policy'),
                          'avatar':'','avatar_count':0,'avatar_issues':0,
                          'wechat':c['name'] if c['channel_type']=='dm' else '',
                          'hidden_memberships':len(dropped),
@@ -384,8 +352,6 @@ class ContactAdmin:
             'conversation':{'id','name','channel_type','uid','profile','label','session_key','listening','enabled','policy','subscriptions','person_id'},
             'link_binding':{'id','binding_id','binding_version','preview_version'},
             'membership':{'id','group_id','nickname'},
-            'memory_set':{'id','memory_version','key','value'},
-            'memory_delete':{'id','memory_version','key'},
             'settings':{'settings'},
             'aliases':{'aliases'},
             'avatar':{'id','avatar'},
@@ -635,19 +601,6 @@ class ContactAdmin:
                 contact_identity.touch_version(db)
             elif action == 'settings':
                 state['settings'] = deepcopy(payload.get('settings'))
-            elif action in {'memory_set','memory_delete'}:
-                from butler.identity.contact_identity import canonical_user,ensure_schema
-                ensure_schema(db)
-                pid=canonical_user(db,payload.get('id'))
-                person=db.execute('SELECT * FROM user_profiles WHERE user_id=?',(pid,)).fetchone()
-                if person is None:raise ValueError('联系人不存在')
-                if type(payload.get('memory_version')) is not int or person['memory_version']!=payload['memory_version']:raise ValueError('memory version conflict; reload before saving')
-                key=payload.get('key');owner='user:'+pid
-                if not isinstance(key,str) or not key.strip() or len(key)>200:raise ValueError('记忆 key 无效')
-                old=db.execute('SELECT value FROM memory WHERE owner=? AND key=?',(owner,key)).fetchone()
-                if action=='memory_delete':registry.store.delete_memory(owner,key,db=db,source='administrator')
-                else:registry.store.set_memory(owner,key,payload.get('value'),db=db,source='administrator')
-                registry._audit(db,'person:'+pid,action,{'key':key,'previous':old[0] if old else None,'value':payload.get('value'),'source':'administrator'})
             # 头像、绑定等操作会直接推进 unified_contacts 的版本号，保存前同步一次，避免自相冲突。
             store._save(db,state,store._snapshot(db)['version'])
         return {'ok':True,**self.read()}

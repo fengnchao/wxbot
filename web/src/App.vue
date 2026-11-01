@@ -5,7 +5,9 @@ import { apiGet } from './api'
 import { readPreference, savePreference } from './prefs'
 import ConfigurationView from './views/ConfigurationView.vue'
 import ContactsView from './views/ContactsView.vue'
+import FactsView from './views/FactsView.vue'
 import JobsView from './views/JobsView.vue'
+import KnowledgeView from './views/KnowledgeView.vue'
 import QueueView from './views/QueueView.vue'
 import WorkflowView from './views/WorkflowView.vue'
 import TelegramRelayView from './views/TelegramRelayView.vue'
@@ -13,7 +15,9 @@ import TelegramRelayView from './views/TelegramRelayView.vue'
 const VIEWS = {
   configuration: ConfigurationView,
   contacts: ContactsView,
+  facts: FactsView,
   jobs: JobsView,
+  knowledge: KnowledgeView,
   queue: QueueView,
   workflow: WorkflowView,
   'telegram-relay': TelegramRelayView
@@ -38,7 +42,7 @@ provide('logWebCtx', {
 // 外部接入模式下业务页面由对端管理台维护，隐藏本机不承担的业务页。
 const hidden = computed(() => {
   const mode = connection.value.mode || 'local'
-  return mode === 'local' ? new Set() : new Set(['contacts', 'jobs', 'telegram-relay'])
+  return mode === 'local' ? new Set() : new Set(['contacts', 'jobs', 'knowledge', 'facts', 'telegram-relay'])
 })
 
 const navGroups = computed(() => {
@@ -62,6 +66,8 @@ const searchHidden = computed(() => activeTab.value === 'configuration' || activ
 const searchPlaceholder = computed(() => ({
   workflow: '搜索用户 / UID / 消息 ID',
   queue: '筛选本页任务',
+  knowledge: '搜索用户原文或机器人回复',
+  facts: '搜索事实名称或内容',
   heartbeat: '搜索 Skill 或执行记录'
 })[activeTab.value] || '搜索当前记录')
 const footText = computed(() => hidden.value.size

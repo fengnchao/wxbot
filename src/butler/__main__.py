@@ -12,10 +12,13 @@ from butler.config import load
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description='Portable Butler/wxbot')
-    parser.add_argument('command',choices=['init','setup','migrate','contacts-preview','contacts-migrate','doctor','login','serve','start'])
+    parser.add_argument('command',choices=['init','setup','migrate','contacts-preview','contacts-migrate','doctor','login','serve','start','knowledge-prune','knowledge-migrate','knowledge-extract'])
     parser.add_argument('--config',default=None)
     parser.add_argument('--directory',default='.')
     parser.add_argument('--no-wechat',action='store_true')
+    parser.add_argument('--owner',default='',help='只处理指定联系人（memory_owner），默认全部')
+    parser.add_argument('--batch',type=int,default=40,help='每批交给模型的原文条数')
+    parser.add_argument('--dry-run',action='store_true',help='只把提炼结果打印出来，不写库、不前移游标')
     parser.add_argument('--acknowledge-stopped',action='store_true',help='Confirm all legacy contact writers have been stopped')
     args=parser.parse_args(argv)
     if args.command=='init':
@@ -47,6 +50,42 @@ def main(argv=None):
         from butler.runtime.setup import doctor
         result=doctor(cfg,check_wechat=not args.no_wechat)
         print(json.dumps(result,ensure_ascii=False,indent=2));return 0 if result['ok'] else 1
+    if args.command in ('knowledge-prune','knowledge-migrate'):
+        # P0 不挂常驻线程：清理与迁移由人工触发，等 P4 的调度器接管。
+        from butler.runtime.knowledge_store import KnowledgeStore, migrate_legacy
+        root=cfg.data_path()/'knowledge'
+        if args.command=='knowledge-migrate':
+            moved=migrate_legacy(cfg.data_path(),log=lambda m,*a:print(m%a))
+            print(json.dumps({'ok':True,'migrated':moved},ensure_ascii=False,indent=2));return 0
+        store=KnowledgeStore(root,retention_days=cfg.knowledge_retention_days)
+        # 目录不存在或为空时直接回 0，绝不为「清理」建出任何库。
+        deleted=store.prune() if store.index_path.is_file() else 0
+        store.close()
+        print(json.dumps({'ok':True,'deleted':deleted,'retention_days':cfg.knowledge_retention_days},
+                         ensure_ascii=False,indent=2));return 0
+    if args.command=='knowledge-extract':
+        # 常驻调度器也在跑同一批人，所以人工这一趟要拿同一把锁：
+        # 拿不到说明自动提炼正在跑，等它结束再来，避免同一批原文送两次模型。
+        from butler.agent.core import Butler
+        from butler.identity.contacts import Contact
+        from butler.runtime.knowledge_auto import acquire, release
+        from butler.runtime.knowledge_extract import extract_all
+        say=lambda *a,**k:print(*a)
+        lock=acquire(cfg.knowledge_extract_lock_path())
+        if lock is None:
+            print(json.dumps({'ok':False,'error':'自动提炼正在运行，稍后再试'},ensure_ascii=False,indent=2))
+            return 1
+        try:
+            butler=Butler(cfg,say)
+            profiles=sorted(cfg.contacts.profiles()) or ['default']
+            worker=Contact(name='知识库提炼',profile=profiles[0],uid='knowledge-extract')
+            butler.hermes.reset(worker,session_kind='extract')
+            report=extract_all(butler.knowledge,
+                               lambda prompt:butler.hermes.chat(worker,prompt,session_kind='extract'),
+                               batch=args.batch,owner=args.owner,log=say,dry_run=args.dry_run)
+        finally:
+            release(lock)
+        print(json.dumps({'ok':True,'owners':report},ensure_ascii=False,indent=2));return 0
     if mode=='direct':
         parser.error('旧 direct 模式需要显式迁移；请先停止本机服务，再运行 python -m butler migrate。')
     if args.command=='login':

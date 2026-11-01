@@ -71,7 +71,7 @@ class CompatibleBackend:
 
     def scope(self, contact, policy=None, kind='chat'):
         value = [self.identity, self.settings['url'], self.model, self.settings.get('agent', 'default'),
-                 contact.key(), contact.memory_owner, contact.memory_version,
+                 contact.key(), contact.memory_owner,
                  contact.binding_version, policy or {}, kind]
         return hashlib.sha256(json.dumps(value, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
 

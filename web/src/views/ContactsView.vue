@@ -2,7 +2,7 @@
 import { computed, inject, onMounted, ref, watch } from 'vue'
 import {
   activeId, aliasDraft, aliasVersion, busy, contactRequest, data, dialog, error,
-  hbShown, category, statusFilter, issueFilter, detailTab, load, loadMemory, loadStatus, openDialog, pick, query,
+  hbShown, category, statusFilter, issueFilter, detailTab, load, loadStatus, openDialog, pick, query,
   saveAliases, section, triggerHeartbeat, openMerge
 } from '../contactState'
 import ContactDialog from '../components/ContactDialog.vue'
@@ -17,8 +17,8 @@ const ctx = inject('logWebCtx', null)
 const SUBSCRIPTIONS = { 1: '新闻', 2: '问候', 3: '其他' }
 const CATEGORIES = [['chats', '会话'], ['people', '私聊'], ['groups', '群聊'], ['pending', '待确认']]
 const TABS = [['overview', '概览'], ['basic', '基本资料'], ['ai', 'AI 设置'], ['push', '主动消息'],
-  ['groups', '群身份'], ['memory', '个人记忆'], ['maintenance', '身份管理']]
-const ISSUES = ['窗口信息待补充', '身份待确认', '疑似重复档案', '记忆冲突', '缺少身份或窗口']
+  ['groups', '群身份'], ['maintenance', '身份管理']]
+const ISSUES = ['窗口信息待补充', '身份待确认', '疑似重复档案', '缺少身份或窗口']
 const rows = computed(() => (data.value?.rows || []).filter(row =>
   matchesContact(row, category.value, statusFilter.value, query.value, issueFilter.value)))
 const listSections = computed(() => {
@@ -39,8 +39,8 @@ function changeCategory(value) {
   section.value = 'details'
 }
 function openIssue(row) {
-  detailTab.value = row.memory_conflicts?.length ? 'memory' :
-    row.merge_candidates?.length ? 'maintenance' : (!row.memberships.length || row.conversations?.some(c => c.needs_route)) ? 'basic' : 'groups'
+  detailTab.value = row.merge_candidates?.length ? 'maintenance' :
+    (!row.memberships.length || row.conversations?.some(c => c.needs_route)) ? 'basic' : 'groups'
 }
 const cleanupCandidates = computed(() => (data.value?.rows || []).filter(row => row.can_cleanup))
 const memberContext = ref(null)
@@ -108,9 +108,7 @@ function routeText(row) { return STATUS_LABELS[contactStatus(row)] }
 function rowNote(row) {
   const bits = [row.kind === 'group'
     ? (row.memberships.length ? row.memberships.length + ' 位成员' : '群聊')
-    : (row.memberships.length
-      ? row.memberships.length + ' 个所属群，共享记忆 ' + row.memory_count + ' 条'
-      : '共享记忆 ' + row.memory_count + ' 条')]
+    : (row.memberships.length ? row.memberships.length + ' 个所属群' : '未关联群身份')]
   if (contactStatus(row) === 'disabled') bits.push('已停用')
   return bits.join('，')
 }
@@ -269,7 +267,7 @@ async function cleanupAvatars() {
 }
 
 async function disableBinding(row, member) {
-  if (!window.confirm('停用「' + member.nickname + '」这条重复的群成员记录？身份和共享记忆保持不变。')) return
+  if (!window.confirm('停用「' + member.nickname + '」这条重复的群成员记录？身份保持不变。')) return
   try {
     data.value = await contactRequest({
       version: data.value.version, action: 'binding_disable', id: row.id, binding_id: member.binding_id
@@ -280,9 +278,9 @@ async function disableBinding(row, member) {
   }
 }
 
-// 删掉一条重复的群身份；人物、其他身份和个人记忆会保留。
+// 删掉一条重复的群身份；人物、其他身份和私聊窗口会保留。
 async function deleteBinding(row, member) {
-  if (!window.confirm('删除「' + member.nickname + '」在「' + member.contact + '」的这条身份记录？\n仅移除这条身份及其识别证据；人物档案、聊天窗口和个人记忆保留。')) return
+  if (!window.confirm('删除「' + member.nickname + '」在「' + member.contact + '」的这条身份记录？\n仅移除这条身份及其识别证据；人物档案和聊天窗口保留。')) return
   try {
     data.value = await contactRequest({
       version: data.value.version, action: 'binding_delete', id: row.id, binding_id: member.binding_id
@@ -293,7 +291,7 @@ async function deleteBinding(row, member) {
   }
 }
 
-// 合并只把源档案的群身份、头像、记忆接到当前档案，源档案留在重定向表里供历史引用。
+// 合并只把源档案的群身份、头像接到当前档案，源档案留在重定向表里供历史引用。
 function mergePerson(row, item) { openMerge(item.id, row.id) }
 
 async function mergeChosen(row) {
@@ -301,13 +299,13 @@ async function mergeChosen(row) {
   if (item) await mergePerson(row, item)
 }
 
-// 删除是彻底操作：联系人的投递窗口、群身份、头像和共享记忆一起消失，删完不可恢复。
+// 删除是彻底操作：联系人的投递窗口、群身份、头像一起消失，删完不可恢复；知识库里的 Markdown 文件不动。
 async function deleteContact(row) {
   const routes = (row.conversations || []).length
   const message = row.kind === 'group'
     ? '从列表移除群「' + row.name + '」？\n只摘掉它的监听与订阅路由，群成员档案和群昵称记录都会保留，随时可以重新添加。'
-    : '删除联系人「' + row.name + '」？\n它的 ' + routes + ' 个投递窗口、' + (row.bindings?.length || 0) + ' 条群身份、头像和 '
-      + (row.memory_count || 0) + ' 条共享记忆都会消失，此操作不可撤销。'
+    : '删除联系人「' + row.name + '」？\n它的 ' + routes + ' 个投递窗口、' + (row.bindings?.length || 0) + ' 条群身份和头像都会消失，此操作不可撤销；'
+      + '个人知识库目录里的 Markdown 文件保持原样。'
   if (!window.confirm(message)) return
   try {
     data.value = await contactRequest({ version: data.value.version, action: 'contact_delete', id: row.id, kind: row.kind })
@@ -318,7 +316,7 @@ async function deleteContact(row) {
 }
 
 async function cleanupPending() {
-  if (!window.confirm('删除全部以「待命名-」开头、且从未确认过的档案？\n它们的群成员关系、头像和共享记忆都会消失，此操作不可撤销。')) return
+  if (!window.confirm('删除全部以「待命名-」开头、且从未确认过的档案？\n它们的群成员关系和头像都会消失，此操作不可撤销。')) return
   try {
     data.value = await contactRequest({ version: data.value.version, action: 'person_cleanup',
       ids: cleanupCandidates.value.map(row => row.id) })
@@ -393,15 +391,14 @@ async function cleanupPending() {
         </div>
         <p class="user-error" role="alert">{{ error }}</p>
         <nav class="contact-tabs contact-detail-tabs" aria-label="联系人详情分区">
-          <template v-for="[value, label] in TABS" :key="value"><button v-if="current.kind === 'person' || value !== 'memory'" :data-detail="value"
+          <template v-for="[value, label] in TABS" :key="value"><button :data-detail="value"
             :aria-pressed="detailTab === value" @click="detailTab = value; hbShown = false">{{ value === 'groups' && current.kind === 'group' ? '群成员' : label }}</button></template>
         </nav>
       </div>
       <section v-if="detailTab === 'overview'" class="contact-section">
         <h3>概览</h3><p>微信窗口名称：{{ current.kind === 'group' ? current.name : wechatOf(current) || '未配置私聊' }}</p>
-        <p v-if="!current.conversations.length">仅有群身份也能保留个人记忆，无需为每位群成员创建私聊。</p>
+        <p v-if="!current.conversations.length">仅有群身份也能保留个人资料，无需为每位群成员创建私聊。</p>
         <p v-for="conversation in current.conversations" :key="conversation.id">{{ conversation.name }}：{{ policyText(current, conversation) }}</p>
-        <p v-if="current.kind === 'person'">个人记忆：{{ current.memory_count }} 条</p>
         <div class="row"><button @click="detailTab = 'basic'">配置收发</button><button @click="detailTab = 'ai'">设置 AI 角色</button></div>
         <div v-if="pendingReasons(current).length" class="contact-notice"><strong>待确认事项</strong>
           <p>{{ pendingReasons(current).join('、') }}</p><button @click="openIssue(current)">查看并处理</button></div>
@@ -453,12 +450,6 @@ async function cleanupPending() {
           <p v-for="binding in current.bindings.filter(item => item.channel_type === 'group')" :key="binding.binding_id">{{ binding.contact }}，{{ binding.nickname }}
             <button @click="openBinding(binding)">编辑</button><button @click="deleteBinding(current, binding)">移除身份</button></p></details>
       </section>
-      <section v-else-if="detailTab === 'memory' && current.kind === 'person'" class="contact-section">
-        <h3>个人记忆 <small>{{ current.memory_count }} 条</small></h3><p>已确认关联到此人的群身份共用个人记忆，各群保留自己的昵称。</p>
-        <button @click="loadMemory('person:' + current.id)">查看与整理个人记忆</button>
-        <details v-if="current.memory_conflicts?.length"><summary>待整理记忆，保留全部来源</summary>
-          <p v-for="(item, index) in current.memory_conflicts" :key="index">{{ item.key }}：{{ item.value }}（{{ item.source_label || item.source_user_id }}）</p></details>
-      </section>
       <section v-else-if="detailTab === 'maintenance'" class="contact-section">
         <h3>身份管理</h3><p>只有确认属于同一个人后才合并，重名和相似头像都只是候选线索。</p>
         <template v-if="current.kind === 'person'">
@@ -471,13 +462,13 @@ async function cleanupPending() {
         <details class="contact-maintenance"><summary>技术信息</summary>
           <p>固定 ID：<code>{{ current.id }}</code>，版本 {{ data.version }}</p>
           <p v-if="current.historical_names?.length">历史名称：{{ current.historical_names.join('、') }}</p>
-          <p v-if="current.kind === 'person'">永久删除将清理该人物的全部身份、私聊窗口和个人记忆。仅移除群关系请到“群身份”。</p>
+          <p v-if="current.kind === 'person'">永久删除将清理该人物的全部身份和私聊窗口，知识库里已有的 Markdown 文件不动。仅移除群关系请到“群身份”。</p>
         </details>
         <details class="contact-maintenance"><summary>全局维护工具</summary>
-          <p>清理工具作用于全部档案，服务端会再次检查是否有已确认身份、窗口或记忆。</p>
+          <p>清理工具作用于全部档案，服务端会再次检查是否有已确认身份或投递窗口。</p>
           <button id="contact-avatar-cleanup" @click="cleanupAvatars">清理可疑头像</button>
           <details><summary>预览未命名空档案候选（{{ cleanupCandidates.length }}）</summary>
-            <p v-for="row in cleanupCandidates" :key="row.id">{{ row.name }}，{{ row.bindings?.length || 0 }} 条未确认身份，无窗口和个人记忆</p>
+            <p v-for="row in cleanupCandidates" :key="row.id">{{ row.name }}，{{ row.bindings?.length || 0 }} 条未确认身份，无投递窗口</p>
             <button id="contact-pending-cleanup" :disabled="!cleanupCandidates.length" @click="cleanupPending">清理符合条件的未命名空档案</button>
           </details>
         </details>

@@ -5,22 +5,24 @@
 处理器签名 `fn(ctx) -> (status, body)`；body 由 http 层序列化为 JSON。
 `/` 跳转与 `/app/` 静态文件属于传输层，见 dashboard.http，不在这张表里。
 """
-from dashboard.api import (config, contacts, flow, groups, heartbeat, jobs, queue,
-                           relay, runtime, system, users, workflow)
+from dashboard.api import (config, contacts, flow, groups, heartbeat, jobs, knowledge,
+                           queue, relay, runtime, system, users, workflow)
 
 # 对接外部管理台时（installation.mode != "local"），这些路径的读写一律 503：
-# 用户、记忆、心跳与转发都由对端维护。列表与原实现的拦截范围逐条对应。
+# 用户、联系人、心跳与转发都由对端维护。列表与原实现的拦截范围逐条对应。
 BUSINESS_GET = frozenset({
-    '/api/contacts', '/api/contacts/memory', '/api/contacts/audit', '/api/contacts/merge-preview',
-    '/api/users', '/api/users/memory', '/api/users/audit', '/api/runtime',
+    '/api/contacts', '/api/contacts/audit', '/api/contacts/merge-preview',
+    '/api/users', '/api/users/audit', '/api/runtime',
     '/api/jobs', '/api/groups', '/api/heartbeat-config', '/api/heartbeat-status',
-    '/api/skills', '/api/telegram-relay',
+    '/api/skills', '/api/telegram-relay', '/api/knowledge', '/api/knowledge/facts',
+    '/api/knowledge/extract',
 })
 
 BUSINESS_POST = frozenset({
     '/api/contacts', '/api/users', '/api/jobs/delete', '/api/heartbeat-trigger',
     '/api/heartbeat-config', '/api/groups', '/api/news-config',
     '/api/telegram-relay', '/api/telegram-relay/resolve',
+    '/api/knowledge/extract',
 })
 
 ROUTES = (
@@ -29,10 +31,8 @@ ROUTES = (
     ("GET", "/api/telegram-relay", relay.read),
     ("GET", "/api/contacts", contacts.read),
     ("GET", "/api/contacts/merge-preview", contacts.merge_preview),
-    ("GET", "/api/contacts/memory", contacts.detail),
     ("GET", "/api/contacts/audit", contacts.detail),
     ("GET", "/api/users", users.read),
-    ("GET", "/api/users/memory", users.read),
     ("GET", "/api/users/audit", users.read),
     ("GET", "/api/workflow-content", workflow.content),
     ("GET", "/api/workflow-stream", workflow.stream),
@@ -40,6 +40,9 @@ ROUTES = (
     ("GET", "/api/flow", flow.read),
     ("GET", "/api/runtime", runtime.read),
     ("GET", "/api/queue", queue.read),
+    ("GET", "/api/knowledge", knowledge.read),
+    ("GET", "/api/knowledge/facts", knowledge.facts),
+    ("GET", "/api/knowledge/extract", knowledge.extract_status),
     ("GET", "/api/configuration", config.read),
     ("GET", "/api/health", system.health),
     ("GET", "/api/jobs", jobs.read),
@@ -60,6 +63,7 @@ ROUTES = (
     ("POST", "/api/queue-delete-unsent", queue.delete_unsent),
     ("POST", "/api/queue-action", queue.action),
     ("POST", "/api/heartbeat-trigger", heartbeat.trigger),
+    ("POST", "/api/knowledge/extract", knowledge.extract_trigger),
     ("POST", "/api/groups", groups.save),
     ("POST", "/api/heartbeat-config", heartbeat.save_config),
 )

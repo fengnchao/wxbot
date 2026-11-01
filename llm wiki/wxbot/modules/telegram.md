@@ -3,7 +3,7 @@ type: module
 module: telegram
 summary: Telethon、Bot API 和桌面中继三个不同边界
 coverage: overview
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/butler/channels/telegram/bot/queue.py
   line: 9
@@ -16,6 +16,7 @@ sources:
   anchor: 'class '
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
+- raw/changes/2026-11-01-mention-fallback-unread-retry
 ---
 # Telegram 外部通道
 
@@ -27,6 +28,8 @@ Butler 的 `channels/telegram/` 包括 Telethon 接收、bot/ 入库和 relay/ �
 
 通道属于 [[modules/butler]]，桌面 UI 属于 [[modules/wxbot]]；聚合展示由 [[modules/dashboard]] 承担。完整队列表、消息去重和媒体重试协议尚待建档。禁止为图谱收集真实频道消息或 session 文件。
 
+桌面中继清理搜索框只能用 uiautomation 声明的 `{Back}`；`{Backspace}` 不在键表里，会被交给 Unicode 输入并抛 TypeError，使搜索框保留上一次查询词。同一次的键名错误也出现在微信侧，见 [[symbols/mention-selection]]。
+
 ## 代码依据
 
 - `src/butler/channels/telegram/bot/queue.py:9` — `class Queue:`
@@ -36,3 +39,5 @@ Butler 的 `channels/telegram/` 包括 Telethon 接收、bot/ 入库和 relay/ �
 ## 入库来源
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
+
+[[raw/changes/2026-11-01-mention-fallback-unread-retry]]

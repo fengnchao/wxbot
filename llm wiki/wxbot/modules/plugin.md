@@ -3,7 +3,7 @@ type: module
 module: plugin
 summary: 角色和工具 Skill 分类，权限仍由业务服务验证
 coverage: overview
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/butler/agent/catalogue.py
   line: 8
@@ -13,6 +13,7 @@ sources:
   anchor: 'class SkillPolicyStore:'
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
+- raw/changes/2026-11-01-knowledge-vault-graph
 ---
 # Butler 运行时插件
 

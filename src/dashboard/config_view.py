@@ -49,6 +49,11 @@ BT_DEFAULTS = {
     'dispatch':{'actions_enabled':True,'script_dir':'','respond_after_action':False},
     'log':{'flow_file':''}, 'groups':{'file':''}, 'contacts':[], 'message_routes':[],
     'heartbeat':{'config_file':'','state_file':'','audit_file':'','min_interval_minutes':180,'max_interval_minutes':360},
+    # 自动提炼：默认关，配在文件里或在这里打开；字段与 Config 的 knowledge_* 一一对应。
+    'knowledge':{'enabled':True,'retention_days':90,'auto_extract':False,'auto_prune':False,
+                 'extract_interval_minutes':60,'extract_batch':40,'extract_max_owners':5,
+                 'extract_min_backlog':1,'extract_idle_seconds':120,'extract_retry_minutes':30,
+                 'prune_interval_hours':24},
 }
 _SECRET_WORDS = {'key','apikey','token','password','passwd','secret','authorization','credential',
                  'credentials','cookie','privatekey','auth','headers','signature','sig','jwt'}

@@ -24,6 +24,7 @@ changes:
 - raw/changes/2026-10-31-switchable-models
 - raw/changes/2026-10-31-model-access-switch
 - raw/changes/2026-11-01-model-request-error-visibility
+- raw/changes/2026-11-01-knowledge-vault-graph
 ---
 # LocalModelBackend
 

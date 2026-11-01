@@ -230,7 +230,9 @@ class MentionSelection:
             auto.SendKeys('{Ctrl}a',waitTime=0)
             self.phase = 'mention_fallback_delete'
         else:
-            auto.SendKeys('{Backspace}',waitTime=0)
+            # uiautomation only knows {Back}; {Backspace} is fed to the Unicode
+            # typer and raises TypeError, which used to strand the @ object.
+            auto.SendKeys('{Back}',waitTime=0)
             self.phase = 'mention_fallback_verify'
             self.deadline = self.clock()+1
         return 'typing'

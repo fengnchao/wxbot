@@ -3,20 +3,21 @@ type: symbol
 module: wxbot
 summary: 完整分句入 outbox，模型完成和发送完成分开
 coverage: core
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/wxbot/queue_store.py
-  line: 334
+  line: 339
   anchor: def finish_batch_parts(
 - path: src/wxbot/queue_store.py
-  line: 316
+  line: 321
   anchor: def _insert_delivery(
 - path: src/wxbot/queue_store.py
-  line: 354
+  line: 359
   anchor: def _recompute_batch(
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
+- raw/changes/2026-11-01-mention-fallback-unread-retry
 calls: []
 called_by:
 - symbols/model-worker
@@ -39,10 +40,12 @@ parts 必须是完整、非空字符串的 tuple（允许空 tuple 表示无需�
 
 ## 代码依据
 
-- `src/wxbot/queue_store.py:334` — `def finish_batch_parts(`
-- `src/wxbot/queue_store.py:316` — `def _insert_delivery(`
-- `src/wxbot/queue_store.py:354` — `def _recompute_batch(`
+- `src/wxbot/queue_store.py:339` — `def finish_batch_parts(`
+- `src/wxbot/queue_store.py:321` — `def _insert_delivery(`
+- `src/wxbot/queue_store.py:359` — `def _recompute_batch(`
 
 ## 入库来源
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
+
+[[raw/changes/2026-11-01-mention-fallback-unread-retry]]

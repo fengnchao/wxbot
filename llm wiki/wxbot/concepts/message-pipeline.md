@@ -3,10 +3,10 @@ type: concept
 module: wxbot
 summary: 窗口→收件→批次→Butler→分句→UI→只读投影
 coverage: core
-last_verified: '2026-10-31'
+last_verified: '2026-11-01'
 sources:
 - path: src/wxbot/inbox.py
-  line: 253
+  line: 255
   anchor: def _capture(
 - path: src/wxbot/queue_worker.py
   line: 141
@@ -15,7 +15,7 @@ sources:
   line: 72
   anchor: body["msg_id"] = request_id
 - path: src/butler/agent/core.py
-  line: 294
+  line: 304
   anchor: result.meta["msg_id"] = msg_id
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
@@ -23,6 +23,11 @@ changes:
 - raw/changes/2026-10-31-model-access-switch-core-emit
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-10-31-identity-placeholder-names
+- raw/changes/2026-11-01-knowledge-episodes
+- raw/changes/2026-11-01-knowledge-sharding
+- raw/changes/2026-11-01-mention-fallback-unread-retry
+- raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-01-knowledge-atlas-index
 ---
 # 消息主链路与字段传递
 
@@ -43,12 +48,16 @@ changes:
 
 模型来源在流转日志里按接入方式展示（deepseek 而不是 openai），字段仍走既有 trace，不新增队列列。
 
+另有旁路支线：[[symbols/butler-handle]] 的 `_record_episode`（`src/butler/agent/core.py:318`）在请求返回前把本轮用户原文与回复写进 [[tables/knowledge-vault]]（`cfg.data_path()/'knowledge'` 下，一人一个 vault，落到 `p-<slug>/vault/对话/YYYY-MM-DD.md`，与队列库无关）。它只读不写队列状态，失败不影响主链路；写入同时还重画该 vault 的 `index.md` 中心索引页（同一轮多一次文件写）。管理台侧的只读消费见 [[apis/dashboard-knowledge]]。
+
 ## 代码依据
 
-- `src/wxbot/inbox.py:253` — `def _capture(`
+- `src/butler/agent/core.py:318` — `def _record_episode(self, c, contact_name, channel_type, text, reply, outcome):`
+- `src/butler/agent/core.py:324` — `self.knowledge.record(`
+- `src/wxbot/inbox.py:255` — `def _capture(`
 - `src/wxbot/queue_worker.py:141` — `reply = self.router.handle_reply(`
 - `src/wxbot/processor/butler.py:72` — `body["msg_id"] = request_id`
-- `src/butler/agent/core.py:294` — `result.meta["msg_id"] = msg_id`
+- `src/butler/agent/core.py:301` — `result.meta["msg_id"] = msg_id`
 
 ## 入库来源
 
@@ -58,3 +67,11 @@ changes:
 [[raw/changes/2026-10-31-switchable-models]]
 
 [[raw/changes/2026-10-31-model-access-switch-core-emit]]
+
+[[raw/changes/2026-11-01-knowledge-episodes]]
+
+[[raw/changes/2026-11-01-knowledge-sharding]]
+
+[[raw/changes/2026-11-01-mention-fallback-unread-retry]]
+
+[[raw/changes/2026-11-01-knowledge-atlas-index]]

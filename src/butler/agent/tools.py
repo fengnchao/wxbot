@@ -7,14 +7,10 @@ import secrets
 import time
 
 
-READ_TOOLS = {'skills_list','skill_read','memory_get','memory_search','reminder_list','telegram_relay_status'}
+READ_TOOLS = {'skills_list','skill_read','reminder_list','telegram_relay_status'}
 TOOL_SCHEMAS = {
     'skills_list': ('List skills permitted for this identity', {}),
     'skill_read': ('Read an allowed skill or a relative reference file', {'name':{'type':'string'},'file_path':{'type':'string'}}),
-    'memory_get': ('Read this identity\'s saved notes', {}),
-    'memory_search': ('Search this identity\'s saved notes', {'query':{'type':'string'}}),
-    'memory_set': ('Save an explicitly confirmed fact or preference for this identity', {'key':{'type':'string'},'value':{'type':'string'}}),
-    'memory_delete': ('Forget an explicitly requested saved fact for this identity', {'key':{'type':'string'}}),
     'reminder_create': ('Create a reminder; schedule is in 2m, ISO datetime, or 5-field cron', {'text':{'type':'string'},'schedule':{'type':'string'}}),
     'reminder_list': ('List reminders owned by this identity', {}),
     'reminder_cancel': ('Cancel a reminder owned by this identity', {'id':{'type':'string'}}),
@@ -23,7 +19,7 @@ TOOL_SCHEMAS = {
     'telegram_relay_resume': ('Resume the configured Telegram relay (administrators only)', {}),
 }
 REQUIRED_ARGUMENTS = {
-    'skill_read':('name',),'memory_set':('key','value'),'memory_delete':('key',),
+    'skill_read':('name',),
     'reminder_create':('text','schedule'),'reminder_cancel':('id',),
 }
 
@@ -44,10 +40,9 @@ class ToolService:
         except (OSError, ValueError):
             return False
 
-    def issue(self, *, owner, contact, policy, read_only=False, request_id, ttl=900, memory_allowed=True,memory_owner=None):
+    def issue(self, *, owner, contact, policy, read_only=False, request_id, ttl=900):
         policy=self.catalogue.validate(policy)
-        payload={'owner':owner,'memory_owner':memory_owner if memory_owner is not None else owner,
-                 'contact':contact,'policy':policy,'read_only':bool(read_only),'memory_allowed':bool(memory_allowed),
+        payload={'owner':owner,'contact':contact,'policy':policy,'read_only':bool(read_only),
                  'request_id':request_id,'expires':time.time()+ttl}
         encoded=base64.urlsafe_b64encode(json.dumps(payload,separators=(',',':'),ensure_ascii=False).encode()).decode().rstrip('=')
         sig=hmac.new(self.secret,encoded.encode(),hashlib.sha256).hexdigest()
@@ -75,8 +70,6 @@ class ToolService:
     def definitions(self, token):
         c=self.verify(token)
         names=self.catalogue.allowed_tools(c['policy']) | {'skills_list','skill_read'}
-        if not c.get('memory_allowed',True):
-            names={name for name in names if not name.startswith('memory_')}
         if c['read_only']:
             names &= READ_TOOLS
         if not self._relay_admin(c):
@@ -85,7 +78,7 @@ class ToolService:
                  'inputSchema':{'type':'object','properties':TOOL_SCHEMAS[n][1],
                                 'required':list(REQUIRED_ARGUMENTS.get(n,())), 'additionalProperties':False},
                  'annotations':{'readOnlyHint':n in READ_TOOLS,'destructiveHint':False,
-                                'idempotentHint':n in READ_TOOLS or n in ('memory_set','reminder_cancel'),
+                                'idempotentHint':n in READ_TOOLS or n in ('reminder_cancel',),
                                 'openWorldHint':False}}
                 for n in sorted(names & TOOL_SCHEMAS.keys())]
 
@@ -128,7 +121,6 @@ class ToolService:
                 raise PermissionError('Skill not permitted')
             return {'text':self.catalogue.read(args['name'],args.get('file_path','SKILL.md'))}
         owner=c['owner']
-        memory_owner=c.get('memory_owner',owner)
         with self.store.transaction() as db:
             fingerprint=hashlib.sha256(json.dumps([name,args],sort_keys=True,ensure_ascii=False).encode()).hexdigest()
             old=db.execute('SELECT fingerprint,result FROM operations WHERE owner=? AND request_id=? AND call_id=?',
@@ -155,12 +147,6 @@ class ToolService:
                     if c['contact'] not in snapshot['admin_contacts']:
                         raise PermissionError('Relay administrator permission required')
                     result = self.relay_settings.update({'enabled': name == 'telegram_relay_resume'}, snapshot['version'])
-            elif name in ('memory_get','memory_search'):
-                result={'items':self.store.memories(memory_owner,args.get('query',''),db=db)}
-            elif name=='memory_set':
-                result=self.store.set_memory(memory_owner,args.get('key'),args.get('value'),db=db,source_label=c['contact'])
-            elif name=='memory_delete':
-                result=self.store.delete_memory(memory_owner,args.get('key'),db=db)
             elif name=='reminder_list':
                 result={'items':self.store.reminders(owner,db=db)}
             elif name=='reminder_create':
