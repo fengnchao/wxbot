@@ -127,6 +127,10 @@ option{background:#111922;color:var(--fg)}
 button:focus-visible,a:focus-visible,summary:focus-visible{
   outline:none;box-shadow:var(--ring);border-color:var(--wx);
 }
+
+.global-search{display:inline-flex;align-items:center;gap:6px;min-width:0;flex:0 1 auto}
+.global-search #view-search{flex:1 1 auto;min-width:120px}
+.global-search #view-search-clear{flex:none;padding:0 10px;white-space:nowrap}
 #view-search,#c-search{
   padding-left:30px;background-repeat:no-repeat;background-position:10px 50%;background-size:14px;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%237b8da2' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E");

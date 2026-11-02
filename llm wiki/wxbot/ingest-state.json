@@ -393,6 +393,13 @@
         "tables/queue-inbox"
       ],
       "date": "2026-11-02"
+    },
+    "raw/changes/2026-11-02-web-global-search-clear": {
+      "sha256": "aa4e803112d5f77574b173e5fe7da76b317651e927d3a659bc94fa17bc6087ab",
+      "pages": [
+        "modules/web"
+      ],
+      "date": "2026-11-02"
     }
   },
   "pages": {
@@ -528,7 +535,7 @@
       }
     },
     "modules/web": {
-      "sha256": "8fd50de9aa98b5a952afc2fc0bd41b1bca569a586afc9d5597fd177f300558d0",
+      "sha256": "40e94e963a752799daed9e33bc036ec9478ca7b144256046125b1b9bd95d14d9",
       "sources": {
         "web/src/router.js": "4f3ad939beb91995f564fbfb6a7759652cc07c6aaee9f2165c77ec098c24a32c",
         "web/src/api.js": "33f5fc3542b631867008c89eb6beab53aaf5c027680e05dd1f55f39ba8901265",

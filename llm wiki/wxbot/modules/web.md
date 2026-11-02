@@ -34,6 +34,7 @@ sources:
   anchor: '[''contacts'', ''联系人与策略''], [''knowledge'', ''知识库''], [''logging'', ''日志''],
     [''advanced'', ''高级配置'']'
 changes:
+- raw/changes/2026-11-02-web-global-search-clear
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-switchable-models
 - raw/changes/2026-10-31-model-access-switch
@@ -51,7 +52,7 @@ depends_on:
 
 ## 范围与依赖
 
-`web/` 是 Vue 3/Vite 管理台；源码 `web/src/`，构建目录 `web/dist/` 由管理台提供 `/app/`。入口/页面注册步骤在根 README。导航由 router.js 和 App.vue 共同登记；请求封装见 api.js。
+`web/` 是 Vue 3/Vite 管理台；源码 `web/src/`，构建目录 `web/dist/` 由管理台提供 `/app/`。入口/页面注册步骤在根 README。导航由 router.js 和 App.vue 共同登记；请求封装见 api.js。顶栏 `#view-search` 按 tab 保存关键词；有内容时旁显示 `#view-search-clear`（「清空」），只清当前页并回焦；`configuration` / `telegram-relay` 等 `searchHidden` 页两者都不显示。
 
 ## API 消费映射
 
@@ -86,6 +87,8 @@ UI 修改按根 AGENTS 的 Hallmark 流程，保留现有设计系统；构建�
 - `web/src/views/ConfigurationView.vue:14` — `['contacts', '联系人与策略'], ['knowledge', '知识库'], …`
 
 ## 入库来源
+
+[[raw/changes/2026-11-02-web-global-search-clear]]
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
 

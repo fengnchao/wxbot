@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted, onUnmounted, provide, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, provide, reactive, ref, watch } from 'vue'
 import { activeTab, TABS, go, tabTitle } from './router'
 import { apiGet } from './api'
 import { readPreference, savePreference } from './prefs'
@@ -120,6 +120,14 @@ function expand(open) {
   const pane = document.querySelector('#pane')
   if (pane) pane.querySelectorAll('details').forEach(node => { node.open = open })
 }
+
+const searchValue = computed(() => String(search[activeTab.value] ?? ''))
+
+async function clearSearch() {
+  search[activeTab.value] = ''
+  await nextTick()
+  document.querySelector('#view-search')?.focus()
+}
 </script>
 
 <template>
@@ -158,14 +166,22 @@ function expand(open) {
         </button>
         <!-- 页面专属按钮由各视图 Teleport 到这里，保持工具栏固定顺序。 -->
         <div id="page-tools" class="page-tools"></div>
-        <input
-          v-if="!searchHidden"
-          id="view-search"
-          v-model="search[activeTab]"
-          type="search"
-          :placeholder="searchPlaceholder"
-          aria-label="搜索当前记录"
-        >
+        <span v-if="!searchHidden" class="global-search">
+          <input
+            id="view-search"
+            v-model="search[activeTab]"
+            type="search"
+            :placeholder="searchPlaceholder"
+            aria-label="搜索当前记录"
+          >
+          <button
+            v-if="searchValue"
+            id="view-search-clear"
+            type="button"
+            aria-label="清空搜索"
+            @click="clearSearch"
+          >清空</button>
+        </span>
         <button @click="expand(true)">展开本页</button>
         <button @click="expand(false)">收起本页</button>
       </div>
