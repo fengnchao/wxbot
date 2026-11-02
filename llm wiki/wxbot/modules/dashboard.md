@@ -3,7 +3,7 @@ type: module
 module: dashboard
 summary: 聚合运行事实，读取队列不初始化或迁移数据库
 coverage: overview
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/dashboard/routes.py
   line: 28
@@ -21,8 +21,11 @@ sources:
   line: 153
   anchor: def _access_changes(
 - path: src/dashboard/api/knowledge.py
-  line: 47
+  line: 54
   anchor: 'def extract_status(ctx):'
+- path: src/dashboard/knowledge_template_view.py
+  line: 27
+  anchor: 'class KnowledgeTemplateView:'
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-model-access-switch
@@ -30,6 +33,7 @@ changes:
 - raw/changes/2026-11-01-knowledge-sharding
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-02-knowledge-graph-template
 depends_on:
 - modules/common
 ---
@@ -45,7 +49,9 @@ depends_on:
 
 [[apis/dashboard-knowledge]] 同属只读投影，但读的是 Butler 侧的 [[tables/kb-episodes]]（L1 原文）与 [[tables/kb-facts]]（L2 事实），枚举靠 [[tables/kb-owners]]。`KnowledgeView` 先读索引库列人；索引库缺失或损坏时退回扫目录，从各库内的 `distinct owner` 反推。每个库都用 `mode=ro` 打开，**不建库不建表**：默认就没有历史，空态不是错误。
 
-同一词条里还有自动提炼两条：`GET /api/knowledge/extract`（`src/dashboard/routes.py:47`）把 Butler 的调度器状态包一层 `available` 转发给页面，Butler 不可达只是 `available: false`；`POST /api/knowledge/extract`（`:68`）只做参数收拢再转给 Butler（`api/support.py:172`），**管理台自己不跑模型、不写库**。两条都受 `BUSINESS_GET` / `BUSINESS_POST` 门禁（`routes.py:18`、`:25`），非本机部署返回 503。
+同一词条里还有自动提炼两条：`GET /api/knowledge/extract`（`src/dashboard/routes.py:45`）把 Butler 的调度器状态包一层 `available` 转发给页面，Butler 不可达只是 `available: false`；`POST /api/knowledge/extract`（`:67`）只做参数收拢再转给 Butler（`api/support.py:172`），**管理台自己不跑模型、不写库**。两条都受 `BUSINESS_GET` / `BUSINESS_POST` 门禁（`routes.py:18`、`:25`），非本机部署返回 503。
+
+知识模板两条：`GET /api/knowledge/template`（`:46`）只读返回生效模板、覆盖层内容与逐行错误；`POST /api/knowledge/template`（`:68`）交 `KnowledgeTemplateView`（`knowledge_template_view.py:27`）处理 `validate` / `save` / `reset`。写路径不指定路径，固定落在 `data/knowledge/template.md`，复用 `config_lock`、sha256 版本比对、写前备份与原子替换；同样受 `BUSINESS_GET` / `BUSINESS_POST` 门禁，非本机 503。
 
 两个视图都不写库：事实上游是 Butler 的调度器（[[symbols/knowledge-auto]] → [[symbols/knowledge-extract]]），管理台只负责展示，外加把「立即提炼」转发给 Butler 一次。
 
@@ -62,7 +68,8 @@ depends_on:
 - `src/dashboard/workflow_view.py:41` — `class WorkflowView:`
 - `src/dashboard/config_view.py:95` — `class ConfigView:`
 - `src/dashboard/config_editor.py:153` — `def _access_changes(`
-- `src/dashboard/api/knowledge.py:47` — `def extract_status(ctx):`
+- `src/dashboard/api/knowledge.py:54` — `def extract_status(ctx):`
+- `src/dashboard/knowledge_template_view.py:27` — `class KnowledgeTemplateView:`
 
 ## 入库来源
 
@@ -75,3 +82,5 @@ depends_on:
 [[raw/changes/2026-11-01-knowledge-sharding]]
 
 [[raw/changes/2026-11-01-knowledge-auto]]
+
+[[raw/changes/2026-11-02-knowledge-graph-template]]

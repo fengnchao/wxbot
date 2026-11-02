@@ -22,8 +22,8 @@ FAILURE_DETAIL_FIELDS = {'phase','expected_contact','actual_contact','expected_g
     'expected_hwnd','foreground_hwnd','input_focused','target_matches','characters_entered',
     'enter_attempted','clipboard_write','clipboard_committed','clipboard_checked',
     'clipboard_operation','clipboard_format','clipboard_error','os_error_code','exception_type',
-    'manual_required','retry_safe','attempt','max_attempts','retry_at','error_code',
-    'mention_verified','mention_fallback','bubble_verified'}
+    'manual_required','retry_safe','attempt','max_attempts','retry_at','error_code','retry',
+    'mention_verified','mention_fallback','mention_residue','bubble_verified','confirm_evidence','ref_available'}
 
 
 def queue_database(cfg):

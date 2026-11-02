@@ -3,7 +3,7 @@ type: concept
 module: wxbot
 summary: 窗口→收件→批次→Butler→分句→UI→只读投影
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/wxbot/inbox.py
   line: 255
@@ -17,6 +17,12 @@ sources:
 - path: src/butler/agent/core.py
   line: 304
   anchor: result.meta["msg_id"] = msg_id
+- path: src/wxbot/wechat/chat_window.py
+  line: 36
+  anchor: "ref: str = ''"
+- path: src/wxbot/ui_contract.py
+  line: 56
+  anchor: def persisted_rows(
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-switchable-models
@@ -28,6 +34,8 @@ changes:
 - raw/changes/2026-11-01-mention-fallback-unread-retry
 - raw/changes/2026-11-01-knowledge-vault-graph
 - raw/changes/2026-11-01-knowledge-atlas-index
+- raw/changes/2026-11-02-ui-snapshot-ref-contract
+- raw/changes/2026-11-02-mention-residue-reverify
 ---
 # 消息主链路与字段传递
 
@@ -41,6 +49,7 @@ changes:
 - batches.id → worker.request_id → HTTP msg_id → Butler trace / meta.msg_id；decoder 可核对回包 ID，管理台按 request_id 关联。
 - member_key/member_name/avatar：观察数据 → 批次/请求；服务端解析确认后返回 mention_name，第一分句才携带 @ 目标。见 [[concepts/identity-authority]]。
 - Result.reply / reply_parts → wxbot Reply → outbox.text/part_seq；reply_complete 与投递 state 不同，见 [[concepts/delivery-state]]。
+- 快照引用只在一次界面读取内有效：`Message.ref` 不落库，`observations.snapshot` 与 `outbox.baseline` 都保存去引用版本；重启后只能按正文对齐，不能当跨进程指针用。
 
 ## 反向消费
 
@@ -58,6 +67,8 @@ changes:
 - `src/wxbot/queue_worker.py:141` — `reply = self.router.handle_reply(`
 - `src/wxbot/processor/butler.py:72` — `body["msg_id"] = request_id`
 - `src/butler/agent/core.py:301` — `result.meta["msg_id"] = msg_id`
+- `src/wxbot/wechat/chat_window.py:36` — `ref: str = ''`
+- `src/wxbot/ui_contract.py:56` — `def persisted_rows(`
 
 ## 入库来源
 
@@ -75,3 +86,7 @@ changes:
 [[raw/changes/2026-11-01-mention-fallback-unread-retry]]
 
 [[raw/changes/2026-11-01-knowledge-atlas-index]]
+
+[[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
+
+[[raw/changes/2026-11-02-mention-residue-reverify]]

@@ -3,7 +3,7 @@ type: concept
 module: identity
 summary: 窗口/头像/昵称是证据，服务签发上下文才是工具授权边界
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/butler/agent/tools.py
   line: 43
@@ -22,6 +22,9 @@ changes:
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-11-01-mention-fallback-unread-retry
 - raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-02-ui-snapshot-ref-contract
+- raw/changes/2026-11-02-details-whitelist-reverify
+- raw/changes/2026-11-02-mention-residue-reverify
 ---
 # 观察证据与身份权限
 
@@ -33,7 +36,7 @@ changes:
 
 ## 输入到输出
 
-[[apis/butler-handle]] 的 member_key/member_name/avatar 是来自 [[modules/wxbot]] 的观察；[[symbols/butler-handle]] 解析后才提供身份相关 meta。[[symbols/queue-finish]] 仅使用服务给出的 mention_name 给第一分句设置 @；不能用模型文本/本地猜测替换收件身份。
+[[apis/butler-handle]] 的 member_key/member_name/avatar 是来自 [[modules/wxbot]] 的观察；[[symbols/butler-handle]] 解析后才提供身份相关 meta。[[symbols/queue-finish]] 仅使用服务给出的 mention_name 给第一分句设置 @；不能用模型文本/本地猜测替换收件身份。2026-11-02 复核：`queue_store.py` 只扩展了投递事件细节白名单，`member_name` 只取服务给出的 mention_name 这一条未变。
 
 ## 开发与运行边界
 
@@ -51,3 +54,9 @@ changes:
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
 
 [[raw/changes/2026-11-01-mention-fallback-unread-retry]]
+
+[[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
+
+[[raw/changes/2026-11-02-details-whitelist-reverify]]
+
+[[raw/changes/2026-11-02-mention-residue-reverify]]

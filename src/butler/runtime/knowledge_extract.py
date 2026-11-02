@@ -13,47 +13,58 @@ from __future__ import annotations
 import json
 import re
 
+from butler.runtime.knowledge_template import (DEFAULT_TEMPLATE, LEGACY_KINDS,
+                                                LEGACY_NODE_DIRS)
+
 MAX_BATCH = 200
 MAX_VALUE = 500
 MAX_KEY = 80
 MAX_QUOTE = 300
 MAX_LINKS = 8
-KINDS = ('profile', 'preference', 'personality', 'goal', 'relation', 'event', 'topic')
-NODE_TYPES = ('person', 'org', 'topic')
+# 默认值；实际提炼用模板里的分类与节点类型。
+KINDS = LEGACY_KINDS
+NODE_TYPES = tuple(LEGACY_NODE_DIRS)
 
-PROMPT = """下面是一个人和助理的若干轮对话，每条前面有编号。当前用户的名字是「%s」。
+# 内置安全规则不可删，模板的「## 提炼规则」只能追加在它们后面。
+CORE_RULES = (
+    '只提取文中「用户」说过、且值得长期保留的信息。助理的回复只用于理解语境，绝不能作为事实来源。',
+    '不推测、不补全、不替用户下结论。原文没说的事一律不写。',
+    '同一件事在不同时间说法矛盾时，各写一条，不要合并、不要取舍。',
+    '寒暄、确认、临时安排（如这一刻的天气、当下的情绪）不算事实，不要输出。',
+    'links 只收原文里明确出现过的对象，不要为了连通而编造关系。',
+    '确实没有值得记住的内容时，输出 []。',
+)
+
+PROMPT_HEAD = """下面是一个人和助理的若干轮对话，每条前面有编号。当前用户的名字是「%s」。
 请从中提炼值得长期记住的事实，并把它们挂到知识图谱的节点上。
 
 只输出一个 JSON 数组，不要代码块围栏，不要任何解释。每项字段：
-  kind: profile（身份/背景）| preference（偏好/习惯）| personality（性格/说话方式）
-        | goal（目标/打算）| relation（与他人的关系）| event（约定/发生过的事）
-        | topic（长期关注的话题）
+  kind: %s
   subject: 这条事实说的是谁或什么。说当前用户本人时写他的名字「%s」
-  subject_type: person（人）| org（组织/群/公司）| topic（话题/领域）
+  subject_type: %s
   key: 这件事的短名字，不超过 20 字；同一件事反复出现时用同一个名字
   value: 一句完整陈述，用第三人称，不超过 100 字；提到别人时写对方名字原文，不要加方括号
   links: 这条事实里提到的其他人、组织或话题，数组，元素形如 {"name":"李四","type":"person"}；
          没有就给 []
   quote: 支撑这条的用户原话片段，不超过 60 字
   confidence: 0 到 1 之间的小数
-
-规则：
-1. 只提取文中「用户」说过、且值得长期保留的信息。助理的回复只用于理解语境，绝不能作为事实来源。
-2. 不推测、不补全、不替用户下结论。原文没说的事一律不写。
-3. 同一件事在不同时间说法矛盾时，各写一条，不要合并、不要取舍。
-4. 寒暄、确认、临时安排（如这一刻的天气、当下的情绪）不算事实，不要输出。
-5. links 只收原文里明确出现过的对象，不要为了连通而编造关系。
-6. 确实没有值得记住的内容时，输出 []。
-
-对话如下：
 """
+
+
+def build_prompt(template, contact):
+    """模板决定分类、节点类型与追加规则；内置安全规则永远在前。"""
+    rules = list(CORE_RULES) + list(template.rules)
+    numbered = '\n'.join('%d. %s' % (index, rule) for index, rule in enumerate(rules, 1))
+    return (PROMPT_HEAD % (contact, template.kind_choices(), contact,
+                           template.type_choices())
+            + '\n规则：\n' + numbered + '\n\n对话如下：\n')
 
 
 def _clean(value, limit):
     return re.sub(r'\s+', ' ', str(value or '')).strip()[:limit]
 
 
-def _links(raw):
+def _links(raw, types=NODE_TYPES):
     """links 允许字符串或 {"name","type"} 两种写法，模型两种都见过。"""
     items = raw if isinstance(raw, list) else []
     out = []
@@ -66,12 +77,20 @@ def _links(raw):
             continue
         name = _clean(name, MAX_KEY)
         if name:
-            out.append({'name': name, 'type': kind if kind in NODE_TYPES else 'person'})
+            out.append({'name': name, 'type': kind if kind in types else 'person'})
     return out
 
 
-def parse_facts(raw):
-    """从模型输出里取出 JSON 数组；容忍围栏与前后废话，坏项直接丢弃。"""
+def parse_facts(raw, kinds=None, node_types=None):
+    """从模型输出里取出 JSON 数组；容忍围栏与前后废话，坏项直接丢弃。
+
+    kinds/node_types 是模板白名单：不在其中的值会降级到 topic/person，
+    而不是直接丢掉整条事实——宁可选错分类，也不能漏记用户说过的话。
+    """
+    allowed_kinds = tuple(kinds or KINDS)
+    allowed_types = tuple(node_types or NODE_TYPES)
+    fallback_kind = 'topic' if 'topic' in allowed_kinds else allowed_kinds[0]
+    fallback_type = 'person' if 'person' in allowed_types else allowed_types[0]
     text = str(raw or '')
     start, end = text.find('['), text.rfind(']')
     if start < 0 or end <= start:
@@ -96,12 +115,12 @@ def parse_facts(raw):
         except (TypeError, ValueError):
             confidence = 0.5
         facts.append({
-            'kind': kind if kind in KINDS else 'topic',
+            'kind': kind if kind in allowed_kinds else fallback_kind,
             'subject': _clean(item.get('subject'), MAX_KEY),
-            'subject_type': node_type if node_type in NODE_TYPES else 'person',
+            'subject_type': node_type if node_type in allowed_types else fallback_type,
             'fact_key': _clean(item.get('key'), MAX_KEY),
             'fact_value': value,
-            'links': _links(item.get('links')),
+            'links': _links(item.get('links'), allowed_types),
             'quote': _clean(item.get('quote'), MAX_QUOTE),
             'confidence': max(0.0, min(1.0, confidence)),
         })
@@ -131,8 +150,9 @@ def extract(store, owner, contact, complete, *, batch=40, log=None, dry_run=Fals
     if not rows:
         return 0, 0, 0
     last_at = max(float(row['at']) for row in rows)
-    raw = complete((PROMPT % (contact, contact)) + render(rows))
-    facts = parse_facts(raw)
+    template = getattr(store, 'template', None) or DEFAULT_TEMPLATE
+    raw = complete(build_prompt(template, contact) + render(rows))
+    facts = parse_facts(raw, template.kind_keys, template.node_type_keys)
     if raw and '[' not in str(raw) and ']' not in str(raw):
         log('[%s] 提炼结果无法解析，游标不前移：%r', owner, str(raw)[:120])
         return len(rows), 0, 0

@@ -393,11 +393,49 @@ payloads['/api/knowledge'] = {
 payloads['/api/knowledge/facts'] = {
   available: true, total: 1, limit: 50, offset: 0, has_more: false,
   owners: payloads['/api/knowledge'].owners,
+  // 分类文案来自模板的「索引分类」列，页面不再自己维护一份写死的映射。
+  kinds: [
+    { key: 'profile', label: '用户信息', section: '身份', hint: '' },
+    { key: 'preference', label: '喜好', section: '偏好', hint: '' },
+    { key: 'personality', label: '性格', section: '性格', hint: '' },
+    { key: 'goal', label: '目标', section: '目标', hint: '' },
+    { key: 'relation', label: '关系', section: '关系', hint: '' },
+    { key: 'event', label: '经历', section: '事件', hint: '' },
+    { key: 'topic', label: '关注', section: '话题', hint: '' }
+  ],
+  node_types: [
+    { key: 'person', label: '人物', description: '具体的人' },
+    { key: 'org', label: '组织', description: '公司、团队、群、机构' },
+    { key: 'topic', label: '话题', description: '长期关注的领域或兴趣' }
+  ],
   rows: [
     { owner: 'anon:dm:101', contact: '101', kind: 'preference', fact_key: '常喝的口味',
       fact_value: '喜欢喝美式，不加糖。', quote: '我一般只要美式', episode_at: 1700000000,
       confidence: 0.8, source: 'extract', created: 1700000100 }
   ]
+}
+payloads['/api/knowledge/template'] = {
+  available: true, source: 'plugin', override: 'absent',
+  path: 'data/knowledge/template.md',
+  active_path: 'plugins/butler-wechat/knowledge/graph-template.md',
+  version: '', modified_at: 1700000000,
+  content: '---\nid: butler-wechat\nversion: 1\nepisode_dir: 对话\nindex_file: index.md\n---\n\n'
+    + '## 节点目录\n\n| 类型 | 目录 | 说明 |\n| --- | --- | --- |\n'
+    + '| person | 人物 | 具体的人：用户本人、朋友、同事、家人 |\n'
+    + '| org | 组织 | 公司、团队、群、机构 |\n'
+    + '| topic | 话题 | 长期关注的领域或兴趣 |\n\n'
+    + '## 分类\n\n| 分类 | 节点小节 | 索引分类 | 提炼指引 |\n| --- | --- | --- | --- |\n'
+    + '| profile | 身份 | 用户信息 | 稳定的身份与背景 |\n'
+    + '| preference | 偏好 | 喜好 | 重复出现的喜好 |\n'
+    + '| topic | 话题 | 关注 | 长期关注的领域 |\n\n'
+    + '## 提炼规则\n\n- 时间点写成具体日期。\n',
+  summary: {
+    id: 'butler-wechat', version: 1, index_title: '知识索引', episode_dir: '对话',
+    kinds: payloads['/api/knowledge/facts'].kinds,
+    node_types: payloads['/api/knowledge/facts'].node_types,
+    rules: 1
+  },
+  errors: [], limits: { bytes: 262144 }
 }
 payloads['/api/knowledge/extract'] = {
   available: true, enabled: true, knowledge_enabled: true, auto_extract: true, auto_prune: true,
@@ -412,6 +450,7 @@ payloads['/api/knowledge/extract'] = {
 const mergeRequests = []
 const deleteRequests = []
 const extractRequests = []
+const templateRequests = []
 let rejectMerge = false
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(typeof input === 'string' ? input : input.url, 'http://127.0.0.1')
@@ -421,6 +460,18 @@ globalThis.fetch = async (input, init = {}) => {
     return {
       ok: true, status: 202,
       text: async () => JSON.stringify({ ok: true, status: 'started', owner: '' })
+    }
+  }
+  if (url.pathname === '/api/knowledge/template' && method === 'POST') {
+    const body = JSON.parse(init.body || '{}')
+    templateRequests.push(body)
+    return {
+      ok: true, status: 200,
+      text: async () => JSON.stringify({
+        ok: true, action: body.action, errors: [], version: 'v-template-2', backup: '',
+        summary: payloads['/api/knowledge/template'].summary,
+        message: body.action === 'validate' ? '' : '模板已保存，后续写入与提炼立即生效，无需重启服务'
+      })
     }
   }
   if (url.pathname === '/api/configuration' && method === 'POST') {
@@ -497,7 +548,8 @@ const failures = []
 const expect = (ok, message) => { if (!ok) failures.push(message) }
 
 const navButtons = [...document.querySelectorAll('.nav-group button')].map(node => node.textContent.trim())
-expect(navButtons.length === 8, '导航应渲染 8 个标签，实际 ' + navButtons.length + '：' + navButtons.join('/'))
+expect(navButtons.length === 9, '导航应渲染 9 个标签，实际 ' + navButtons.length + '：' + navButtons.join('/'))
+expect(navButtons.includes('知识模板'), '导航缺少「知识模板」')
 expect(navButtons.includes('Telegram 转发'), '导航缺少「Telegram 转发」')
 
 const pane = text('#pane')
@@ -931,7 +983,7 @@ await new Promise(resolve => setTimeout(resolve, 200))
 expect(text('#pane h2').includes('知识库 · 全部知识'), '知识库页未渲染标题，实际 ' + text('#pane h2'))
 expect(document.querySelectorAll('#pane .fact-table tbody tr').length === 1, '知识库应渲染 1 行事实')
 expect(text('#pane').includes('喜欢喝美式，不加糖。'), '知识库未展示事实内容')
-expect(text('#pane').includes('偏好习惯'), '知识库未把 kind 翻成中文标签')
+expect(text('#pane').includes('喜好'), '知识库未使用模板下发的分类文案')
 expect(text('#pane').includes('我一般只要美式'), '知识库未展示支撑原话')
 expect(text('#pane').includes('80%'), '知识库应显示置信度百分比，实际 ' + text('#pane .fact-table tbody tr'))
 expect(document.querySelectorAll('#list .user').length === 3, '知识库左栏应与对话记录同样列出全部人')
@@ -946,6 +998,40 @@ expect(extractRequests.length === 1, '点击「立即提炼」应发一次 POST�
 expect(text('#pane .extract-bar').includes('已开始提炼'),
   '点击后状态条应给出反馈，实际 ' + text('#pane .extract-bar'))
 
+// 知识模板页：左侧摘要来自生效模板，右侧是可编辑的 Markdown 与保存条
+const templateButton = [...document.querySelectorAll('.nav-group button')]
+  .find(node => node.textContent.trim() === '知识模板')
+templateButton?.click()
+await new Promise(resolve => setTimeout(resolve, 200))
+expect(text('#pane h2') === '知识图谱模板', '知识模板页未渲染标题，实际 ' + text('#pane h2'))
+for (const phrase of ['模板 Markdown', '节点目录', '分类', '追加规则', '覆盖层']) {
+  expect(text('#pane').includes(phrase), '知识模板页缺少「' + phrase + '」')
+}
+expect(text('#list').includes('插件内置模板'), '左栏应显示当前生效的模板来源')
+const editor = document.querySelector('#tpl-editor')
+expect(editor?.value.startsWith('---'), '模板全文应载入编辑器')
+const templateButtons = [...document.querySelectorAll('#pane .config-actions button')]
+const tplSave = templateButtons.find(button => button.textContent.includes('保存模板'))
+const tplReset = templateButtons.find(button => button.textContent.includes('恢复内置模板'))
+expect(Boolean(tplSave) && tplSave.disabled, '没有修改时保存按钮应禁用')
+expect(Boolean(tplReset) && tplReset.disabled, '没有覆盖层时恢复按钮应禁用')
+expect(text('#tpl-status').includes('与已保存的模板一致'), '状态行应说明没有未保存修改')
+
+editor.value = editor.value.replace('时间点写成具体日期。', '时间点写成具体日期，并注明来源。')
+editor.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+await pause()
+expect(!tplSave.disabled, '改动模板后保存按钮应可用')
+expect(text('#tpl-status').includes('未保存的修改'), '状态行应提示有未保存修改')
+
+dom.window.confirm = () => true
+tplSave.click()
+await new Promise(resolve => setTimeout(resolve, 200))
+expect(templateRequests.length === 1 && templateRequests[0].action === 'save',
+  '保存模板应发一次 save 请求，实际 ' + JSON.stringify(templateRequests))
+expect(templateRequests[0]?.version === '', '保存时要带上读取到的版本，供服务端比对冲突')
+expect(String(templateRequests[0]?.content).includes('并注明来源'), '提交的应是编辑后的全文')
+expect(text('#tpl-status').includes('模板已保存'), '保存后状态行应给出反馈，实际 ' + text('#tpl-status'))
+
 console.warn = warn
 console.error = error
 
@@ -954,6 +1040,6 @@ if (failures.length) {
   console.error('smoke failed:\n- ' + failures.join('\n- '))
   process.exit(1)
 }
-console.log('smoke passed：导航、实时工作流、联系人、定时任务、收发队列、对话记录、知识库、配置管理、Telegram 转发页均正常渲染')
+console.log('smoke passed：导航、实时工作流、联系人、定时任务、收发队列、对话记录、知识库、知识模板、配置管理、Telegram 转发页均正常渲染')
 // 页面带着 1 秒倒计时定时器，断言完成后必须显式退出。
 process.exit(0)

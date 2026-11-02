@@ -25,6 +25,7 @@ from urllib.parse import parse_qs, quote, urlparse
 from urllib.request import Request, urlopen
 
 from butler.channels.telegram.relay.settings import SettingsConflict
+from butler.runtime.knowledge_template import TemplateError
 from common import news_config
 from common.paths import REPO_ROOT
 from dashboard.api.support import (EXPORT_DIR, HERMES_HOME, WXBOT_CHANNEL,
@@ -47,6 +48,7 @@ from dashboard.flowlog import (_iso_to_epoch, build_groups_payload, collect_wxbo
                                merge_outbound, parse_wxbot_log, read_message_flow,
                                save_groups_file)
 from dashboard.http import BaseHandler, RequestContext
+from dashboard.knowledge_template_view import KnowledgeTemplateView, TemplateConflict
 from dashboard.knowledge_view import KnowledgeView
 from dashboard.queue_actions import QueueActions
 from dashboard.queue_view import QueueView

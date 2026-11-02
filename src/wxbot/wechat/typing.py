@@ -4,6 +4,7 @@ from contextlib import nullcontext
 
 import uiautomation as auto
 from ..config import validate_typing_config, validate_typing_mode
+from ..ui_contract import failure
 from .clipboard import ClipboardLease,failure_details
 
 
@@ -86,6 +87,7 @@ class TypingSession:
             try:self.failure_details.update(probe(self.win,self.edit))
             except Exception:pass
         if not self.chat.target_is_current(self.win):
+            self.failure_details.update(failure('target_changed'))
             data=self.failure_details
             if data.get('actual_contact') is None and probe is not None:
                 return prefix+'当前聊天标题无法读取，未按回车'
@@ -96,7 +98,21 @@ class TypingSession:
             if data.get('foreground_hwnd')!=data.get('expected_hwnd'):
                 return prefix+f"前台窗口变化（预期={data.get('expected_hwnd')}，实际={data.get('foreground_hwnd')}），未按回车"
             return prefix + '聊天对象、类型或前台窗口变化，未按回车'
+        self.failure_details.update(failure('focus_lost'))
         return prefix + '输入焦点不在消息输入框，未按回车'
+
+    def _save_mention_residue(self):
+        """Persist a provably owned literal '@...' left in the input box."""
+        if self._mention is None or self.on_verified_draft is None:
+            return
+        residue = self._mention.owned_residue()
+        if not residue:
+            return
+        try:
+            self.on_verified_draft(residue)
+            self.failure_details['mention_residue'] = True
+        except Exception:
+            pass
 
     def step(self):
         if self.state != "typing":
@@ -105,6 +121,7 @@ class TypingSession:
             self.phase='input_guard'
             if not self.chat._can_send(self.win, self.edit):
                 self.state, self.error = "blocked", self._target_or_focus_error('输入前')
+                self._save_mention_residue()
                 self.close()
                 return self.state
             if self._mention is not None:
@@ -113,6 +130,11 @@ class TypingSession:
                 if result == 'blocked':
                     self.state, self.error = 'blocked', self._mention.error
                     self.failure_details['manual_required'] = True
+                    # The UI readback proved the leftover '@...' is exactly the
+                    # prefix this session typed (no picked object, no user text).
+                    # Persist it so the next delivery can clear it instead of
+                    # treating it as an unremovable user draft forever.
+                    self._save_mention_residue()
                     return self.state
                 if result == 'plain':
                     self.failure_details.update(mention_fallback=self._mention.fallback_reason,mention_verified=False)
@@ -139,6 +161,7 @@ class TypingSession:
                 elif self.clock() < self._verify_deadline:
                     return self.state
                 else:
+                    self.failure_details.update(failure('paste_mismatch'))
                     self.state = "blocked"
                     self.error = "输入内容不可读或与预期不符（可能丢字/标点变化），未按回车，已保留草稿"
                     self.close()
@@ -148,6 +171,7 @@ class TypingSession:
             if self.index < len(self.chunks):
                 self.phase='paste_guard'
                 if self._draft() != self.normalized[:self._entered_length]:
+                    self.failure_details.update(failure('draft_conflict'))
                     self.state,self.error='blocked','粘贴前输入内容变化或不可读，已保留草稿，未按回车'
                     return self.state
                 self.phase='clipboard_acquire'
@@ -158,10 +182,12 @@ class TypingSession:
                     self.close()
                     return self.state
                 if self._draft() != self.normalized[:self._entered_length]:
+                    self.failure_details.update(failure('draft_conflict'))
                     self.state, self.error = 'blocked', '粘贴前草稿或提及对象变化，未粘贴、未按回车'
                     self.close()
                     return self.state
                 if not self._clipboard.is_current():
+                    self.failure_details.update(failure('clipboard_owner_changed'))
                     self.failure_details.update(clipboard_write=self._clipboard.sequence_at_write,
                         clipboard_committed=self._clipboard.seq,clipboard_checked=self._clipboard.sequence_at_check)
                     self.state,self.error='blocked',(
@@ -210,9 +236,12 @@ class TypingSession:
         except Exception as exc:
             self.state = "uncertain" if self.enter_attempted else "blocked"
             self.failure_details.update(failure_details(exc))
+            if self.failure_details.get('error_code') is None:
+                self.failure_details.update(failure('ui_error' if self.enter_attempted else 'paste_error'))
             cause=self.failure_details.get('clipboard_error')
             self.error = (type(exc).__name__ if self.enter_attempted else
                           f'分批粘贴失败（{type(exc).__name__}）'+(f'：{cause}' if cause else '')+'，未按回车，已保留草稿')
+            self._save_mention_residue()
             self.close()
         finally:
             if self.state in {'blocked','uncertain'}:

@@ -10,7 +10,11 @@ async function parse(response) {
     data = null
   }
   if (!response.ok) {
-    throw new Error((data && data.error) || '请求失败（HTTP ' + response.status + '）')
+    const error = new Error((data && data.error) || '请求失败（HTTP ' + response.status + '）')
+    // 保留状态码与原始响应体：逐行校验错误、版本冲突提示都在 payload 里。
+    error.status = response.status
+    error.payload = data
+    throw error
   }
   if (data === null) throw new Error('返回内容不是 JSON')
   return data

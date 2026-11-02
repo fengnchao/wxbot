@@ -1,5 +1,4 @@
 """主窗口持续收件；模型与发件通过 SQLite 队列和 UI 主线程衔接。"""
-from dataclasses import asdict
 from collections import OrderedDict
 import math
 import random
@@ -16,6 +15,7 @@ from .log import log
 from .queue_store import Incoming, QueueStore, queue_database
 from .queue_worker import ModelWorker
 from .state import new_messages, overlap_end
+from .ui_contract import persisted_rows
 from .wechat.chat_window import Message, ReadDeferred
 from .wechat.main_window import MainWindow, Session, preview_sender
 
@@ -313,7 +313,7 @@ class MainInbox:
             incoming.append(Incoming(text, member, context, member_name, reply_mode,
                                      avatar=getattr(message, 'avatar', ''),
                                      reply_reason=self._last_reply_reason if chat.group_mode else ''))
-        ids = self.store.capture(name, [asdict(m) for m in messages], incoming,
+        ids = self.store.capture(name, persisted_rows(messages), incoming,
                                  group_mode=chat.group_mode, now=self.clock())
         self.snapshots[name] = messages  # 事务成功后才移动锚点。
         chat.expected_group = chat.group_mode

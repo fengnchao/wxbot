@@ -202,3 +202,33 @@
 来源：[[raw/changes/2026-11-01-knowledge-atomic-retry]]
 
 [[tables/knowledge-vault]]、[[tables/kb-episodes]]、[[tables/kb-facts]]、[[tables/kb-owners]]、[[apis/dashboard-knowledge]]、[[symbols/knowledge-extract]]
+
+## [2026-11-02] ingest | 知识图谱模板外部化为 Markdown 并支持管理台在线编辑
+
+来源：[[raw/changes/2026-11-02-knowledge-graph-template]]
+
+[[tables/knowledge-vault]]、[[tables/kb-episodes]]、[[tables/kb-facts]]、[[tables/kb-owners]]、[[symbols/knowledge-template]]、[[symbols/knowledge-extract]]、[[apis/dashboard-knowledge]]、[[apis/dashboard-queue]]、[[apis/dashboard-workflow]]、[[modules/runtime]]、[[modules/dashboard]]、[[modules/web]]、[[modules/plugin]]、[[modules/wiki]]
+
+## [2026-11-02] ingest | UI 快照引用、发送确认证据与稳定失败码
+
+来源：[[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
+
+[[concepts/delivery-state]]、[[concepts/group-identity-evidence]]、[[concepts/message-pipeline]]、[[concepts/unread-capture-retry]]、[[modules/wiki]]、[[modules/wxbot]]、[[symbols/mention-selection]]、[[symbols/queue-store]]、[[tables/queue-outbox]]
+
+## [2026-11-02] ingest | 投递细节白名单扩展的词条复核
+
+来源：[[raw/changes/2026-11-02-details-whitelist-reverify]]
+
+[[concepts/identity-authority]]、[[concepts/model-error-contract]]、[[symbols/queue-finish]]、[[tables/queue-batches]]、[[tables/queue-inbox]]
+
+## [2026-11-02] ingest | 群聊提及先等候选面板，失败残留登记为可清理草稿
+
+来源：[[raw/changes/2026-11-02-mention-picker-gating-residue]]
+
+[[concepts/delivery-state]]、[[modules/wiki]]、[[modules/wxbot]]、[[symbols/mention-selection]]、[[symbols/queue-store]]、[[tables/queue-outbox]]
+
+## [2026-11-02] ingest | 提及残留登记引发的来源复核
+
+来源：[[raw/changes/2026-11-02-mention-residue-reverify]]
+
+[[concepts/group-identity-evidence]]、[[concepts/identity-authority]]、[[concepts/message-pipeline]]、[[concepts/model-error-contract]]、[[concepts/unread-capture-retry]]、[[symbols/queue-finish]]、[[tables/queue-batches]]、[[tables/queue-inbox]]

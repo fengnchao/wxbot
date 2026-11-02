@@ -4,12 +4,13 @@
 
     data/knowledge/
       index.json                目录缓存：owner、条数、提炼游标；删掉也能从 vault 重建
+      template.md               可选的模板覆盖层，由管理台「知识模板」页维护
       p-<slug>/vault/           Obsidian vault 根，只放 .md
-        人物/冯草草.md
+        人物/冯草草.md          节点目录来自模板，默认人物/组织/话题
         组织/鸭王集训营.md
         话题/AI 编程.md
         对话/2026-11-01.md      按天记录的原文
-        index.md                 中心索引页：把上面的节点与日记全部串起来
+        index.md                 中心索引页：把节点与日记全部串起来
 
 为什么是 Markdown 而不是表：知识图谱的价值在节点之间的关联，只有正文里的 [[双链]]
 才能被 Obsidian 的 graph view 直接画出来。表能存字段，存不出拓扑。
@@ -40,16 +41,18 @@ import time
 
 import yaml
 
+from butler.runtime.knowledge_template import (LEGACY_INDEX, LEGACY_KINDS, LEGACY_NODE_DIRS,
+                                                LEGACY_SECTIONS, OVERRIDE_NAME, load_template)
+
 MAX_READ_LIMIT = 200
 OUTCOMES = ('ok', 'error', 'silent')
-FACT_KINDS = ('profile', 'preference', 'personality', 'goal', 'relation', 'event', 'topic')
-FACT_SECTIONS = {'profile': '身份', 'preference': '偏好', 'personality': '性格',
-                 'goal': '目标', 'relation': '关系', 'event': '事件', 'topic': '话题'}
+# 默认值来自模板模块，保留这些名字让旧引用继续可用；实际读写一律走 self.template。
+FACT_KINDS = LEGACY_KINDS
+FACT_SECTIONS = LEGACY_SECTIONS
 # 索引页的分类标题用日常说法，与节点里的小节名解耦：小节名一改，旧事实就留在旧小节里。
-INDEX_SECTIONS = {'profile': '用户信息', 'preference': '喜好', 'personality': '性格',
-                  'goal': '目标', 'relation': '关系', 'event': '经历', 'topic': '关注'}
-NODE_TYPES = ('person', 'org', 'topic')
-NODE_DIRS = {'person': '人物', 'org': '组织', 'topic': '话题'}
+INDEX_SECTIONS = LEGACY_INDEX
+NODE_TYPES = tuple(LEGACY_NODE_DIRS)
+NODE_DIRS = LEGACY_NODE_DIRS
 EPISODE_DIR = '对话'
 INDEX_FILE = 'index.md'
 INDEX_LIMIT = 40
@@ -298,13 +301,23 @@ def _parse_day(path):
     return rows
 
 
+def _fallback_kind(template):
+    return 'topic' if template.has_kind('topic') else template.kinds[0].key
+
+
+def _fallback_node(template):
+    return 'person' if template.has_node_type('person') else template.node_types[0].key
+
+
 class KnowledgeStore:
     """vault 的读写入口；读不建目录，写才落盘。"""
 
-    def __init__(self, root, log=None, retention_days=90):
+    def __init__(self, root, log=None, retention_days=90, template=None):
         self.log = log or (lambda *a, **k: None)
         self.root = Path(root)
         self.retention_days = max(1, min(3650, int(retention_days)))
+        # 覆盖层放在 vault 之外，既不会被 facts() 扫到，删掉就是恢复默认。
+        self.template = template or load_template(self.root / OVERRIDE_NAME, self.log)
         self._lock = threading.RLock()
 
     # ---------- 路径 ----------
@@ -319,13 +332,13 @@ class KnowledgeStore:
         return self.owner_dir(owner) / 'vault'
 
     def episodes_dir(self, owner):
-        return self.vault_dir(owner) / EPISODE_DIR
+        return self.vault_dir(owner) / self.template.episode_dir
 
     def node_path(self, owner, node_type, name):
-        return self.vault_dir(owner) / NODE_DIRS.get(node_type, NODE_DIRS['person']) / (_safe(name) + '.md')
+        return self.vault_dir(owner) / self.template.node_dir(node_type) / (_safe(name) + '.md')
 
     def index_page_path(self, owner):
-        return self.vault_dir(owner) / INDEX_FILE
+        return self.vault_dir(owner) / self.template.index_file
 
     def _vault(self, entry):
         return self.root / entry['slug'] / 'vault'
@@ -385,7 +398,7 @@ class KnowledgeStore:
             facts = 0
             last = 0.0
             for node in sorted(vault.glob('*/*.md')):
-                if node.parent.name == EPISODE_DIR:
+                if node.parent.name == self.template.episode_dir:
                     continue
                 meta, sections = _read_node(node)
                 owner = owner or str(meta.get('owner') or '')
@@ -393,7 +406,7 @@ class KnowledgeStore:
                 last = max(last, _float(meta.get('updated_ts')))
                 facts += sum(len(items) for items in sections.values())
             episodes = 0
-            for day in sorted((vault / EPISODE_DIR).glob('*.md')):
+            for day in sorted((vault / self.template.episode_dir).glob('*.md')):
                 text = day.read_text('utf-8', 'replace')
                 meta, _ = _split_frontmatter(text)
                 owner = owner or str(meta.get('owner') or '')
@@ -420,6 +433,21 @@ class KnowledgeStore:
                       key=lambda e: (-_float(e.get('last_at')), e.get('contact') or ''))
 
     # ---------- 写入 ----------
+    def _ensure_vault(self, owner):
+        """首次写入时按模板建出目录骨架；已存在的目录不动，也不写标记文件。
+
+        后加的目录不靠这里预建：add_fact 写节点时 _atomic_write 会自己建父目录，
+        所以老 vault 不需要迁移也能多出新目录。
+        """
+        vault = self.vault_dir(owner)
+        dirs = [item.directory for item in self.template.node_types]
+        dirs.append(self.template.episode_dir)
+        if all((vault / name).is_dir() for name in dirs):
+            return False
+        for name in dirs:
+            (vault / name).mkdir(parents=True, exist_ok=True)
+        return True
+
     def record(self, owner, contact, channel_type, request_id, user_text,
                reply_text, outcome, *, at=None):
         """写一轮对话到当天的日记；同一 request_id 重试靠文本里的 rid 忽略。"""
@@ -431,6 +459,7 @@ class KnowledgeStore:
         day = time.strftime('%Y-%m-%d', time.localtime(stamp))
         path = self.episodes_dir(owner) / (day + '.md')
         with self._lock:
+            self._ensure_vault(owner)
             text = (path.read_text('utf-8', 'replace') if path.is_file()
                     else _episode_header(owner, contact, channel_type, day))
             if request_id and ('rid:%s|' % _inline(request_id, 80)) in text:
@@ -456,9 +485,9 @@ class KnowledgeStore:
         if not owner or not contact or not value:
             raise ValueError('事实必须有 owner、contact 与内容')
         stamp = time.time() if at is None else float(at)
-        kind = kind if kind in FACT_KINDS else 'topic'
+        kind = kind if self.template.has_kind(kind) else _fallback_kind(self.template)
         name = str(subject or '').strip() or contact
-        node_type = subject_type if subject_type in NODE_TYPES else 'person'
+        node_type = subject_type if self.template.has_node_type(subject_type) else _fallback_node(self.template)
         fingerprint = sha1(('%s|%s|%s' % (kind, fact_key, value)).encode('utf-8')).hexdigest()[:16]
         path = self.node_path(owner, node_type, name)
         with self._lock:
@@ -471,7 +500,7 @@ class KnowledgeStore:
                 text = _node_header(node_type, name, contact, owner, stamp)
             line = _fact_line(value, fact_key, kind, confidence, quote, stamp,
                               source, links, fingerprint)
-            text = _insert_line(text, FACT_SECTIONS[kind], line)
+            text = _insert_line(text, self.template.section(kind), line)
             _atomic_write(path, _rewrite_meta(text, {'updated': _stamp(stamp),
                                                      'updated_ts': round(stamp, 3)}))
         self._touch(owner, contact, 'dm', facts=1, at=stamp)
@@ -500,7 +529,7 @@ class KnowledgeStore:
         cutoff = (time.time() if now is None else float(now)) - days * 86400
         cutoff_day = time.strftime('%Y-%m-%d', time.localtime(cutoff))
         deleted = 0
-        for path in sorted(self.root.glob('p-*/vault/' + EPISODE_DIR + '/*.md')):
+        for path in sorted(self.root.glob('p-*/vault/' + self.template.episode_dir + '/*.md')):
             if path.stem >= cutoff_day:
                 continue
             deleted += path.read_text('utf-8', 'replace').count('\n## ')
@@ -512,11 +541,14 @@ class KnowledgeStore:
         return deleted
 
     def rebuild_index(self, owner):
-        """重写 vault 根的中心索引页：按类别列事实、按目录列节点、按天列最近对话。
+        """重写 vault 根的中心索引页：按模板分区列事实、按真实目录列节点、按天列最近对话。
 
         每一个条目都是一个 [[双链]]，所以即使对话里从没出现过第三方实体，
-        Obsidian 的 graph view 也不是一堆孤立点。事实多了只列前 INDEX_LIMIT 条，
+        Obsidian 的 graph view 也不是一堆孤立点。事实多了只列 index_limit 条，
         超出部分提示条数，避免索引页无限长。
+
+        节点清单遍历 vault 下实际存在的目录，而不是只看模板里的几个：模板改过目录名、
+        或旧 vault 用的是旧目录时，历史节点仍然要出现在索引里，不能凭空消失。
         """
         entry = self._catalog()[0].get(owner)
         if not entry:
@@ -526,43 +558,57 @@ class KnowledgeStore:
             return False
         rows = []
         for path in sorted(vault.glob('*/*.md')):
-            if path.parent.name == EPISODE_DIR:
+            if path.parent.name == self.template.episode_dir:
                 continue
             meta, sections = _read_node(path)
             node = str(meta.get('name') or path.stem)
             for items in sections.values():
                 rows += [dict(item, node=node) for item in items]
+        limit = self.template.index_limit
         lines = [_frontmatter({'type': 'index', 'owner': owner,
                                'contact': entry.get('contact') or '',
                                'updated': _stamp(time.time())}),
-                 '', '# 知识索引', '',
-                 '> 本文件由 Butler 自动重建，手改会被覆盖。', '']
-        for kind in FACT_KINDS:
-            items = [row for row in rows if row['kind'] == kind]
-            lines += ['## ' + INDEX_SECTIONS.get(kind, FACT_SECTIONS[kind]), '']
+                 '', '# ' + self.template.index_title, '',
+                 '> ' + self.template.index_note, '']
+        known = set()
+        for kind in self.template.kinds:
+            known.add(kind.key)
+            items = [row for row in rows if row['kind'] == kind.key]
+            lines += ['## ' + kind.index_label, '']
             if not items:
                 lines += ['（还没有）', '']
                 continue
             lines += ['- [[%s]] %s' % (row['node'], row['fact_value'])
-                      for row in items[:INDEX_LIMIT]]
-            if len(items) > INDEX_LIMIT:
-                lines.append('- 另有 %d 条未列出' % (len(items) - INDEX_LIMIT))
+                      for row in items[:limit]]
+            if len(items) > limit:
+                lines.append('- 另有 %d 条未列出' % (len(items) - limit))
+            lines.append('')
+        others = [row for row in rows if row['kind'] not in known]
+        if others:
+            lines += ['## 其他', '']
+            lines += ['- [[%s]] %s' % (row['node'], row['fact_value'])
+                      for row in others[:limit]]
             lines.append('')
         lines += ['## 节点', '']
         nodes = 0
-        for node_type in NODE_TYPES:
-            folder = vault / NODE_DIRS[node_type]
+        order = [item.directory for item in self.template.node_types]
+        extra = sorted(path.name for path in vault.iterdir()
+                       if path.is_dir() and path.name != self.template.episode_dir
+                       and not path.name.startswith('.') and path.name not in order)
+        for directory in order + extra:
+            folder = vault / directory
             names = sorted(path.stem for path in folder.glob('*.md')) if folder.is_dir() else []
             if not names:
                 continue
             nodes += len(names)
-            lines += ['### ' + NODE_DIRS[node_type], '']
+            lines += ['### ' + directory, '']
             lines += ['- [[%s]]' % name for name in names]
             lines.append('')
         if not nodes:
             lines += ['（还没有）', '']
         lines += ['## 最近对话', '']
-        days = sorted((vault / EPISODE_DIR).glob('*.md'), reverse=True)[:INDEX_DAYS]
+        days = sorted((vault / self.template.episode_dir).glob('*.md'),
+                      reverse=True)[:self.template.index_days]
         if not days:
             lines += ['（还没有）', '']
         else:
@@ -580,7 +626,7 @@ class KnowledgeStore:
     def episodes_of(self, owner, after_at=0.0, limit=200):
         """取某个 owner 自某时刻之后的新原文，供提炼按批推进。"""
         rows = []
-        folder = self.vault_dir(owner) / EPISODE_DIR
+        folder = self.vault_dir(owner) / self.template.episode_dir
         if not folder.is_dir():
             return []
         for path in sorted(folder.glob('*.md')):
@@ -601,7 +647,7 @@ class KnowledgeStore:
         for entry in self.owners():
             if owner and entry['owner'] != owner:
                 continue
-            folder = self._vault(entry) / EPISODE_DIR
+            folder = self._vault(entry) / self.template.episode_dir
             if not folder.is_dir():
                 continue
             for path in sorted(folder.glob('*.md'), reverse=True):
@@ -634,7 +680,7 @@ class KnowledgeStore:
             if not vault.is_dir():
                 continue
             for path in sorted(vault.glob('*/*.md')):
-                if path.parent.name == EPISODE_DIR:
+                if path.parent.name == self.template.episode_dir:
                     continue
                 meta, sections = _read_node(path)
                 node = str(meta.get('name') or path.stem)
@@ -669,14 +715,14 @@ class KnowledgeStore:
         counts = {}
         if kind == 'facts':
             for path in sorted(vault.glob('*/*.md')):
-                if path.parent.name == EPISODE_DIR:
+                if path.parent.name == self.template.episode_dir:
                     continue
                 meta, sections = _read_node(path)
                 contact = str(meta.get('contact') or entry['contact'])
                 counts[contact] = counts.get(contact, 0) + sum(len(v) for v in sections.values())
             return [{'contact': k, 'channel_type': '', 'count': v}
                     for k, v in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
-        for path in sorted((vault / EPISODE_DIR).glob('*.md')):
+        for path in sorted((vault / self.template.episode_dir).glob('*.md')):
             for row in _parse_day(path):
                 key = (row['contact'], row['channel_type'])
                 counts[key] = counts.get(key, 0) + 1

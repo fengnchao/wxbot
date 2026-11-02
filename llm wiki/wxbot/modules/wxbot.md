@@ -3,7 +3,7 @@ type: module
 module: wxbot
 summary: 微信 UI 主线程与不接触 UI 的模型队列线程
 coverage: overview
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/wxbot/inbox.py
   line: 45
@@ -23,12 +23,23 @@ sources:
 - path: src/wxbot/queue_store.py
   line: 192
   anchor: def identity_observations(
+- path: src/wxbot/ui_contract.py
+  line: 65
+  anchor: 'class Snapshot:'
+- path: src/wxbot/wechat/locator.py
+  line: 9
+  anchor: def wait_until(
+- path: src/wxbot/wechat/chat_window.py
+  line: 36
+  anchor: "ref: str = ''"
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-switchable-models
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-10-31-identity-placeholder-names
 - raw/changes/2026-11-01-mention-fallback-unread-retry
+- raw/changes/2026-11-02-ui-snapshot-ref-contract
+- raw/changes/2026-11-02-mention-picker-gating-residue
 depends_on:
 - modules/common
 ---
@@ -52,7 +63,11 @@ depends_on:
 
 未读任务只在采集成（`_capture`）时清除；读不到可采内容的未读按指数退避，达到 `[bot].unread_give_up_attempts`（默认 5）后放弃并清掉 `pending_sessions`，否则同一行记录会让 `prepare` 永远跳过该联系人。细节见 [[concepts/unread-capture-retry]]。
 
-群聊 @ 提及由 [[symbols/mention-selection]] 完成，候选不唯一或昵称不可信时回退为不带 @ 的纯正文；回退清理只能使用 uiautomation `SpecialKeyNames` 里声明过的键。
+群聊 @ 提及由 [[symbols/mention-selection]] 完成：先等候选成员面板出现再输入昵称，候选不唯一或昵称不可信时回退为不带 @ 的纯正文；回退清理只能使用 uiautomation `SpecialKeyNames` 里声明过的键。面板在 `wechat.mention.open_timeout`（默认 1 秒）内没出现时只删除自己的 `@`，不会把昵称写成普通文字。失败后读回仍能证明是本会话输入的字面 `@...` 时，登记为 `outbox.draft_text`（`mention_residue=true`），下一次投递前自动清理，避免后续消息一直 `draft_conflict`。
+
+## 快照与引用
+
+一次界面读取就是一个快照，每行带只属于这次读取的引用（`Message.ref`，来自控件运行期标识）。发件确认、会话切换后的就绪判定都不再依赖固定 sleep，而是「重读一次再比较」：条件等待由 `wechat/locator.wait_until` 提供，始终带超时上限。引用缺失、行数为空或被复用（不唯一）时显式降级为正文对齐，降级事实写进 `delivery_events.details` 的 `confirm_evidence` / `ref_available`；确认规则与失败码见 [[concepts/delivery-state]]。引用不落库，`observations.snapshot` 与 `outbox.baseline` 只保存去引用版本。
 
 ## 启动时的身份补登
 
@@ -67,6 +82,9 @@ depends_on:
 - `src/wxbot/inbox.py:23` — `def member_nickname(`
 - `src/wxbot/inbox.py:111` — `def sync_users(`
 - `src/wxbot/queue_store.py:192` — `def identity_observations(`
+- `src/wxbot/ui_contract.py:65` — `class Snapshot:`
+- `src/wxbot/wechat/locator.py:9` — `def wait_until(`
+- `src/wxbot/wechat/chat_window.py:36` — `ref: str = ''`
 
 ## 入库来源
 
@@ -78,3 +96,7 @@ depends_on:
 
 
 [[raw/changes/2026-10-31-switchable-models]]
+
+[[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
+
+[[raw/changes/2026-11-02-mention-picker-gating-residue]]

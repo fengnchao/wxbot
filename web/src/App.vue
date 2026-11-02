@@ -8,6 +8,7 @@ import ContactsView from './views/ContactsView.vue'
 import FactsView from './views/FactsView.vue'
 import JobsView from './views/JobsView.vue'
 import KnowledgeView from './views/KnowledgeView.vue'
+import KnowledgeTemplateView from './views/KnowledgeTemplateView.vue'
 import QueueView from './views/QueueView.vue'
 import WorkflowView from './views/WorkflowView.vue'
 import TelegramRelayView from './views/TelegramRelayView.vue'
@@ -18,6 +19,7 @@ const VIEWS = {
   facts: FactsView,
   jobs: JobsView,
   knowledge: KnowledgeView,
+  'knowledge-template': KnowledgeTemplateView,
   queue: QueueView,
   workflow: WorkflowView,
   'telegram-relay': TelegramRelayView
@@ -42,7 +44,7 @@ provide('logWebCtx', {
 // 外部接入模式下业务页面由对端管理台维护，隐藏本机不承担的业务页。
 const hidden = computed(() => {
   const mode = connection.value.mode || 'local'
-  return mode === 'local' ? new Set() : new Set(['contacts', 'jobs', 'knowledge', 'facts', 'telegram-relay'])
+  return mode === 'local' ? new Set() : new Set(['contacts', 'jobs', 'knowledge', 'facts', 'knowledge-template', 'telegram-relay'])
 })
 
 const navGroups = computed(() => {
@@ -62,7 +64,7 @@ const navGroups = computed(() => {
 const title = computed(() => tabTitle(activeTab.value))
 const view = computed(() => VIEWS[activeTab.value] || WorkflowView)
 // 配置页与转发页用页内筛选，不显示全局搜索框。
-const searchHidden = computed(() => activeTab.value === 'configuration' || activeTab.value === 'telegram-relay')
+const searchHidden = computed(() => ['configuration', 'telegram-relay', 'knowledge-template'].includes(activeTab.value))
 const searchPlaceholder = computed(() => ({
   workflow: '搜索用户 / UID / 消息 ID',
   queue: '筛选本页任务',

@@ -189,6 +189,7 @@ config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，�
 | `runtime/model_switch.py` | 请求固定模型代际，后续请求重载模型参数，旧后端在在途完成后关闭 |
 | `runtime/model_migration.py` | 旧 direct 安装显式改为 wxbot → Butler，保留本机私有配置备份 |
 | `runtime/plugin.py` | 可移植插件包与应用之间的版本化契约 |
+| `runtime/knowledge_template.py` | 知识图谱模板：目录、分类、索引分区与提炼规则来自一份 Markdown；覆盖层优先于插件内置 |
 | `runtime/knowledge_store.py` | 知识图谱存储：一人一个 Obsidian vault，节点是 Markdown，关联靠 `[[双链]]` |
 | `runtime/knowledge_extract.py` | 用模型把原文提炼成节点事实；独立会话作用域，不占用聊天上下文 |
 | `runtime/knowledge_auto.py` | 自动提炼的单线程调度：空闲窗口、批量上限、指数退避与进程内单飞 |
@@ -273,6 +274,7 @@ config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，�
 | `api/queue.py` | 收发队列：只读总览 + 显式确认后的重试／确认已发／丢弃 |
 | `api/workflow.py` | 消息工作流：总览、单条全文、模型实时输出、记录删除 |
 | `api/flow.py` | 消息流转与 wxbot 通道流水（只读日志／库） |
+| `api/knowledge.py` | 知识库只读投影与模板读写；模板保存需页面确认头与版本比对 |
 | `api/runtime.py` | Butler 运行时状态（经 loopback 代理，凭证不出服务端） |
 | `api/relay.py` | Telegram 转发：只读写本机配置，核对动作走 Butler |
 | `api/support.py` | Butler 配置、联系人、技能目录与心跳策略的读写（非 HTTP 层） |
@@ -299,6 +301,7 @@ config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，�
 | `dashboard/runtime_view.py` | 与后端无关的运行时投影；模型凭据不会到浏览器 |
 | `dashboard/user_admin.py` | 服务端鉴权的用户管理代理；浏览器不持凭据 |
 | `dashboard/knowledge_view.py` | 只读投影：把 vault 里的原文与事实读成页面要的列表 |
+| `dashboard/knowledge_template_view.py` | 模板读写：覆盖层优先，严格校验带行号；跨进程锁、版本比对、备份与原子替换 |
 | `dashboard/job_admin.py` | 管理台 → Butler 的提醒删除代理 |
 | `dashboard/telegram_view.py` | 只读 Telegram 入库／新闻投影；绝不迁移或恢复数据库 |
 | `dashboard/telegram_relay_admin.py` | 本机转发配置编辑；不做生命周期或投递操作 |
@@ -386,6 +389,7 @@ web/dist/                 构建产物，随仓库提交
 | `src/views/TelegramRelayView.vue` | Telegram 转发设置与核对 |
 | `src/views/KnowledgeView.vue` | 对话记录：按人与会话筛选的原文与回复（只读） |
 | `src/views/FactsView.vue` | 知识库：vault 里提炼出的事实、类型、原话与置信度（只读） |
+| `src/views/KnowledgeTemplateView.vue` | 知识模板：展示生效模板全文与解析摘要，校验、保存、恢复内置（仅本机） |
 | `src/components/WorkflowNode.vue` | 工作流节点卡片 |
 | `src/components/WorkflowTrace.vue` | 单条消息的流转详情与阶段耗时 |
 | `src/components/WorkflowWires.vue` | 服务之间的动态连线 |
@@ -448,6 +452,7 @@ web/dist/                 构建产物，随仓库提交
 | `skills/tools/create-cron-job/SKILL.md` | 工具：创建定时任务 |
 | `skills/tools/telegram-relay/SKILL.md` | 工具：Telegram 频道窗口转发 |
 | `skills/tools/setup/SKILL.md` | 工具：安装引导（仅安装时使用，不进入业务工具白名单） |
+| `knowledge/graph-template.md` | 知识图谱内置模板：节点目录、事实分类、索引分区与追加规则 |
 | `THIRD_PARTY.md` | 第三方素材来源与许可 |
 
 插件的 `.md` 是运行时资产，改动会影响模型行为，不当普通文档处理。
@@ -536,11 +541,11 @@ Butler 递归读取统一的 `skills/` 根目录，按 `roles/` 和 `tools/` 子
   `/api/wxbot`、`/api/queue`、`/api/configuration`、`/api/contacts`、`/api/users`、`/api/jobs`、
   `/api/groups`、`/api/heartbeat-config`、`/api/heartbeat-status`、`/api/skills`、
   `/api/runtime`、`/api/connection`、`/api/telegram-relay`、`/api/news-config`、`/api/health`、
-  `/api/knowledge`、`/api/knowledge/facts`、`/api/knowledge/extract`。
+  `/api/knowledge`、`/api/knowledge/facts`、`/api/knowledge/extract`、`/api/knowledge/template`。
 - 主要写：`/api/configuration`、`/api/queue-action`、`/api/queue-delete-unsent`、
   `/api/workflow-delete`、`/api/jobs/delete`、`/api/contacts`、`/api/users`、`/api/groups`、
   `/api/heartbeat-config`、`/api/heartbeat-trigger`、`/api/telegram-relay`、`/api/news-config`、
-  `/api/knowledge/extract`。
+  `/api/knowledge/extract`、`/api/knowledge/template`（校验／保存／恢复内置）。
 
 ## 配置
 
@@ -564,6 +569,7 @@ Butler 递归读取统一的 `skills/` 根目录，按 `roles/` 和 `tools/` 子
 ```
 data/knowledge/
   index.json                 目录缓存：owner、条数、提炼游标；删掉也能从 vault 重建
+  template.md                可选覆盖层：页面保存的知识图谱模板；删除即回到插件内置
   p-<slug>/vault/
     人物/冯草草.md            事实按 kind 分小节：身份 / 偏好 / 关系 / 事件 / 话题
     组织/鸭王集训营.md
@@ -574,6 +580,10 @@ data/knowledge/
 - 原文（L1）在处理完成时写成当天的 `对话/YYYY-MM-DD.md` 块；事实（L2）由模型从中提炼，
   写成对应节点小节里的一行，行尾 HTML 注释带指纹、key、kind、置信度、来源和原话。
   同一 `kind|key|value` 指纹去重，矛盾的说法各记一条。
+- 骨架与提炼口径由模板决定：插件内置一份只读模板（`plugins/butler-wechat/knowledge/graph-template.md`），
+  管理台保存的覆盖层 `data/knowledge/template.md` 优先。新增一个节点目录或分类行后，之后新建的 vault
+  与下一次提炼立即跟着变；已有节点不迁移，模板里消失的旧分类归入「其他」。内置 6 条安全规则不可删，
+  模板的「提炼规则」只能追加在其后。事实行格式是解析契约，不由模板配置。
 - 为什么不是表：字段能存进表，节点之间的拓扑存不进；`[[双链]]` 是 Obsidian 唯一认的边。
   为什么一人一个 vault：一个人的数据坏了或整体清空都不牵连别人，图也不会被别人的节点淹没。
   为什么原文也写 Markdown：事实要能点回原话才站得住，按天一个文件把文件数压到每年 365 个。
@@ -607,6 +617,7 @@ data/knowledge/
 | 定时任务 | 按归属分组的卡片；Butler 提醒可逐条删除 |
 | 对话记录 | 每条消息的用户原文、机器人回复与失败标注，按人与会话筛选（只读） |
 | 知识库 | vault 里提炼出的长期事实、类型、支撑原话与置信度；顶部显示自动提炼的上次结果与下次时间，可「立即提炼」一批 |
+| 知识模板 | 展示当前生效的模板全文与解析摘要；校验后保存覆盖层，或恢复插件内置；保存前提示只影响后续写入 |
 | 配置管理 | 七个分类的可编辑配置：中文名称、用途、来源、生效方式；保留注释、备份与 409 版本冲突 |
 | Telegram 转发 | 转发设置与人工核对 |
 
@@ -636,6 +647,10 @@ data/knowledge/
 - 群聊按右侧人数标签识别，`[bot].mention_names` 配机器人昵称；
   `[bot].group_reply_chance`（默认 0.1）与 `[bot].emoji_chance`（默认 0.2）决定非 @ 消息
   是否回复、发文字还是发表情。所有群消息都会进模型上下文。
+- 群聊 @ 先等候选成员面板出现，再输入成员名。面板在 `wechat.mention.open_timeout`（默认 1 秒）内
+  没出现时，只删除自己输入的字面 `@` 并按纯正文发送，不会把昵称当普通文字留在输入框。
+  提及失败后读回仍是我们输入的字面 `@...` 时，会登记为可清理草稿，下一次发送前自动清除，
+  避免后续消息一直因草稿冲突发不出去。
 - 未读只有读到文字才算采集成功：同一条未读持续读不到内容（例如只有小程序卡片、红包）时按
   `poll_interval` 的倍数退避，满 `[bot].unread_give_up_attempts`（默认 5）次后放弃并清掉该会话的
   待读任务；未读数或「有人@我」变化后重新纳入。放弃前该会话的发送也会被待读任务挡住。
@@ -646,7 +661,11 @@ data/knowledge/
 - 发件失败（`blocked`/`uncertain`）从首次失败起按 `retry_delay_seconds`（默认 20）自动重试，
   最多 `max_delivery_retries`（默认 2）次；满 `failure_discard_seconds`（默认 180）丢弃并留审计。
   同一个参数也是模型失败批次的放行时限：`retry_safe` 为否时不重试，到点后丢弃并继续后续消息。
-- 回车后出现新增的「自己」气泡才算 `sent`；不确定不自动重放。输入框内容读不回来视为 blocked，不清草稿。
+- 回车后出现**新增**的「自己」气泡才算 `sent`；不确定不自动重放。输入框内容读不回来视为 blocked，不清草稿。
+  「新增」按行的控件运行期标识（快照引用）判定：同一句话别人也发过、发送方判定抖动都不会被误认成自己的新气泡。
+  引用拿不到或不唯一时显式降级为正文对齐（`confirm_evidence=text`），引用只在本次读取内有效，不落库，重启后只能按正文对齐。
+- `delivery_events.details` 里每次发送都带稳定失败码 `error_code` 与重试语义 `retry`（`after_snapshot` 必须重新读界面，
+  `never` 重放会重复副作用），发送确认另带 `confirm_evidence`（`ref`/`text`）与 `ref_available`。这些字段只放标量，不含正文与剪贴板内容。
 - 剪贴板备份失败时降级为清空写入并在发送后不恢复，但「序号为 0 且已有内容」这类风险仍拒绝。
 - `[wechat.emoji]` 未校准（button/item 为空）时自动改发文字，校准后自动恢复发图。
 - UI 自动化要求窗口可见、不遮挡、机器不锁屏；控件随微信版本变化，用 `tools/probe.py` 重新校准。

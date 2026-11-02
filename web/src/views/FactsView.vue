@@ -7,7 +7,8 @@ const props = defineProps({ tab: { type: String, default: 'facts' } })
 const ctx = inject('logWebCtx', null)
 
 const PAGE_SIZE = 50
-const KINDS = {
+// 老服务不带 kinds 时用这套文案兜底；新服务的分类以模板为准。
+const LEGACY_KINDS = {
   profile: '身份背景',
   preference: '偏好习惯',
   personality: '性格',
@@ -34,6 +35,8 @@ const query = computed(() => String(ctx?.search?.[props.tab] || '').trim())
 const rows = computed(() => data.value?.rows || [])
 const owners = computed(() => data.value?.owners || [])
 const current = computed(() => owners.value.find(item => item.owner === owner.value) || null)
+// 分类名来自模板：模板新增一类，这里不用改代码就会出现对应文案。
+const kinds = computed(() => new Map((data.value?.kinds || []).map(item => [item.key, item.label])))
 // 事实没有 channel_type 列，会话只能按 contact 分；同一个人有多份来源时才需要再缩一层。
 const sessions = computed(() => current.value?.sessions || [])
 const activeSession = computed(() => sessions.value.find(item => keyOf(item) === session.value) || null)
@@ -205,7 +208,7 @@ function pageBy(delta) {
 }
 
 function kindOf(row) {
-  return KINDS[row.kind] || KINDS.topic
+  return kinds.value.get(row.kind) || LEGACY_KINDS[row.kind] || row.kind || '未分类'
 }
 
 function percent(value) {

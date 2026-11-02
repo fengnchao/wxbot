@@ -3,7 +3,7 @@ type: concept
 module: identity
 summary: 群成员先按同群 member_key 与昵称认人，头像 dhash 只作证据且不足以区分个体
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/butler/identity/user_registry.py
   line: 350
@@ -24,7 +24,7 @@ sources:
   line: 57
   anchor: def avatar_is_informative(
 - path: src/wxbot/wechat/chat_window.py
-  line: 236
+  line: 246
   anchor: def _runtime_avatar(
 - path: src/wxbot/wechat/main_window.py
   line: 28
@@ -35,6 +35,8 @@ changes:
 - raw/changes/2026-11-01-mention-fallback-unread-retry
 - raw/changes/2026-11-01-citation-sweep
 - raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-02-ui-snapshot-ref-contract
+- raw/changes/2026-11-02-mention-residue-reverify
 ---
 # 群成员身份：昵称优先，头像退为证据
 
@@ -66,7 +68,7 @@ wxbot 启动时 `sync_users` 会重放 `inbox` 里的头像证据，这是「每
 - `src/wxbot/inbox.py:23` — `def member_nickname(`
 - `src/wxbot/queue_store.py:192` — `def identity_observations(`
 - `src/common/avatar_identity.py:57` — `def avatar_is_informative(`
-- `src/wxbot/wechat/chat_window.py:236` — `def _runtime_avatar(`
+- `src/wxbot/wechat/chat_window.py:246` — `def _runtime_avatar(`
 - `src/wxbot/wechat/main_window.py:28` — `def plausible_nickname(name: str) -> bool:`
 - `src/wxbot/wechat/main_window.py:45` — `def preview_sender(preview: str, text: str) -> str | None:`
 
@@ -77,3 +79,7 @@ wxbot 启动时 `sync_users` 会重放 `inbox` 里的头像证据，这是「每
 [[raw/changes/2026-11-01-mention-fallback-unread-retry]]
 
 [[raw/changes/2026-11-01-citation-sweep]]
+
+[[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
+
+[[raw/changes/2026-11-02-mention-residue-reverify]]

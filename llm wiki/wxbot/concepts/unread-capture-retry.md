@@ -3,7 +3,7 @@ type: concept
 module: wxbot
 summary: 未读任务只有采集成才清除，读不到文字时必须退避并最终放弃，否则阻塞发送队列
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/wxbot/inbox.py
   line: 440
@@ -21,13 +21,15 @@ sources:
   line: 543
   anchor: receive_ready = bool(self._connected and any(
 - path: src/wxbot/wechat/chat_window.py
-  line: 345
+  line: 356
   anchor: raise ReadDeferred('unread_messages_not_visible'
 - path: src/wxbot/queue_store.py
   line: 229
   anchor: 'def forget_session(self, contact):'
 changes:
 - raw/changes/2026-11-01-mention-fallback-unread-retry
+- raw/changes/2026-11-02-ui-snapshot-ref-contract
+- raw/changes/2026-11-02-mention-residue-reverify
 ---
 # 未读采集的重试与放弃
 
@@ -68,7 +70,11 @@ changes:
 - `src/wxbot/inbox.py:367` — 放弃快照比较
 - `src/wxbot/inbox.py:260` — `_capture` 的不可读守卫
 - `src/wxbot/inbox.py:543` — `receive_ready`
-- `src/wxbot/wechat/chat_window.py:345` — `read_bundle` 抛 `unread_messages_not_visible`
+- `src/wxbot/wechat/chat_window.py:356` — `read_bundle` 抛 `unread_messages_not_visible`
 - `src/wxbot/queue_store.py:229` — `forget_session`
 
 [[raw/changes/2026-11-01-mention-fallback-unread-retry]]
+
+[[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
+
+[[raw/changes/2026-11-02-mention-residue-reverify]]

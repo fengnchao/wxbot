@@ -56,6 +56,14 @@ def literal_keys(text):
     return ''.join('{{}' if c == '{' else '{}}' if c == '}' else c for c in text)
 
 
+DRAFT_SPACE = ' \t\r\n\u2005\u00a0'
+
+
+def _plain(value):
+    """Strip only separator whitespace WeChat may append to a draft."""
+    return value.rstrip(DRAFT_SPACE) if isinstance(value, str) else None
+
+
 class MentionSelection:
     """One bounded UI operation per step; no sleeps or Enter key selection."""
     def __init__(self, chat, win, edit, name, *, clock=time.monotonic):
@@ -69,10 +77,12 @@ class MentionSelection:
         self.existing_windows = set()
         self.existing_panels = set()
         self.fallback_reason = ''
-        self.fallback_draft = None
         self.clicked = False
         self.receipt = None
         self.filter_ready = 0
+        self.typed = False
+        self.open_deadline = self.deadline
+        self.cleanup_retries = 0
 
     @staticmethod
     def _identity(control):
@@ -81,6 +91,28 @@ class MentionSelection:
             return identity or None
         except Exception:
             return None
+
+    def _open_timeout(self):
+        value = self.cfg.get('open_timeout', 1.0)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return 1.0
+        return min(5.0, max(0.1, float(value)))
+
+    def _owned(self, value):
+        """True only for the literal '@...' prefix this session typed.
+
+        Trailing separator whitespace, a dropped character and a partial
+        Backspace all still describe text we own, so cleanup may remove them.
+        A picked object (U+FFFC) or user-added text never matches.
+        """
+        plain = _plain(value)
+        return bool(self.typed and plain and plain.startswith('@')
+                    and ('@' + self.name).startswith(plain))
+
+    def owned_residue(self):
+        """The literal '@...' left in the input box, if it is provably ours."""
+        current = self.chat._input_text(self.edit)
+        return current if self._owned(current) else ''
 
     def _inline_panels(self):
         panels = {}
@@ -130,20 +162,34 @@ class MentionSelection:
             if not self.cfg.get('panel'):
                 self.existing_windows = {window.NativeWindowHandle for window in top_level_windows()}
                 self.existing_panels = set(self._inline_panels())
+            self.typed = True
             auto.SendKeys('@', waitTime=0)
             self.phase = 'mention_filter'
+            self.open_deadline = self.clock() + self._open_timeout()
             return 'typing'
         if self.phase == 'mention_filter':
-            if self.chat._input_text(self.edit) != '@':
+            if _plain(self.chat._input_text(self.edit)) != '@':
                 self.error = '提及筛选前草稿变化，未按回车'
                 return 'blocked'
+            try:
+                panel = self._panel()
+            except Exception:
+                panel = None
+            if panel is None:
+                if self.clock() < self.open_deadline:
+                    return 'typing'
+                # Never type the member name into a filter that never opened:
+                # that is what left a literal '@昵称' instead of a real mention.
+                self.fallback_reason = 'picker_not_opened'
+                self.phase = 'mention_fallback_cancel'
+                return 'typing'
             auto.SendKeys(literal_keys(self.name), interval=0, waitTime=0)
             self.phase = 'mention_choose'
             self.deadline = self.clock() + 2
             self.filter_ready = self.clock() + .2
             return 'typing'
         if self.phase == 'mention_choose':
-            if self.chat._input_text(self.edit) != '@' + self.name:
+            if not self._owned(self.chat._input_text(self.edit)):
                 self.error = '提及选择前草稿变化，未按回车'
                 return 'blocked'
             try:
@@ -188,8 +234,7 @@ class MentionSelection:
         if self.proof is None:
             return self._wait('object_unverified')
         raw, _ = self.proof
-        if raw not in tuple(prefix + suffix for prefix in ('\ufffc', '@' + self.name)
-                            for suffix in ('', ' ', '\u2005')):
+        if _plain(raw) not in ('\ufffc', '@' + self.name):
             self.error = '选择提及后存在额外草稿，未按回车'
             return 'blocked'
         return 'selected'
@@ -198,29 +243,31 @@ class MentionSelection:
         if self.clock() < self.deadline:
             return 'typing'
         current = self.chat._input_text(self.edit)
-        # An unreadable embedded object has no proven owner. Only our exact
-        # literal query can be removed when rich-object verification failed.
-        prefixes = ('@'+self.name,)
-        allowed = tuple(prefix+suffix for prefix in prefixes for suffix in ('',' ','\u2005'))
-        if current not in allowed:
+        # An unreadable embedded object has no proven owner. Only the literal
+        # '@...' text this session typed can be removed.
+        if not self._owned(current):
             self.error = '放弃提及时输入内容变化或不可读，保留草稿，未按回车'
             return 'blocked'
         self.fallback_reason = reason
-        self.fallback_draft = current
         self.phase = 'mention_fallback_cancel'
         return 'typing'
 
     def _cleanup(self):
         current = self.chat._input_text(self.edit)
+        if current == '':
+            self.proof = None
+            return 'plain'
         if self.phase == 'mention_fallback_verify':
-            if current == '':
-                self.proof = None
-                return 'plain'
-            if self.clock() < self.deadline:
+            if self._owned(current) and self.cleanup_retries < 3:
+                # A partial Backspace can leave a shorter '@...' prefix behind;
+                # retry the same owned selection instead of stranding it.
+                self.cleanup_retries += 1
+                auto.SendKeys('{Ctrl}a',waitTime=0)
+                self.phase = 'mention_fallback_delete'
                 return 'typing'
             self.error = '放弃提及时未能确认草稿已清空，未粘贴正文、未按回车'
             return 'blocked'
-        if current != self.fallback_draft:
+        if not self._owned(current):
             self.error = '放弃提及时草稿变化，保留现有内容，未按回车'
             return 'blocked'
         if self.phase == 'mention_fallback_cancel':

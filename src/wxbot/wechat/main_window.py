@@ -7,7 +7,7 @@ import uiautomation as auto
 
 from ..log import log
 from .chat_window import ChatWindow
-from .locator import find
+from .locator import find, wait_until
 
 
 @dataclass(frozen=True)
@@ -323,13 +323,14 @@ class MainWindow:
         target = detached if detached is not None else win
         if detached is not None:
             detached.SetActive()
-        deadline = time.monotonic() + float(self.cfg.get("switch_timeout", 3))
-        while time.monotonic() < deadline:
-            if self.matches(target, contact) and self._find(target, self.wcfg["message_list"]):
-                return target
-            time.sleep(0.1)
-        log.warning("[%s] 点击会话后标题未匹配或消息区未就绪，停止本次处理", contact)
-        return None
+        ready = wait_until(
+            lambda: self.matches(target, contact)
+            and self._find(target, self.wcfg["message_list"]) is not None,
+            timeout=float(self.cfg.get("switch_timeout", 3)), interval=0.1)
+        if not ready:
+            log.warning("[%s] 点击会话后标题未匹配或消息区未就绪，停止本次处理", contact)
+            return None
+        return target
 
     def chat(self, contact: str, *, group_mode=False):
         return MainChatWindow(contact, self.wcfg, self, group_mode=group_mode)

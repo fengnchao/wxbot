@@ -1,8 +1,21 @@
 """按配置里的条件查找控件。条件来自 config.toml 的 [wechat.*] 段。"""
 import re
+import time
 from collections import deque
 
 import uiautomation as auto
+
+
+def wait_until(predicate, *, timeout, interval=0.02, clock=time.monotonic, sleep=time.sleep):
+    """等界面到达预期状态，返回是否在时限内满足；用来代替固定 sleep。"""
+    deadline = clock() + max(0.0, float(timeout))
+    delay = max(0.005, float(interval))
+    while True:
+        if predicate():
+            return True
+        if clock() >= deadline:
+            return False
+        sleep(delay)
 
 
 def _match_text(expected: str, actual: str) -> bool:

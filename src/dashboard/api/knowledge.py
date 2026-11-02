@@ -13,6 +13,13 @@ def _view(ctx):
     return ctx.KnowledgeView(cfg.data_path() / 'knowledge')
 
 
+def _template_view(ctx):
+    """模板写入走 data/knowledge/template.md，路径由数据目录推出，不由请求指定。"""
+    from butler.config import load as load_butler
+    cfg = load_butler(ctx.butler_config_path())
+    return ctx.KnowledgeTemplateView(cfg.data_path())
+
+
 def _session(ctx):
     """会话筛选：contact 精确匹配，channel_type 只认 dm/group，其余当没填。
 
@@ -52,6 +59,32 @@ def extract_status(ctx):
     except (RuntimeError, ValueError) as exc:
         return 200, {'available': False, 'error': str(exc)}
     return 200, {'available': True, **payload}
+
+
+def template_read(ctx):
+    """模板的当前内容与生效来源：覆盖层坏了也把原文和报错一起返回，页面才能修。"""
+    try:
+        return 200, _template_view(ctx).read()
+    except Exception as exc:
+        return 500, {'read_only': False, 'status': 'error',
+                     'error': '无法读取知识模板（' + type(exc).__name__ + '）'}
+
+
+def template_save(ctx):
+    """校验 / 保存 / 恢复内置模板；只改配置，不碰任何 vault。"""
+    if not ctx.confirm('X-Wxbot-Knowledge-Action'):
+        return 403, {'ok': False, 'error': '知识模板修改只接受当前页面的确认请求'}
+    TemplateConflict, TemplateError = ctx.TemplateConflict, ctx.TemplateError
+    try:
+        return 200, _template_view(ctx).save(ctx.body())
+    except TemplateConflict as exc:
+        return 409, {'ok': False, 'error': str(exc)}
+    except TemplateError as exc:
+        return 400, {'ok': False, 'error': '模板校验未通过', 'errors': exc.errors}
+    except ValueError as exc:
+        return 400, {'ok': False, 'error': str(exc)}
+    except OSError as exc:
+        return 503, {'ok': False, 'error': '知识模板保存失败（' + type(exc).__name__ + '）'}
 
 
 def extract_trigger(ctx):

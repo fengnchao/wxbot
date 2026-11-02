@@ -3,7 +3,7 @@ type: table
 module: wxbot
 summary: 模型请求批次与最终回复完整性，非发送回执
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/wxbot/queue_schema.py
   line: 34
@@ -28,6 +28,9 @@ changes:
 - raw/changes/2026-10-31-queue-batches-format
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-11-01-mention-fallback-unread-retry
+- raw/changes/2026-11-02-ui-snapshot-ref-contract
+- raw/changes/2026-11-02-details-whitelist-reverify
+- raw/changes/2026-11-02-mention-residue-reverify
 ---
 # SQLite batches
 
@@ -62,6 +65,8 @@ prepare 合并 inbox 得 text/context/member/回复模式；claim_batch 标记 p
 
 [[symbols/queue-finish]] 保存 reply_text / reply_complete=1 / part_count，并插入 outbox；只有聚合投递状态可表示整轮结束。字段 reply_complete 属模型完整性，不能替代 outbox sent。展示也见 [[apis/dashboard-queue]]。
 
+2026-11-02 复核：`queue_store.py` 的变更是扩展 `delivery_events.details` 白名单（`error_code` / `retry` / `confirm_evidence` / `ref_available`），批次字段、状态机与 `_recompute_batch` 聚合规则未变。
+
 ## 风险与测试
 
 失败模型请求仅 retry_safe 为真才重试；未知结果不重放，超时放行后续消息。first_delivery_failure 以整轮首次失败计算时限，见 [[concepts/delivery-state]]。本地 test_queue_worker.py、test_model_recovery.py、test_reply_delivery_lifecycle.py。
@@ -82,3 +87,9 @@ prepare 合并 inbox 得 text/context/member/回复模式；claim_batch 标记 p
 [[raw/changes/2026-10-31-queue-batches-format]]
 
 [[raw/changes/2026-11-01-mention-fallback-unread-retry]]
+
+[[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
+
+[[raw/changes/2026-11-02-details-whitelist-reverify]]
+
+[[raw/changes/2026-11-02-mention-residue-reverify]]

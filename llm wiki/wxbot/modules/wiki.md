@@ -3,13 +3,13 @@ type: module
 module: wiki
 summary: 本地关键词检索、证据入库和一致性巡检
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: AGENTS.md
   line: 28
   anchor: '## Project knowledge graph'
 - path: README.md
-  line: 684
+  line: 703
   anchor: '### 项目知识图谱'
 - path: llm wiki/wxbot/scripts/wiki.py
   line: 69
@@ -26,6 +26,9 @@ changes:
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-readme-unread-note
 - raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-02-knowledge-graph-template
+- raw/changes/2026-11-02-ui-snapshot-ref-contract
+- raw/changes/2026-11-02-mention-picker-gating-residue
 ---
 # 项目知识图谱工具
 
@@ -44,7 +47,7 @@ changes:
 ## 代码依据
 
 - `AGENTS.md:28` — `## Project knowledge graph`
-- `README.md:652` — `### 项目知识图谱`
+- `README.md:703` — `### 项目知识图谱`
 - `llm wiki/wxbot/scripts/wiki.py:69` — `class Wiki:`
 - `llm wiki/wxbot/scripts/wiki.py:250` — `def ingest(`
 - `llm wiki/wxbot/scripts/wiki.py:301` — `def query(`
@@ -59,3 +62,7 @@ changes:
 [[raw/changes/2026-11-01-knowledge-auto]]
 
 [[raw/changes/2026-11-01-readme-unread-note]]
+
+[[raw/changes/2026-11-02-knowledge-graph-template]]
+
+[[raw/changes/2026-11-02-mention-picker-gating-residue]]

@@ -1,30 +1,39 @@
 ---
 type: symbol
 module: runtime
-summary: 从对话原文提炼知识图谱节点的链路，CLI 与进程内调度器共用，产出实体、关系与双链，游标只在整批成功后前移
+summary: 从对话原文提炼知识图谱节点的链路，模板决定分类、节点类型与追加规则，CLI 与进程内调度器共用，游标只在整批成功后前移
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/butler/runtime/knowledge_extract.py
-  line: 21
-  anchor: KINDS = ('profile', 'preference', 'personality', 'goal', 'relation', 'event', 'topic')
+  line: 25
+  anchor: KINDS = LEGACY_KINDS
 - path: src/butler/runtime/knowledge_extract.py
-  line: 24
-  anchor: PROMPT = """下面是一个人和助理的若干轮对话，每条前面有编号。当前用户的名字是「%s」。
+  line: 29
+  anchor: CORE_RULES = (
 - path: src/butler/runtime/knowledge_extract.py
-  line: 73
-  anchor: 'def parse_facts(raw):'
+  line: 38
+  anchor: PROMPT_HEAD = """下面是一个人和助理的若干轮对话，每条前面有编号。当前用户的名字是「%s」。
 - path: src/butler/runtime/knowledge_extract.py
-  line: 111
+  line: 54
+  anchor: 'def build_prompt(template, contact):'
+- path: src/butler/runtime/knowledge_extract.py
+  line: 67
+  anchor: 'def _links(raw, types=NODE_TYPES):'
+- path: src/butler/runtime/knowledge_extract.py
+  line: 84
+  anchor: 'def parse_facts(raw, kinds=None, node_types=None):'
+- path: src/butler/runtime/knowledge_extract.py
+  line: 130
   anchor: 'def render(rows):'
 - path: src/butler/runtime/knowledge_extract.py
-  line: 121
+  line: 140
   anchor: 'def extract(store, owner, contact, complete, *, batch=40, log=None, dry_run=False):'
 - path: src/butler/runtime/knowledge_extract.py
-  line: 155
+  line: 175
   anchor: 'def extract_all(store, complete, *, batch=40, owner='''', log=None, dry_run=False):'
 - path: src/butler/runtime/knowledge_store.py
-  line: 580
+  line: 626
   anchor: 'def episodes_of(self, owner, after_at=0.0, limit=200):'
 - path: src/butler/__main__.py
   line: 66
@@ -40,7 +49,9 @@ changes:
 - raw/changes/2026-11-01-knowledge-migrate-source-recheck
 - raw/changes/2026-11-01-knowledge-atlas-index
 - raw/changes/2026-11-01-knowledge-atomic-retry
-calls: []
+- raw/changes/2026-11-02-knowledge-graph-template
+calls:
+- symbols/knowledge-template
 called_by:
 - symbols/knowledge-auto
 ---
@@ -49,7 +60,8 @@ called_by:
 ## 签名与职责
 
 ```
-parse_facts(raw) -> list[dict]
+build_prompt(template, contact) -> str
+parse_facts(raw, kinds=None, node_types=None) -> list[dict]
 render(rows) -> str
 extract(store, owner, contact, complete, *, batch=40, log=None, dry_run=False) -> (read, written, parsed)
 extract_all(store, complete, *, batch=40, owner='', log=None, dry_run=False) -> list[dict]
@@ -59,9 +71,11 @@ extract_all(store, complete, *, batch=40, owner='', log=None, dry_run=False) -> 
 
 `complete` 是由调用方注入的回调（`prompt -> str`），本模块不认识 Hermes、Codex 或任何后端——CLI 传真实模型，测试传假实现。这是本模块能被用例覆盖而不联网的原因。
 
-`parse_facts`（`:73`）从模型输出里取第一个 `[` 到最后一个 `]` 之间的 JSON：容忍代码围栏和前后废话，坏项（非对象、空 value）直接丢，`kind` 越界回落 `topic`，`subject_type` 越界回落 `person`，`confidence` 非数字回落 0.5 并夹在 0..1。`kind` 白名单 `KINDS`（`:21`）是七类：`profile` / `preference` / `personality` / `goal` / `relation` / `event` / `topic`，与 [[tables/knowledge-vault]] 的 `FACT_KINDS` 逐字一致——两边不同步会让分类落到 `topic`。`_links`（`:56`）允许 `"李四"` 与 `{"name":"李四","type":"person"}` 两种写法，最多收 `MAX_LINKS`（8）个。
+`parse_facts`（`:84`）从模型输出里取第一个 `[` 到最后一个 `]` 之间的 JSON：容忍代码围栏和前后废话，坏项（非对象、空 value）直接丢，`kind` 越界回落 `topic`，`subject_type` 越界回落 `person`，`confidence` 非数字回落 0.5 并夹在 0..1。白名单不再写死：`parse_facts(raw, template.kind_keys, template.node_type_keys)`（`:155`）由调用方传模板分类与节点类型；`KINDS`（`:25`）只是兼容默认值。`_links`（`:67`）允许 `"李四"` 与 `{"name":"李四","type":"person"}` 两种写法，最多收 `MAX_LINKS`（8）个，`type` 不在模板节点类型内时回落 `person`。
 
-`render`（`:111`）把原文排成 `[id] 用户：…` / `助理：…` 两行一组。编号是给模型对 `quote` 用的，也方便人回看；编号来自 `episodes_of` 返回时补的序号，不是数据库自增 id。
+`build_prompt`（`:54`）用模板的 `kind_choices()` / `type_choices()` 填 `PROMPT_HEAD`（`:38`），再把 `CORE_RULES`（`:29`，6 条）与模板追加规则一起编号。内置规则永远在前，模板只能加不能减。
+
+`render`（`:130`）把原文排成 `[id] 用户：…` / `助理：…` 两行一组。编号是给模型对 `quote` 用的，也方便人回看；编号来自 `episodes_of` 返回时补的序号，不是数据库自增 id。
 
 **产出比 SQLite 时代多了三个字段**：`subject`（这条事实挂到哪个节点）、`subject_type`（`person` / `org` / `topic`）、`links`（正文里生成哪些双链）。前两个决定 `add_fact` 写哪个文件，第三个决定 graph view 连不连得上——没有它们写出来的只是一堆孤立事实行。
 
@@ -81,10 +95,11 @@ HTTP 请求里**不直接跑提炼**：一轮要几十秒到几分钟，挂在�
 
 ## 调用了谁
 
-- `KnowledgeStore.extracted_at` / `set_extracted_at`（`:482` / `:487`，时刻游标，不是行号游标）
-- `KnowledgeStore.episodes_of`（`:580`，按 `at > 游标` 取一批新原文，上限 1000）
-- `KnowledgeStore.add_fact`（写节点事实行，靠指纹去重）
-- `KnowledgeStore.owners`（`extract_all` 遍历目录）
+- `KnowledgeStore.extracted_at` / `set_extracted_at`（`:511` / `:516`，时刻游标，不是行号游标）
+- `KnowledgeStore.episodes_of`（`:626`，按 `at > 游标` 取一批新原文，上限 1000）
+- `KnowledgeStore.add_fact`（`:474`，写节点事实行，靠指纹去重）
+- `KnowledgeStore.owners`（`:430`，`extract_all` 遍历目录）
+- `store.template`（[[symbols/knowledge-template]]）：分类、节点类型与追加规则都从这里取，不再读模块常量。
 
 不调用模型 SDK、不读配置、不发网络请求。
 
@@ -98,8 +113,8 @@ HTTP 请求里**不直接跑提炼**：一轮要几十秒到几分钟，挂在�
 
 游标契约：
 
-- 整批成功才 `set_extracted_at(owner, last_at)`，`last_at` 是本批**最大的 `at` 时间戳**（`:133`），不是行数、不是 id。
-- 模型输出里**完全没有方括号**→ 判为解析失败，游标不前移，下次重来（`:136`）。
+- 整批成功才 `set_extracted_at(owner, last_at)`，`last_at` 是本批**最大的 `at` 时间戳**（`:152`），不是行数、不是 id。
+- 模型输出里**完全没有方括号**→ 判为解析失败，游标不前移，下次重来（`:156`）。
 - 输出里方括号存在但内容不是 JSON、或确实是 `[]` → 按「这批量没有值得记的内容」处理，游标照常前移，避免同一批反复烧模型。
 - `dry_run` 不前移游标，否则会跳过一段没写进 vault 的对话。
 - 游标是时刻而非位置，所以**同一秒内晚到的原文可能被跳过**；`record` 写入时间由 `at` 决定，正常的顺序写入没有这个问题。
@@ -108,20 +123,22 @@ HTTP 请求里**不直接跑提炼**：一轮要几十秒到几分钟，挂在�
 
 本地用例 `tests/butler/test_knowledge_extract.py`：围栏与废话容错、坏项丢弃、写入与游标前进、重复提炼幂等（同一 `fp` 不写第二行）、无法解析时游标不动、空数组算成功、dry-run 不写库、单人失败不中断、`owner` 过滤。
 
-风险：提炼质量完全取决于模型；`PROMPT` 里「不推测、不补全、助理的话不作事实来源」「矛盾陈述各写一条」是硬约束，改提示词等于改数据质量。批量上限 `batch` 夹在 1..200（`MAX_BATCH`），字段长度上限见 `MAX_VALUE`(500) / `MAX_KEY`(80) / `MAX_QUOTE`(300) / `MAX_LINKS`(8)。`subject` 清洗后会决定文件名，同名不同实体将合并进同一个节点——这是 `_safe()` 的已知边界。
+风险：提炼质量完全取决于模型；`CORE_RULES` 里「不推测、不补全、助理的话不作事实来源」「矛盾陈述各写一条」是硬约束，改提示词等于改数据质量。模板能把分类/类型/追加规则改坏，但保存前有严格校验，运行时解析失败回退内置模板（[[symbols/knowledge-template]]）。批量上限 `batch` 夹在 1..200（`MAX_BATCH`），字段长度上限见 `MAX_VALUE`(500) / `MAX_KEY`(80) / `MAX_QUOTE`(300) / `MAX_LINKS`(8)。`subject` 清洗后会决定文件名，同名不同实体将合并进同一个节点——这是 `_safe()` 的已知边界。
 
 ## 代码依据与修改来源
 
-- `src/butler/runtime/knowledge_extract.py:21` — `KINDS = ('profile', 'preference', 'personality', 'goal', 'relation', 'event', 'topic')`
-- `src/butler/runtime/knowledge_extract.py:24` — `PROMPT = """下面是一个人和助理的若干轮对话，每条前面有编号。当前用户的名字是「%s」。`
-- `src/butler/runtime/knowledge_extract.py:56` — `def _links(raw):`
-- `src/butler/runtime/knowledge_extract.py:73` — `def parse_facts(raw):`
-- `src/butler/runtime/knowledge_extract.py:111` — `def render(rows):`
-- `src/butler/runtime/knowledge_extract.py:121` — `def extract(store, owner, contact, complete, *, batch=40, log=None, dry_run=False):`
-- `src/butler/runtime/knowledge_extract.py:155` — `def extract_all(store, complete, *, batch=40, owner='', log=None, dry_run=False):`
-- `src/butler/runtime/knowledge_store.py:482` — `def extracted_at(self, owner):`
-- `src/butler/runtime/knowledge_store.py:487` — `def set_extracted_at(self, owner, at):`
-- `src/butler/runtime/knowledge_store.py:580` — `def episodes_of(self, owner, after_at=0.0, limit=200):`
+- `src/butler/runtime/knowledge_extract.py:25` — `KINDS = LEGACY_KINDS`
+- `src/butler/runtime/knowledge_extract.py:29` — `CORE_RULES = (`（6 条不可删的安全规则）
+- `src/butler/runtime/knowledge_extract.py:38` — `PROMPT_HEAD = """下面是一个人和助理的若干轮对话，每条前面有编号。当前用户的名字是「%s」。`
+- `src/butler/runtime/knowledge_extract.py:54` — `def build_prompt(template, contact):`
+- `src/butler/runtime/knowledge_extract.py:67` — `def _links(raw, types=NODE_TYPES):`
+- `src/butler/runtime/knowledge_extract.py:84` — `def parse_facts(raw, kinds=None, node_types=None):`
+- `src/butler/runtime/knowledge_extract.py:130` — `def render(rows):`
+- `src/butler/runtime/knowledge_extract.py:140` — `def extract(store, owner, contact, complete, *, batch=40, log=None, dry_run=False):`
+- `src/butler/runtime/knowledge_extract.py:175` — `def extract_all(store, complete, *, batch=40, owner='', log=None, dry_run=False):`
+- `src/butler/runtime/knowledge_store.py:511` — `def extracted_at(self, owner):`
+- `src/butler/runtime/knowledge_store.py:516` — `def set_extracted_at(self, owner, at):`
+- `src/butler/runtime/knowledge_store.py:626` — `def episodes_of(self, owner, after_at=0.0, limit=200):`
 - `src/butler/__main__.py:66` — `if args.command=='knowledge-extract':`
 - `src/butler/runtime/knowledge_auto.py:182` — `read, written, parsed = extract(`
 

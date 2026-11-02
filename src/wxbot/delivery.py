@@ -1,24 +1,27 @@
 """UI 发件执行器：逐步输入、核对新增自己的气泡，保存确定/不确定结果。"""
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 import json
 import time
 
 from .log import log
-from .state import overlap_end
+from .ui_contract import Snapshot, disposition, failure, persisted_rows
 from .wechat.chat_window import Message
 from .queue_store import FAILURE_TIMEOUT_SECONDS, MAX_DELIVERY_RETRIES
 
 
+def reply_evidence(before, current, text):
+    """发送确认的证据：(证据类型, 行, 引用是否可用)。
+
+    'ref' 表示出现了 baseline 中没有、方向为自己的新行；'text' 是拿不到引用时的
+    显式降级。两种证据都不成立才算未确认。
+    """
+    previous, now = Snapshot.take(before), Snapshot.take(current)
+    evidence, row = now.sent_after(previous, text)
+    return evidence, row, now.evidence_available(previous)
+
+
 def reply_is_visible(before, current, text):
-    if before:
-        end = overlap_end(before, current)
-        if end is None:
-            return False
-        delta = current[end:]
-    else:
-        delta = current
-    normalize = lambda value: value.replace("\r\n", "\n").replace("\r", "\n").strip()
-    return any(m.sender == "self" and normalize(m.text) == normalize(text) for m in delta)
+    return reply_evidence(before, current, text)[0] is not None
 
 
 @dataclass
@@ -79,8 +82,9 @@ class DeliveryPump:
                 request.finish(receipt['ok'],receipt['state'])
 
     @staticmethod
-    def _diagnostics(chat,phase):
-        details={'phase':phase,'enter_attempted':False}
+    def _diagnostics(chat,phase,code):
+        details=failure(code)
+        details.update(phase=phase,enter_attempted=False)
         probe=getattr(chat,'send_diagnostics',None)
         if probe is not None:
             try:details.update(probe())
@@ -96,6 +100,10 @@ class DeliveryPump:
             details.setdefault('enter_attempted',self.active.typing.enter_attempted)
             close=getattr(self.active.typing,'close',None)
             if close is not None: close()
+        if state in {'blocked','uncertain'}:
+            # 代码给队列和看板看；重试语义由代码决定，不由状态反推。
+            details.setdefault('error_code','ui_error')
+            details.setdefault('retry',disposition(details['error_code']))
         self.store.finish_delivery(delivery.id, state, now=self.clock(), error=error,details=details)
         part=getattr(self.store,'stream_part',lambda _:None)(delivery.id)
         if part and state in {'blocked','uncertain'}:
@@ -156,15 +164,18 @@ class DeliveryPump:
             if delivery.group_mode is not None:
                 chat.expected_group = delivery.group_mode
             if not self.capture_target(delivery.contact):
-                self._finish(delivery, "blocked", "目标会话尚不可用，未键入",self._diagnostics(chat,'prepare_target'))
+                self._finish(delivery, "blocked", "目标会话尚不可用，未键入",
+                             self._diagnostics(chat,'prepare_target','target_unavailable'))
                 return
             baseline = chat.read_messages()
-            self.store.save_baseline(delivery.id, [asdict(m) for m in baseline])
+            self.store.save_baseline(delivery.id, persisted_rows(baseline))
             draft = self.store.owned_draft(delivery.contact)
             if draft is not None and hasattr(chat, 'clear_owned_draft'):
                 if not chat.clear_owned_draft(draft):
+                    details=self._diagnostics(chat,'draft_cleanup','draft_conflict')
+                    details['manual_required']=getattr(chat,'draft_conflict',False)
                     self._finish(delivery, 'blocked', '草稿与已核验的机器人输入不匹配，请人工清理后重试',
-                                 {'phase':'draft_cleanup','manual_required':getattr(chat,'draft_conflict',False)})
+                                 details)
                     return
                 self.store.forget_draft(delivery.contact)
             mention_name = getattr(delivery, 'mention_name', '')
@@ -174,8 +185,10 @@ class DeliveryPump:
                 typing = (chat.start_send(delivery.text, mention_name=mention_name, clock=self.monotonic)
                           if mention_name else chat.start_send(delivery.text, clock=self.monotonic))
             if typing is None:
-                self._finish(delivery, "blocked", "输入框有草稿或无法读取、对象无法确认或窗口不可用",
-                             {**self._diagnostics(chat,'prepare_input'), 'manual_required':getattr(chat,'draft_conflict',False)})
+                code='draft_conflict' if getattr(chat,'draft_conflict',False) else 'target_unavailable'
+                details=self._diagnostics(chat,'prepare_input',code)
+                details['manual_required']=getattr(chat,'draft_conflict',False)
+                self._finish(delivery, "blocked", "输入框有草稿或无法读取、对象无法确认或窗口不可用", details)
                 return
             stream_part=getattr(self.store,'stream_part',lambda _:None)(delivery.id)
             if stream_part:
@@ -204,7 +217,8 @@ class DeliveryPump:
                      delivery.part_seq, delivery.part_count,
                      getattr(typing,'chunk_size',5),getattr(typing,'chunk_interval',.5))
         except Exception as exc:
-            self._finish(delivery, "blocked", f"发送准备失败: {type(exc).__name__}",self._diagnostics(chat,'prepare'))
+            self._finish(delivery, "blocked", f"发送准备失败: {type(exc).__name__}",
+                         self._diagnostics(chat,'prepare','ui_error'))
 
     def _start_emoji(self, delivery):
         chat = None
@@ -215,20 +229,20 @@ class DeliveryPump:
                 chat.expected_group = delivery.group_mode
             if not self.capture_target(delivery.contact):
                 self._finish(delivery, "blocked", "目标会话尚不可用，未发送表情",
-                             self._diagnostics(chat, 'prepare_target'))
+                             self._diagnostics(chat, 'prepare_target', 'target_unavailable'))
                 return
             status = chat.send_sticker(clock=self.monotonic, timeout=self.timeout)
             if status == "sent":
                 self._finish(delivery, "sent")
             elif status == "uncertain":
                 self._finish(delivery, "uncertain", "表情已点击但未确认发送，不自动重发",
-                             self._diagnostics(chat, 'sticker'))
+                             self._diagnostics(chat, 'sticker', 'sticker_unconfirmed'))
             else:
                 self._finish(delivery, "blocked", "表情发送失败或控件未校准",
-                             self._diagnostics(chat, 'sticker'))
+                             self._diagnostics(chat, 'sticker', 'sticker_unavailable'))
         except Exception as exc:
             self._finish(delivery, "blocked", f"表情发送失败: {type(exc).__name__}",
-                         self._diagnostics(chat, 'sticker'))
+                         self._diagnostics(chat, 'sticker', 'ui_error'))
 
     def _package_authorization(self,delivery):
         if not getattr(delivery,'package_id',None) or self.package_authorizer is None:
@@ -259,7 +273,7 @@ class DeliveryPump:
         if self.capture_messages is not None:
             self.capture_messages(active.delivery.contact, active.chat, current)
         text = getattr(active.typing, "submitted_text", None) or active.delivery.text
-        self.store.save_baseline(active.delivery.id, [asdict(m) for m in current], submitted_text=text)
+        self.store.save_baseline(active.delivery.id, persisted_rows(current), submitted_text=text)
         active.baseline = current
         # UIA reads may be slow: check freshness after the final snapshot, as
         # close as possible to the caller's guarded native submit operation.
@@ -353,8 +367,12 @@ class DeliveryPump:
             if active.chat.target_is_current(active.typing.win):
                 current = active.chat.read_from_window(active.typing.win, strict_sender=True)
                 text = getattr(active.typing, "submitted_text", None) or active.delivery.text
-                visible=(active.typing.confirmation_visible() if active.delivery.kind=='image'
-                         else reply_is_visible(active.baseline, current, text))
+                evidence = by_ref = None
+                if active.delivery.kind=='image':
+                    visible = active.typing.confirmation_visible()
+                else:
+                    evidence, _, by_ref = reply_evidence(active.baseline, current, text)
+                    visible = evidence is not None
                 if visible:
                     # Persist the same snapshot that proved the bubble is ours.
                     # Capture concurrent incoming messages before advancing the
@@ -365,14 +383,17 @@ class DeliveryPump:
                                  active.delivery.contact, active.delivery.id)
                     if active.delivery.kind!='image':
                         active.chat.remember_sent(text)
-                    self._finish(active.delivery, "sent", details={
-                        'mention_verified': getattr(active.typing, 'mention_verified', False),
-                        'bubble_verified': True})
+                    details={'mention_verified': getattr(active.typing, 'mention_verified', False),
+                             'bubble_verified': True}
+                    if evidence is not None:
+                        details.update(confirm_evidence=evidence, ref_available=by_ref)
+                    self._finish(active.delivery, "sent", details=details)
                     return
         except Exception as exc:
             log.debug("[队列][%s] 发送确认暂时不可读: %s", active.delivery.id, type(exc).__name__)
         if self.monotonic() >= active.deadline:
-            self._finish(active.delivery, "uncertain", "已尝试回车，但未确认新发送气泡，不自动重发")
+            self._finish(active.delivery, "uncertain", "已尝试回车，但未确认新发送气泡，不自动重发",
+                         self._diagnostics(active.chat, 'confirm', 'enter_unconfirmed'))
 
     def reconcile(self):
         """重启后只核对已知不确定发件；不再输入，也不再按回车。"""

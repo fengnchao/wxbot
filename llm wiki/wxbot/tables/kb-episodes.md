@@ -3,22 +3,22 @@ type: table
 module: butler
 summary: 已退场——SQLite 时代的 L1 原文表，现由 vault 里的「对话/YYYY-MM-DD.md」承担，只保留迁移读入口
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/butler/runtime/knowledge_store.py
-  line: 44
+  line: 48
   anchor: OUTCOMES = ('ok', 'error', 'silent')
 - path: src/butler/runtime/knowledge_store.py
-  line: 709
+  line: 755
   anchor: 'def _import_sqlite(store, path, log):'
 - path: src/butler/runtime/knowledge_store.py
-  line: 715
+  line: 761
   anchor: 'if ''kb_episodes'' in tables:'
 - path: src/butler/runtime/knowledge_store.py
-  line: 755
+  line: 801
   anchor: 'def migrate_legacy(data_dir, log=None):'
 - path: src/butler/runtime/knowledge_store.py
-  line: 688
+  line: 734
   anchor: 'def _checkpoint_legacy(path):'
 - path: src/butler/__main__.py
   line: 57
@@ -32,6 +32,7 @@ changes:
 - raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint
 - raw/changes/2026-11-01-knowledge-atlas-index
 - raw/changes/2026-11-01-knowledge-atomic-retry
+- raw/changes/2026-11-02-knowledge-graph-template
 ---
 # SQLite kb_episodes（已退场）
 
@@ -43,7 +44,7 @@ changes:
 
 SQLite 时代的 L1 原文层：一条记录等于一轮对话（用户说了什么、机器人回了什么、这轮成功与否），每个 owner 一个库 `data/knowledge/p-<slug>/episodes.sqlite3`。
 
-`outcome` 只有 `ok` / `error` / `silent` 三个值（`OUTCOMES`，`src/butler/runtime/knowledge_store.py:44`）：`silent` 是模型选择不回，`error` 是处理抛错，`reply_text` 为 NULL 表示这轮没有产出回复——三者不是同一件事。
+`outcome` 只有 `ok` / `error` / `silent` 三个值（`OUTCOMES`，`src/butler/runtime/knowledge_store.py:48`）：`silent` 是模型选择不回，`error` 是处理抛错，`reply_text` 为 NULL 表示这轮没有产出回复——三者不是同一件事。
 
 ## 退场后的替代
 
@@ -59,24 +60,26 @@ SQLite 时代的 L1 原文层：一条记录等于一轮对话（用户说了什
 
 ## 仅存的读取路径：迁移
 
-`migrate_legacy(data_dir)`（`src/butler/runtime/knowledge_store.py:755`）→ `_import_sqlite`（`:709`）在旧库里发现 `kb_episodes` 表（`:715`）就逐行读，调 `KnowledgeStore.record(...)` 写进 vault；搬完把旧库改名留底、不删：
+`migrate_legacy(data_dir)`（`src/butler/runtime/knowledge_store.py:801`）→ `_import_sqlite`（`:755`）在旧库里发现 `kb_episodes` 表（`:761`）就逐行读，调 `KnowledgeStore.record(...)` 写进 vault；搬完把旧库改名留底、不删：
 
 | 旧文件 | 处理 |
 |---|---|
 | `data/knowledge.sqlite3` | 搬完改名 `knowledge.legacy.sqlite3` |
 | `data/knowledge/p-*/episodes.sqlite3` | 搬完改名 `episodes.sqlite3.migrated` |
 
-改名之前会先 `_checkpoint_legacy`（`:688`）合并 WAL：旧库是 WAL 模式时，直接把主库改名会让 `-wal` 失配，留底库就只剩改名前的旧页（详见 [[tables/knowledge-vault]] 与 [[raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint]]）。
+改名之前会先 `_checkpoint_legacy`（`:734`）合并 WAL：旧库是 WAL 模式时，直接把主库改名会让 `-wal` 失配，留底库就只剩改名前的旧页（详见 [[tables/knowledge-vault]] 与 [[raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint]]）。
 
 入口只有一个：`python -m butler knowledge-migrate`（`src/butler/__main__.py:57`）。迁移幂等，重复跑不会写出重复块。
 
+2026-11-02 的模板化不改变迁移语义：迁移仍把旧行逐条交给 `record`，历史轮次不会因模板新增/删除目录而丢失或重排；模板只影响此后新写入的日记目录与索引分区。
+
 ## 代码依据与修改来源
 
-- `src/butler/runtime/knowledge_store.py:44` — `OUTCOMES = ('ok', 'error', 'silent')`
-- `src/butler/runtime/knowledge_store.py:709` — `def _import_sqlite(store, path, log):`
-- `src/butler/runtime/knowledge_store.py:715` — `if 'kb_episodes' in tables:`
-- `src/butler/runtime/knowledge_store.py:755` — `def migrate_legacy(data_dir, log=None):`
-- `src/butler/runtime/knowledge_store.py:688` — `def _checkpoint_legacy(path):`
+- `src/butler/runtime/knowledge_store.py:48` — `OUTCOMES = ('ok', 'error', 'silent')`
+- `src/butler/runtime/knowledge_store.py:755` — `def _import_sqlite(store, path, log):`
+- `src/butler/runtime/knowledge_store.py:761` — `if 'kb_episodes' in tables:`
+- `src/butler/runtime/knowledge_store.py:801` — `def migrate_legacy(data_dir, log=None):`
+- `src/butler/runtime/knowledge_store.py:734` — `def _checkpoint_legacy(path):`
 - `src/butler/__main__.py:57` — `if args.command=='knowledge-migrate':`
 
 [[raw/changes/2026-11-01-knowledge-episodes]]
@@ -87,3 +90,4 @@ SQLite 时代的 L1 原文层：一条记录等于一轮对话（用户说了什
 [[raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint]]
 [[raw/changes/2026-11-01-knowledge-atlas-index]]
 [[raw/changes/2026-11-01-knowledge-atomic-retry]]
+[[raw/changes/2026-11-02-knowledge-graph-template]]

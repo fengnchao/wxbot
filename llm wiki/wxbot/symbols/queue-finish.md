@@ -3,7 +3,7 @@ type: symbol
 module: wxbot
 summary: 完整分句入 outbox，模型完成和发送完成分开
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/wxbot/queue_store.py
   line: 339
@@ -18,6 +18,9 @@ changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-11-01-mention-fallback-unread-retry
+- raw/changes/2026-11-02-ui-snapshot-ref-contract
+- raw/changes/2026-11-02-details-whitelist-reverify
+- raw/changes/2026-11-02-mention-residue-reverify
 calls: []
 called_by:
 - symbols/model-worker
@@ -32,7 +35,7 @@ called_by:
 
 parts 必须是完整、非空字符串的 tuple（允许空 tuple 表示无需文本）；仅接受 processing 批次，拒绝重复保存模型结果。事务内逐句写 [[tables/queue-outbox]]，更新 [[tables/queue-batches]] 的 reply_text/reply_complete/part_count，再重算聚合状态。
 
-群 @ 目标使用服务解析后的 mention_name，且仅第一分句携带；不使用观察昵称或模型文本来选收件人。入库完成不等于微信已发送，见 [[concepts/delivery-state]]。
+群 @ 目标使用服务解析后的 mention_name，且仅第一分句携带；不使用观察昵称或模型文本来选收件人。入库完成不等于微信已发送，见 [[concepts/delivery-state]]。`_insert_delivery` 签名与写入列未变，快照引用只存在于 UI 发件侧，不进入 outbox。
 
 ## 测试
 
@@ -49,3 +52,9 @@ parts 必须是完整、非空字符串的 tuple（允许空 tuple 表示无需�
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
 
 [[raw/changes/2026-11-01-mention-fallback-unread-retry]]
+
+[[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
+
+[[raw/changes/2026-11-02-details-whitelist-reverify]]
+
+[[raw/changes/2026-11-02-mention-residue-reverify]]

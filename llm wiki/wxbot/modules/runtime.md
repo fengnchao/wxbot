@@ -3,7 +3,7 @@ type: module
 module: runtime
 summary: 安装、迁移、并发、MCP 与知识库提炼调度等运行基础设施
 coverage: overview
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/butler/runtime/setup.py
   line: 28
@@ -20,12 +20,16 @@ sources:
 - path: src/butler/runtime/knowledge_auto.py
   line: 71
   anchor: 'class ExtractScheduler:'
+- path: src/butler/runtime/knowledge_template.py
+  line: 83
+  anchor: 'class GraphTemplate:'
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-switchable-models
 - raw/changes/2026-11-01-knowledge-sharding
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-02-knowledge-graph-template
 ---
 # Butler 运行支撑
 
@@ -45,6 +49,8 @@ changes:
 
 `knowledge_store.py` 定义一人一库的读写入口：[[tables/kb-owners]]（索引）、[[tables/kb-episodes]]（L1 原文）、[[tables/kb-facts]]（L2 事实），并提供 `migrate_legacy` 拆分旧单库。`knowledge_extract.py` 是提炼链路 [[symbols/knowledge-extract]]。
 
+`knowledge_template.py` 是骨架与口径来源 [[symbols/knowledge-template]]：`GraphTemplate`（`:83`）决定节点目录、事实分类、索引分区和提炼规则；`KnowledgeStore` 构造时读覆盖层 `data/knowledge/template.md`，没有则用插件内置模板，再没有才回退代码默认值。模板只影响新写入与下一轮拼 prompt，不迁移历史 vault。
+
 `knowledge_auto.py` 是常驻调度器 [[symbols/knowledge-auto]]（`ExtractScheduler`，`:71`）：`serve()` 构造后随 serving 启停（`src/butler/server.py:477`、`:488`、`:496`），按间隔挑有积压的人喂模型，并把 prune 并入同一轮。`knowledge.enabled` 或 `knowledge.auto_extract` 为假时 `start()` 只记一条日志、不起线程。人工入口（`python -m butler knowledge-extract`、`knowledge-prune`、`knowledge-migrate`）仍在，但不再是唯一入口；CLI 提炼前要先拿同一把锁（`src/butler/__main__.py:74`）。
 
 ## 代码依据
@@ -54,6 +60,7 @@ changes:
 - `src/butler/runtime/mcp_gateway.py:5` — `def `
 - `src/butler/runtime/model_migration.py:13` — `def migrate_model_connection(`
 - `src/butler/runtime/knowledge_auto.py:71` — `class ExtractScheduler:`
+- `src/butler/runtime/knowledge_template.py:83` — `class GraphTemplate:`
 
 ## 入库来源
 
@@ -69,3 +76,5 @@ changes:
 [[raw/changes/2026-11-01-knowledge-sharding]]
 
 [[raw/changes/2026-11-01-knowledge-auto]]
+
+[[raw/changes/2026-11-02-knowledge-graph-template]]

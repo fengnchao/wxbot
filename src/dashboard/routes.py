@@ -15,14 +15,14 @@ BUSINESS_GET = frozenset({
     '/api/users', '/api/users/audit', '/api/runtime',
     '/api/jobs', '/api/groups', '/api/heartbeat-config', '/api/heartbeat-status',
     '/api/skills', '/api/telegram-relay', '/api/knowledge', '/api/knowledge/facts',
-    '/api/knowledge/extract',
+    '/api/knowledge/extract', '/api/knowledge/template',
 })
 
 BUSINESS_POST = frozenset({
     '/api/contacts', '/api/users', '/api/jobs/delete', '/api/heartbeat-trigger',
     '/api/heartbeat-config', '/api/groups', '/api/news-config',
     '/api/telegram-relay', '/api/telegram-relay/resolve',
-    '/api/knowledge/extract',
+    '/api/knowledge/extract', '/api/knowledge/template',
 })
 
 ROUTES = (
@@ -43,6 +43,7 @@ ROUTES = (
     ("GET", "/api/knowledge", knowledge.read),
     ("GET", "/api/knowledge/facts", knowledge.facts),
     ("GET", "/api/knowledge/extract", knowledge.extract_status),
+    ("GET", "/api/knowledge/template", knowledge.template_read),
     ("GET", "/api/configuration", config.read),
     ("GET", "/api/health", system.health),
     ("GET", "/api/jobs", jobs.read),
@@ -64,6 +65,7 @@ ROUTES = (
     ("POST", "/api/queue-action", queue.action),
     ("POST", "/api/heartbeat-trigger", heartbeat.trigger),
     ("POST", "/api/knowledge/extract", knowledge.extract_trigger),
+    ("POST", "/api/knowledge/template", knowledge.template_save),
     ("POST", "/api/groups", groups.save),
     ("POST", "/api/heartbeat-config", heartbeat.save_config),
 )

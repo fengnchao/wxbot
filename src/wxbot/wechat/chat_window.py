@@ -16,7 +16,7 @@ import uiautomation as auto
 from PIL import Image, ImageChops, ImageGrab
 
 from ..log import log
-from .locator import find, matches
+from .locator import find, matches, wait_until
 
 
 class ReadDeferred(RuntimeError):
@@ -33,6 +33,7 @@ class Message:
     sender_name: str | None = None  # 群聊成员映射名或稳定头像 ID
     sender_key: str | None = None   # 头像感知哈希，用于稳定区分/配置映射
     avatar: str = ''  # Shared normalized PNG, base64; unavailable stays unknown.
+    ref: str = ''     # 行控件的运行期标识，只属于本次读取；用来区分同文不同行
 
 
 def _color_diff(a, b) -> int:
@@ -79,6 +80,15 @@ class ChatWindow:
         if self._list is None or not self._list.Exists(0):
             self._list = self._find(win, self.wcfg["message_list"])
         return self._list
+
+    @staticmethod
+    def _row_ref(item) -> str:
+        """行控件的运行期标识；拿不到时返回空串，调用方退回正文对齐。"""
+        try:
+            parts = item.GetRuntimeId()
+        except Exception:
+            return ''
+        return ':'.join(str(part) for part in parts) if parts else ''
 
     # ---------- 判断发送方 ----------
     def side_scores(self, item: auto.Control, list_rect) -> tuple[int, int] | None:
@@ -303,8 +313,9 @@ class ChatWindow:
             text = item.Name or ""
             if is_text and not text.strip():
                 continue
+            ref = self._row_ref(item)
             if row_rect is not None and list_rect is not None and row_rect.top < list_rect.top:
-                result.append((Message('clipped', text), is_text))
+                result.append((Message('clipped', text, ref=ref), is_text))
                 continue
             sender = (self._classify(item, text, list_rect, use_sent_cache=False)
                       if strict_sender else self._classify(item, text, list_rect))
@@ -316,7 +327,7 @@ class ChatWindow:
                 avatar = feature['image']
             if self.group_mode and sender == "other":
                 sender_name, sender_key = self._group_sender_identity(item, list_rect, avatar=feature or {})
-            result.append((Message(sender, text, sender_name, sender_key, avatar), is_text))
+            result.append((Message(sender, text, sender_name, sender_key, avatar, ref), is_text))
         return result
 
     def read_messages(self, *, strict_sender=False) -> list[Message]:
@@ -377,6 +388,16 @@ class ChatWindow:
     def remember_sent(self, text):
         self._sent.append(text)
 
+    @staticmethod
+    def _draft_equal(current, expected) -> bool:
+        """WeChat may append separator whitespace to a draft we typed."""
+        if current is None or expected is None:
+            return False
+        if current == expected:
+            return True
+        space = ' \t\r\n\u2005\u00a0'
+        return current.rstrip(space) == expected.rstrip(space)
+
     def clear_owned_draft(self, expected):
         """Clear only a persisted, verified bot prefix in the checked target window."""
         self.draft_conflict = False
@@ -388,16 +409,19 @@ class ChatWindow:
         if edit is None:
             return False
         edit.Click(simulateMove=False)
+        # A persisted residue may come from an earlier delivery, so the window
+        # is not necessarily foreground yet when this cleanup starts.
+        wait_until(lambda: self._can_send(win, edit), timeout=0.5)
         current = self._input_text(edit)
         if current == '':
             return True
-        if current is not None and current != expected:
+        if current is not None and not self._draft_equal(current, expected):
             self.draft_conflict = True
             return False
         if not expected or current is None or not self._can_send(win, edit):
             return False
         auto.SendKeys('{Ctrl}a', waitTime=0.05)
-        if not self._can_send(win, edit) or self._input_text(edit) != expected:
+        if not self._can_send(win, edit) or not self._draft_equal(self._input_text(edit), expected):
             return False
         auto.SendKeys('{Back}', waitTime=0.05)
         return self._can_send(win, edit) and self._input_text(edit) == ''
@@ -413,7 +437,8 @@ class ChatWindow:
             log.warning("[%s] 窗口不存在，无法发送", self.title)
             return None
         win.SetActive()
-        time.sleep(0.2)
+        # 固定 sleep 换成条件等待：窗口真的到了前台才继续，慢机器上不再随机失败。
+        wait_until(lambda: self.target_is_current(win), timeout=0.5)
         edit = self._find(win, self.wcfg["input"])
         if edit is None:
             log.error("[%s] 找不到输入框，请检查 [wechat.input] 配置", self.title)

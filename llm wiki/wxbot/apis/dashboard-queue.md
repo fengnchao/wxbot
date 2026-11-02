@@ -3,7 +3,7 @@ type: api
 module: dashboard
 summary: 队列分页诊断，展示状态和可用动作而不执行恢复
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/dashboard/routes.py
   line: 42
@@ -26,6 +26,7 @@ changes:
 - raw/changes/2026-11-01-knowledge-sharding
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-02-knowledge-graph-template
 ---
 # GET /api/queue
 
@@ -47,11 +48,11 @@ GET `/api/queue`；可选 contact（字符串过滤）、state（默认 all）�
 
 本地 tests/dashboard/test_queue_actions.py、test_queue_cleanup_actions.py、test_flow_view.py 和 web/scripts/smoke.mjs。表变更需兼容旧库只读展示；不得为了 GET 成功而创建/迁移队列。生命周期见 [[concepts/delivery-state]]。
 
-2026-11-01 新增的 [[apis/dashboard-knowledge]] 与队列无关：上一批只在 `routes.py` 加了一条同属 `BUSINESS_GET` 的 `/api/knowledge`，拆库批次又加了 `/api/knowledge/facts`，自动提炼批次再加 `/api/knowledge/extract`（三条连排在 `:45`–`:47`）；三次都只往路由表里插行，`/api/queue` 被挤到 `:44`，本接口的请求参数、响应字段与动作白名单一条未变。
+2026-11-01 起陆续新增的 [[apis/dashboard-knowledge]] 与队列无关：`/api/knowledge`、`/api/knowledge/facts`、`/api/knowledge/extract`、`/api/knowledge/template` 四条 GET 现在连排在 `:43`–`:46`，两条知识 POST 在 `:67`–`:68`。这些行都插在 `/api/queue` 之后，本接口仍在 `:42`；请求参数、响应字段与动作白名单一条未变。
 
 ## 代码依据
 
-- `src/dashboard/routes.py:44` — `("GET", "/api/queue", queue.read)`
+- `src/dashboard/routes.py:42` — `("GET", "/api/queue", queue.read)`
 - `src/dashboard/api/queue.py:10` — `def read(ctx):`
 - `src/dashboard/queue_view.py:22` — `def read(self, *, contact=`
 - `src/dashboard/queue_view.py:170` — `def _row(`
@@ -64,3 +65,5 @@ GET `/api/queue`；可选 contact（字符串过滤）、state（默认 all）�
 [[raw/changes/2026-11-01-knowledge-episodes]]
 
 [[raw/changes/2026-11-01-knowledge-sharding]]
+
+[[raw/changes/2026-11-02-knowledge-graph-template]]

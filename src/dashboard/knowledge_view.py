@@ -29,6 +29,16 @@ class KnowledgeView:
     def _entries(self):
         return self.store.owners()
 
+    def taxonomy(self):
+        """分类与节点类型来自模板：新增一类后，页面上的筛选项随之出现。"""
+        template = self.store.template
+        return {'kinds': [{'key': item.key, 'label': item.index_label,
+                           'section': item.section, 'hint': item.hint}
+                          for item in template.kinds],
+                'node_types': [{'key': item.key, 'label': item.directory,
+                                'description': item.description}
+                               for item in template.node_types]}
+
     def owners(self, kind='episodes'):
         """左栏的人列表：按人一行，sessions 列出这个人在哪些会话里留下过数据。
 
@@ -44,8 +54,9 @@ class KnowledgeView:
 
     # ---------- 原文 ----------
     def read(self, owner='', query='', limit=50, offset=0, contact='', channel_type=''):
+        taxonomy = self.taxonomy()
         if not self._entries():
-            return _empty()
+            return {**_empty(), **taxonomy}
         try:
             page = self.store.read(owner=owner, query=query, limit=limit, offset=offset,
                                    contact=contact, channel_type=channel_type)
@@ -54,12 +65,13 @@ class KnowledgeView:
         rows = [{key: row.get(key) for key in EPISODE_FIELDS} for row in page['rows']]
         return {'available': True, 'owners': self.owners('episodes'), 'rows': rows,
                 'total': page['total'], 'limit': page['limit'], 'offset': page['offset'],
-                'has_more': page['has_more']}
+                'has_more': page['has_more'], **taxonomy}
 
     # ---------- 事实 ----------
     def facts(self, owner='', query='', limit=50, offset=0, contact=''):
+        taxonomy = self.taxonomy()
         if not self._entries():
-            return _empty()
+            return {**_empty(), **taxonomy}
         try:
             page = self.store.facts(owner=owner, query=query, limit=limit, offset=offset,
                                     contact=contact)
@@ -68,4 +80,4 @@ class KnowledgeView:
         rows = [{key: row.get(key) for key in FACT_FIELDS} for row in page['rows']]
         return {'available': True, 'owners': self.owners('facts'), 'rows': rows,
                 'total': page['total'], 'limit': page['limit'], 'offset': page['offset'],
-                'has_more': page['has_more']}
+                'has_more': page['has_more'], **taxonomy}

@@ -3,7 +3,7 @@ type: table
 module: wxbot
 summary: 原始收件与群成员证据，batch_id 指向合并批次
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/wxbot/queue_schema.py
   line: 34
@@ -24,6 +24,9 @@ changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-11-01-mention-fallback-unread-retry
+- raw/changes/2026-11-02-ui-snapshot-ref-contract
+- raw/changes/2026-11-02-details-whitelist-reverify
+- raw/changes/2026-11-02-mention-residue-reverify
 ---
 # SQLite inbox
 
@@ -51,7 +54,7 @@ inbox_unbatched(contact,batch_id,id)；batch_id 声明引用 [[tables/queue-batc
 
 ## 字段血缘与消费
 
-MainInbox 收件 → QueueStore.capture：窗口标题进入 contact，正文进入 text，UI 观察进入 member_key/member_name/avatar；prepare 将未合批行分配 batch_id 并生成 batches。group_mode 与成员证据最终影响请求 channel_type / member_key，见 [[apis/butler-handle]]，观察数据不能授予身份权限。
+MainInbox 收件 → QueueStore.capture：窗口标题进入 contact，正文进入 text，UI 观察进入 member_key/member_name/avatar；prepare 将未合批行分配 batch_id 并生成 batches。group_mode 与成员证据最终影响请求 channel_type / member_key，见 [[apis/butler-handle]]，观察数据不能授予身份权限。收件列不含快照引用，`observations.snapshot` 落库前也会剔除，见 [[concepts/delivery-state]]。
 
 只读消费 [[apis/dashboard-queue]] 的 inbox 行和 [[apis/dashboard-workflow]] 的待合并列表。contact 在三个队列表中重复以保留各阶段目标快照，修改含义必须检查全链路。
 
@@ -72,3 +75,9 @@ MainInbox 收件 → QueueStore.capture：窗口标题进入 contact，正文进
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
 
 [[raw/changes/2026-11-01-mention-fallback-unread-retry]]
+
+[[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
+
+[[raw/changes/2026-11-02-details-whitelist-reverify]]
+
+[[raw/changes/2026-11-02-mention-residue-reverify]]

@@ -3,7 +3,7 @@ type: concept
 module: butler
 summary: 模型失败的分类、脱敏、自动重试与超时放行契约
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-02'
 sources:
 - path: src/butler/agent/hermes.py
   line: 36
@@ -55,6 +55,9 @@ changes:
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-mention-fallback-unread-retry
 - raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-02-ui-snapshot-ref-contract
+- raw/changes/2026-11-02-details-whitelist-reverify
+- raw/changes/2026-11-02-mention-residue-reverify
 ---
 # 模型失败契约
 
@@ -82,6 +85,8 @@ changes:
 **放行规则**：同一批次最多试 3 次，间隔 5 秒、15 秒（`src/wxbot/model_recovery.py:2`）。整轮失败时限取 `queue.failure_discard_seconds`（默认 180 秒，范围 1–86400，`src/wxbot/config.py:53`），从**首次失败**起算（`src/wxbot/model_recovery.py:17`），到期即结束该失败批次并放行后续消息，原因串保留原始失败正文（`src/wxbot/queue_store.py:414`）。这两个终止条件任一先到就放弃，不必都满足。
 
 **永远不会发生的事**：失败不会产生已投递回复，也不会进入发件箱。`CompatibleBackend.chat` 在返回前抛错（`src/butler/backends/compatible.py:147`），`OpenAICompatProcessor._handle_reply` 的注释明确"失败的回合绝不能变成已投递回复"（`src/wxbot/processor/openai_compat.py:150`）。
+
+2026-11-02 复核：`queue_store.py` 的变更是扩展 `delivery_events.details` 白名单（投递侧 `error_code` / `retry` / `confirm_evidence` / `ref_available`），模型失败的 `retry_safe` / 三次上限 / 超时放行规则均未变；两套失败语义不要混用。
 
 失败轮仍会在 L1 原文库里留一条 `outcome='error'` 的记录（[[tables/kb-episodes]]，`reply_text` 为空）。那不是"已投递回复"，而是排障用的旁路存证：与 `queue-outbox` 和 `batches.reply_text` 无关，也不参与重试判定。
 
@@ -152,3 +157,9 @@ changes:
 [[raw/changes/2026-11-01-knowledge-auto]]
 
 [[raw/changes/2026-11-01-mention-fallback-unread-retry]]
+
+[[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
+
+[[raw/changes/2026-11-02-details-whitelist-reverify]]
+
+[[raw/changes/2026-11-02-mention-residue-reverify]]

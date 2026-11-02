@@ -35,7 +35,11 @@ class DeliveryPolicy:
         return expired
 
     def save_draft(self, delivery_id, text):
-        """Only called after the UI readback exactly matches the entered prefix."""
+        """Only called after a UI readback proves the text is ours.
+
+        That is either the exact entered body prefix or the literal '@...'
+        mention prefix left behind by a blocked mention attempt.
+        """
         with self._transaction() as db:
             row = db.execute('SELECT contact FROM outbox WHERE id=?', (delivery_id,)).fetchone()
             db.execute('UPDATE outbox SET draft_text=NULL WHERE contact=?', (row['contact'],))
