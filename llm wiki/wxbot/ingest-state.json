@@ -309,6 +309,18 @@
         "concepts/message-pipeline"
       ],
       "date": "2026-11-01"
+    },
+    "raw/changes/2026-11-01-knowledge-atomic-retry": {
+      "sha256": "3bdd7f67e3ffa244ff322066774304b8c2a4110e2cb161f3634b1a259f806929",
+      "pages": [
+        "tables/knowledge-vault",
+        "tables/kb-episodes",
+        "tables/kb-facts",
+        "tables/kb-owners",
+        "apis/dashboard-knowledge",
+        "symbols/knowledge-extract"
+      ],
+      "date": "2026-11-01"
     }
   },
   "pages": {
@@ -577,19 +589,19 @@
       }
     },
     "tables/kb-episodes": {
-      "sha256": "f7f2ac4d9a6827c0e109b17a76541b217b1b9e10a6f50224f78dc9551fe0cc51",
+      "sha256": "08ef4aa6335f40593fd4c7c9ef27dfe1691729f50233f9766fe35be0d3e5b4ac",
       "sources": {
-        "src/butler/runtime/knowledge_store.py": "edc6f872fd38063af904db95f378f8824fc66a0e9fd820533888c07d4ef2df44",
+        "src/butler/runtime/knowledge_store.py": "560f2e30c5827e7f50eb1f7a81c2776883a0195b42093c565d707d7c5f607738",
         "src/butler/__main__.py": "9bd4de90d3044dbd1284b52258a80b88dd1a2e142a6e836b93b8b53476690b5f"
       }
     },
     "apis/dashboard-knowledge": {
-      "sha256": "f74366c7243e9d2b808fe48065b5389b707ab43f6f437e58b36809dcd07fcc57",
+      "sha256": "60d263fc015de17d47c0c0d7fcef861730c1e463613ca17ee3a2923f00f00e36",
       "sources": {
         "src/dashboard/routes.py": "28dc20d338c561fadcd7d6d5b7377e678a47af1870fad78cf4120f9f79493d94",
         "src/dashboard/api/knowledge.py": "7a8a5bb8ff23d6dbba039bdbc8e688b7b93fa93eb69cb350c6d7ea43cec01413",
         "src/dashboard/knowledge_view.py": "f049d0b29dab0d89bf16c93947873f904196024a1eb2f19ae72c37c085abd20f",
-        "src/butler/runtime/knowledge_store.py": "edc6f872fd38063af904db95f378f8824fc66a0e9fd820533888c07d4ef2df44",
+        "src/butler/runtime/knowledge_store.py": "560f2e30c5827e7f50eb1f7a81c2776883a0195b42093c565d707d7c5f607738",
         "web/src/views/KnowledgeView.vue": "ed3af9c344feb0a89e21e62b0fa96145aaa56a1dfbb8b7e91461e9ccc0fd543c",
         "web/src/views/FactsView.vue": "a27395f59fdcf65ac7034fbbfe3206e038c6dd25ca3fcb333fdc9e0d77268f6a",
         "src/dashboard/api/support.py": "9464252aaf1fe97e7e9c6370513675d8ae22c05da259f9ee43a52642b2fd605b",
@@ -597,22 +609,22 @@
       }
     },
     "tables/kb-facts": {
-      "sha256": "10a608ebf56d40dfdd80ea03ab771e68d2f2a44733a6c80636129223cbd0eb0f",
+      "sha256": "ee26033ad35a45b83f929f45c2f3520e2bea962c9e56cd8fd7f2e91aa2cc4324",
       "sources": {
-        "src/butler/runtime/knowledge_store.py": "edc6f872fd38063af904db95f378f8824fc66a0e9fd820533888c07d4ef2df44"
+        "src/butler/runtime/knowledge_store.py": "560f2e30c5827e7f50eb1f7a81c2776883a0195b42093c565d707d7c5f607738"
       }
     },
     "tables/kb-owners": {
-      "sha256": "873d13037126c2e56ee6e0537e53360d5963e39dd52d02357f3cfbbb1b3e32a8",
+      "sha256": "56cdabf10e89b967a983c1d6c309db58969488bbb87d0a029d234931dcb86d2d",
       "sources": {
-        "src/butler/runtime/knowledge_store.py": "edc6f872fd38063af904db95f378f8824fc66a0e9fd820533888c07d4ef2df44"
+        "src/butler/runtime/knowledge_store.py": "560f2e30c5827e7f50eb1f7a81c2776883a0195b42093c565d707d7c5f607738"
       }
     },
     "symbols/knowledge-extract": {
-      "sha256": "584afb6d5979b535db2be4de51d3e32e2f5d8633d9d43ff9e470bc69327d1f2d",
+      "sha256": "e46c2ae559bd4e45f86209c46d87f878780788b035f7f24666487132d038fede",
       "sources": {
         "src/butler/runtime/knowledge_extract.py": "3eaa90cedaff55e08c3bd9863f23ead824ce22a85b019bd553bb90855c562784",
-        "src/butler/runtime/knowledge_store.py": "edc6f872fd38063af904db95f378f8824fc66a0e9fd820533888c07d4ef2df44",
+        "src/butler/runtime/knowledge_store.py": "560f2e30c5827e7f50eb1f7a81c2776883a0195b42093c565d707d7c5f607738",
         "src/butler/__main__.py": "9bd4de90d3044dbd1284b52258a80b88dd1a2e142a6e836b93b8b53476690b5f",
         "src/butler/runtime/knowledge_auto.py": "5e76e36b13a9b896e82d43338ff28a0ef4fc9aca395eb62034247deb860af8d9"
       }
@@ -642,9 +654,9 @@
       }
     },
     "tables/knowledge-vault": {
-      "sha256": "6619e318c29622f24b4ad377b9531fb812eb842724ab11ae11ff672813b43cb2",
+      "sha256": "0bcbf4c3ee65310404242805cc3af6fbae3a29d0d810f188d39781033886144c",
       "sources": {
-        "src/butler/runtime/knowledge_store.py": "edc6f872fd38063af904db95f378f8824fc66a0e9fd820533888c07d4ef2df44",
+        "src/butler/runtime/knowledge_store.py": "560f2e30c5827e7f50eb1f7a81c2776883a0195b42093c565d707d7c5f607738",
         "src/dashboard/knowledge_view.py": "f049d0b29dab0d89bf16c93947873f904196024a1eb2f19ae72c37c085abd20f",
         "src/dashboard/routes.py": "28dc20d338c561fadcd7d6d5b7377e678a47af1870fad78cf4120f9f79493d94"
       }

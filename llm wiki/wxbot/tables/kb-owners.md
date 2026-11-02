@@ -6,23 +6,23 @@ coverage: core
 last_verified: '2026-11-01'
 sources:
 - path: src/butler/runtime/knowledge_store.py
-  line: 297
+  line: 312
   anchor: 'def index_path(self):'
 - path: src/butler/runtime/knowledge_store.py
-  line: 319
+  line: 334
   anchor: 'def _catalog(self):'
 - path: src/butler/runtime/knowledge_store.py
-  line: 334
+  line: 349
   anchor: 'def _touch(self, owner, contact, channel_type, *, episodes=0, facts=0,
     at=None):'
 - path: src/butler/runtime/knowledge_store.py
-  line: 355
+  line: 370
   anchor: 'def _recount(self):'
 - path: src/butler/runtime/knowledge_store.py
-  line: 763
+  line: 778
   anchor: index = root / 'index.sqlite3'
 - path: src/butler/runtime/knowledge_store.py
-  line: 673
+  line: 688
   anchor: 'def _checkpoint_legacy(path):'
 changes:
 - raw/changes/2026-11-01-knowledge-sharding
@@ -31,6 +31,7 @@ changes:
 - raw/changes/2026-11-01-knowledge-vault-graph
 - raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint
 - raw/changes/2026-11-01-knowledge-atlas-index
+- raw/changes/2026-11-01-knowledge-atomic-retry
 ---
 # SQLite kb_owners（已退场）
 
@@ -46,7 +47,7 @@ changes:
 
 ## 退场后的替代：index.json
 
-同一个位置、同一份职责，换成了 JSON（`index_path`，`:297`）：
+同一个位置、同一份职责，换成了 JSON（`index_path`，`:312`）：
 
 ```json
 {"owners": {"user:<uuid>": {"owner", "slug", "contact", "contact_name",
@@ -64,7 +65,7 @@ changes:
 | `extracted_upto`（原文 id 水位） | `extracted_at`（时刻水位） | **语义变了**：没有自增 id，游标只能按时间推进 |
 | `first_at` / `last_at` | 同名字段 | 不变 |
 
-**为什么敢用 JSON**：这张表规模等于联系人数，整份读写比维护连接便宜；更重要的是它是**缓存**——`_catalog()`（`:319`）读不出来就调 `_recount()`（`:355`）扫一遍 `p-*/vault` 现数回来，游标沿用旧值，不会把已提炼的原文重提一遍。SQLite 版也有重建，但重建是例外路径；这里重建是一等公民。
+**为什么敢用 JSON**：这张表规模等于联系人数，整份读写比维护连接便宜；更重要的是它是**缓存**——`_catalog()`（`:334`）读不出来就调 `_recount()`（`:370`）扫一遍 `p-*/vault` 现数回来，游标沿用旧值，不会把已提炼的原文重提一遍。SQLite 版也有重建，但重建是例外路径；这里重建是一等公民。
 
 **仍然没有 schema 版本号**：未知键原样保留，加字段不需要改表。
 
@@ -72,17 +73,17 @@ changes:
 
 ## 仅存的接触点：迁移
 
-`migrate_legacy` 最后一步（`:763`）：`data/knowledge/index.sqlite3` 存在就先 `_checkpoint_legacy`（`:673`）合并 WAL，再改名成 `index.sqlite3.migrated`。**不读内容**——各 owner 的库搬进 vault 时 `_touch`（`:334`）已经把新目录建好了，计数从真实文件数出来，旧索引只是垃圾；但垃圾也要是可打开的文件，否则回收站里的就不是备份。
+`migrate_legacy` 最后一步（`:778`）：`data/knowledge/index.sqlite3` 存在就先 `_checkpoint_legacy`（`:688`）合并 WAL，再改名成 `index.sqlite3.migrated`。**不读内容**——各 owner 的库搬进 vault 时 `_touch`（`:349`）已经把新目录建好了，计数从真实文件数出来，旧索引只是垃圾；但垃圾也要是可打开的文件，否则回收站里的就不是备份。
 
 ## 代码依据与修改来源
 
 - `src/butler/runtime/knowledge_store.py:74` — `def owner_slug(owner):`
-- `src/butler/runtime/knowledge_store.py:297` — `def index_path(self):`
-- `src/butler/runtime/knowledge_store.py:319` — `def _catalog(self):`
-- `src/butler/runtime/knowledge_store.py:334` — `def _touch(self, owner, contact, channel_type, *, episodes=0, facts=0, at=None):`
-- `src/butler/runtime/knowledge_store.py:355` — `def _recount(self):`
-- `src/butler/runtime/knowledge_store.py:763` — `index = root / 'index.sqlite3'`
-- `src/butler/runtime/knowledge_store.py:673` — `def _checkpoint_legacy(path):`
+- `src/butler/runtime/knowledge_store.py:312` — `def index_path(self):`
+- `src/butler/runtime/knowledge_store.py:334` — `def _catalog(self):`
+- `src/butler/runtime/knowledge_store.py:349` — `def _touch(self, owner, contact, channel_type, *, episodes=0, facts=0, at=None):`
+- `src/butler/runtime/knowledge_store.py:370` — `def _recount(self):`
+- `src/butler/runtime/knowledge_store.py:778` — `index = root / 'index.sqlite3'`
+- `src/butler/runtime/knowledge_store.py:688` — `def _checkpoint_legacy(path):`
 
 [[raw/changes/2026-11-01-knowledge-sharding]]
 [[raw/changes/2026-11-01-knowledge-sessions]]
@@ -90,3 +91,4 @@ changes:
 [[raw/changes/2026-11-01-knowledge-vault-graph]]
 [[raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint]]
 [[raw/changes/2026-11-01-knowledge-atlas-index]]
+[[raw/changes/2026-11-01-knowledge-atomic-retry]]

@@ -24,7 +24,7 @@ sources:
   line: 155
   anchor: 'def extract_all(store, complete, *, batch=40, owner='''', log=None, dry_run=False):'
 - path: src/butler/runtime/knowledge_store.py
-  line: 565
+  line: 580
   anchor: 'def episodes_of(self, owner, after_at=0.0, limit=200):'
 - path: src/butler/__main__.py
   line: 66
@@ -39,6 +39,7 @@ changes:
 - raw/changes/2026-11-01-knowledge-vault-graph
 - raw/changes/2026-11-01-knowledge-migrate-source-recheck
 - raw/changes/2026-11-01-knowledge-atlas-index
+- raw/changes/2026-11-01-knowledge-atomic-retry
 calls: []
 called_by:
 - symbols/knowledge-auto
@@ -80,8 +81,8 @@ HTTP 请求里**不直接跑提炼**：一轮要几十秒到几分钟，挂在�
 
 ## 调用了谁
 
-- `KnowledgeStore.extracted_at` / `set_extracted_at`（`:467` / `:472`，时刻游标，不是行号游标）
-- `KnowledgeStore.episodes_of`（`:565`，按 `at > 游标` 取一批新原文，上限 1000）
+- `KnowledgeStore.extracted_at` / `set_extracted_at`（`:482` / `:487`，时刻游标，不是行号游标）
+- `KnowledgeStore.episodes_of`（`:580`，按 `at > 游标` 取一批新原文，上限 1000）
 - `KnowledgeStore.add_fact`（写节点事实行，靠指纹去重）
 - `KnowledgeStore.owners`（`extract_all` 遍历目录）
 
@@ -118,9 +119,9 @@ HTTP 请求里**不直接跑提炼**：一轮要几十秒到几分钟，挂在�
 - `src/butler/runtime/knowledge_extract.py:111` — `def render(rows):`
 - `src/butler/runtime/knowledge_extract.py:121` — `def extract(store, owner, contact, complete, *, batch=40, log=None, dry_run=False):`
 - `src/butler/runtime/knowledge_extract.py:155` — `def extract_all(store, complete, *, batch=40, owner='', log=None, dry_run=False):`
-- `src/butler/runtime/knowledge_store.py:467` — `def extracted_at(self, owner):`
-- `src/butler/runtime/knowledge_store.py:472` — `def set_extracted_at(self, owner, at):`
-- `src/butler/runtime/knowledge_store.py:565` — `def episodes_of(self, owner, after_at=0.0, limit=200):`
+- `src/butler/runtime/knowledge_store.py:482` — `def extracted_at(self, owner):`
+- `src/butler/runtime/knowledge_store.py:487` — `def set_extracted_at(self, owner, at):`
+- `src/butler/runtime/knowledge_store.py:580` — `def episodes_of(self, owner, after_at=0.0, limit=200):`
 - `src/butler/__main__.py:66` — `if args.command=='knowledge-extract':`
 - `src/butler/runtime/knowledge_auto.py:182` — `read, written, parsed = extract(`
 
@@ -129,3 +130,4 @@ HTTP 请求里**不直接跑提炼**：一轮要几十秒到几分钟，挂在�
 [[raw/changes/2026-11-01-knowledge-auto]]
 [[raw/changes/2026-11-01-knowledge-vault-graph]]
 [[raw/changes/2026-11-01-knowledge-atlas-index]]
+[[raw/changes/2026-11-01-knowledge-atomic-retry]]

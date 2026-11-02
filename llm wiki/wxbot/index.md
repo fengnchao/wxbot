@@ -35,7 +35,7 @@
 |---|---|---|---|
 | [[tables/kb-episodes]] | 已退场——SQLite 时代的 L1 原文表，现由 vault 里的「对话/YYYY-MM-DD.md」承担，只保留迁移读入口 | `src/butler/runtime/knowledge_store.py:44` | 2026-11-01 |
 | [[tables/kb-facts]] | 已退场——L2 事实表被 vault 里的「人物/组织/话题」节点 Markdown 取代，只保留迁移读入口 | `src/butler/runtime/knowledge_store.py:45` | 2026-11-01 |
-| [[tables/kb-owners]] | 已退场——owner 目录与提炼游标改为可重建的 index.json，SQLite 索引库只在迁移时被改名留底 | `src/butler/runtime/knowledge_store.py:297` | 2026-11-01 |
+| [[tables/kb-owners]] | 已退场——owner 目录与提炼游标改为可重建的 index.json，SQLite 索引库只在迁移时被改名留底 | `src/butler/runtime/knowledge_store.py:312` | 2026-11-01 |
 | [[tables/knowledge-vault]] | 用户知识图谱的存储形态——一人一个 Obsidian vault，节点是 Markdown，关系是正文里的双链 | `src/butler/runtime/knowledge_store.py:1` | 2026-11-01 |
 | [[tables/queue-batches]] | 模型请求批次与最终回复完整性，非发送回执 | `src/wxbot/queue_schema.py:34` | 2026-11-01 |
 | [[tables/queue-inbox]] | 原始收件与群成员证据，batch_id 指向合并批次 | `src/wxbot/queue_schema.py:34` | 2026-11-01 |
@@ -86,6 +86,7 @@
 - [[raw/changes/2026-10-31-switchable-models]]
 - [[raw/changes/2026-11-01-citation-sweep]]
 - [[raw/changes/2026-11-01-knowledge-atlas-index]]
+- [[raw/changes/2026-11-01-knowledge-atomic-retry]]
 - [[raw/changes/2026-11-01-knowledge-auto]]
 - [[raw/changes/2026-11-01-knowledge-episodes]]
 - [[raw/changes/2026-11-01-knowledge-migrate-source-recheck]]

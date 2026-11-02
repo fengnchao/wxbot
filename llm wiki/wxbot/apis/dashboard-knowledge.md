@@ -49,14 +49,14 @@ sources:
   line: 60
   anchor: 'def facts(self, owner='''', query='''', limit=50, offset=0, contact=''''):'
 - path: src/butler/runtime/knowledge_store.py
-  line: 581
+  line: 596
   anchor: 'def read(self, owner='''', query='''', limit=50, offset=0, contact='''',
     channel_type=''''):'
 - path: src/butler/runtime/knowledge_store.py
-  line: 610
+  line: 625
   anchor: 'def facts(self, owner='''', query='''', limit=50, offset=0, contact=''''):'
 - path: src/butler/runtime/knowledge_store.py
-  line: 648
+  line: 663
   anchor: 'def sessions(self, owner, kind=''episodes''):'
 - path: web/src/views/KnowledgeView.vue
   line: 61
@@ -84,6 +84,7 @@ changes:
 - raw/changes/2026-11-01-knowledge-vault-graph
 - raw/changes/2026-11-01-knowledge-migrate-source-recheck
 - raw/changes/2026-11-01-knowledge-atlas-index
+- raw/changes/2026-11-01-knowledge-atomic-retry
 ---
 # GET /api/knowledge、/api/knowledge/facts 与自动提炼两条
 
@@ -154,8 +155,8 @@ POST 的校验在 Butler 侧：`owner` 去空白后上限 200 字符，`batch` �
 
 `KnowledgeView`（`src/dashboard/knowledge_view.py:22`）**不再自己解析存储格式**，只持有一个 `KnowledgeStore(root)`：
 
-- `owners(kind)`（`:32`）把 `store.owners()` 的目录行补上 `sessions`：原文页传 `'episodes'`，事实页传 `'facts'`，分别落到 `KnowledgeStore.sessions`（`knowledge_store.py:648`）的两条统计分支。一个人可以同时在私聊和几个群里说过话，所以左栏按人一行、不按会话拆行。
-- `read`（`:46`）/ `facts`（`:60`）直接转发给 `KnowledgeStore.read`（`:581`）/ `.facts`（`:610`），再用 `EPISODE_FIELDS` / `FACT_FIELDS` 白名单裁字段。跨 vault 归并、分页、排序全在 store 里，接口层不做二次计算。
+- `owners(kind)`（`:32`）把 `store.owners()` 的目录行补上 `sessions`：原文页传 `'episodes'`，事实页传 `'facts'`，分别落到 `KnowledgeStore.sessions`（`knowledge_store.py:663`）的两条统计分支。一个人可以同时在私聊和几个群里说过话，所以左栏按人一行、不按会话拆行。
+- `read`（`:46`）/ `facts`（`:60`）直接转发给 `KnowledgeStore.read`（`:596`）/ `.facts`（`:625`），再用 `EPISODE_FIELDS` / `FACT_FIELDS` 白名单裁字段。跨 vault 归并、分页、排序全在 store 里，接口层不做二次计算。
 
 这条委托链是改版的重点：存储从三张 SQLite 表换成人一个 vault，接口层只改了一行构造与两处字段白名单，路由与响应形状一个字没动。
 
@@ -205,9 +206,9 @@ Butler 侧的 `GET/POST /v1/knowledge/extract` 由 `tests/butler/test_knowledge_
 - `src/dashboard/knowledge_view.py:32` — `def owners(self, kind='episodes'):`
 - `src/dashboard/knowledge_view.py:46` — `def read(self, owner='', query='', limit=50, offset=0, contact='', channel_type=''):`
 - `src/dashboard/knowledge_view.py:60` — `def facts(self, owner='', query='', limit=50, offset=0, contact=''):`
-- `src/butler/runtime/knowledge_store.py:581` — `def read(self, owner='', query='', limit=50, offset=0, contact='', channel_type=''):`
-- `src/butler/runtime/knowledge_store.py:610` — `def facts(self, owner='', query='', limit=50, offset=0, contact=''):`
-- `src/butler/runtime/knowledge_store.py:648` — `def sessions(self, owner, kind='episodes'):`
+- `src/butler/runtime/knowledge_store.py:596` — `def read(self, owner='', query='', limit=50, offset=0, contact='', channel_type=''):`
+- `src/butler/runtime/knowledge_store.py:625` — `def facts(self, owner='', query='', limit=50, offset=0, contact=''):`
+- `src/butler/runtime/knowledge_store.py:663` — `def sessions(self, owner, kind='episodes'):`
 - `web/src/views/KnowledgeView.vue:61` — `const payload = await apiGet('/api/knowledge?' + params.toString())`
 - `web/src/views/FactsView.vue:100` — `const payload = await apiGet('/api/knowledge/facts?' + params.toString())`
 - `web/src/views/FactsView.vue:113` — `async function loadExtract() {`
@@ -221,3 +222,4 @@ Butler 侧的 `GET/POST /v1/knowledge/extract` 由 `tests/butler/test_knowledge_
 [[raw/changes/2026-11-01-knowledge-auto]]
 [[raw/changes/2026-11-01-knowledge-vault-graph]]
 [[raw/changes/2026-11-01-knowledge-atlas-index]]
+[[raw/changes/2026-11-01-knowledge-atomic-retry]]

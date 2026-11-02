@@ -28,7 +28,7 @@ Obsidian 一次只开一个 vault，一个人的图也不会被别人的节点�
 """
 from __future__ import annotations
 
-from contextlib import closing
+from contextlib import closing, suppress
 from hashlib import sha1
 import json
 import os
@@ -101,13 +101,28 @@ def _stamp(at):
     return time.strftime('%Y-%m-%d %H:%M', time.localtime(at))
 
 
-def _atomic_write(path, text):
-    """Markdown 没有事务：先写同目录临时文件再替换，读侧永远看到完整文件。"""
+def _atomic_write(path, text, attempts=3, delay=0.05):
+    """Markdown 没有事务：先写同目录临时文件再替换，读侧永远看到完整文件。
+
+    Windows 上目标文件可能被别的进程短暂持有——Obsidian 正在索引同一个 vault 时，
+    os.replace 会抛 PermissionError（WinError 5）。这类冲突几十毫秒就过去，所以退避
+    重试几次；次数用尽或遇到别的错误才抛出，并顺手清掉临时文件，不留给编辑器索引。
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + '.tmp')
-    tmp.write_text(text, encoding='utf-8')
-    os.replace(tmp, path)
+    tries = max(1, int(attempts))
+    for attempt in range(tries):
+        try:
+            tmp.write_text(text, encoding='utf-8')
+            os.replace(tmp, path)
+            return
+        except PermissionError:
+            if attempt + 1 >= tries:
+                with suppress(OSError):
+                    tmp.unlink()
+                raise
+            time.sleep(delay * (attempt + 1))
 
 
 def _frontmatter(values):

@@ -192,3 +192,13 @@
 来源：[[raw/changes/2026-11-01-knowledge-atlas-index]]
 
 [[tables/knowledge-vault]]、[[tables/kb-episodes]]、[[tables/kb-facts]]、[[tables/kb-owners]]、[[symbols/knowledge-extract]]、[[symbols/knowledge-auto]]、[[modules/web]]、[[apis/dashboard-knowledge]]、[[concepts/message-pipeline]]
+
+## [2026-11-01] change | 知识库写入在文件被占用时退避重试
+
+来源：[[raw/changes/2026-11-01-knowledge-atomic-retry]]
+
+## [2026-11-01] ingest | 知识库写入在文件被占用时退避重试
+
+来源：[[raw/changes/2026-11-01-knowledge-atomic-retry]]
+
+[[tables/knowledge-vault]]、[[tables/kb-episodes]]、[[tables/kb-facts]]、[[tables/kb-owners]]、[[apis/dashboard-knowledge]]、[[symbols/knowledge-extract]]

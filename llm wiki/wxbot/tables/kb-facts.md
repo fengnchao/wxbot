@@ -9,16 +9,16 @@ sources:
   line: 45
   anchor: FACT_KINDS = ('profile', 'preference', 'personality', 'goal', 'relation', 'event', 'topic')
 - path: src/butler/runtime/knowledge_store.py
-  line: 694
+  line: 709
   anchor: 'def _import_sqlite(store, path, log):'
 - path: src/butler/runtime/knowledge_store.py
-  line: 706
+  line: 721
   anchor: 'if ''kb_facts'' in tables:'
 - path: src/butler/runtime/knowledge_store.py
-  line: 718
+  line: 733
   anchor: 'def _import_memory(store, path, log):'
 - path: src/butler/runtime/knowledge_store.py
-  line: 673
+  line: 688
   anchor: 'def _checkpoint_legacy(path):'
 changes:
 - raw/changes/2026-11-01-knowledge-sharding
@@ -27,6 +27,7 @@ changes:
 - raw/changes/2026-11-01-knowledge-vault-graph
 - raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint
 - raw/changes/2026-11-01-knowledge-atlas-index
+- raw/changes/2026-11-01-knowledge-atomic-retry
 ---
 # SQLite kb_facts（已退场）
 
@@ -58,24 +59,24 @@ SQLite 时代的 L2 事实层：从 L1 原文提炼出的、值得长期记住�
 
 ## 仅存的读取路径：迁移
 
-`migrate_legacy(data_dir)` → `_import_sqlite`（`src/butler/runtime/knowledge_store.py:694`）逐行读 `kb_facts`（`:706`）并调 `add_fact(...)`，`source` 与 `created` 原样带过去。搬完改名留底：
+`migrate_legacy(data_dir)` → `_import_sqlite`（`src/butler/runtime/knowledge_store.py:709`）逐行读 `kb_facts`（`:721`）并调 `add_fact(...)`，`source` 与 `created` 原样带过去。搬完改名留底：
 
 | 旧文件 | 处理 |
 |---|---|
 | `data/knowledge.sqlite3` | 搬完改名 `knowledge.legacy.sqlite3` |
 | `data/knowledge/p-*/facts.sqlite3` | 搬完改名 `facts.sqlite3.migrated` |
 
-事实库同样是 WAL 模式，改名之前会先 `_checkpoint_legacy`（`:673`）合并 WAL；否则留底库可能连 `kb_facts` 表都读不出来（首次真实迁移踩到过，见 [[raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint]]）。
+事实库同样是 WAL 模式，改名之前会先 `_checkpoint_legacy`（`:688`）合并 WAL；否则留底库可能连 `kb_facts` 表都读不出来（首次真实迁移踩到过，见 [[raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint]]）。
 
-同一支迁移还顺带收编另一套存储：`_import_memory`（`:718`）把 `business.sqlite3` 里遗留的 `memory` 表逐条搬成 `kind=profile`、`source=memory-migration` 的节点事实，原表保留不动。
+同一支迁移还顺带收编另一套存储：`_import_memory`（`:733`）把 `business.sqlite3` 里遗留的 `memory` 表逐条搬成 `kind=profile`、`source=memory-migration` 的节点事实，原表保留不动。
 
 ## 代码依据与修改来源
 
 - `src/butler/runtime/knowledge_store.py:45` — `FACT_KINDS`（七类：profile / preference / personality / goal / relation / event / topic）
-- `src/butler/runtime/knowledge_store.py:694` — `def _import_sqlite(store, path, log):`
-- `src/butler/runtime/knowledge_store.py:706` — `if 'kb_facts' in tables:`
-- `src/butler/runtime/knowledge_store.py:718` — `def _import_memory(store, path, log):`
-- `src/butler/runtime/knowledge_store.py:673` — `def _checkpoint_legacy(path):`
+- `src/butler/runtime/knowledge_store.py:709` — `def _import_sqlite(store, path, log):`
+- `src/butler/runtime/knowledge_store.py:721` — `if 'kb_facts' in tables:`
+- `src/butler/runtime/knowledge_store.py:733` — `def _import_memory(store, path, log):`
+- `src/butler/runtime/knowledge_store.py:688` — `def _checkpoint_legacy(path):`
 
 [[raw/changes/2026-11-01-knowledge-sharding]]
 [[raw/changes/2026-11-01-knowledge-sessions]]
@@ -83,3 +84,4 @@ SQLite 时代的 L2 事实层：从 L1 原文提炼出的、值得长期记住�
 [[raw/changes/2026-11-01-knowledge-vault-graph]]
 [[raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint]]
 [[raw/changes/2026-11-01-knowledge-atlas-index]]
+[[raw/changes/2026-11-01-knowledge-atomic-retry]]
