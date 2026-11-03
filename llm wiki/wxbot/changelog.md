@@ -232,3 +232,8 @@
 来源：[[raw/changes/2026-11-02-mention-residue-reverify]]
 
 [[concepts/group-identity-evidence]]、[[concepts/identity-authority]]、[[concepts/message-pipeline]]、[[concepts/model-error-contract]]、[[concepts/unread-capture-retry]]、[[symbols/queue-finish]]、[[tables/queue-batches]]、[[tables/queue-inbox]]
+## [2026-11-02] ingest | 管理台全局搜索增加清空按钮
+
+来源：[[raw/changes/2026-11-02-web-global-search-clear]]
+
+[[modules/web]]

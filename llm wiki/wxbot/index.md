@@ -106,3 +106,4 @@
 - [[raw/changes/2026-11-02-mention-picker-gating-residue]]
 - [[raw/changes/2026-11-02-mention-residue-reverify]]
 - [[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
+- [[raw/changes/2026-11-02-web-global-search-clear]]

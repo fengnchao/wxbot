@@ -745,6 +745,20 @@ const filtered = text('#pane')
 expect(filtered.includes('午间问候'), '搜索后未保留匹配任务')
 expect(!filtered.includes('每日新闻推送'), '搜索后未过滤不匹配任务')
 
+const jobsClear = document.querySelector('#view-search-clear')
+expect(Boolean(jobsClear) && jobsClear.getAttribute('aria-label') === '清空搜索', '有搜索词时应显示可访问的清空按钮')
+expect(jobsClear.textContent.trim() === '清空', '清空按钮可见文案应为「清空」')
+jobsClear.click()
+await new Promise(resolve => setTimeout(resolve, 50))
+expect(searchInput.value === '', '点击清空后定时任务搜索词应为空')
+expect(!document.querySelector('#view-search-clear'), '清空后清空按钮应隐藏')
+expect(document.activeElement === searchInput, '清空后焦点应回到搜索框')
+expect(text('#pane').includes('每日新闻推送'), '清空后应恢复未筛选的任务列表')
+searchInput.value = '午间'
+searchInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+await new Promise(resolve => setTimeout(resolve, 50))
+expect(document.querySelector('#view-search')?.value === '午间', '跨页校验前应保留定时任务搜索词')
+
 // 收发队列页：会话侧栏、状态筛选、原因卡、三类表格与事件记录
 const queueButton = [...document.querySelectorAll('.nav-group button')].find(node => node.textContent.trim() === '收发队列')
 queueButton?.click()
@@ -785,6 +799,7 @@ expect(!configPane.includes('分批剪贴板粘贴'), '代码固定规则分区�
 const configSearch = document.querySelector('#c-search')
 expect(configSearch?.placeholder === '搜索配置名称或值', '页首缺少配置搜索框')
 expect(!document.querySelector('#view-search'), '配置页不应显示全局搜索框')
+expect(!document.querySelector('#view-search-clear'), '配置页不应显示全局清空按钮')
 
 // 搜索时忽略左侧分类，标题改为「配置搜索结果」。
 configSearch.value = 'provider'
@@ -891,9 +906,13 @@ workflowSearch.value = '产品群'
 workflowSearch.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
 await new Promise(resolve => setTimeout(resolve, 50))
 expect(text('#pane').includes('产品群') && !text('#pane').includes('帮我查一下明天的天气'), '工作流搜索未过滤不匹配消息')
-workflowSearch.value = ''
-workflowSearch.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+const workflowClear = document.querySelector('#view-search-clear')
+expect(Boolean(workflowClear), '工作流有搜索词时应显示清空按钮')
+workflowClear.click()
 await new Promise(resolve => setTimeout(resolve, 50))
+expect(workflowSearch.value === '', '工作流清空后搜索词应为空')
+expect(document.activeElement === workflowSearch, '工作流清空后焦点应回到搜索框')
+expect(text('#pane').includes('帮我查一下明天的天气'), '工作流清空后应恢复未筛选消息')
 
 // 展开服务流转概览：六个服务节点、连线标签与模型实时面板
 document.querySelector('#wf-overview')?.click()
@@ -974,6 +993,23 @@ expect(text('#pane h2').includes('对话记录 · 101'), '对话记录应能按�
 document.querySelectorAll('#list .user')[0]?.click()
 await new Promise(resolve => setTimeout(resolve, 150))
 expect(text('#pane h2').includes('对话记录 · 全部会话'), '对话记录应能回到全部会话')
+
+const knowledgeSearch = document.querySelector('#view-search')
+expect(Boolean(knowledgeSearch), '对话记录应显示全局搜索框')
+expect(!document.querySelector('#view-search-clear'), '对话记录空搜索时不应显示清空按钮')
+knowledgeSearch.value = '在吗'
+knowledgeSearch.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+await new Promise(resolve => setTimeout(resolve, 50))
+expect(Boolean(document.querySelector('#view-search-clear')), '对话记录有搜索词时应显示清空按钮')
+document.querySelector('#view-search-clear')?.click()
+await new Promise(resolve => setTimeout(resolve, 50))
+expect(knowledgeSearch.value === '', '对话记录清空后搜索词应为空')
+
+jobsButton?.click()
+await new Promise(resolve => setTimeout(resolve, 150))
+expect(document.querySelector('#view-search')?.value === '午间', '清空对话记录搜索后定时任务搜索词应仍保留')
+knowledgeButton?.click()
+await new Promise(resolve => setTimeout(resolve, 150))
 
 // 知识库页：提炼事实、类型标签与置信度
 const factsButton = [...document.querySelectorAll('.nav-group button')]
