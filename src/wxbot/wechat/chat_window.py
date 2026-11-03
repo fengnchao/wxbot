@@ -457,6 +457,37 @@ class ChatWindow:
             return None
         return TypingSession(self, win, edit, text, mention_name=mention_name, clock=clock)
 
+    def start_voice(self, audio, *, playback_device="CABLE Input", hold_padding_seconds=0.3,
+                    clock=time.monotonic):
+        """打开已校准会话并聚焦输入区后，启动 Right Alt PTT 语音会话。
+
+        复用文字发送的开会话/激活/点输入框路径；不要求默认 UIA 可读消息气泡。
+        """
+        from .voice import VoiceSession
+
+        self.draft_conflict = False
+        win = self._window()
+        if win is None:
+            log.warning("[%s] 窗口不存在，无法发语音条", self.title)
+            return None
+        win.SetActive()
+        wait_until(lambda: self.target_is_current(win), timeout=0.5)
+        edit = self._find(win, self.wcfg["input"])
+        if edit is None:
+            log.error("[%s] 找不到输入框，请检查 [wechat.input] 配置", self.title)
+            return None
+        edit.Click(simulateMove=False)
+        wait_until(lambda: self._can_send(win, edit), timeout=0.5)
+        return VoiceSession(
+            self,
+            win,
+            edit,
+            audio,
+            playback_device=playback_device,
+            hold_padding_seconds=hold_padding_seconds,
+            clock=clock,
+        )
+
     def send(self, text: str) -> bool:
         """兼容独立窗口模式；主窗口队列使用 start_send 后逐步调用 step。"""
         task = self.start_send(text)

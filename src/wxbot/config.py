@@ -165,4 +165,8 @@ def load_config(path: str | Path | None = None) -> dict:
         raise ValueError(f"聊天不能同时配置为联系人和群聊：{', '.join(sorted(overlap))}")
     if groups and not bot.get("mention_names"):
         raise ValueError("配置了 [bot].bound_groups 时，必须在 [bot].mention_names 配置机器人在微信里的昵称")
+    # voice 为可选配置；非法时启动失败，避免静默绕过白名单。
+    from .voice.policy import load_voice_policy
+    load_voice_policy(cfg, root=ROOT)
+
     return cfg

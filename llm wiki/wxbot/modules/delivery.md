@@ -3,7 +3,7 @@ type: module
 module: delivery
 summary: 主动推送、补发、媒体与提醒归业务服务所有
 coverage: overview
-last_verified: '2026-10-31'
+last_verified: 2026-11-03
 sources:
 - path: src/butler/delivery/push.py
   line: 19
@@ -12,6 +12,7 @@ sources:
   line: 5
   anchor: 'class ReminderScheduler:'
 changes:
+- raw/changes/2026-11-03-feat-voice-001-virtual-mic
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 ---
 # Butler 投递业务
@@ -32,3 +33,7 @@ changes:
 ## 入库来源
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
+
+## 变更
+
+- 2026-11-03: FEAT-VOICE-001 P1 outbox kind=voice（虚拟麦+RALT）；见 [[raw/changes/2026-11-03-feat-voice-001-virtual-mic]]

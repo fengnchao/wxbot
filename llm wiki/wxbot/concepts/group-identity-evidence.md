@@ -12,7 +12,7 @@ sources:
   line: 239
   anchor: def _learn_nickname(
 - path: src/wxbot/inbox.py
-  line: 111
+  line: 124
   anchor: def sync_users(
 - path: src/wxbot/inbox.py
   line: 23
@@ -30,6 +30,7 @@ sources:
   line: 28
   anchor: 'def plausible_nickname(name: str) -> bool:'
 changes:
+- raw/changes/2026-11-03-feat-voice-001-anchor-refresh
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-10-31-identity-placeholder-names
 - raw/changes/2026-11-01-mention-fallback-unread-retry

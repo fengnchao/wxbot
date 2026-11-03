@@ -9,7 +9,7 @@
 | [[modules/butler]] | 身份、权限、模型编排和业务工具的服务边界 | `src/butler/server.py:50` | 2026-11-01 |
 | [[modules/common]] | 仓库根、事件追踪、流和 wire schema 的跨包纯基础层 | `src/common/paths.py:29` | 2026-11-01 |
 | [[modules/dashboard]] | 聚合运行事实，读取队列不初始化或迁移数据库 | `src/dashboard/routes.py:28` | 2026-11-02 |
-| [[modules/delivery]] | 主动推送、补发、媒体与提醒归业务服务所有 | `src/butler/delivery/push.py:19` | 2026-10-31 |
+| [[modules/delivery]] | 主动推送、补发、媒体与提醒归业务服务所有 | `src/butler/delivery/push.py:19` | 2026-11-03 |
 | [[modules/identity]] | 统一人物、窗口和成员绑定，身份能力由服务端签发 | `src/butler/identity/contact_store.py:37` | 2026-11-01 |
 | [[modules/models]] | Butler 管理可切换模型与服务授权工具，wxbot 只调用 Butler | `src/butler/backends/__init__.py:12` | 2026-11-01 |
 | [[modules/plugin]] | 角色和工具 Skill 分类，权限仍由业务服务验证 | `src/butler/agent/catalogue.py:8` | 2026-11-02 |
@@ -17,7 +17,7 @@
 | [[modules/telegram]] | Telethon、Bot API 和桌面中继三个不同边界 | `src/butler/channels/telegram/bot/queue.py:9` | 2026-11-01 |
 | [[modules/web]] | 共享导航壳和现有请求封装的管理界面 | `web/src/router.js:4` | 2026-11-02 |
 | [[modules/wiki]] | 本地关键词检索、证据入库和一致性巡检 | `AGENTS.md:28` | 2026-11-02 |
-| [[modules/wxbot]] | 微信 UI 主线程与不接触 UI 的模型队列线程 | `src/wxbot/inbox.py:45` | 2026-11-02 |
+| [[modules/wxbot]] | 微信 UI 主线程与不接触 UI 的模型队列线程 | `src/wxbot/inbox.py:45` | 2026-11-03 |
 
 ## apis / api
 
@@ -39,7 +39,7 @@
 | [[tables/knowledge-vault]] | 用户知识图谱的存储形态——一人一个 Obsidian vault，目录骨架、事实分类与索引分区由 Markdown 模板决定 | `src/butler/runtime/knowledge_store.py:1` | 2026-11-02 |
 | [[tables/queue-batches]] | 模型请求批次与最终回复完整性，非发送回执 | `src/wxbot/queue_schema.py:34` | 2026-11-02 |
 | [[tables/queue-inbox]] | 原始收件与群成员证据，batch_id 指向合并批次 | `src/wxbot/queue_schema.py:34` | 2026-11-02 |
-| [[tables/queue-outbox]] | 逐分句发件与不确定结果审计，包含迁移新增字段 | `src/wxbot/queue_schema.py:34` | 2026-11-02 |
+| [[tables/queue-outbox]] | 逐分句发件与不确定结果审计，包含迁移新增字段 | `src/wxbot/queue_schema.py:34` | 2026-11-03 |
 
 ## symbols / symbol
 
@@ -53,7 +53,7 @@
 | [[symbols/knowledge-template]] | 知识图谱模板的解析与加载——一份 Markdown 决定节点目录、事实分类、索引分区与提炼规则，覆盖层优先，坏模板回退内置 | `src/butler/runtime/knowledge_template.py:28` | 2026-11-02 |
 | [[symbols/local-model-backend]] | 原生函数工具走服务签发身份，完整结果才进入历史 | `src/butler/backends/models.py:16` | 2026-11-01 |
 | [[symbols/mention-selection]] | UI 线程内的 @ 提及选择器，先等候选面板再输入昵称，失败时只清理并登记自己输入的字面前缀 | `src/wxbot/wechat/mentions.py:67` | 2026-11-02 |
-| [[symbols/model-worker]] | 领取批次、调用模型并保存回复，绝不访问 UI | `src/wxbot/queue_worker.py:43` | 2026-10-31 |
+| [[symbols/model-worker]] | 领取批次、调用模型并保存回复，绝不访问 UI | `src/wxbot/queue_worker.py:44` | 2026-10-31 |
 | [[symbols/queue-finish]] | 完整分句入 outbox，模型完成和发送完成分开 | `src/wxbot/queue_store.py:339` | 2026-11-02 |
 | [[symbols/queue-store]] | 短事务管理收件、合批、模型状态与 UI 发件状态 | `src/wxbot/queue_store.py:91` | 2026-11-02 |
 | [[symbols/reloadable-backend]] | 请求固定后端代际，在途完成后才关闭旧工作进程 | `src/butler/runtime/model_switch.py:50` | 2026-10-31 |
@@ -62,12 +62,12 @@
 
 | 词条 | 简介 | 首个来源 | 最后核对 |
 |---|---|---|---|
-| [[concepts/delivery-state]] | 完整回复、排队、已发送和结果不确定分别处理 | `src/wxbot/queue_store.py:339` | 2026-11-02 |
+| [[concepts/delivery-state]] | 完整回复、排队、已发送和结果不确定分别处理 | `src/wxbot/queue_store.py:339` | 2026-11-03 |
 | [[concepts/group-identity-evidence]] | 群成员先按同群 member_key 与昵称认人，头像 dhash 只作证据且不足以区分个体 | `src/butler/identity/user_registry.py:350` | 2026-11-02 |
 | [[concepts/identity-authority]] | 窗口/头像/昵称是证据，服务签发上下文才是工具授权边界 | `src/butler/agent/tools.py:43` | 2026-11-02 |
-| [[concepts/message-pipeline]] | 窗口→收件→批次→Butler→分句→UI→只读投影 | `src/wxbot/inbox.py:255` | 2026-11-02 |
+| [[concepts/message-pipeline]] | 窗口→收件→批次→Butler→分句→UI→只读投影 | `src/wxbot/inbox.py:268` | 2026-11-03 |
 | [[concepts/model-error-contract]] | 模型失败的分类、脱敏、自动重试与超时放行契约 | `src/butler/agent/hermes.py:36` | 2026-11-02 |
-| [[concepts/unread-capture-retry]] | 未读任务只有采集成才清除，读不到文字时必须退避并最终放弃，否则阻塞发送队列 | `src/wxbot/inbox.py:440` | 2026-11-02 |
+| [[concepts/unread-capture-retry]] | 未读任务只有采集成才清除，读不到文字时必须退避并最终放弃，否则阻塞发送队列 | `src/wxbot/inbox.py:453` | 2026-11-02 |
 
 ## 影响分析与台账
 
@@ -107,3 +107,5 @@
 - [[raw/changes/2026-11-02-mention-residue-reverify]]
 - [[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
 - [[raw/changes/2026-11-02-web-global-search-clear]]
+- [[raw/changes/2026-11-03-feat-voice-001-anchor-refresh]]
+- [[raw/changes/2026-11-03-feat-voice-001-virtual-mic]]

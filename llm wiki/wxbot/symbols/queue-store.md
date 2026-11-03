@@ -15,12 +15,13 @@ sources:
   line: 277
   anchor: def prepare(
 - path: src/wxbot/queue_store.py
-  line: 537
+  line: 576
   anchor: def claim_delivery(
 - path: src/wxbot/queue_store.py
   line: 21
   anchor: FAILURE_DETAIL_FIELDS =
 changes:
+- raw/changes/2026-11-03-feat-voice-001-anchor-refresh
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-11-01-mention-fallback-unread-retry

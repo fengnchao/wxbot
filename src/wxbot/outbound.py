@@ -89,9 +89,9 @@ class BundleMediaCache:
 class OutboundRequest:
     """一次外发请求：带一个 Event 和结果槽，主循环发完 set() 通知等待方。"""
 
-    __slots__ = ("contact", "text", "event", "ok", "detail", "items", "request_id", "media_paths", "received_at")
+    __slots__ = ("contact", "text", "event", "ok", "detail", "items", "request_id", "media_paths", "received_at", "kind")
 
-    def __init__(self, contact: str, text: str, *, items=None, request_id='', media_paths=None, received_at=None):
+    def __init__(self, contact: str, text: str, *, items=None, request_id='', media_paths=None, received_at=None, kind='text'):
         self.contact = contact
         self.text = text
         self.event = threading.Event()
@@ -99,6 +99,7 @@ class OutboundRequest:
         self.detail = ""
         self.items, self.request_id, self.media_paths = items, request_id, media_paths or {}
         self.received_at = time.time() if received_at is None else received_at
+        self.kind = kind or 'text'
 
     def finish(self, ok: bool, detail: str = "") -> None:
         self.ok = bool(ok)
@@ -113,8 +114,8 @@ class OutboundQueue:
         self._q: collections.deque = collections.deque()
         self._lock = threading.Lock()
 
-    def submit(self, contact: str, text: str, *, received_at=None) -> OutboundRequest:
-        req = OutboundRequest(contact, text, received_at=received_at)
+    def submit(self, contact: str, text: str, *, received_at=None, kind='text') -> OutboundRequest:
+        req = OutboundRequest(contact, text, received_at=received_at, kind=kind)
         with self._lock:
             self._q.append(req)
         return req
@@ -222,7 +223,12 @@ def make_handler(queue: OutboundQueue, token: str, *, media_cache=None,allow_bun
                         self._send(400,{'ok':False,'detail':'图文包或图片校验失败，未入队'})
                         return
                 else:
-                    req = queue.submit(contact, text, received_at=received_at)
+                    # 旧客户端不传 voice 时保持纯文字；voice=true 才入语音条队列。
+                    voice = b.get("voice") is True
+                    if voice and set(b) - {"contact", "text", "wait", "timeout", "voice"}:
+                        self._send(400, {"ok": False, "detail": "无效语音字段"})
+                        return
+                    req = queue.submit(contact, text, received_at=received_at, kind=("voice" if voice else "text"))
                 if not wait:                       # 即发即回，不等结果
                     self._send(200, {"ok": True, "detail": "queued"})
                     return

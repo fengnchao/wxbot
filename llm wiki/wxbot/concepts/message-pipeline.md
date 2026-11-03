@@ -3,13 +3,13 @@ type: concept
 module: wxbot
 summary: 窗口→收件→批次→Butler→分句→UI→只读投影
 coverage: core
-last_verified: '2026-11-02'
+last_verified: 2026-11-03
 sources:
 - path: src/wxbot/inbox.py
-  line: 255
+  line: 268
   anchor: def _capture(
 - path: src/wxbot/queue_worker.py
-  line: 141
+  line: 142
   anchor: reply = self.router.handle_reply(
 - path: src/wxbot/processor/butler.py
   line: 72
@@ -19,11 +19,12 @@ sources:
   anchor: result.meta["msg_id"] = msg_id
 - path: src/wxbot/wechat/chat_window.py
   line: 36
-  anchor: "ref: str = ''"
+  anchor: 'ref: str = '''''
 - path: src/wxbot/ui_contract.py
   line: 56
   anchor: def persisted_rows(
 changes:
+- raw/changes/2026-11-03-feat-voice-001-virtual-mic
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-switchable-models
 - raw/changes/2026-10-31-model-access-switch-core-emit
@@ -90,3 +91,7 @@ changes:
 [[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
 
 [[raw/changes/2026-11-02-mention-residue-reverify]]
+
+## 变更
+
+- 2026-11-03: FEAT-VOICE-001 P1 outbox kind=voice（虚拟麦+RALT）；见 [[raw/changes/2026-11-03-feat-voice-001-virtual-mic]]
