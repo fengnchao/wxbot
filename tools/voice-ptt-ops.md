@@ -1,4 +1,4 @@
-# 虚拟麦 + Right Alt 语音条操作说明（FEAT-VOICE-001 P1）
+﻿# 虚拟麦 + Right Alt 语音条操作说明（FEAT-VOICE-001 P1）
 
 ## 目标路径
 
@@ -71,3 +71,8 @@ Butler `push_to_wxbot(..., voice=True)` 透传。
 - 文件路径或 bytes；同步 `prepare`
 - 非法输入：不按 RALT，走文字回退
 - P2 IndexTTS 另单接入同一合同
+
+## P2 IndexTTS
+
+见 `tools/indextts-ops.md`。配置 `voice.tts_provider = "indextts"`；排障可改回 `fixture`。本单不改开会话/RALT/虚拟麦路径。
+

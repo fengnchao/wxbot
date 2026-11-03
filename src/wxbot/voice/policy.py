@@ -1,11 +1,12 @@
 """语音开关与白名单：配置文件驱动（AC-10），无管理台 UI。"""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 
 VOICE_MODES = ("off", "replace", "coexist")
+TTS_PROVIDERS = ("fixture", "indextts")
 
 
 def normalize_voice_mode(value) -> str:
@@ -13,6 +14,46 @@ def normalize_voice_mode(value) -> str:
     if mode not in VOICE_MODES:
         raise ValueError("voice mode 必须是 off/replace/coexist")
     return mode
+
+
+def normalize_tts_provider(value) -> str:
+    provider = str(value or "fixture").strip().lower()
+    if provider not in TTS_PROVIDERS:
+        raise ValueError("voice.tts_provider 必须是 fixture 或 indextts")
+    return provider
+
+
+def _resolve_path(value: str, *, root: Path, field_name: str) -> Path:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} 必须是路径字符串")
+    path = Path(value.strip())
+    if not path.is_absolute():
+        path = (root / path).resolve()
+    return path
+
+
+@dataclass(frozen=True)
+class ContactVoiceRef:
+    """按联系人参考音；asset_id 预留给 FEAT-VOICE-003，本单不做 UI。"""
+
+    ref_wav: Path | None
+    asset_id: str = ""
+    lang: str = "ZH"
+
+
+@dataclass(frozen=True)
+class IndexTtsSettings:
+    repo_dir: Path
+    model_dir: Path
+    cfg_path: Path
+    uv_bin: str
+    timeout_seconds: float
+    use_cuda: bool
+    use_bf16: bool
+    sample_rate: int
+    default_ref_wav: Path | None
+    default_lang: str
+    worker_script: Path
 
 
 @dataclass(frozen=True)
@@ -24,6 +65,9 @@ class VoicePolicy:
     min_seconds: float
     max_seconds: float
     contacts: dict[str, str]
+    tts_provider: str = "fixture"
+    indextts: IndexTtsSettings | None = None
+    contact_refs: dict[str, ContactVoiceRef] = field(default_factory=dict)
 
     def mode_for(self, contact: str) -> str:
         if not self.enabled:
@@ -33,6 +77,89 @@ class VoicePolicy:
     def allows(self, contact: str) -> bool:
         return self.mode_for(contact) in ("replace", "coexist")
 
+    def ref_for(self, contact: str) -> ContactVoiceRef | None:
+        key = str(contact or "").strip()
+        if key in self.contact_refs:
+            return self.contact_refs[key]
+        return None
+
+
+def _load_indextts(section: dict, *, root: Path) -> IndexTtsSettings:
+    raw = section.get("indextts") or {}
+    if not isinstance(raw, dict):
+        raise ValueError("voice.indextts 必须是配置表")
+    repo = _resolve_path(
+        str(raw.get("repo_dir", r"D:\work\tools\index-tts")),
+        root=root,
+        field_name="voice.indextts.repo_dir",
+    )
+    model = _resolve_path(
+        str(raw.get("model_dir", str(repo / "checkpoints"))),
+        root=root,
+        field_name="voice.indextts.model_dir",
+    )
+    cfg = raw.get("cfg_path", str(model / "config.yaml"))
+    cfg_path = _resolve_path(str(cfg), root=root, field_name="voice.indextts.cfg_path")
+    uv_bin = str(raw.get("uv_bin", "uv") or "uv").strip() or "uv"
+    timeout_seconds = float(raw.get("timeout_seconds", 180))
+    if not 5 <= timeout_seconds <= 1800:
+        raise ValueError("voice.indextts.timeout_seconds 必须在 5–1800")
+    use_cuda = bool(raw.get("use_cuda", True))
+    use_bf16 = bool(raw.get("use_bf16", True))
+    sample_rate = int(raw.get("sample_rate", 16000))
+    if sample_rate not in (16000, 48000):
+        raise ValueError("voice.indextts.sample_rate 必须是 16000 或 48000")
+    default_ref = raw.get("default_ref_wav") or ""
+    default_ref_wav = None
+    if isinstance(default_ref, str) and default_ref.strip():
+        default_ref_wav = _resolve_path(
+            default_ref, root=root, field_name="voice.indextts.default_ref_wav"
+        )
+    default_lang = str(raw.get("default_lang", "ZH") or "ZH").strip().upper() or "ZH"
+    worker = raw.get("worker_script", "tools/indextts_worker.py")
+    worker_script = _resolve_path(
+        str(worker), root=root, field_name="voice.indextts.worker_script"
+    )
+    return IndexTtsSettings(
+        repo_dir=repo,
+        model_dir=model,
+        cfg_path=cfg_path,
+        uv_bin=uv_bin,
+        timeout_seconds=timeout_seconds,
+        use_cuda=use_cuda,
+        use_bf16=use_bf16,
+        sample_rate=sample_rate,
+        default_ref_wav=default_ref_wav,
+        default_lang=default_lang,
+        worker_script=worker_script,
+    )
+
+
+def _load_contact_refs(section: dict, *, root: Path) -> dict[str, ContactVoiceRef]:
+    raw = section.get("contact_refs") or {}
+    if not isinstance(raw, dict):
+        raise ValueError("voice.contact_refs 必须是表")
+    out: dict[str, ContactVoiceRef] = {}
+    for name, value in raw.items():
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError("voice.contact_refs 键必须是联系人/会话名")
+        if isinstance(value, str):
+            ref_wav = _resolve_path(value, root=root, field_name=f"voice.contact_refs.{name}")
+            out[name.strip()] = ContactVoiceRef(ref_wav=ref_wav)
+            continue
+        if not isinstance(value, dict):
+            raise ValueError(f"voice.contact_refs.{name} 必须是路径或表")
+        ref_raw = value.get("ref_wav") or ""
+        ref_wav = None
+        if isinstance(ref_raw, str) and ref_raw.strip():
+            ref_wav = _resolve_path(
+                ref_raw, root=root, field_name=f"voice.contact_refs.{name}.ref_wav"
+            )
+        asset_id = str(value.get("asset_id") or "").strip()
+        lang = str(value.get("lang") or "ZH").strip().upper() or "ZH"
+        out[name.strip()] = ContactVoiceRef(ref_wav=ref_wav, asset_id=asset_id, lang=lang)
+    return out
+
 
 def load_voice_policy(cfg: dict, *, root: Path) -> VoicePolicy:
     section = cfg.get("voice") or {}
@@ -40,11 +167,7 @@ def load_voice_policy(cfg: dict, *, root: Path) -> VoicePolicy:
         raise ValueError("voice 必须是配置表")
     enabled = bool(section.get("enabled", False))
     fixture = section.get("fixture_wav", "tools/voice-fixtures/p1-tone.wav")
-    if not isinstance(fixture, str) or not fixture.strip():
-        raise ValueError("voice.fixture_wav 必须是路径字符串")
-    path = Path(fixture)
-    if not path.is_absolute():
-        path = (root / path).resolve()
+    path = _resolve_path(str(fixture), root=root, field_name="voice.fixture_wav")
     device = section.get("playback_device", "CABLE Input")
     if not isinstance(device, str) or not device.strip():
         raise ValueError("voice.playback_device 必须是设备名子串")
@@ -63,8 +186,15 @@ def load_voice_policy(cfg: dict, *, root: Path) -> VoicePolicy:
         if not isinstance(name, str) or not name.strip():
             raise ValueError("voice.contacts 键必须是联系人/会话名")
         contacts[name.strip()] = normalize_voice_mode(mode)
-    if enabled and not path.is_file():
-        raise ValueError(f"voice.enabled 时找不到假音频: {path}")
+    tts_provider = normalize_tts_provider(section.get("tts_provider", "fixture"))
+    indextts = None
+    if tts_provider == "indextts":
+        indextts = _load_indextts(section, root=root)
+    contact_refs = _load_contact_refs(section, root=root)
+    if enabled and tts_provider == "fixture" and not path.is_file():
+        raise ValueError(f"voice.enabled 且 tts_provider=fixture 时找不到假音频: {path}")
+    if enabled and tts_provider == "indextts" and indextts is None:
+        raise ValueError("tts_provider=indextts 时必须配置 voice.indextts")
     return VoicePolicy(
         enabled=enabled,
         fixture_wav=path,
@@ -73,4 +203,7 @@ def load_voice_policy(cfg: dict, *, root: Path) -> VoicePolicy:
         min_seconds=min_seconds,
         max_seconds=max_seconds,
         contacts=contacts,
+        tts_provider=tts_provider,
+        indextts=indextts,
+        contact_refs=contact_refs,
     )
