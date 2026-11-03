@@ -3,7 +3,7 @@ type: module
 module: wxbot
 summary: 微信 UI 主线程与不接触 UI 的模型队列线程
 coverage: overview
-last_verified: '2026-11-02'
+last_verified: 2026-11-03
 sources:
 - path: src/wxbot/inbox.py
   line: 45
@@ -18,7 +18,7 @@ sources:
   line: 29
   anchor: def build_processor(
 - path: src/wxbot/inbox.py
-  line: 111
+  line: 124
   anchor: def sync_users(
 - path: src/wxbot/queue_store.py
   line: 192
@@ -31,8 +31,9 @@ sources:
   anchor: def wait_until(
 - path: src/wxbot/wechat/chat_window.py
   line: 36
-  anchor: "ref: str = ''"
+  anchor: 'ref: str = '''''
 changes:
+- raw/changes/2026-11-03-feat-voice-001-virtual-mic
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-switchable-models
 - raw/changes/2026-10-31-group-identity-nickname
@@ -100,3 +101,7 @@ depends_on:
 [[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
 
 [[raw/changes/2026-11-02-mention-picker-gating-residue]]
+
+## 变更
+
+- 2026-11-03: FEAT-VOICE-001 P1 outbox kind=voice（虚拟麦+RALT）；见 [[raw/changes/2026-11-03-feat-voice-001-virtual-mic]]

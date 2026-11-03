@@ -16,8 +16,11 @@ import urllib.request
 from common.media_bundle import validate_items, validate_request_id
 
 
-def push_to_wxbot(cfg, contact: str, text: str, log=None) -> tuple[bool, str]:
-    """把 text 投给 wxbot 代发给 contact（窗口标题）。返回 (ok, detail)。"""
+def push_to_wxbot(cfg, contact: str, text: str, log=None, *, voice: bool = False) -> tuple[bool, str]:
+    """把 text 投给 wxbot 代发给 contact（窗口标题）。返回 (ok, detail)。
+
+    voice=True 时请求 wxbot 走语音条（假音频/可插 TTS）；旧调用方默认 False 保持文字。
+    """
     log = log or (lambda *a, **k: None)
     url = (cfg.wxbot_url or "").rstrip("/")
     if not url:
@@ -27,6 +30,8 @@ def push_to_wxbot(cfg, contact: str, text: str, log=None) -> tuple[bool, str]:
         headers["X-Wxbot-Token"] = cfg.wxbot_token
     timeout = float(cfg.wxbot_timeout or 120)
     body = {"contact": contact, "text": text, "wait": True, "timeout": timeout}
+    if voice:
+        body["voice"] = True
     req = urllib.request.Request(
         url + "/send",
         data=json.dumps(body, ensure_ascii=False).encode("utf-8"),

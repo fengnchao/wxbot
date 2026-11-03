@@ -12,9 +12,10 @@ sources:
   line: 321
   anchor: def _insert_delivery(
 - path: src/wxbot/queue_store.py
-  line: 359
+  line: 388
   anchor: def _recompute_batch(
 changes:
+- raw/changes/2026-11-03-feat-voice-001-anchor-refresh
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-11-01-mention-fallback-unread-retry

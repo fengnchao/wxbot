@@ -400,6 +400,33 @@
         "modules/web"
       ],
       "date": "2026-11-02"
+    },
+    "raw/changes/2026-11-03-feat-voice-001-virtual-mic": {
+      "sha256": "79d23f512c822a2a5c329db8ac3020558f7683ec1e3562e9ca6a2e684f09babe",
+      "pages": [
+        "modules/wxbot",
+        "modules/delivery",
+        "concepts/delivery-state",
+        "tables/queue-outbox",
+        "concepts/message-pipeline"
+      ],
+      "date": "2026-11-03"
+    },
+    "raw/changes/2026-11-03-feat-voice-001-anchor-refresh": {
+      "sha256": "34911f13fdd06f87fe62db60788190f496972c13f2c5dafb01335b228c94cbf1",
+      "pages": [
+        "symbols/model-worker",
+        "symbols/queue-finish",
+        "symbols/queue-store",
+        "concepts/group-identity-evidence",
+        "concepts/identity-authority",
+        "concepts/model-error-contract",
+        "concepts/unread-capture-retry",
+        "tables/queue-batches",
+        "tables/queue-inbox",
+        "symbols/mention-selection"
+      ],
+      "date": "2026-11-03"
     }
   },
   "pages": {
@@ -437,30 +464,30 @@
       }
     },
     "concepts/delivery-state": {
-      "sha256": "475521b50bddd0fd1d43cb578086a88d9cdfe08d994773122c9e8ab119bcde43",
+      "sha256": "b345f02c682977e35339aad27a98a2212bceab3c9fb3a4c5e18f87b0727207c2",
       "sources": {
-        "src/wxbot/queue_store.py": "6ea1158cc591a3f8ab2bff1cc9f994cb9a9a4e686f20f7687c449b0ee294b7f3",
+        "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e",
         "src/wxbot/delivery_policy.py": "a8965b1706292117d8ff49181078ac22d6c9eb9f8651e206c327dfbf347893b9",
-        "src/wxbot/queue_worker.py": "9b3d173ad4ad8b87afb2753fa0d0385cfb3b16cc0092bee9c5c875d4b86b4b99",
+        "src/wxbot/queue_worker.py": "1342836dcb1fe87f349f45ebb9ee46a33e021c92c8605c092149e8d85fb76938",
         "src/wxbot/ui_contract.py": "18362287ae4fee6df51e357935f48c4da0cc5a02f393686d5b7dc0ed2f20b112",
-        "src/wxbot/delivery.py": "6fbcac606b63f3011b91d7f7d625b994861dd12d7b31c672af63ede6d06ce469"
+        "src/wxbot/delivery.py": "da97a1925de17235228d7eb5f9954f8ef69fe733e9aa797d16f57f977e652a21"
       }
     },
     "concepts/identity-authority": {
-      "sha256": "030c5ff44185e9703b4e8fad9a25acd5b06d02c79f7d499ee1cf45203edc4e53",
+      "sha256": "b0c29799d98db7c68dc3b51ca96dab30fc5a46f6f7bd370570e3bd1a51f18e04",
       "sources": {
         "src/butler/agent/tools.py": "224a160d9485f7d744b071ea499f5681b96f6f145c4418792c91204bcde9a4df",
-        "src/wxbot/queue_store.py": "6ea1158cc591a3f8ab2bff1cc9f994cb9a9a4e686f20f7687c449b0ee294b7f3"
+        "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e"
       }
     },
     "concepts/message-pipeline": {
-      "sha256": "5d3c588e5494210f2aa9c59e57389546cb839823388cc5bde4444fef6aa011e0",
+      "sha256": "3946f2670eaaba37428bde3b4a81cb456980d8fb997de8be1ee6d2d6273bebeb",
       "sources": {
-        "src/wxbot/inbox.py": "339df0347b2e44746879729ecc2de73eddb4d5cf539d5ecfe6961fcdf5ac09a9",
-        "src/wxbot/queue_worker.py": "9b3d173ad4ad8b87afb2753fa0d0385cfb3b16cc0092bee9c5c875d4b86b4b99",
+        "src/wxbot/inbox.py": "5f1bb550b345c2ea2a2f1424137b9e8a40d95820c4938ac924d7e51b152b90dc",
+        "src/wxbot/queue_worker.py": "1342836dcb1fe87f349f45ebb9ee46a33e021c92c8605c092149e8d85fb76938",
         "src/wxbot/processor/butler.py": "55dc9aac5baf71ff1f36c0fa7b01c1fb7b0ca2d24a5d4de3eb8eae6cc872cd86",
         "src/butler/agent/core.py": "05f91d9964d4c6ee7f2cf2c74ee4ad9d6b7268daa27501c8657a7c96bb276816",
-        "src/wxbot/wechat/chat_window.py": "bb4888d73219801f97c4bfd3c8aff94193fce7e4070dcee9017f5d9633cd8605",
+        "src/wxbot/wechat/chat_window.py": "d6397f9f23d75bb569f76c3908ba32b25c822aa547cb579871a6ab69f919498f",
         "src/wxbot/ui_contract.py": "18362287ae4fee6df51e357935f48c4da0cc5a02f393686d5b7dc0ed2f20b112"
       }
     },
@@ -494,9 +521,9 @@
       }
     },
     "modules/delivery": {
-      "sha256": "b2bb0362b6de53f04167ed2bf2ff8171f64b7db789756d37203967381a9dadef",
+      "sha256": "f99778e982e9a2d4a7aeae2ce21efcdaf826d8870f27c822062b20e7947fdba6",
       "sources": {
-        "src/butler/delivery/push.py": "ac8c8245ac2be50a998dbc55d63b4e6ac36868840cf7ce95e25a95fe49d149b4",
+        "src/butler/delivery/push.py": "5d09c185d971531a59597f37a2a04f9a7502c4e9f82bcbddd2da1be089a6b9b7",
         "src/butler/delivery/reminders.py": "a548d03f88d7f0fcff2e9cc8a7c52d7e186f8972e3e9cb57dc39ef4cb826af2d"
       }
     },
@@ -555,15 +582,15 @@
       }
     },
     "modules/wxbot": {
-      "sha256": "25817af6d1a21b23cb3a1b093c0ffb4692e078336c48a58781d9adf7f525b05b",
+      "sha256": "605ae31a5304cca2dc4493042187e34fc10a3919db80ff5ba41e6a4d6ba73139",
       "sources": {
-        "src/wxbot/inbox.py": "339df0347b2e44746879729ecc2de73eddb4d5cf539d5ecfe6961fcdf5ac09a9",
-        "src/wxbot/queue_worker.py": "9b3d173ad4ad8b87afb2753fa0d0385cfb3b16cc0092bee9c5c875d4b86b4b99",
-        "src/wxbot/queue_store.py": "6ea1158cc591a3f8ab2bff1cc9f994cb9a9a4e686f20f7687c449b0ee294b7f3",
+        "src/wxbot/inbox.py": "5f1bb550b345c2ea2a2f1424137b9e8a40d95820c4938ac924d7e51b152b90dc",
+        "src/wxbot/queue_worker.py": "1342836dcb1fe87f349f45ebb9ee46a33e021c92c8605c092149e8d85fb76938",
+        "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e",
         "src/wxbot/main.py": "420f4bf195774c615a3c10cb92af745361e58d69556d7a765047d23614f614ac",
         "src/wxbot/ui_contract.py": "18362287ae4fee6df51e357935f48c4da0cc5a02f393686d5b7dc0ed2f20b112",
         "src/wxbot/wechat/locator.py": "dbdf0739f5dd75ec6fc38d3efe3c4036ebd793601a648776861e4482524b84f7",
-        "src/wxbot/wechat/chat_window.py": "bb4888d73219801f97c4bfd3c8aff94193fce7e4070dcee9017f5d9633cd8605"
+        "src/wxbot/wechat/chat_window.py": "d6397f9f23d75bb569f76c3908ba32b25c822aa547cb579871a6ab69f919498f"
       }
     },
     "symbols/butler-handle": {
@@ -588,43 +615,43 @@
       }
     },
     "symbols/model-worker": {
-      "sha256": "245128cc6c8c8a81aee8b31d0026ca82bac81d49b97a7012972d3b0afee3c0de",
+      "sha256": "94b78846643917d21777bfcac2d9f5e1f529b9eade1246699544a255827a3d81",
       "sources": {
-        "src/wxbot/queue_worker.py": "9b3d173ad4ad8b87afb2753fa0d0385cfb3b16cc0092bee9c5c875d4b86b4b99"
+        "src/wxbot/queue_worker.py": "1342836dcb1fe87f349f45ebb9ee46a33e021c92c8605c092149e8d85fb76938"
       }
     },
     "symbols/queue-finish": {
-      "sha256": "88137fd875c1cebd86f6c95fe9a8d5fbbe50c07436b008ce02d17fc25a47d09e",
+      "sha256": "f73520d2d7486f5a53b14f2e27b471873ba1880f2e182b3598a5764dca1baafe",
       "sources": {
-        "src/wxbot/queue_store.py": "6ea1158cc591a3f8ab2bff1cc9f994cb9a9a4e686f20f7687c449b0ee294b7f3"
+        "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e"
       }
     },
     "symbols/queue-store": {
-      "sha256": "86e063999a27e15caaa7bbf55f8da496c17ba77b3cbedf7698a7b3a03a5f8282",
+      "sha256": "a89b7a10312a4ebbe3d2f251408c15bd88a41e3c802fce3b2b57561facb1eb70",
       "sources": {
-        "src/wxbot/queue_store.py": "6ea1158cc591a3f8ab2bff1cc9f994cb9a9a4e686f20f7687c449b0ee294b7f3"
+        "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e"
       }
     },
     "tables/queue-batches": {
-      "sha256": "d1d9d439c67e6ed20dfb38e3714987dbe95dcbebfab35cf5647aecee2dd18ce3",
+      "sha256": "d8bd42ef2153263bd125c7b1e41144a24710130e2293e8e1681968247b630706",
       "sources": {
         "src/wxbot/queue_schema.py": "5123cc18a37feaa4233c9ceaddaf849afbb61f2ec5d68e7f76e452a099996b7f",
-        "src/wxbot/queue_store.py": "6ea1158cc591a3f8ab2bff1cc9f994cb9a9a4e686f20f7687c449b0ee294b7f3"
+        "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e"
       }
     },
     "tables/queue-inbox": {
-      "sha256": "382d6961dc1c926ff73975c7a5cc497fc6955d9730993f69844e6c4bfab6afec",
+      "sha256": "28802e8064844faa702745a0f382a22d97f44d7a2ee166433c404931b4d02383",
       "sources": {
         "src/wxbot/queue_schema.py": "5123cc18a37feaa4233c9ceaddaf849afbb61f2ec5d68e7f76e452a099996b7f",
-        "src/wxbot/queue_store.py": "6ea1158cc591a3f8ab2bff1cc9f994cb9a9a4e686f20f7687c449b0ee294b7f3"
+        "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e"
       }
     },
     "tables/queue-outbox": {
-      "sha256": "4b13d9f9b33ce591684a17943bd0578fbd3d5713c1cb88189e009d34e1792819",
+      "sha256": "a56d84be2e9734452f850527c68794b3050b3a7a4f19ae37a2c0e6f08d05204c",
       "sources": {
         "src/wxbot/queue_schema.py": "5123cc18a37feaa4233c9ceaddaf849afbb61f2ec5d68e7f76e452a099996b7f",
-        "src/wxbot/queue_store.py": "6ea1158cc591a3f8ab2bff1cc9f994cb9a9a4e686f20f7687c449b0ee294b7f3",
-        "src/wxbot/delivery.py": "6fbcac606b63f3011b91d7f7d625b994861dd12d7b31c672af63ede6d06ce469"
+        "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e",
+        "src/wxbot/delivery.py": "da97a1925de17235228d7eb5f9954f8ef69fe733e9aa797d16f57f977e652a21"
       }
     },
     "modules/models": {
@@ -652,18 +679,18 @@
       }
     },
     "concepts/group-identity-evidence": {
-      "sha256": "6b2d2497006624da481a53edbc41ea6630c3e9673481ff1bb199bc06b38e6cce",
+      "sha256": "0013b823edb2231d58c464cce4adc849cba5c7b7c88b78fcd2f05723b9528c13",
       "sources": {
         "src/butler/identity/user_registry.py": "33722def879aad626dd2490cce1dc109b0baa2107edbf17327d7b64fa27da4e3",
-        "src/wxbot/inbox.py": "339df0347b2e44746879729ecc2de73eddb4d5cf539d5ecfe6961fcdf5ac09a9",
-        "src/wxbot/queue_store.py": "6ea1158cc591a3f8ab2bff1cc9f994cb9a9a4e686f20f7687c449b0ee294b7f3",
+        "src/wxbot/inbox.py": "5f1bb550b345c2ea2a2f1424137b9e8a40d95820c4938ac924d7e51b152b90dc",
+        "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e",
         "src/common/avatar_identity.py": "bff7528b7bb8ac539868586bc35f2741b40d601f241180afe9f02cdf960260a3",
-        "src/wxbot/wechat/chat_window.py": "bb4888d73219801f97c4bfd3c8aff94193fce7e4070dcee9017f5d9633cd8605",
+        "src/wxbot/wechat/chat_window.py": "d6397f9f23d75bb569f76c3908ba32b25c822aa547cb579871a6ab69f919498f",
         "src/wxbot/wechat/main_window.py": "28d4fcdd820065e2dfc1b9865895dfe18fa4f282700c5f3b8d0e8f6e7077304f"
       }
     },
     "concepts/model-error-contract": {
-      "sha256": "42ac1082364fbc0260cabacb0526eaf235ea5b76ed42fe41de892cffe796f7e7",
+      "sha256": "40309b66cceb09eec851d6b72d76a9d9413694b009ddc5ea1c55d87e7e3ae40e",
       "sources": {
         "src/butler/agent/hermes.py": "6416947f305cf115ede4c95bc132da550469fd4513398ab66badbd27c453b977",
         "src/butler/backends/compatible.py": "9878d7bc3cfee249c4dcca38d4ee82d9ee3d1d0bd158b87ea8363f2487a6b3de",
@@ -674,8 +701,8 @@
         "src/butler/server.py": "e78ec9625d74fe10618691131a5720295c5ff106fad469a60c4884283f2ee782",
         "src/wxbot/processor/butler.py": "55dc9aac5baf71ff1f36c0fa7b01c1fb7b0ca2d24a5d4de3eb8eae6cc872cd86",
         "src/wxbot/processor/openai_compat.py": "0e814c658bd98c96493713157eb5d368bd9a5567418802f75573c7b97dbbdf17",
-        "src/wxbot/queue_worker.py": "9b3d173ad4ad8b87afb2753fa0d0385cfb3b16cc0092bee9c5c875d4b86b4b99",
-        "src/wxbot/queue_store.py": "6ea1158cc591a3f8ab2bff1cc9f994cb9a9a4e686f20f7687c449b0ee294b7f3",
+        "src/wxbot/queue_worker.py": "1342836dcb1fe87f349f45ebb9ee46a33e021c92c8605c092149e8d85fb76938",
+        "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e",
         "src/wxbot/model_recovery.py": "b6fe61aa0c6565211a36f5023b7ea7c2816413338f7dc8c31e195d44f9909106"
       }
     },
@@ -729,19 +756,19 @@
       }
     },
     "concepts/unread-capture-retry": {
-      "sha256": "596ce323e70d8880af71a678f18c060d567144a7f2749973164f58aa77c8e5e9",
+      "sha256": "e93d1253123a5dde87a88f7b29a8c85ed084326f9d7744ba617fc1ba106b6ce9",
       "sources": {
-        "src/wxbot/inbox.py": "339df0347b2e44746879729ecc2de73eddb4d5cf539d5ecfe6961fcdf5ac09a9",
-        "src/wxbot/wechat/chat_window.py": "bb4888d73219801f97c4bfd3c8aff94193fce7e4070dcee9017f5d9633cd8605",
-        "src/wxbot/queue_store.py": "6ea1158cc591a3f8ab2bff1cc9f994cb9a9a4e686f20f7687c449b0ee294b7f3"
+        "src/wxbot/inbox.py": "5f1bb550b345c2ea2a2f1424137b9e8a40d95820c4938ac924d7e51b152b90dc",
+        "src/wxbot/wechat/chat_window.py": "d6397f9f23d75bb569f76c3908ba32b25c822aa547cb579871a6ab69f919498f",
+        "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e"
       }
     },
     "symbols/mention-selection": {
-      "sha256": "4a97a8b7d6bf49e0925da9368910f2eba2e22220dcd48fd748907be2ae950018",
+      "sha256": "9018442c313f597554379b961aa1367682c99bfe5c27345871690e5f0f287d08",
       "sources": {
         "src/wxbot/wechat/mentions.py": "8ab4e866cfcf1963bea314fba99df0414f82af61428c1cb7d8ec5f5f8f1c7bbb",
         "src/wxbot/wechat/typing.py": "3a908bbc9690347a3c3262ffb0d06fbeadda0a4b703d1a613d5f0dc810ba0c3c",
-        "src/wxbot/wechat/chat_window.py": "bb4888d73219801f97c4bfd3c8aff94193fce7e4070dcee9017f5d9633cd8605"
+        "src/wxbot/wechat/chat_window.py": "d6397f9f23d75bb569f76c3908ba32b25c822aa547cb579871a6ab69f919498f"
       }
     },
     "tables/knowledge-vault": {

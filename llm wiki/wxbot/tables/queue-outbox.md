@@ -3,7 +3,7 @@ type: table
 module: wxbot
 summary: 逐分句发件与不确定结果审计，包含迁移新增字段
 coverage: core
-last_verified: '2026-11-02'
+last_verified: 2026-11-03
 sources:
 - path: src/wxbot/queue_schema.py
   line: 34
@@ -21,15 +21,16 @@ sources:
   line: 22
   anchor: OUTBOX_SQL =
 - path: src/wxbot/queue_store.py
-  line: 591
+  line: 630
   anchor: def finish_delivery(
 - path: src/wxbot/queue_store.py
   line: 21
   anchor: FAILURE_DETAIL_FIELDS =
 - path: src/wxbot/delivery.py
-  line: 389
+  line: 518
   anchor: details.update(confirm_evidence=evidence
 changes:
+- raw/changes/2026-11-03-feat-voice-001-virtual-mic
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-11-01-mention-fallback-unread-retry
@@ -95,3 +96,7 @@ uncertain/confirming 记录需要保守保留及人工核对，不能任意自�
 [[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
 
 [[raw/changes/2026-11-02-mention-picker-gating-residue]]
+
+## 变更
+
+- 2026-11-03: FEAT-VOICE-001 P1 outbox kind=voice（虚拟麦+RALT）；见 [[raw/changes/2026-11-03-feat-voice-001-virtual-mic]]

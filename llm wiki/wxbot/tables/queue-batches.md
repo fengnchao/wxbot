@@ -24,6 +24,7 @@ sources:
   line: 339
   anchor: def finish_batch_parts(
 changes:
+- raw/changes/2026-11-03-feat-voice-001-anchor-refresh
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-queue-batches-format
 - raw/changes/2026-10-31-group-identity-nickname

@@ -10,6 +10,8 @@
 | `debug_read.py` | 检查窗口／消息列表／输入框，并打印每条消息被判成谁发的 | 否 |
 | `probe_codex.py` | Codex 端到端联调：真实模型调用 + MCP 记忆 + 线程续接 | 是（调模型） |
 | `release.py` | 按白名单打两个可移植包，并做凭据形状审计 | 否 |
+| `voice-ptt-ops.md` | FEAT-VOICE-001：虚拟麦选麦 + Right Alt 操作/卸载说明 | 否 |
+| `voice-fixtures/p1-tone.wav` | P1 固定测试音频（16k mono PCM） | 否 |
 
 ## probe.py
 

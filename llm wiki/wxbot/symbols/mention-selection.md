@@ -19,14 +19,15 @@ sources:
   anchor: 'def _cleanup(self):'
 - path: src/wxbot/wechat/mentions.py
   line: 282
-  anchor: "auto.SendKeys('{Back}',waitTime=0)"
+  anchor: auto.SendKeys('{Back}',waitTime=0)
 - path: src/wxbot/wechat/typing.py
   line: 129
   anchor: result = self._mention.step()
 - path: src/wxbot/wechat/chat_window.py
   line: 426
-  anchor: "auto.SendKeys('{Back}', waitTime=0.05)"
+  anchor: auto.SendKeys('{Back}', waitTime=0.05)
 changes:
+- raw/changes/2026-11-03-feat-voice-001-anchor-refresh
 - raw/changes/2026-11-01-mention-fallback-unread-retry
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-mention-picker-gating-residue

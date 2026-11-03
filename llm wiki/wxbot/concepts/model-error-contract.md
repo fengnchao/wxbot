@@ -36,18 +36,19 @@ sources:
   line: 141
   anchor: if on_event is not None:exc.retry_safe=False
 - path: src/wxbot/queue_worker.py
-  line: 174
+  line: 183
   anchor: safe=getattr(exc,'retry_safe',False) is True
 - path: src/wxbot/queue_store.py
-  line: 395
+  line: 424
   anchor: '''model_retryable'' if retry_safe else ''model_uncertain'''
 - path: src/wxbot/model_recovery.py
   line: 2
   anchor: MODEL_MAX_ATTEMPTS=3
 - path: src/wxbot/queue_store.py
-  line: 414
+  line: 443
   anchor: 结束失败批次并放行后续消息
 changes:
+- raw/changes/2026-11-03-feat-voice-001-anchor-refresh
 - raw/changes/2026-11-01-model-request-error-visibility
 - raw/changes/2026-11-01-model-error-contract
 - raw/changes/2026-11-01-knowledge-episodes

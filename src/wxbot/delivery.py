@@ -37,12 +37,14 @@ class ActiveDelivery:
 class DeliveryPump:
     def __init__(self, store, get_chat, capture_target, discover, *, timeout=5,
                  clock=time.time, monotonic=time.monotonic, capture_messages=None,
-                 package_authorizer=None):
+                 package_authorizer=None, voice_policy=None, tts_source=None):
         self.store, self.get_chat = store, get_chat
         self.capture_target, self.discover = capture_target, discover
         self.timeout, self.clock, self.monotonic = timeout, clock, monotonic
         self.capture_messages = capture_messages
         self.package_authorizer = package_authorizer
+        self.voice_policy = voice_policy
+        self.tts_source = tts_source
         self.active = None
         self._waiters = {}
         self._package_waiters = {}
@@ -65,8 +67,16 @@ class DeliveryPump:
                 self._package_waiters.setdefault(package_id,[]).append(request)
                 self._notify_package(package_id)
                 return package_id
-            record_id = self.store.enqueue_delivery(request.contact, request.text, now=self.clock(),
-                                                   received_at=getattr(request,'received_at',None))
+            if getattr(request, 'kind', 'text') == 'voice':
+                media = ''
+                if self.voice_policy is not None:
+                    media = str(self.voice_policy.fixture_wav)
+                record_id = self.store.enqueue_voice(
+                    request.contact, request.text, now=self.clock(), media_path=media,
+                    received_at=getattr(request, 'received_at', None))
+            else:
+                record_id = self.store.enqueue_delivery(request.contact, request.text, now=self.clock(),
+                                                       received_at=getattr(request,'received_at',None))
             self._waiters[record_id] = request
             log.info("[队列][%s][%s] 主动推送已持久化入发件箱", request.contact, record_id)
             return record_id
@@ -113,6 +123,8 @@ class DeliveryPump:
             log.error('[发送失败][%s][%s] 状态=%s 原因=%s 详情=%s 自动丢弃截止=%s',
                       delivery.contact,delivery.id,state,error,json.dumps(details,ensure_ascii=False),
                       '不自动重发，已退出阻塞，等待人工核对' if row.get('detached') else row['failed_at']+getattr(self.store,'failure_timeout_seconds',FAILURE_TIMEOUT_SECONDS))
+        if delivery.kind == "voice" and state in {"blocked", "uncertain"}:
+            self._voice_text_fallback(delivery, state, error)
         waiter = self._waiters.pop(delivery.id, None)
         if waiter is not None:
             waiter.finish(state == "sent", "sent" if state == "sent" else error or state)
@@ -146,6 +158,50 @@ class DeliveryPump:
             close=getattr(self.active.typing,'close',None)
             if close is not None: close()
 
+
+    def _voice_mode(self, contact):
+        policy = self.voice_policy
+        if policy is None:
+            return "off"
+        return policy.mode_for(contact)
+
+    def _voice_text_fallback(self, delivery, state, error):
+        """replace 失败回退文字一次；coexist 不因语音失败重发已有文字。"""
+        mode = self._voice_mode(delivery.contact)
+        if mode != "replace":
+            return
+        text = (delivery.text or "").strip()
+        if not text:
+            log.warning("[语音回退][%s][%s] replace 失败但无正文可回退: %s", delivery.contact, delivery.id, error or state)
+            return
+        try:
+            record_id = self.store.enqueue_delivery(delivery.contact, text, now=self.clock())
+            log.warning("[语音回退][%s][%s] 语音失败(%s)→已回退文字 %s", delivery.contact, delivery.id, state, record_id)
+        except Exception as exc:
+            log.error("[语音回退][%s][%s] 回退文字入库失败: %s", delivery.contact, delivery.id, type(exc).__name__)
+
+    def _prepare_voice_audio(self, delivery):
+        from .voice.tts import FixtureTtsSource, load_wav_file
+
+        policy = self.voice_policy
+        source = self.tts_source
+        if source is None and policy is not None:
+            source = FixtureTtsSource(
+                policy.fixture_wav,
+                min_seconds=policy.min_seconds,
+                max_seconds=policy.max_seconds,
+            )
+        if source is None:
+            raise ValueError("未配置 TTS/假音频源")
+        media_path = getattr(delivery, "media_path", "") or ""
+        if media_path:
+            return load_wav_file(
+                media_path,
+                min_seconds=getattr(policy, "min_seconds", 0.4),
+                max_seconds=getattr(policy, "max_seconds", 60),
+            )
+        return source.prepare(delivery.text or "")
+
     def _start(self, delivery):
         chat=None
         try:
@@ -158,6 +214,9 @@ class DeliveryPump:
                 return
             if delivery.kind == "emoji":
                 self._start_emoji(delivery)
+                return
+            if delivery.kind == "voice":
+                self._start_voice(delivery)
                 return
             self.discover()  # 点击前持久化未读数量。
             chat = self.get_chat(delivery.contact)
@@ -244,6 +303,57 @@ class DeliveryPump:
             self._finish(delivery, "blocked", f"表情发送失败: {type(exc).__name__}",
                          self._diagnostics(chat, 'sticker', 'ui_error'))
 
+    def _start_voice(self, delivery):
+        chat = None
+        try:
+            if self._voice_mode(delivery.contact) == "off":
+                # 非白名单/关开关：不按 RALT，直接回退文字路径。
+                text = (delivery.text or "").strip()
+                if text:
+                    self.store.enqueue_delivery(delivery.contact, text, now=self.clock())
+                    self._finish(delivery, "skipped", "语音开关关闭，已改走文字")
+                else:
+                    self._finish(delivery, "blocked", "语音开关关闭且无文字可回退",
+                                 {"error_code": "ui_error", "phase": "voice_disabled"})
+                return
+            self.discover()
+            chat = self.get_chat(delivery.contact)
+            if delivery.group_mode is not None:
+                chat.expected_group = delivery.group_mode
+            if not self.capture_target(delivery.contact):
+                self._finish(delivery, "blocked", "目标会话尚不可用，未发语音条",
+                             self._diagnostics(chat, "prepare_target", "target_unavailable"))
+                return
+            try:
+                audio = self._prepare_voice_audio(delivery)
+            except Exception as exc:
+                self._finish(delivery, "blocked", f"TTS/音频准备失败: {type(exc).__name__}: {exc}",
+                             {"error_code": "ui_error", "phase": "voice_audio"})
+                return
+            policy = self.voice_policy
+            device = getattr(policy, "playback_device", "CABLE Input") if policy else "CABLE Input"
+            padding = getattr(policy, "hold_padding_seconds", 0.3) if policy else 0.3
+            typing = chat.start_voice(
+                audio,
+                playback_device=device,
+                hold_padding_seconds=padding,
+                clock=self.monotonic,
+            )
+            if typing is None:
+                code = "draft_conflict" if getattr(chat, "draft_conflict", False) else "target_unavailable"
+                details = self._diagnostics(chat, "prepare_input", code)
+                self._finish(delivery, "blocked", "无法聚焦会话输入区，未按 RALT", details)
+                return
+            # 语音条确认不依赖默认 UIA 气泡；不做 baseline 气泡核验。
+            active = ActiveDelivery(delivery, chat, typing, [])
+            typing.before_enter = lambda: self._prepare_voice_enter(active)
+            self.active = active
+            log.info("[队列][%s][%s][%d/%d] 开始语音条 PTT（Right Alt）", delivery.contact, delivery.id,
+                     delivery.part_seq, delivery.part_count)
+        except Exception as exc:
+            self._finish(delivery, "blocked", f"语音发送准备失败: {type(exc).__name__}",
+                         self._diagnostics(chat, "prepare", "ui_error"))
+
     def _package_authorization(self,delivery):
         if not getattr(delivery,'package_id',None) or self.package_authorizer is None:
             return True
@@ -265,6 +375,10 @@ class DeliveryPump:
                          {'manual_required':True})
         else:
             self._finish(active.delivery,'skipped','新闻订阅已撤销，图文包停止')
+
+    def _prepare_voice_enter(self, active):
+        if not active.chat.target_is_current(active.typing.win):
+            raise RuntimeError("语音发送前目标会话变化")
 
     def _prepare_enter(self, active):
         if not active.chat.target_is_current(active.typing.win):
@@ -355,6 +469,21 @@ class DeliveryPump:
             return
         if state == "typing":
             return
+        if active.delivery.kind == "voice":
+            if state == "submitted":
+                details = {
+                    "bubble_verified": False,
+                    "confirm_evidence": getattr(active.typing, "confirm_evidence", "ptt_release"),
+                    "human_confirm_required": True,
+                    "voice_mode": self._voice_mode(active.delivery.contact),
+                }
+                self._finish(active.delivery, "sent", details=details)
+            else:
+                details = dict(getattr(active.typing, "failure_details", {}) or {})
+                details.setdefault("error_code", "ui_error")
+                details["phase"] = details.get("phase") or "voice_ptt"
+                self._finish(active.delivery, "blocked", active.typing.error or state, details)
+            return
         if not active.typing.enter_attempted:
             self._finish(active.delivery, "blocked", active.typing.error)
             return
@@ -401,7 +530,7 @@ class DeliveryPump:
         for row in self.store.records("outbox"):
             # Image identities are per UI session. A restart cannot prove which
             # picture was ours from a text-only snapshot; leave it for review.
-            if row['kind']=='image':
+            if row['kind'] in {'image', 'voice'}:
                 continue
             if row["state"] != "uncertain" or row["baseline"] is None or (row.get('detached') and row['batch_id']):
                 continue

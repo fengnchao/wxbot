@@ -237,3 +237,23 @@
 来源：[[raw/changes/2026-11-02-web-global-search-clear]]
 
 [[modules/web]]
+
+## [2026-11-03] change | FEAT-VOICE-001 P1 虚拟麦语音条（可插 TTS / Right Alt）
+
+来源：[[raw/changes/2026-11-03-feat-voice-001-virtual-mic]]
+
+## [2026-11-03] ingest | FEAT-VOICE-001 P1 虚拟麦语音条（可插 TTS / Right Alt）
+
+来源：[[raw/changes/2026-11-03-feat-voice-001-virtual-mic]]
+
+[[modules/wxbot]]、[[modules/delivery]]、[[concepts/delivery-state]]、[[tables/queue-outbox]]、[[concepts/message-pipeline]]
+
+## [2026-11-03] change | FEAT-VOICE-001 连带锚点刷新
+
+来源：[[raw/changes/2026-11-03-feat-voice-001-anchor-refresh]]
+
+## [2026-11-03] ingest | FEAT-VOICE-001 连带锚点刷新
+
+来源：[[raw/changes/2026-11-03-feat-voice-001-anchor-refresh]]
+
+[[symbols/model-worker]]、[[symbols/queue-finish]]、[[symbols/queue-store]]、[[concepts/group-identity-evidence]]、[[concepts/identity-authority]]、[[concepts/model-error-contract]]、[[concepts/unread-capture-retry]]、[[tables/queue-batches]]、[[tables/queue-inbox]]、[[symbols/mention-selection]]

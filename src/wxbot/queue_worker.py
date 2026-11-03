@@ -25,7 +25,7 @@ def _supports_events(router):
 class ModelWorker:
     def __init__(self, store, router, *, quiet=3, max_wait=10, prefix="/",
                  reply_delay_min=0, reply_delay_max=0, clock=time.time, max_concurrency=2, trace=None,
-                 typing_mode='chunked'):
+                 typing_mode='chunked', voice_policy=None):
         validate_model_concurrency(max_concurrency)
         self.max_concurrency = max_concurrency
         self.store, self.router = store, router
@@ -36,6 +36,7 @@ class ModelWorker:
         if typing_mode not in {'full','chunked','streaming'}:
             raise ValueError('invalid typing mode')
         self.typing_mode = typing_mode
+        self.voice_policy = voice_policy
         self._stop = threading.Event()
         self._threads = []
         self._claims = threading.Lock()
@@ -149,9 +150,17 @@ class ModelWorker:
                         self.store.append_stream(batch.id,reply.text[len(prefix):],now=self.clock(),final=True)
                     else:
                         parts=(reply.text,) if self.typing_mode=='full' and (reply.text or '').strip() else reply.parts
+                        voice_mode = 'off'
+                        voice_media = ''
+                        policy = self.voice_policy
+                        if policy is not None:
+                            voice_mode = policy.mode_for(batch.contact)
+                            if voice_mode != 'off':
+                                voice_media = str(policy.fixture_wav)
                         self.store.finish_batch_parts(batch.id, parts, reply_text=reply.text, now=self.clock(),
                                                       delay=random.uniform(self.delay_min, self.delay_max),
-                                                      mention_name=getattr(reply, 'mention_name', ''))
+                                                      mention_name=getattr(reply, 'mention_name', ''),
+                                                      voice_mode=voice_mode, voice_media_path=voice_media)
                         finish_stream=getattr(self.store,'finish_buffered_stream',None)
                         if finish_stream is not None:
                             finish_stream(batch.id,reply.text)

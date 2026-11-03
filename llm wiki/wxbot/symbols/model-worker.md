@@ -6,15 +6,16 @@ coverage: core
 last_verified: '2026-10-31'
 sources:
 - path: src/wxbot/queue_worker.py
-  line: 43
+  line: 44
   anchor: def process_once(
 - path: src/wxbot/queue_worker.py
-  line: 141
+  line: 142
   anchor: reply = self.router.handle_reply(
 - path: src/wxbot/queue_worker.py
-  line: 99
+  line: 100
   anchor: self.store.finish_batch_parts(
 changes:
+- raw/changes/2026-11-03-feat-voice-001-anchor-refresh
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 calls:
 - symbols/butler-processor

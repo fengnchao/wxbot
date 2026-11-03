@@ -3,22 +3,22 @@ type: concept
 module: wxbot
 summary: 完整回复、排队、已发送和结果不确定分别处理
 coverage: core
-last_verified: '2026-11-02'
+last_verified: 2026-11-03
 sources:
 - path: src/wxbot/queue_store.py
   line: 339
   anchor: def finish_batch_parts(
 - path: src/wxbot/queue_store.py
-  line: 591
+  line: 630
   anchor: def finish_delivery(
 - path: src/wxbot/queue_store.py
-  line: 632
+  line: 671
   anchor: def retry_failed_deliveries(
 - path: src/wxbot/delivery_policy.py
   line: 5
   anchor: def _end_reply(
 - path: src/wxbot/queue_worker.py
-  line: 174
+  line: 183
   anchor: safe=getattr(exc,'retry_safe',False) is True
 - path: src/wxbot/ui_contract.py
   line: 65
@@ -30,6 +30,7 @@ sources:
   line: 21
   anchor: FAILURE_DETAIL_FIELDS =
 changes:
+- raw/changes/2026-11-03-feat-voice-001-virtual-mic
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-11-01-model-error-contract
@@ -85,3 +86,7 @@ UI 发件器不因「界面里出现了这段文字」就认定已发送。一�
 [[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
 
 [[raw/changes/2026-11-02-mention-picker-gating-residue]]
+
+## 变更
+
+- 2026-11-03: FEAT-VOICE-001 P1 outbox kind=voice（虚拟麦+RALT）；见 [[raw/changes/2026-11-03-feat-voice-001-virtual-mic]]

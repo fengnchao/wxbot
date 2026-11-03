@@ -6,19 +6,20 @@ coverage: core
 last_verified: '2026-11-02'
 sources:
 - path: src/wxbot/inbox.py
-  line: 440
+  line: 453
   anchor: 'def _receive_one(self):'
 - path: src/wxbot/inbox.py
-  line: 470
+  line: 483
   anchor: 'def _abandon_unread(self, session, attempts):'
 - path: src/wxbot/inbox.py
-  line: 367
-  anchor: 'if self._receive_abandoned.get(session.contact) == (session.unread_count, session.mentioned):'
+  line: 380
+  anchor: 'if self._receive_abandoned.get(session.contact) == (session.unread_count,
+    session.mentioned):'
 - path: src/wxbot/inbox.py
-  line: 260
+  line: 273
   anchor: if (fresh is None and session and session.unread_count
 - path: src/wxbot/inbox.py
-  line: 543
+  line: 556
   anchor: receive_ready = bool(self._connected and any(
 - path: src/wxbot/wechat/chat_window.py
   line: 356
@@ -27,6 +28,7 @@ sources:
   line: 229
   anchor: 'def forget_session(self, contact):'
 changes:
+- raw/changes/2026-11-03-feat-voice-001-anchor-refresh
 - raw/changes/2026-11-01-mention-fallback-unread-retry
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-mention-residue-reverify

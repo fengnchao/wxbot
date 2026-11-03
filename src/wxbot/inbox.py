@@ -76,6 +76,16 @@ class MainInbox:
                 self.groups.add(name)
         for row in self.store.pending_sessions():
             self.pending[row["contact"]] = Session(row["contact"], row["unread_count"], bool(row["mentioned"]))
+        from common.paths import REPO_ROOT
+        from .voice.policy import load_voice_policy
+        from .voice.tts import FixtureTtsSource
+
+        self.voice_policy = load_voice_policy(cfg, root=REPO_ROOT)
+        tts_source = FixtureTtsSource(
+            self.voice_policy.fixture_wav,
+            min_seconds=self.voice_policy.min_seconds,
+            max_seconds=self.voice_policy.max_seconds,
+        )
         self.worker = ModelWorker(
             self.store, router, quiet=quiet, max_wait=max_wait,
             prefix=self.bot.get("command_prefix", "/"), clock=clock,
@@ -83,11 +93,14 @@ class MainInbox:
             reply_delay_max=self.bot.get("reply_delay_max", 2.5),
             max_concurrency=concurrency,trace=self.trace,
             typing_mode=validate_typing_mode(cfg.get('wechat', {})),
+            voice_policy=self.voice_policy,
         )
         self.delivery = DeliveryPump(
             self.store, self._chat, self._capture_target, self._discover,
             timeout=confirm_timeout, clock=clock, monotonic=monotonic,
             capture_messages=self._capture_for_delivery,
+            voice_policy=self.voice_policy,
+            tts_source=tts_source,
         )
         self.desktop.before_switch = self._before_switch
         self._connected = None

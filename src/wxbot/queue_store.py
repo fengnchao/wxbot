@@ -336,9 +336,20 @@ class QueueStore(StreamQueue, DeliveryPolicy):
         parts = (reply,) if isinstance(reply, str) and reply.strip() else ()
         return self.finish_batch_parts(batch_id, parts, now=now, delay=delay, reply_text=reply)
 
-    def finish_batch_parts(self, batch_id, parts, *, now, delay=0, reply_text=None, mention_name=''):
-        if not isinstance(parts, tuple) or any(not isinstance(p, str) or not p.strip() for p in parts):
-            raise ValueError("分句必须是完整的非空字符串元组")
+    def finish_batch_parts(self, batch_id, parts, *, now, delay=0, reply_text=None, mention_name='',
+                           voice_mode='off', voice_media_path=''):
+        if voice_mode not in {'off', 'replace', 'coexist'}:
+            raise ValueError("voice_mode 必须是 off/replace/coexist")
+        if voice_mode == 'off':
+            if not isinstance(parts, tuple) or any(not isinstance(p, str) or not p.strip() for p in parts):
+                raise ValueError("分句必须是完整的非空字符串元组")
+        else:
+            if not isinstance(parts, tuple) or any(not isinstance(p, str) for p in parts):
+                raise ValueError("分句必须是字符串元组")
+            if voice_mode == 'coexist' and any(not p.strip() for p in parts):
+                raise ValueError("并存模式分句必须是完整的非空字符串元组")
+            if voice_mode == 'replace' and not (reply_text or ''.join(parts)).strip():
+                raise ValueError("替换模式需要可回退的正文")
         with self._transaction() as db:
             row = db.execute("SELECT * FROM batches WHERE id=? AND state='processing'",
                              (batch_id,)).fetchone()
@@ -348,11 +359,29 @@ class QueueStore(StreamQueue, DeliveryPolicy):
             # mappings and text supplied by the model never choose a recipient.
             group = db.execute('SELECT group_mode FROM inbox WHERE batch_id=? LIMIT 1', (batch_id,)).fetchone()
             member_name = str(mention_name or '').strip() if group and group[0] else ''
-            for n, part in enumerate(parts, 1):
-                self._insert_delivery(db, row["contact"], part, now, now + delay, batch_id, n,
-                                      mention_name=member_name if n == 1 else '')
+            full_text = reply_text if reply_text is not None else ''.join(parts)
+            count = 0
+            if voice_mode == 'replace':
+                delivery_id = self._insert_delivery(
+                    db, row["contact"], full_text, now, now + delay, batch_id, 1,
+                    kind='voice', mention_name=member_name)
+                if voice_media_path:
+                    db.execute('UPDATE outbox SET media_path=? WHERE id=?', (str(voice_media_path), delivery_id))
+                count = 1
+            else:
+                for n, part in enumerate(parts, 1):
+                    self._insert_delivery(db, row["contact"], part, now, now + delay, batch_id, n,
+                                          mention_name=member_name if n == 1 else '')
+                count = len(parts)
+                if voice_mode == 'coexist':
+                    delivery_id = self._insert_delivery(
+                        db, row["contact"], full_text, now, now + delay, batch_id, count + 1,
+                        kind='voice', mention_name='')
+                    if voice_media_path:
+                        db.execute('UPDATE outbox SET media_path=? WHERE id=?', (str(voice_media_path), delivery_id))
+                    count += 1
             db.execute("""UPDATE batches SET reply_text=?,reply_complete=1,part_count=?,error='',finished_at=NULL WHERE id=?""",
-                       (reply_text if reply_text is not None else ''.join(parts), len(parts), batch_id))
+                       (full_text, count, batch_id))
             self._recompute_batch(db, batch_id, now)
 
     @staticmethod
@@ -440,6 +469,16 @@ class QueueStore(StreamQueue, DeliveryPolicy):
         with self._transaction() as db:
             self._check_outbound_cutoff(db, received_at)
             return self._insert_delivery(db, contact, text, now, now)
+
+    def enqueue_voice(self, contact, text, *, now, media_path='', received_at=None):
+        """主动推送语音条；text 保留作失败回退正文。"""
+        with self._transaction() as db:
+            if received_at is not None and now - received_at > 1:
+                pass
+            delivery_id = self._insert_delivery(db, contact, text or '', now, now, kind='voice')
+            if media_path:
+                db.execute('UPDATE outbox SET media_path=? WHERE id=?', (str(media_path), delivery_id))
+            return delivery_id
 
     def enqueue_package(self, contact, items, request_id, *, media_paths, now, received_at=None):
         """Insert an ordered package in one transaction. Paths are trusted cache outputs only."""
