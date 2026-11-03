@@ -6,7 +6,7 @@ coverage: core
 last_verified: '2026-11-02'
 sources:
 - path: src/dashboard/routes.py
-  line: 42
+  line: 44
   anchor: ("GET", "/api/queue", queue.read)
 - path: src/dashboard/api/queue.py
   line: 10
@@ -21,6 +21,7 @@ sources:
   line: 248
   anchor: apiGet('/api/queue?'
 changes:
+- raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-11-01-knowledge-episodes
 - raw/changes/2026-11-01-knowledge-sharding

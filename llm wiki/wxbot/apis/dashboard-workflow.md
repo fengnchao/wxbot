@@ -6,7 +6,7 @@ coverage: core
 last_verified: '2026-11-02'
 sources:
 - path: src/dashboard/routes.py
-  line: 39
+  line: 41
   anchor: ("GET", "/api/workflow", workflow.read)
 - path: src/dashboard/api/workflow.py
   line: 10
@@ -18,6 +18,7 @@ sources:
   line: 356
   anchor: fetch('/api/workflow',
 changes:
+- raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-11-01-knowledge-episodes
 - raw/changes/2026-11-01-knowledge-sharding

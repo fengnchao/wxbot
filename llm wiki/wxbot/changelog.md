@@ -257,3 +257,19 @@
 来源：[[raw/changes/2026-11-03-feat-voice-001-anchor-refresh]]
 
 [[symbols/model-worker]]、[[symbols/queue-finish]]、[[symbols/queue-store]]、[[concepts/group-identity-evidence]]、[[concepts/identity-authority]]、[[concepts/model-error-contract]]、[[concepts/unread-capture-retry]]、[[tables/queue-batches]]、[[tables/queue-inbox]]、[[symbols/mention-selection]]
+
+## [2026-11-03] change | FEAT-VOICE-003 音色资产与会话绑定
+
+来源：[[raw/changes/2026-11-03-feat-voice-003-voice-assets]]
+
+## [2026-11-03] ingest | FEAT-VOICE-003 音色资产与会话绑定
+
+来源：[[raw/changes/2026-11-03-feat-voice-003-voice-assets]]
+
+[[apis/dashboard-knowledge]]、[[apis/dashboard-queue]]、[[apis/dashboard-workflow]]、[[concepts/delivery-state]]、[[concepts/group-identity-evidence]]、[[concepts/message-pipeline]]、[[concepts/model-error-contract]]、[[concepts/unread-capture-retry]]、[[modules/dashboard]]、[[modules/wxbot]]、[[modules/web]]、[[tables/knowledge-vault]]、[[tables/queue-outbox]]、[[apis/dashboard-voice-assets]]、[[concepts/voice-asset-binding]]、[[symbols/voice-asset-store]]
+
+## [2026-11-03] ingest | FEAT-VOICE-003 连带复核 model-worker 锚点
+
+来源：[[raw/changes/2026-11-03-feat-voice-003-model-worker-drift]]
+
+[[symbols/model-worker]]

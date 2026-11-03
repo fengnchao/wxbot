@@ -1,8 +1,10 @@
-"""语音开关与白名单：配置文件驱动（AC-10），无管理台 UI。"""
+﻿"""语音开关与白名单：配置文件驱动；音色资产绑定由管理台维护。"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from .assets import VoiceAssetStore, default_assets_dir
 
 
 VOICE_MODES = ("off", "replace", "coexist")
@@ -34,7 +36,7 @@ def _resolve_path(value: str, *, root: Path, field_name: str) -> Path:
 
 @dataclass(frozen=True)
 class ContactVoiceRef:
-    """按联系人参考音；asset_id 预留给 FEAT-VOICE-003，本单不做 UI。"""
+    """按联系人参考音；asset_id 指向本地音色资产。"""
 
     ref_wav: Path | None
     asset_id: str = ""
@@ -68,6 +70,7 @@ class VoicePolicy:
     tts_provider: str = "fixture"
     indextts: IndexTtsSettings | None = None
     contact_refs: dict[str, ContactVoiceRef] = field(default_factory=dict)
+    assets_dir: Path | None = None
 
     def mode_for(self, contact: str) -> str:
         if not self.enabled:
@@ -82,6 +85,32 @@ class VoicePolicy:
         if key in self.contact_refs:
             return self.contact_refs[key]
         return None
+
+    def binding_path(self, contact: str) -> Path | None:
+        """解析联系人可用参考音路径（asset_id 优先，其次显式 ref_wav）。无绑定返回 None。"""
+        ref = self.ref_for(contact)
+        if ref is None:
+            return None
+        if ref.asset_id:
+            store = VoiceAssetStore(self.assets_dir or default_assets_dir(Path(".")))
+            path = store.path_for(ref.asset_id)
+            if path is not None and path.is_file():
+                return path
+        if ref.ref_wav is not None and Path(ref.ref_wav).is_file():
+            return Path(ref.ref_wav).resolve()
+        return None
+
+    def has_usable_binding(self, contact: str) -> bool:
+        return self.binding_path(contact) is not None
+
+    def delivery_mode_for(self, contact: str) -> str:
+        """投递用模式：需 enabled + replace/coexist + 可用绑定；否则视为 off（不改配置）。"""
+        mode = self.mode_for(contact)
+        if mode == "off":
+            return "off"
+        if not self.has_usable_binding(contact):
+            return "off"
+        return mode
 
 
 def _load_indextts(section: dict, *, root: Path) -> IndexTtsSettings:
@@ -191,6 +220,20 @@ def load_voice_policy(cfg: dict, *, root: Path) -> VoicePolicy:
     if tts_provider == "indextts":
         indextts = _load_indextts(section, root=root)
     contact_refs = _load_contact_refs(section, root=root)
+    assets_raw = section.get("assets_dir") or "data/voice-assets"
+    assets_dir = _resolve_path(str(assets_raw), root=root, field_name="voice.assets_dir")
+    # 物化 asset_id → 本地文件，供 TTS 直接使用 ref_wav
+    store = VoiceAssetStore(assets_dir)
+    materialized: dict[str, ContactVoiceRef] = {}
+    for name, ref in contact_refs.items():
+        path_ref = ref.ref_wav
+        if ref.asset_id:
+            resolved = store.path_for(ref.asset_id)
+            if resolved is not None:
+                path_ref = resolved
+        materialized[name] = ContactVoiceRef(
+            ref_wav=path_ref, asset_id=ref.asset_id, lang=ref.lang
+        )
     if enabled and tts_provider == "fixture" and not path.is_file():
         raise ValueError(f"voice.enabled 且 tts_provider=fixture 时找不到假音频: {path}")
     if enabled and tts_provider == "indextts" and indextts is None:
@@ -205,5 +248,7 @@ def load_voice_policy(cfg: dict, *, root: Path) -> VoicePolicy:
         contacts=contacts,
         tts_provider=tts_provider,
         indextts=indextts,
-        contact_refs=contact_refs,
+        contact_refs=materialized,
+        assets_dir=assets_dir,
     )
+

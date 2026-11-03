@@ -36,7 +36,7 @@ sources:
   line: 141
   anchor: if on_event is not None:exc.retry_safe=False
 - path: src/wxbot/queue_worker.py
-  line: 183
+  line: 189
   anchor: safe=getattr(exc,'retry_safe',False) is True
 - path: src/wxbot/queue_store.py
   line: 424
@@ -48,6 +48,7 @@ sources:
   line: 443
   anchor: 结束失败批次并放行后续消息
 changes:
+- raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-11-03-feat-voice-001-anchor-refresh
 - raw/changes/2026-11-01-model-request-error-visibility
 - raw/changes/2026-11-01-model-error-contract

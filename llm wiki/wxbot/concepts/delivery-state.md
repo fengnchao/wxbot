@@ -18,7 +18,7 @@ sources:
   line: 5
   anchor: def _end_reply(
 - path: src/wxbot/queue_worker.py
-  line: 183
+  line: 189
   anchor: safe=getattr(exc,'retry_safe',False) is True
 - path: src/wxbot/ui_contract.py
   line: 65
@@ -30,6 +30,7 @@ sources:
   line: 21
   anchor: FAILURE_DETAIL_FIELDS =
 changes:
+- raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-11-03-feat-voice-001-virtual-mic
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname

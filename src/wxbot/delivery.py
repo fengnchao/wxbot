@@ -305,8 +305,14 @@ class DeliveryPump:
     def _start_voice(self, delivery):
         chat = None
         try:
-            if self._voice_mode(delivery.contact) == "off":
-                # 非白名单/关开关：不按 RALT，直接回退文字路径。
+            mode = self._voice_mode(delivery.contact)
+            policy = self.voice_policy
+            if policy is not None and mode in ("replace", "coexist"):
+                has_binding = getattr(policy, 'has_usable_binding', None)
+                if callable(has_binding) and not has_binding(delivery.contact):
+                    mode = "off"
+            if mode == "off":
+                # 非白名单/关开关/无绑定：不按 RALT，直接回退文字路径。
                 text = (delivery.text or "").strip()
                 if text:
                     self.store.enqueue_delivery(delivery.contact, text, now=self.clock())

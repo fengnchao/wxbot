@@ -53,6 +53,10 @@ class RequestContext:
     def body(self):
         return self.handler._body()
 
+    def body_large(self, max_bytes=4 << 20):
+        """较大 JSON 体（音色上传 Base64）；默认上限 4 MiB。"""
+        return self.handler._body(max_bytes=max_bytes)
+
     def confirm(self, header):
         """写操作的「同源 + 自定义确认头」校验。"""
         return self.handler._confirmed_origin(header)
@@ -116,10 +120,10 @@ class BaseHandler(BaseHTTPRequestHandler):
     def _json(self, obj, code=200):
         self._send(code, json.dumps(obj, ensure_ascii=False, default=str))
 
-    def _body(self):
+    def _body(self, max_bytes=1 << 20):
         """读 JSON 请求体（POST 用）；读不出就回空 dict（校验层再拒）。"""
         n = int(self.headers.get("Content-Length") or 0)
-        if n <= 0 or n > (1 << 20):
+        if n <= 0 or n > int(max_bytes):
             return {}
         try:
             return json.loads(self.rfile.read(n).decode("utf-8", "replace"))
@@ -229,6 +233,17 @@ class BaseHandler(BaseHTTPRequestHandler):
                 self._json({"error": "not found", "path": path}, 404)
                 return
             status, payload = handler(ctx)
-            self._json(payload, status)
+            if isinstance(payload, dict) and payload.get('__binary__') is True:
+                data = payload.get('data') or b''
+                if isinstance(data, str):
+                    data = data.encode('utf-8')
+                ctype = payload.get('content_type') or 'application/octet-stream'
+                extra = {}
+                filename = payload.get('filename')
+                if filename:
+                    extra['Content-Disposition'] = f'inline; filename="{filename}"'
+                self._send(status, data, ctype, extra)
+            else:
+                self._json(payload, status)
         except Exception as exc:
             self._json({"error": type(exc).__name__, "detail": str(exc)}, 500)

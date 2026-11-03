@@ -3,39 +3,46 @@ type: module
 module: dashboard
 summary: 聚合运行事实，读取队列不初始化或迁移数据库
 coverage: overview
-last_verified: '2026-11-02'
+last_verified: 2026-11-03
 sources:
-- path: src/dashboard/routes.py
-  line: 28
-  anchor: ROUTES = (
-- path: src/dashboard/queue_view.py
-  line: 15
-  anchor: 'class QueueView:'
-- path: src/dashboard/workflow_view.py
-  line: 41
-  anchor: 'class WorkflowView:'
-- path: src/dashboard/config_view.py
-  line: 95
-  anchor: 'class ConfigView:'
-- path: src/dashboard/config_editor.py
-  line: 153
-  anchor: def _access_changes(
-- path: src/dashboard/api/knowledge.py
-  line: 54
-  anchor: 'def extract_status(ctx):'
-- path: src/dashboard/knowledge_template_view.py
-  line: 27
-  anchor: 'class KnowledgeTemplateView:'
+  - path: src/dashboard/routes.py
+    line: 57
+    anchor: '("GET", "/api/voice-assets", voice_assets.list_assets),'
+  - path: src/dashboard/api/voice_assets.py
+    line: 15
+    anchor: 'def list_assets(ctx):'
+  - path: src/dashboard/routes.py
+    line: 30
+    anchor: ROUTES = (
+  - path: src/dashboard/queue_view.py
+    line: 15
+    anchor: 'class QueueView:'
+  - path: src/dashboard/workflow_view.py
+    line: 41
+    anchor: 'class WorkflowView:'
+  - path: src/dashboard/config_view.py
+    line: 95
+    anchor: 'class ConfigView:'
+  - path: src/dashboard/config_editor.py
+    line: 153
+    anchor: def _access_changes(
+  - path: src/dashboard/api/knowledge.py
+    line: 54
+    anchor: 'def extract_status(ctx):'
+  - path: src/dashboard/knowledge_template_view.py
+    line: 27
+    anchor: 'class KnowledgeTemplateView:'
 changes:
-- raw/changes/2026-10-31-knowledge-graph-bootstrap
-- raw/changes/2026-10-31-model-access-switch
-- raw/changes/2026-11-01-knowledge-episodes
-- raw/changes/2026-11-01-knowledge-sharding
-- raw/changes/2026-11-01-knowledge-auto
-- raw/changes/2026-11-01-knowledge-vault-graph
-- raw/changes/2026-11-02-knowledge-graph-template
+  - raw/changes/2026-11-03-feat-voice-003-voice-assets
+  - raw/changes/2026-10-31-knowledge-graph-bootstrap
+  - raw/changes/2026-10-31-model-access-switch
+  - raw/changes/2026-11-01-knowledge-episodes
+  - raw/changes/2026-11-01-knowledge-sharding
+  - raw/changes/2026-11-01-knowledge-auto
+  - raw/changes/2026-11-01-knowledge-vault-graph
+  - raw/changes/2026-11-02-knowledge-graph-template
 depends_on:
-- modules/common
+  - modules/common
 ---
 # 管理台 HTTP 与投影
 
@@ -84,3 +91,8 @@ depends_on:
 [[raw/changes/2026-11-01-knowledge-auto]]
 
 [[raw/changes/2026-11-02-knowledge-graph-template]]
+
+## 音色资产 API
+
+- [[apis/dashboard-voice-assets]]：资产 CRUD、参考音预览、会话绑定写 config.wxbot.toml。
+

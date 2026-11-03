@@ -1,0 +1,39 @@
+/* Hallmark · polish · app · voice-assets · tokens from theme.css · critique: admin inventory, no training copy */
+.voice-assets{display:grid;gap:16px;padding:8px 4px 24px;max-width:1100px}
+.voice-assets-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-end;flex-wrap:wrap}
+.voice-assets-head h2{margin:0;font:600 20px/1.3 var(--font-ui,inherit);color:var(--fg);text-wrap:balance;overflow-wrap:break-word;min-width:0}
+.voice-assets-head p{margin:8px 0 0;color:var(--muted);font-size:13px;max-width:52rem}
+.voice-assets-meta{margin:0;color:var(--muted);font-size:12px}
+.voice-error{margin:0;color:var(--warn);font-size:13px}
+.voice-ok{margin:0;color:var(--ok);font-size:13px}
+.voice-muted{color:var(--muted);font-size:12px}
+.voice-register{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr) auto;gap:12px;align-items:end;padding:16px;border:1px solid var(--border);border-radius:var(--radius,10px);background:var(--panel,transparent)}
+.voice-register label{display:grid;gap:8px;font-size:12px;color:var(--muted)}
+.voice-register input[type=text],
+.voice-register input:not([type]),
+.voice-register input[type=file]{width:100%;min-width:0;box-sizing:border-box;border:1px solid var(--border);border-radius:8px;background:var(--input-bg,transparent);color:var(--fg);padding:8px 12px;font:inherit}
+.voice-register input:focus-visible,
+.voice-register button:focus-visible,
+.voice-actions button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.voice-register button,
+.voice-actions button{border:1px solid var(--border);border-radius:8px;background:var(--btn-bg,transparent);color:var(--fg);padding:8px 12px;cursor:pointer;font:inherit}
+.voice-register button:hover,
+.voice-actions button:hover{border-color:var(--accent)}
+.voice-register button:active,
+.voice-actions button:active{opacity:0.88}
+.voice-register button:disabled,
+.voice-actions button:disabled{opacity:0.45;cursor:not-allowed}
+.voice-actions{display:flex;flex-wrap:wrap;gap:8px}
+.voice-actions .danger{color:var(--warn)}
+.voice-actions button,.voice-preview{white-space:nowrap}
+.voice-table-wrap{overflow-x:clip}
+.voice-table{width:100%;border-collapse:collapse;font-size:13px}
+.voice-table th,.voice-table td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+.voice-table th{font-weight:600;color:var(--muted);font-size:12px}
+.voice-table strong{color:var(--fg);font-weight:600}
+@media (max-width:860px){
+  .voice-register{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  .voice-assets *{transition:none !important;animation:none !important}
+}

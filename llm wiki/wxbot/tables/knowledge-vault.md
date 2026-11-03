@@ -66,9 +66,10 @@ sources:
   line: 22
   anchor: 'class KnowledgeView:'
 - path: src/dashboard/routes.py
-  line: 43
+  line: 45
   anchor: '"GET", "/api/knowledge", knowledge.read'
 changes:
+- raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-11-01-knowledge-vault-graph
 - raw/changes/2026-11-01-knowledge-vault-alignment
 - raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint

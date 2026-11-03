@@ -6,7 +6,7 @@ coverage: core
 last_verified: 2026-11-03
 sources:
 - path: src/wxbot/inbox.py
-  line: 268
+  line: 264
   anchor: def _capture(
 - path: src/wxbot/queue_worker.py
   line: 142
@@ -24,6 +24,7 @@ sources:
   line: 56
   anchor: def persisted_rows(
 changes:
+- raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-11-03-feat-voice-001-virtual-mic
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-switchable-models

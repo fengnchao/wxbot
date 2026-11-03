@@ -6,22 +6,22 @@ coverage: core
 last_verified: '2026-11-02'
 sources:
 - path: src/dashboard/routes.py
-  line: 43
+  line: 45
   anchor: '"GET", "/api/knowledge", knowledge.read'
 - path: src/dashboard/routes.py
-  line: 44
+  line: 46
   anchor: '"GET", "/api/knowledge/facts", knowledge.facts'
 - path: src/dashboard/routes.py
-  line: 45
+  line: 47
   anchor: '"GET", "/api/knowledge/extract", knowledge.extract_status'
 - path: src/dashboard/routes.py
-  line: 67
+  line: 73
   anchor: '"POST", "/api/knowledge/extract", knowledge.extract_trigger'
 - path: src/dashboard/routes.py
-  line: 46
+  line: 48
   anchor: '"GET", "/api/knowledge/template", knowledge.template_read'
 - path: src/dashboard/routes.py
-  line: 68
+  line: 74
   anchor: '"POST", "/api/knowledge/template", knowledge.template_save'
 - path: src/dashboard/api/knowledge.py
   line: 10
@@ -96,6 +96,7 @@ sources:
   line: 342
   anchor: started, reason = extract.trigger(owner=owner, batch=batch, dry_run=dry_run)
 changes:
+- raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-11-01-knowledge-episodes
 - raw/changes/2026-11-01-knowledge-sharding
 - raw/changes/2026-11-01-knowledge-sessions
