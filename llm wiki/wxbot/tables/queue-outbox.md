@@ -27,9 +27,10 @@ sources:
   line: 21
   anchor: FAILURE_DETAIL_FIELDS =
 - path: src/wxbot/delivery.py
-  line: 518
+  line: 523
   anchor: details.update(confirm_evidence=evidence
 changes:
+- raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-11-03-feat-voice-001-virtual-mic
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname

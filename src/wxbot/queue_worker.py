@@ -154,7 +154,13 @@ class ModelWorker:
                         voice_media = ''
                         policy = self.voice_policy
                         if policy is not None:
-                            voice_mode = policy.mode_for(batch.contact)
+                            # 无可用绑定时即使 replace/coexist 也走文字，不改配置里的 mode。
+                            delivery_mode = getattr(policy, 'delivery_mode_for', None)
+                            voice_mode = (
+                                delivery_mode(batch.contact)
+                                if callable(delivery_mode)
+                                else policy.mode_for(batch.contact)
+                            )
                             if voice_mode != 'off':
                                 voice_media = str(policy.fixture_wav)
                         self.store.finish_batch_parts(batch.id, parts, reply_text=reply.text, now=self.clock(),

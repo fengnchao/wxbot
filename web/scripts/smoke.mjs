@@ -185,6 +185,30 @@ const payloads = {
       }
     ]
   },
+  '/api/voice-assets': {
+    ok: true,
+    assets: [{
+      id: 'va_deadbeefcafe',
+      name: '示例音色',
+      filename: 'va_deadbeefcafe.wav',
+      created_at: 1700000000,
+      updated_at: 1700000000,
+      size: 32000,
+      sample_rate: 16000,
+      duration_seconds: 1.0
+    }],
+    assets_dir: 'data/voice-assets',
+    limits: { max_bytes: 2097152, formats: ['wav'], preview: 'registered_reference', note: '试听播放已注册的参考 WAV，不触发 IndexTTS 试合成' }
+  },
+  '/api/voice-bindings': {
+    ok: true,
+    enabled: false,
+    tts_provider: 'fixture',
+    contacts: {},
+    contact_refs: {},
+    assets: [],
+    modes: ['off', 'replace', 'coexist']
+  },
   '/api/contacts': {
     active: true, version: 3, total: 4,
     rows: [
@@ -548,7 +572,8 @@ const failures = []
 const expect = (ok, message) => { if (!ok) failures.push(message) }
 
 const navButtons = [...document.querySelectorAll('.nav-group button')].map(node => node.textContent.trim())
-expect(navButtons.length === 9, '导航应渲染 9 个标签，实际 ' + navButtons.length + '：' + navButtons.join('/'))
+expect(navButtons.length === 10, '导航应渲染 10 个标签，实际 ' + navButtons.length + '：' + navButtons.join('/'))
+expect(navButtons.includes('音色'), '导航缺少「音色」')
 expect(navButtons.includes('知识模板'), '导航缺少「知识模板」')
 expect(navButtons.includes('Telegram 转发'), '导航缺少「Telegram 转发」')
 
@@ -1071,11 +1096,22 @@ expect(text('#tpl-status').includes('模板已保存'), '保存后状态行应�
 console.warn = warn
 console.error = error
 
+
+const voiceButton = [...document.querySelectorAll('.nav-group button')].find(node => node.textContent.trim() === '音色')
+expect(Boolean(voiceButton), '导航缺少音色按钮')
+voiceButton?.click()
+await new Promise(resolve => setTimeout(resolve, 150))
+expect(Boolean(document.querySelector('#voice-assets-title')), '音色资产页未渲染标题')
+expect(text('#pane').includes('添加音色'), '音色页缺少添加音色')
+expect(text('#pane').includes('示例音色'), '音色页应渲染资产列表')
+expect(!text('#pane').includes('训练') && !text('#pane').includes('微调'), '音色页不得出现训练/微调文案')
+
 if (problems.length) failures.push('控制台输出：\n  ' + problems.join('\n  '))
 if (failures.length) {
   console.error('smoke failed:\n- ' + failures.join('\n- '))
   process.exit(1)
 }
-console.log('smoke passed：导航、实时工作流、联系人、定时任务、收发队列、对话记录、知识库、知识模板、配置管理、Telegram 转发页均正常渲染')
+
+console.log('smoke passed：导航、实时工作流、联系人、定时任务、收发队列、对话记录、知识库、知识模板、配置管理、Telegram 转发页、音色资产页均正常渲染')
 // 页面带着 1 秒倒计时定时器，断言完成后必须显式退出。
 process.exit(0)

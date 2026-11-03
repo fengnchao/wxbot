@@ -143,6 +143,7 @@ class IndexTtsSource:
         self.max_seconds = float(max_seconds)
 
     def _resolve_ref(self, contact: str) -> tuple[Path, str, str]:
+        """仅使用该联系人的可用绑定；无绑定不得回落到默认参考音。"""
         key = str(contact or "").strip()
         ref = self.contact_refs.get(key)
         lang = self.settings.default_lang
@@ -152,12 +153,10 @@ class IndexTtsSource:
             path = ref.ref_wav
             lang = ref.lang or lang
             asset_id = ref.asset_id or ""
-        if path is None:
-            path = self.settings.default_ref_wav
         if path is None or not Path(path).is_file():
             raise ValueError(
-                "无可用参考音：请配置 voice.contact_refs.<联系人>.ref_wav "
-                "或 voice.indextts.default_ref_wav（禁止未授权克隆他人音色）"
+                "无可用参考音绑定：请在管理台为该联系人/会话绑定音色资产"
+                "（禁止未授权克隆他人音色；无绑定不合成）"
             )
         return Path(path).resolve(), lang, asset_id
 

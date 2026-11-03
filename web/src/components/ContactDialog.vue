@@ -29,8 +29,12 @@ const form = reactive({
   group: '',
   nickname: '',
   mentions: '',
-  listenAll: false
+  listenAll: false,
+  voiceMode: 'off',
+  voiceAssetId: ''
 })
+const voiceAssets = ref([])
+const voiceEnabled = ref(false)
 
 onMounted(() => {
   const node = shell.value
@@ -62,6 +66,9 @@ function init() {
     form.profile = payload.profile || ''
     form.label = payload.label || ''
     form.session_key = payload.session_key || ''
+    form.voiceMode = 'off'
+    form.voiceAssetId = ''
+    loadVoiceBinding(form.name)
   } else if (mode === 'policy') {
     loadPolicy()
   } else if (mode === 'relations') {
@@ -152,6 +159,43 @@ function onSubscription(value, event) {
   form.subscriptions = [...set]
 }
 
+async function loadVoiceBinding(contactName) {
+  try {
+    const response = await fetch('/api/voice-bindings', { headers: { Accept: 'application/json' } })
+    const text = await response.text()
+    const result = text ? JSON.parse(text) : {}
+    if (!response.ok) throw new Error(result.error || '读取音色绑定失败')
+    voiceAssets.value = result.assets || []
+    voiceEnabled.value = Boolean(result.enabled)
+    const key = String(contactName || '').trim()
+    form.voiceMode = (result.contacts && result.contacts[key]) || 'off'
+    form.voiceAssetId = (result.contact_refs && result.contact_refs[key] && result.contact_refs[key].asset_id) || ''
+  } catch (err) {
+    dialogError.value = err.message || String(err)
+  }
+}
+
+async function saveVoiceBinding(contactName) {
+  const response = await fetch('/api/voice-assets', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-Wxbot-Voice-Action': '1'
+    },
+    body: JSON.stringify({
+      action: 'bind',
+      contact: contactName,
+      mode: form.voiceMode,
+      asset_id: form.voiceAssetId
+    })
+  })
+  const text = await response.text()
+  const result = text ? JSON.parse(text) : {}
+  if (!response.ok) throw new Error(result.error || '保存音色绑定失败')
+  return result
+}
+
 function submitCreate() {
   submitDialog(async () => {
     await contactSave({
@@ -185,6 +229,8 @@ function submitConversation() {
       label: form.label,
       session_key: form.session_key
     })
+    // 绑定与 mode 正交：改绑定不自动改 mode，清绑定也不强制 off。
+    await saveVoiceBinding(form.name)
   })
 }
 
@@ -293,6 +339,26 @@ function submitSettings() {
             <label>label<input v-model="form.label" name="label"></label>
             <label>session_key<input v-model="form.session_key" name="session_key"></label>
           </details>
+          <fieldset class="voice-bind-fieldset">
+            <legend>语音回复</legend>
+            <p class="user-hint">需全局 voice.enabled，且本会话为替换/并存并绑定音色后才会合成；无绑定即使模式开启也只回文字。</p>
+            <label>
+              回复模式
+              <select v-model="form.voiceMode" name="voiceMode">
+                <option value="off">关闭（文字）</option>
+                <option value="replace">替换为语音</option>
+                <option value="coexist">文字与语音并存</option>
+              </select>
+            </label>
+            <label>
+              回复音色
+              <select v-model="form.voiceAssetId" name="voiceAssetId">
+                <option value="">不绑定</option>
+                <option v-for="asset in voiceAssets" :key="asset.id" :value="asset.id">{{ asset.name }}</option>
+              </select>
+            </label>
+            <p v-if="!voiceEnabled" class="user-hint">当前配置 voice.enabled=false；绑定可先保存，启用全局语音后生效。</p>
+          </fieldset>
           <button type="submit" :disabled="dialogBusy">保存会话</button>
         </form>
 

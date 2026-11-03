@@ -8,6 +8,7 @@ export const TABS = [
   { id: 'facts', title: '知识库', group: '消息监控' },
   { id: 'knowledge-template', title: '知识模板', group: '消息监控' },
   { id: 'contacts', title: '联系人', group: '用户与任务' },
+  { id: 'voice-assets', title: '音色', group: '用户与任务' },
   { id: 'jobs', title: '定时任务', group: '用户与任务' },
   { id: 'configuration', title: '配置管理', group: '系统设置' },
   { id: 'telegram-relay', title: 'Telegram 转发', group: '系统设置' }

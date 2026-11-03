@@ -3,7 +3,7 @@ type: symbol
 module: wxbot
 summary: 领取批次、调用模型并保存回复，绝不访问 UI
 coverage: core
-last_verified: '2026-10-31'
+last_verified: 2026-11-03
 sources:
 - path: src/wxbot/queue_worker.py
   line: 44
@@ -15,6 +15,8 @@ sources:
   line: 100
   anchor: self.store.finish_batch_parts(
 changes:
+- raw/changes/2026-11-03-feat-voice-003-model-worker-drift
+- raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-11-03-feat-voice-001-anchor-refresh
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 calls:

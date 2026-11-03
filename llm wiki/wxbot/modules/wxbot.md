@@ -5,44 +5,51 @@ summary: 微信 UI 主线程与不接触 UI 的模型队列线程
 coverage: overview
 last_verified: 2026-11-03
 sources:
-- path: src/wxbot/inbox.py
-  line: 45
-  anchor: 'class MainInbox:'
-- path: src/wxbot/queue_worker.py
-  line: 25
-  anchor: 'class ModelWorker:'
-- path: src/wxbot/queue_store.py
-  line: 91
-  anchor: class QueueStore(
-- path: src/wxbot/main.py
-  line: 29
-  anchor: def build_processor(
-- path: src/wxbot/inbox.py
-  line: 124
-  anchor: def sync_users(
-- path: src/wxbot/queue_store.py
-  line: 192
-  anchor: def identity_observations(
-- path: src/wxbot/ui_contract.py
-  line: 65
-  anchor: 'class Snapshot:'
-- path: src/wxbot/wechat/locator.py
-  line: 9
-  anchor: def wait_until(
-- path: src/wxbot/wechat/chat_window.py
-  line: 36
-  anchor: 'ref: str = '''''
+  - path: src/wxbot/voice/assets.py
+    line: 80
+    anchor: 'class VoiceAssetStore:'
+  - path: src/wxbot/voice/policy.py
+    line: 103
+    anchor: 'def has_usable_binding(self, contact: str) -> bool:'
+  - path: src/wxbot/inbox.py
+    line: 45
+    anchor: 'class MainInbox:'
+  - path: src/wxbot/queue_worker.py
+    line: 25
+    anchor: 'class ModelWorker:'
+  - path: src/wxbot/queue_store.py
+    line: 91
+    anchor: class QueueStore(
+  - path: src/wxbot/main.py
+    line: 29
+    anchor: def build_processor(
+  - path: src/wxbot/inbox.py
+    line: 120
+    anchor: def sync_users(
+  - path: src/wxbot/queue_store.py
+    line: 192
+    anchor: def identity_observations(
+  - path: src/wxbot/ui_contract.py
+    line: 65
+    anchor: 'class Snapshot:'
+  - path: src/wxbot/wechat/locator.py
+    line: 9
+    anchor: def wait_until(
+  - path: src/wxbot/wechat/chat_window.py
+    line: 36
+    anchor: 'ref: str = '''''
 changes:
-- raw/changes/2026-11-03-feat-voice-001-virtual-mic
-- raw/changes/2026-10-31-knowledge-graph-bootstrap
-- raw/changes/2026-10-31-switchable-models
-- raw/changes/2026-10-31-group-identity-nickname
-- raw/changes/2026-10-31-identity-placeholder-names
-- raw/changes/2026-11-01-mention-fallback-unread-retry
-- raw/changes/2026-11-02-ui-snapshot-ref-contract
-- raw/changes/2026-11-02-mention-picker-gating-residue
+  - raw/changes/2026-11-03-feat-voice-003-voice-assets
+  - raw/changes/2026-11-03-feat-voice-001-virtual-mic
+  - raw/changes/2026-10-31-knowledge-graph-bootstrap
+  - raw/changes/2026-10-31-switchable-models
+  - raw/changes/2026-10-31-group-identity-nickname
+  - raw/changes/2026-10-31-identity-placeholder-names
+  - raw/changes/2026-11-01-mention-fallback-unread-retry
+  - raw/changes/2026-11-02-ui-snapshot-ref-contract
+  - raw/changes/2026-11-02-mention-picker-gating-residue
 depends_on:
-- modules/common
+  - modules/common
 ---
 # wxbot UI 与持久队列
 
@@ -102,6 +109,12 @@ depends_on:
 
 [[raw/changes/2026-11-02-mention-picker-gating-residue]]
 
+## 音色资产与绑定门控
+
+- [[symbols/voice-asset-store]] 管理本地参考 WAV；[[concepts/voice-asset-binding]] 规定无绑定不合成。
+- queue_worker / delivery 调用 delivery_mode_for / has_usable_binding。
+
 ## 变更
 
 - 2026-11-03: FEAT-VOICE-001 P1 outbox kind=voice（虚拟麦+RALT）；见 [[raw/changes/2026-11-03-feat-voice-001-virtual-mic]]
+- [[raw/changes/2026-11-03-feat-voice-003-voice-assets]]

@@ -3,50 +3,60 @@ type: module
 module: web
 summary: 共享导航壳和现有请求封装的管理界面
 coverage: overview
-last_verified: '2026-11-02'
+last_verified: 2026-11-03
 sources:
-- path: web/src/router.js
-  line: 4
-  anchor: 'export '
-- path: web/src/api.js
-  line: 23
-  anchor: 'export '
-- path: web/src/views/WorkflowView.vue
-  line: 356
-  anchor: fetch('/api/workflow',
-- path: web/src/views/QueueView.vue
-  line: 248
-  anchor: apiGet('/api/queue?'
-- path: web/src/views/ConfigurationView.vue
-  line: 37
-  anchor: const backendName =
-- path: web/src/views/FactsView.vue
-  line: 116
-  anchor: async function loadExtract() {
-- path: web/src/views/FactsView.vue
-  line: 39
-  anchor: const kinds = computed(
-- path: web/src/views/KnowledgeTemplateView.vue
-  line: 43
-  anchor: async function load(force = false) {
-- path: web/src/views/ConfigurationView.vue
-  line: 14
-  anchor: '[''contacts'', ''联系人与策略''], [''knowledge'', ''知识库''], [''logging'', ''日志''],
+  - path: web/src/router.js
+    line: 11
+    anchor: "{ id: 'voice-assets', title: '音色', group: '用户与任务' },"
+  - path: web/src/views/VoiceAssetsView.vue
+    line: 228
+    anchor: '<section id="pane" class="voice-assets" aria-labelledby="voice-assets-title">'
+  - path: web/src/components/ContactDialog.vue
+    line: 354
+    anchor: '回复音色'
+  - path: web/src/router.js
+    line: 4
+    anchor: 'export '
+  - path: web/src/api.js
+    line: 23
+    anchor: 'export '
+  - path: web/src/views/WorkflowView.vue
+    line: 356
+    anchor: fetch('/api/workflow',
+  - path: web/src/views/QueueView.vue
+    line: 248
+    anchor: apiGet('/api/queue?'
+  - path: web/src/views/ConfigurationView.vue
+    line: 37
+    anchor: const backendName =
+  - path: web/src/views/FactsView.vue
+    line: 116
+    anchor: async function loadExtract() {
+  - path: web/src/views/FactsView.vue
+    line: 39
+    anchor: const kinds = computed(
+  - path: web/src/views/KnowledgeTemplateView.vue
+    line: 43
+    anchor: async function load(force = false) {
+  - path: web/src/views/ConfigurationView.vue
+    line: 14
+    anchor: '[''contacts'', ''联系人与策略''], [''knowledge'', ''知识库''], [''logging'', ''日志''],
     [''advanced'', ''高级配置'']'
 changes:
-- raw/changes/2026-11-02-web-global-search-clear
-- raw/changes/2026-10-31-knowledge-graph-bootstrap
-- raw/changes/2026-10-31-switchable-models
-- raw/changes/2026-10-31-model-access-switch
-- raw/changes/2026-11-01-knowledge-episodes
-- raw/changes/2026-11-01-knowledge-sharding
-- raw/changes/2026-11-01-knowledge-sessions
-- raw/changes/2026-11-01-knowledge-auto
-- raw/changes/2026-11-01-knowledge-vault-graph
-- raw/changes/2026-11-01-knowledge-atlas-index
-- raw/changes/2026-11-02-knowledge-graph-template
+  - raw/changes/2026-11-03-feat-voice-003-voice-assets
+  - raw/changes/2026-11-02-web-global-search-clear
+  - raw/changes/2026-10-31-knowledge-graph-bootstrap
+  - raw/changes/2026-10-31-switchable-models
+  - raw/changes/2026-10-31-model-access-switch
+  - raw/changes/2026-11-01-knowledge-episodes
+  - raw/changes/2026-11-01-knowledge-sharding
+  - raw/changes/2026-11-01-knowledge-sessions
+  - raw/changes/2026-11-01-knowledge-auto
+  - raw/changes/2026-11-01-knowledge-vault-graph
+  - raw/changes/2026-11-01-knowledge-atlas-index
+  - raw/changes/2026-11-02-knowledge-graph-template
 depends_on:
-- modules/dashboard
+  - modules/dashboard
 ---
 # Vue 管理台
 
@@ -109,3 +119,9 @@ UI 修改按根 AGENTS 的 Hallmark 流程，保留现有设计系统；构建�
 [[raw/changes/2026-11-01-knowledge-atlas-index]]
 
 [[raw/changes/2026-11-02-knowledge-graph-template]]
+
+## 音色 Tab 与会话绑定 UI
+
+- 导航「音色」→ VoiceAssetsView（注册/列表/改名/删除/试听参考 WAV）。
+- ContactDialog「回复音色」与回复模式同区；文案禁止「训练」「微调」。
+
