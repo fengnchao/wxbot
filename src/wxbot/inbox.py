@@ -78,14 +78,10 @@ class MainInbox:
             self.pending[row["contact"]] = Session(row["contact"], row["unread_count"], bool(row["mentioned"]))
         from common.paths import REPO_ROOT
         from .voice.policy import load_voice_policy
-        from .voice.tts import FixtureTtsSource
+        from .voice.tts import build_tts_source
 
         self.voice_policy = load_voice_policy(cfg, root=REPO_ROOT)
-        tts_source = FixtureTtsSource(
-            self.voice_policy.fixture_wav,
-            min_seconds=self.voice_policy.min_seconds,
-            max_seconds=self.voice_policy.max_seconds,
-        )
+        tts_source = build_tts_source(self.voice_policy)
         self.worker = ModelWorker(
             self.store, router, quiet=quiet, max_wait=max_wait,
             prefix=self.bot.get("command_prefix", "/"), clock=clock,

@@ -12,10 +12,15 @@
 """
 from __future__ import annotations
 
+import os
+import subprocess
+import tempfile
 import wave
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
+
+from .policy import ContactVoiceRef, IndexTtsSettings, VoicePolicy
 
 
 ALLOWED_RATES = (16000, 48000)
@@ -108,7 +113,8 @@ class FixtureTtsSource:
         self.min_seconds = float(min_seconds)
         self.max_seconds = float(max_seconds)
 
-    def prepare(self, text: str = "", *, data: bytes | None = None) -> TtsAudio:
+    def prepare(self, text: str = "", *, data: bytes | None = None, contact: str = "") -> TtsAudio:
+        del text, contact
         if data is not None:
             return validate_wav_bytes(
                 data, min_seconds=self.min_seconds, max_seconds=self.max_seconds
@@ -118,3 +124,142 @@ class FixtureTtsSource:
             min_seconds=self.min_seconds,
             max_seconds=self.max_seconds,
         )
+
+
+class IndexTtsSource:
+    """P2 IndexTTS：按正文合成合同 WAV；无参考音/失败抛 ValueError（不得按 RALT）。"""
+
+    def __init__(
+        self,
+        settings: IndexTtsSettings,
+        *,
+        contact_refs: dict[str, ContactVoiceRef] | None = None,
+        min_seconds: float = DEFAULT_MIN_SECONDS,
+        max_seconds: float = DEFAULT_MAX_SECONDS,
+    ):
+        self.settings = settings
+        self.contact_refs = dict(contact_refs or {})
+        self.min_seconds = float(min_seconds)
+        self.max_seconds = float(max_seconds)
+
+    def _resolve_ref(self, contact: str) -> tuple[Path, str, str]:
+        key = str(contact or "").strip()
+        ref = self.contact_refs.get(key)
+        lang = self.settings.default_lang
+        asset_id = ""
+        path = None
+        if ref is not None:
+            path = ref.ref_wav
+            lang = ref.lang or lang
+            asset_id = ref.asset_id or ""
+        if path is None:
+            path = self.settings.default_ref_wav
+        if path is None or not Path(path).is_file():
+            raise ValueError(
+                "无可用参考音：请配置 voice.contact_refs.<联系人>.ref_wav "
+                "或 voice.indextts.default_ref_wav（禁止未授权克隆他人音色）"
+            )
+        return Path(path).resolve(), lang, asset_id
+
+    def prepare(self, text: str = "", *, data: bytes | None = None, contact: str = "") -> TtsAudio:
+        if data is not None:
+            return validate_wav_bytes(
+                data, min_seconds=self.min_seconds, max_seconds=self.max_seconds
+            )
+        body = str(text or "").strip()
+        if not body:
+            raise ValueError("IndexTTS 需要非空正文才能合成")
+        ref_wav, lang, _asset_id = self._resolve_ref(contact)
+        settings = self.settings
+        if not settings.worker_script.is_file():
+            raise ValueError(f"找不到 IndexTTS worker: {settings.worker_script}")
+        if not settings.repo_dir.is_dir():
+            raise ValueError(f"找不到 IndexTTS 仓外目录: {settings.repo_dir}")
+        if not settings.model_dir.is_dir():
+            raise ValueError(f"找不到 IndexTTS 权重目录: {settings.model_dir}")
+        if not settings.cfg_path.is_file():
+            raise ValueError(f"找不到 IndexTTS config: {settings.cfg_path}")
+
+        fd, out_name = tempfile.mkstemp(prefix="wxbot-indextts-", suffix=".wav")
+        os.close(fd)
+        out_path = Path(out_name)
+        try:
+            cmd = [
+                settings.uv_bin,
+                "run",
+                "--directory",
+                str(settings.repo_dir),
+                "python",
+                str(settings.worker_script),
+                "--cfg-path",
+                str(settings.cfg_path),
+                "--model-dir",
+                str(settings.model_dir),
+                "--prompt-wav",
+                str(ref_wav),
+                "--text",
+                body,
+                "--lang",
+                lang,
+                "--output",
+                str(out_path),
+                "--sample-rate",
+                str(settings.sample_rate),
+            ]
+            if settings.use_cuda:
+                cmd.append("--use-cuda")
+            else:
+                cmd.append("--no-cuda")
+            if settings.use_bf16:
+                cmd.append("--use-bf16")
+            else:
+                cmd.append("--no-bf16")
+            try:
+                completed = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=float(settings.timeout_seconds),
+                    check=False,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise ValueError(
+                    f"IndexTTS 超时（>{settings.timeout_seconds}s）"
+                ) from exc
+            except FileNotFoundError as exc:
+                raise ValueError(f"无法启动 IndexTTS（uv/python）: {exc}") from exc
+            if completed.returncode != 0:
+                err = (completed.stderr or completed.stdout or "").strip()
+                if len(err) > 800:
+                    err = err[-800:]
+                raise ValueError(f"IndexTTS 进程失败(code={completed.returncode}): {err or '无输出'}")
+            if not out_path.is_file():
+                raise ValueError("IndexTTS 未写出输出 WAV")
+            return load_wav_file(
+                out_path,
+                min_seconds=self.min_seconds,
+                max_seconds=self.max_seconds,
+            )
+        finally:
+            try:
+                out_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def build_tts_source(policy: VoicePolicy):
+    """按 voice.tts_provider 构造可插源；fixture 可随时切回排障。"""
+    if policy.tts_provider == "indextts":
+        if policy.indextts is None:
+            raise ValueError("tts_provider=indextts 但未加载 IndexTtsSettings")
+        return IndexTtsSource(
+            policy.indextts,
+            contact_refs=policy.contact_refs,
+            min_seconds=policy.min_seconds,
+            max_seconds=policy.max_seconds,
+        )
+    return FixtureTtsSource(
+        policy.fixture_wav,
+        min_seconds=policy.min_seconds,
+        max_seconds=policy.max_seconds,
+    )

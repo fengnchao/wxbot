@@ -181,16 +181,12 @@ class DeliveryPump:
             log.error("[语音回退][%s][%s] 回退文字入库失败: %s", delivery.contact, delivery.id, type(exc).__name__)
 
     def _prepare_voice_audio(self, delivery):
-        from .voice.tts import FixtureTtsSource, load_wav_file
+        from .voice.tts import build_tts_source, load_wav_file
 
         policy = self.voice_policy
         source = self.tts_source
         if source is None and policy is not None:
-            source = FixtureTtsSource(
-                policy.fixture_wav,
-                min_seconds=policy.min_seconds,
-                max_seconds=policy.max_seconds,
-            )
+            source = build_tts_source(policy)
         if source is None:
             raise ValueError("未配置 TTS/假音频源")
         media_path = getattr(delivery, "media_path", "") or ""
@@ -200,7 +196,10 @@ class DeliveryPump:
                 min_seconds=getattr(policy, "min_seconds", 0.4),
                 max_seconds=getattr(policy, "max_seconds", 60),
             )
-        return source.prepare(delivery.text or "")
+        return source.prepare(
+            delivery.text or "",
+            contact=getattr(delivery, "contact", "") or "",
+        )
 
     def _start(self, delivery):
         chat=None

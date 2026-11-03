@@ -1,4 +1,4 @@
-# tools
+﻿# tools
 
 开发与发布用的本机工具。运行时（wxbot / Butler / 管理台）不依赖这里的任何文件，
 但改微信 UI 适配、联调 Codex、发布前都靠它们。
@@ -11,6 +11,8 @@
 | `probe_codex.py` | Codex 端到端联调：真实模型调用 + MCP 记忆 + 线程续接 | 是（调模型） |
 | `release.py` | 按白名单打两个可移植包，并做凭据形状审计 | 否 |
 | `voice-ptt-ops.md` | FEAT-VOICE-001：虚拟麦选麦 + Right Alt 操作/卸载说明 | 否 |
+| `indextts-ops.md` | FEAT-VOICE-002：IndexTTS 仓外安装/权重/卸载与配置键 |
+| `indextts_worker.py` | FEAT-VOICE-002：uv 环境内合成并输出 P1 合同 WAV |
 | `voice-fixtures/p1-tone.wav` | P1 固定测试音频（16k mono PCM） | 否 |
 
 ## probe.py
@@ -96,3 +98,4 @@
 打包前会扫描凭据形状的字面量（Telegram bot token、`sk-`、`gh[pousr]_`、私钥头），
 只看 `.py`/`.md`/`.json`/`.toml`/`.txt`/`.html`/`.ps1`/`.js`/`.css` 这些文本后缀；
 命中任一条直接抛错，包根本不会写出来。
+

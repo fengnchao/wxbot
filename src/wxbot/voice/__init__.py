@@ -1,12 +1,21 @@
-"""P1 可插 TTS 语音条：假音频 + 虚拟麦 + Right Alt 长按。"""
+"""P1/P2 可插 TTS 语音条：假音频或 IndexTTS + 虚拟麦 + Right Alt 长按。"""
 
-from .policy import VoicePolicy, normalize_voice_mode
-from .tts import FixtureTtsSource, TtsAudio, validate_wav_bytes
+from .policy import VoicePolicy, normalize_voice_mode, normalize_tts_provider
+from .tts import (
+    FixtureTtsSource,
+    IndexTtsSource,
+    TtsAudio,
+    build_tts_source,
+    validate_wav_bytes,
+)
 
 __all__ = [
-    'VoicePolicy',
-    'normalize_voice_mode',
-    'FixtureTtsSource',
-    'TtsAudio',
-    'validate_wav_bytes',
+    "VoicePolicy",
+    "normalize_voice_mode",
+    "normalize_tts_provider",
+    "FixtureTtsSource",
+    "IndexTtsSource",
+    "TtsAudio",
+    "build_tts_source",
+    "validate_wav_bytes",
 ]
