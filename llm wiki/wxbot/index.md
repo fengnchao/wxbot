@@ -54,7 +54,7 @@
 | [[symbols/knowledge-template]] | 知识图谱模板的解析与加载——一份 Markdown 决定节点目录、事实分类、索引分区与提炼规则，覆盖层优先，坏模板回退内置 | `src/butler/runtime/knowledge_template.py:28` | 2026-11-02 |
 | [[symbols/local-model-backend]] | 原生函数工具走服务签发身份，完整结果才进入历史 | `src/butler/backends/models.py:16` | 2026-11-01 |
 | [[symbols/mention-selection]] | UI 线程内的 @ 提及选择器，先等候选面板再输入昵称，失败时只清理并登记自己输入的字面前缀 | `src/wxbot/wechat/mentions.py:67` | 2026-11-02 |
-| [[symbols/model-worker]] | 领取批次、调用模型并保存回复，绝不访问 UI | `src/wxbot/queue_worker.py:44` | 2026-11-03 |
+| [[symbols/model-worker]] | 领取批次、调用模型并保存回复，绝不访问 UI | `src/wxbot/queue_worker.py:45` | 2026-11-03 |
 | [[symbols/queue-finish]] | 完整分句入 outbox，模型完成和发送完成分开 | `src/wxbot/queue_store.py:339` | 2026-11-02 |
 | [[symbols/queue-store]] | 短事务管理收件、合批、模型状态与 UI 发件状态 | `src/wxbot/queue_store.py:91` | 2026-11-02 |
 | [[symbols/reloadable-backend]] | 请求固定后端代际，在途完成后才关闭旧工作进程 | `src/butler/runtime/model_switch.py:50` | 2026-10-31 |
@@ -68,7 +68,7 @@
 | [[concepts/group-identity-evidence]] | 群成员先按同群 member_key 与昵称认人，头像 dhash 只作证据且不足以区分个体 | `src/butler/identity/user_registry.py:350` | 2026-11-02 |
 | [[concepts/identity-authority]] | 窗口/头像/昵称是证据，服务签发上下文才是工具授权边界 | `src/butler/agent/tools.py:43` | 2026-11-02 |
 | [[concepts/message-pipeline]] | 窗口→收件→批次→Butler→分句→UI→只读投影 | `src/wxbot/inbox.py:264` | 2026-11-03 |
-| [[concepts/model-error-contract]] | 模型失败的分类、脱敏、自动重试与超时放行契约 | `src/butler/agent/hermes.py:36` | 2026-11-02 |
+| [[concepts/model-error-contract]] | 模型失败的分类、脱敏、自动重试与超时放行契约 | `src/butler/agent/hermes.py:36` | 2026-11-03 |
 | [[concepts/unread-capture-retry]] | 未读任务只有采集成才清除，读不到文字时必须退避并最终放弃，否则阻塞发送队列 | `src/wxbot/inbox.py:449` | 2026-11-02 |
 | [[concepts/voice-asset-binding]] | 会话须有可用音色绑定才合成/RALT；绑定与 voice.contacts 模式正交 | `src/wxbot/voice/policy.py:103` | 2026-11-03 |
 
@@ -115,3 +115,4 @@
 - [[raw/changes/2026-11-03-feat-voice-002-indextts]]
 - [[raw/changes/2026-11-03-feat-voice-003-model-worker-drift]]
 - [[raw/changes/2026-11-03-feat-voice-003-voice-assets]]
+- [[raw/changes/2026-11-03-indextts-enqueue-media]]

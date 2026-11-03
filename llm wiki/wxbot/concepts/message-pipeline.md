@@ -9,7 +9,7 @@ sources:
   line: 264
   anchor: def _capture(
 - path: src/wxbot/queue_worker.py
-  line: 142
+  line: 143
   anchor: reply = self.router.handle_reply(
 - path: src/wxbot/processor/butler.py
   line: 72
@@ -24,6 +24,7 @@ sources:
   line: 56
   anchor: def persisted_rows(
 changes:
+- raw/changes/2026-11-03-indextts-enqueue-media
 - raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-11-03-feat-voice-001-virtual-mic
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
@@ -66,11 +67,13 @@ changes:
 - `src/butler/agent/core.py:318` — `def _record_episode(self, c, contact_name, channel_type, text, reply, outcome):`
 - `src/butler/agent/core.py:324` — `self.knowledge.record(`
 - `src/wxbot/inbox.py:255` — `def _capture(`
-- `src/wxbot/queue_worker.py:141` — `reply = self.router.handle_reply(`
+- `src/wxbot/queue_worker.py:143` — `reply = self.router.handle_reply(`
 - `src/wxbot/processor/butler.py:72` — `body["msg_id"] = request_id`
 - `src/butler/agent/core.py:301` — `result.meta["msg_id"] = msg_id`
 - `src/wxbot/wechat/chat_window.py:36` — `ref: str = ''`
 - `src/wxbot/ui_contract.py:56` — `def persisted_rows(`
+
+`queue_worker.py` 的 `handle_reply` 锚点因同文件增加导入下移一行。入队语音路径见 [[raw/changes/2026-11-03-indextts-enqueue-media]]。
 
 ## 入库来源
 

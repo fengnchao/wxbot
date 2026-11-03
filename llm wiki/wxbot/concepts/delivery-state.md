@@ -18,18 +18,19 @@ sources:
   line: 5
   anchor: def _end_reply(
 - path: src/wxbot/queue_worker.py
-  line: 189
+  line: 190
   anchor: safe=getattr(exc,'retry_safe',False) is True
 - path: src/wxbot/ui_contract.py
   line: 65
   anchor: 'class Snapshot:'
 - path: src/wxbot/delivery.py
-  line: 12
+  line: 13
   anchor: def reply_evidence(
 - path: src/wxbot/queue_store.py
   line: 21
   anchor: FAILURE_DETAIL_FIELDS =
 changes:
+- raw/changes/2026-11-03-indextts-enqueue-media
 - raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-11-03-feat-voice-001-virtual-mic
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
@@ -73,10 +74,12 @@ UI 发件器不因「界面里出现了这段文字」就认定已发送。一�
 - `src/wxbot/queue_store.py:591` — `def finish_delivery(`
 - `src/wxbot/queue_store.py:632` — `def retry_failed_deliveries(`
 - `src/wxbot/delivery_policy.py:5` — `def _end_reply(`
-- `src/wxbot/queue_worker.py:174` — `safe=getattr(exc,'retry_safe',False) is True`
+- `src/wxbot/queue_worker.py:190` — `safe=getattr(exc,'retry_safe',False) is True`
 - `src/wxbot/ui_contract.py:65` — `class Snapshot:`
-- `src/wxbot/delivery.py:12` — `def reply_evidence(`
+- `src/wxbot/delivery.py:13` — `def reply_evidence(`
 - `src/wxbot/queue_store.py:21` — `FAILURE_DETAIL_FIELDS =`
+
+`queue_worker.py` 与 `delivery.py` 因导入 `resolve_queued_media_path` 各下移一行，上列锚点已对齐。语音条 `media_path` 见 [[concepts/voice-asset-binding]]、[[raw/changes/2026-11-03-indextts-enqueue-media]]。
 
 ## 入库来源
 

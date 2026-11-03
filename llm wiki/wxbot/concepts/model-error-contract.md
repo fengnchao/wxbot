@@ -3,7 +3,7 @@ type: concept
 module: butler
 summary: 模型失败的分类、脱敏、自动重试与超时放行契约
 coverage: core
-last_verified: '2026-11-02'
+last_verified: 2026-11-03
 sources:
 - path: src/butler/agent/hermes.py
   line: 36
@@ -36,7 +36,7 @@ sources:
   line: 141
   anchor: if on_event is not None:exc.retry_safe=False
 - path: src/wxbot/queue_worker.py
-  line: 189
+  line: 190
   anchor: safe=getattr(exc,'retry_safe',False) is True
 - path: src/wxbot/queue_store.py
   line: 424
@@ -48,6 +48,7 @@ sources:
   line: 443
   anchor: 结束失败批次并放行后续消息
 changes:
+- raw/changes/2026-11-03-indextts-enqueue-media
 - raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-11-03-feat-voice-001-anchor-refresh
 - raw/changes/2026-11-01-model-request-error-visibility
@@ -104,7 +105,7 @@ changes:
 | Butler core | `src/butler/agent/core.py:387` | `Result(meta={'error','status','reply_complete':False,'retry_safe'})` |
 | SSE | `src/butler/agent/core.py:252` | `error` 事件，`code='incomplete_result'` |
 | wxbot 适配 | `src/wxbot/processor/butler.py:99` | `ValueError('Butler stream failed: {code}: {message}')`，属性 `retry_safe` 在 `:115` 补挂 |
-| 队列 worker | `src/wxbot/queue_worker.py:174` | `fail_batch(..., retry_safe=safe)` |
+| 队列 worker | `src/wxbot/queue_worker.py:190` | `fail_batch(..., retry_safe=safe)` |
 | 队列存储 | `src/wxbot/queue_store.py:389` | `batches.state='uncertain'` + 事件动作二选一 |
 | 维护线程 | `src/wxbot/model_recovery.py:18` | `model_retry` / `model_abandoned` |
 
@@ -143,10 +144,12 @@ changes:
 - `src/wxbot/processor/butler.py:99` — `raise ValueError('Butler stream failed'`
 - `src/wxbot/processor/butler.py:137` — `error.retry_safe=meta.get('retry_safe') is True`
 - `src/wxbot/processor/openai_compat.py:141` — `if on_event is not None:exc.retry_safe=False`
-- `src/wxbot/queue_worker.py:174` — `safe=getattr(exc,'retry_safe',False) is True`
+- `src/wxbot/queue_worker.py:190` — `safe=getattr(exc,'retry_safe',False) is True`
 - `src/wxbot/queue_store.py:395` — `'model_retryable' if retry_safe else 'model_uncertain'`
 - `src/wxbot/model_recovery.py:2` — `MODEL_MAX_ATTEMPTS=3`
 - `src/wxbot/queue_store.py:414` — `结束失败批次并放行后续消息`
+
+`retry_safe` 读取点现位于 `queue_worker.py:190`（该文件增加语音 media 导入后下移一行）。失败分类未改。见 [[raw/changes/2026-11-03-indextts-enqueue-media]]。
 
 ## 入库来源
 

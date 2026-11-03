@@ -15,7 +15,7 @@ sources:
     line: 45
     anchor: 'class MainInbox:'
   - path: src/wxbot/queue_worker.py
-    line: 25
+    line: 26
     anchor: 'class ModelWorker:'
   - path: src/wxbot/queue_store.py
     line: 91
@@ -39,6 +39,7 @@ sources:
     line: 36
     anchor: 'ref: str = '''''
 changes:
+  - raw/changes/2026-11-03-indextts-enqueue-media
   - raw/changes/2026-11-03-feat-voice-003-voice-assets
   - raw/changes/2026-11-03-feat-voice-001-virtual-mic
   - raw/changes/2026-10-31-knowledge-graph-bootstrap
@@ -84,7 +85,7 @@ depends_on:
 ## 代码依据
 
 - `src/wxbot/inbox.py:45` — `class MainInbox:`
-- `src/wxbot/queue_worker.py:25` — `class ModelWorker:`
+- `src/wxbot/queue_worker.py:26` — `class ModelWorker:`
 - `src/wxbot/queue_store.py:91` — `class QueueStore(`
 - `src/wxbot/main.py:29` — `def build_processor(`
 - `src/wxbot/inbox.py:23` — `def member_nickname(`
@@ -113,6 +114,7 @@ depends_on:
 
 - [[symbols/voice-asset-store]] 管理本地参考 WAV；[[concepts/voice-asset-binding]] 规定无绑定不合成。
 - queue_worker / delivery 调用 delivery_mode_for / has_usable_binding。
+- 入队语音 `media_path` 只在 `tts_provider=fixture` 时写假 WAV；`indextts` 留空，投递时走 `prepare`。见 [[raw/changes/2026-11-03-indextts-enqueue-media]]。
 
 ## 变更
 

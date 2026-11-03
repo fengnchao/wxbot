@@ -27,9 +27,10 @@ sources:
   line: 21
   anchor: FAILURE_DETAIL_FIELDS =
 - path: src/wxbot/delivery.py
-  line: 523
+  line: 524
   anchor: details.update(confirm_evidence=evidence
 changes:
+- raw/changes/2026-11-03-indextts-enqueue-media
 - raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-11-03-feat-voice-001-virtual-mic
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
@@ -67,7 +68,7 @@ UNIQUE(batch_id,part_seq)，outbox_state(state,seq)。batch_id 指向 [[tables/q
 
 ## 字段血缘
 
-[[symbols/queue-finish]] 将完整 reply parts 逐项写 text/part_seq，群 mention_name 仅第一条；UI 发件器写 baseline/submitted_text/submitted_at 并核对新增自身气泡后记 state。`baseline` 保存的是去掉快照引用的行（引用只属于一次读取，不跨重启）；发送确认把 `confirm_evidence`（`ref`/`text`）与 `ref_available` 写进该行的 `delivery_events.details`，失败写 `error_code` / `retry`，提及失败且能证明字面残留时另写 `mention_residue`，白名单见 `FAILURE_DETAIL_FIELDS`。实际投递规则见 [[concepts/delivery-state]]。
+[[symbols/queue-finish]] 将完整 reply parts 逐项写 text/part_seq，群 mention_name 仅第一条；UI 发件器写 baseline/submitted_text/submitted_at 并核对新增自身气泡后记 state。`kind=voice` 的 `media_path` 仅当 `tts_provider=fixture` 时由模型线程或 `DeliveryPump.enqueue` 写成 `fixture_wav`；`indextts` 等投递时合成的提供者保持默认空字符串，发件前走 TTS `prepare`。无可用绑定不入语音条。见 [[concepts/voice-asset-binding]]、[[raw/changes/2026-11-03-indextts-enqueue-media]]。`baseline` 保存的是去掉快照引用的行（引用只属于一次读取，不跨重启）；发送确认把 `confirm_evidence`（`ref`/`text`）与 `ref_available` 写进该行的 `delivery_events.details`，失败写 `error_code` / `retry`，提及失败且能证明字面残留时另写 `mention_residue`，白名单见 `FAILURE_DETAIL_FIELDS`。实际投递规则见 [[concepts/delivery-state]]。
 
 `draft_text` 只在 UI 读回能证明是机器人输入时写入：已核验的正文前缀，或提及失败后读回的字面 `@...` 前缀。`blocked`/`uncertain` 保留该值，下一次发件前由 `owned_draft(contact)` 取回并清理；只有 `sent` 才清空。
 
@@ -86,7 +87,7 @@ uncertain/confirming 记录需要保守保留及人工核对，不能任意自�
 - `src/wxbot/queue_schema.py:22` — `OUTBOX_SQL =`
 - `src/wxbot/queue_store.py:591` — `def finish_delivery(`
 - `src/wxbot/queue_store.py:21` — `FAILURE_DETAIL_FIELDS =`
-- `src/wxbot/delivery.py:389` — `details.update(confirm_evidence=evidence, ref_available=by_ref)`
+- `src/wxbot/delivery.py:524` — `details.update(confirm_evidence=evidence, ref_available=by_ref)`
 
 ## 入库来源
 
