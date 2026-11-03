@@ -6,15 +6,19 @@ coverage: core
 last_verified: 2026-11-03
 sources:
 - path: src/wxbot/queue_worker.py
-  line: 44
+  line: 45
   anchor: def process_once(
 - path: src/wxbot/queue_worker.py
-  line: 142
+  line: 143
   anchor: reply = self.router.handle_reply(
 - path: src/wxbot/queue_worker.py
-  line: 100
+  line: 101
   anchor: self.store.finish_batch_parts(
+- path: src/wxbot/queue_worker.py
+  line: 166
+  anchor: voice_media = resolve_queued_media_path(policy)
 changes:
+- raw/changes/2026-11-03-indextts-enqueue-media
 - raw/changes/2026-11-03-feat-voice-003-model-worker-drift
 - raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-11-03-feat-voice-001-anchor-refresh
@@ -34,6 +38,8 @@ called_by: []
 
 prepare/claim_batch → Router → [[symbols/butler-processor]]（使用 Butler 模型时）→ [[symbols/queue-finish]]。根据回复模式选择表情、静默或文本；事件模式可以持久化增量，只有 sendable 文本进入流式队列。
 
+非流式完整回复在联系人投递模式不是 off 时入语音条。`outbox.media_path` 只在 `tts_provider=fixture` 时写 `fixture_wav`；`indextts` 等投递时合成的提供者留空，以便发件调用 `prepare`。无可用音色绑定则模式视为 off，只入文字。见 [[concepts/voice-asset-binding]]、[[raw/changes/2026-11-03-indextts-enqueue-media]]。
+
 ## 副作用与风险
 
 读写 [[tables/queue-batches]]、[[tables/queue-outbox]] 及辅助流记录，网络发生在适配器；无 UI 操作。完整回复必须与已流出前缀一致。异常交 fail_batch，retry_safe 默认 False，未知结果不自动重放。定时维护恢复安全失败/过期投递，细节见 [[concepts/delivery-state]]。
@@ -44,9 +50,10 @@ prepare/claim_batch → Router → [[symbols/butler-processor]]（使用 Butler 
 
 ## 代码依据
 
-- `src/wxbot/queue_worker.py:43` — `def process_once(`
-- `src/wxbot/queue_worker.py:141` — `reply = self.router.handle_reply(`
-- `src/wxbot/queue_worker.py:99` — `self.store.finish_batch_parts(`
+- `src/wxbot/queue_worker.py:45` — `def process_once(`
+- `src/wxbot/queue_worker.py:143` — `reply = self.router.handle_reply(`
+- `src/wxbot/queue_worker.py:101` — `self.store.finish_batch_parts(`
+- `src/wxbot/queue_worker.py:166` — `voice_media = resolve_queued_media_path(policy)`
 
 ## 入库来源
 

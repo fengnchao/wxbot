@@ -9,6 +9,7 @@ from common.flow_trace import record
 
 from .log import log
 from .config import validate_model_concurrency
+from .voice.policy import resolve_queued_media_path
 
 
 def _supports_events(router):
@@ -162,7 +163,7 @@ class ModelWorker:
                                 else policy.mode_for(batch.contact)
                             )
                             if voice_mode != 'off':
-                                voice_media = str(policy.fixture_wav)
+                                voice_media = resolve_queued_media_path(policy)
                         self.store.finish_batch_parts(batch.id, parts, reply_text=reply.text, now=self.clock(),
                                                       delay=random.uniform(self.delay_min, self.delay_max),
                                                       mention_name=getattr(reply, 'mention_name', ''),

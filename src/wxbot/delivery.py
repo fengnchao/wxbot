@@ -7,6 +7,7 @@ from .log import log
 from .ui_contract import Snapshot, disposition, failure, persisted_rows
 from .wechat.chat_window import Message
 from .queue_store import FAILURE_TIMEOUT_SECONDS, MAX_DELIVERY_RETRIES
+from .voice.policy import resolve_queued_media_path
 
 
 def reply_evidence(before, current, text):
@@ -70,7 +71,7 @@ class DeliveryPump:
             if getattr(request, 'kind', 'text') == 'voice':
                 media = ''
                 if self.voice_policy is not None:
-                    media = str(self.voice_policy.fixture_wav)
+                    media = resolve_queued_media_path(self.voice_policy)
                 record_id = self.store.enqueue_voice(
                     request.contact, request.text, now=self.clock(), media_path=media,
                     received_at=getattr(request, 'received_at', None))

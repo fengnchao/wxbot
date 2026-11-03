@@ -273,3 +273,13 @@
 来源：[[raw/changes/2026-11-03-feat-voice-003-model-worker-drift]]
 
 [[symbols/model-worker]]
+
+## [2026-11-03] change | IndexTTS 入队不再写入 P1 假音频路径
+
+来源：[[raw/changes/2026-11-03-indextts-enqueue-media]]
+
+## [2026-11-03] ingest | IndexTTS 入队不再写入 P1 假音频路径
+
+来源：[[raw/changes/2026-11-03-indextts-enqueue-media]]
+
+[[concepts/delivery-state]]、[[concepts/message-pipeline]]、[[concepts/model-error-contract]]、[[concepts/voice-asset-binding]]、[[modules/wxbot]]、[[symbols/model-worker]]、[[tables/queue-outbox]]

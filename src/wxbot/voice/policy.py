@@ -112,6 +112,28 @@ class VoicePolicy:
             return "off"
         return mode
 
+    def queued_media_path(self) -> str:
+        """入队时写入 outbox.media_path 的预置音频。
+
+        fixture 保持 P1：写入 fixture_wav，投递时 load_wav_file。
+        indextts 等投递时才合成的提供者留空，让 _prepare_voice_audio 走 prepare。
+        """
+        if self.tts_provider == "fixture":
+            return str(self.fixture_wav)
+        return ""
+
+
+def resolve_queued_media_path(policy) -> str:
+    """入队 media_path。有 queued_media_path 时用它；旧替身仅 fixture 写 fixture_wav。"""
+    if policy is None:
+        return ""
+    resolver = getattr(policy, "queued_media_path", None)
+    if callable(resolver):
+        return str(resolver() or "")
+    if getattr(policy, "tts_provider", "fixture") == "fixture":
+        return str(getattr(policy, "fixture_wav", "") or "")
+    return ""
+
 
 def _load_indextts(section: dict, *, root: Path) -> IndexTtsSettings:
     raw = section.get("indextts") or {}
