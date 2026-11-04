@@ -42,6 +42,7 @@ async function load() {
     if (mine !== request) return
     data.value = list
     bindings.value = bind
+    ctx?.markRefreshed?.()
   } catch (err) {
     if (mine !== request) return
     error.value = err.message || String(err)
@@ -225,35 +226,35 @@ async function previewAsset(asset) {
 </script>
 
 <template>
-  <section id="pane" class="voice-assets" aria-labelledby="voice-assets-title">
+  <section id="pane" class="voice-assets" aria-labelledby="voice-assets-title" :aria-busy="loading">
     <header class="voice-assets-head">
       <div>
         <h2 id="voice-assets-title">音色资产</h2>
-        <p>注册参考音（zero-shot），供会话绑定后合成；试听播放已注册参考 WAV，不触发 IndexTTS。</p>
+        <p>添加参考音后，可在联系人设置中绑定会话。试听仅播放参考 WAV，不进行语音合成。</p>
       </div>
-      <p class="voice-assets-meta" v-if="limits.max_bytes">
-        上限 {{ Math.round(limits.max_bytes / (1024 * 1024)) }} MiB · 格式 WAV
+      <p class="voice-assets-meta" v-if="limits.max_bytes" id="voice-file-limits">
+        WAV 格式 / 最大 {{ Math.round(limits.max_bytes / (1024 * 1024)) }} MiB
       </p>
     </header>
 
     <p v-if="error" class="voice-error" role="alert">{{ error }}</p>
     <p v-if="message" class="voice-ok" role="status">{{ message }}</p>
-    <p v-if="loading" class="voice-muted">读取音色清单…</p>
+    <p v-if="loading" class="voice-loading" role="status">读取音色清单…</p>
 
     <form class="voice-register" @submit.prevent="registerAsset">
-      <label>
+      <label for="voice-name">
         音色名称
-        <input v-model="name" name="name" maxlength="80" required placeholder="例如：客服女声 A" autocomplete="off">
+        <input id="voice-name" v-model="name" name="name" type="text" maxlength="80" required placeholder="例如：客服女声 A" autocomplete="off">
       </label>
-      <label>
+      <label for="voice-file">
         参考 WAV
-        <input ref="fileInput" type="file" accept="audio/wav,.wav" @change="onFile">
+        <input id="voice-file" ref="fileInput" type="file" accept="audio/wav,.wav" :aria-describedby="limits.max_bytes ? 'voice-file-limits' : undefined" @change="onFile">
       </label>
-      <button type="submit" :disabled="busy === 'register'">添加音色</button>
+      <button type="submit" :disabled="busy === 'register'" :aria-busy="busy === 'register'">{{ busy === 'register' ? '添加中…' : '添加音色' }}</button>
     </form>
 
     <div class="voice-table-wrap">
-      <table class="voice-table">
+      <table class="voice-table" aria-label="已添加的音色">
         <thead>
           <tr>
             <th scope="col">名称</th>
@@ -264,26 +265,37 @@ async function previewAsset(asset) {
           </tr>
         </thead>
         <tbody>
-          <tr v-if="!visible.length">
-            <td colspan="5" class="voice-muted">还没有音色。上传一段本人授权的参考 WAV 后即可绑定到会话。</td>
+          <tr v-if="loading && !data" aria-hidden="true">
+            <td colspan="5" class="voice-skeleton"><span></span><span></span><span></span></td>
+          </tr>
+          <tr v-else-if="error && !data">
+            <td colspan="5" class="voice-empty"><strong>暂时无法读取音色</strong><p>请使用上方的「刷新」重试。</p></td>
+          </tr>
+          <tr v-else-if="!visible.length && !loading">
+            <td colspan="5" class="voice-empty">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14"/></svg>
+              <strong>还没有音色</strong>
+              <p>上传一段本人授权的参考 WAV 后即可绑定到会话。</p>
+            </td>
           </tr>
           <tr v-for="asset in visible" :key="asset.id">
-            <td>
-              <strong>{{ asset.name }}</strong>
-              <div class="voice-muted">{{ asset.id }}</div>
+            <td data-label="名称">
+              <div><strong>{{ asset.name }}</strong><div class="voice-muted voice-asset-id">{{ asset.id }}</div></div>
             </td>
-            <td>{{ fullTime(asset.created_at) }}</td>
-            <td>{{ asset.duration_seconds ? asset.duration_seconds.toFixed(1) + 's' : '-' }}</td>
-            <td>
+            <td data-label="创建时间"><span>{{ fullTime(asset.created_at) }}</span></td>
+            <td data-label="时长"><span>{{ asset.duration_seconds ? asset.duration_seconds.toFixed(1) + 's' : '-' }}</span></td>
+            <td data-label="绑定会话">
               <span v-if="boundContacts(asset.id).length">{{ boundContacts(asset.id).join('、') }}</span>
               <span v-else class="voice-muted">未绑定</span>
             </td>
-            <td class="voice-actions">
-              <button type="button" class="voice-preview" @click="previewAsset(asset)" :disabled="busy.startsWith('preview')">
-                {{ pLabel(asset) }}
-              </button>
-              <button type="button" @click="renameAsset(asset)" :disabled="!!busy">改名</button>
-              <button type="button" class="danger" @click="deleteAsset(asset)" :disabled="!!busy">删除</button>
+            <td class="voice-actions" data-label="操作">
+              <div class="voice-action-buttons">
+                <button type="button" class="voice-preview" @click="previewAsset(asset)" :disabled="busy.startsWith('preview')" :aria-pressed="playingId === asset.id" :aria-label="pLabel(asset) + '：' + asset.name">
+                  {{ busy === 'preview:' + asset.id ? '载入中…' : pLabel(asset) }}
+                </button>
+                <button type="button" @click="renameAsset(asset)" :disabled="!!busy">改名</button>
+                <button type="button" class="danger" @click="deleteAsset(asset)" :disabled="!!busy">删除</button>
+              </div>
             </td>
           </tr>
         </tbody>

@@ -274,12 +274,8 @@
 
 [[symbols/model-worker]]
 
-## [2026-11-03] change | IndexTTS 入队不再写入 P1 假音频路径
+## [2026-11-03] ingest | 音色资产页布局与状态打磨
 
-来源：[[raw/changes/2026-11-03-indextts-enqueue-media]]
+来源：[[raw/changes/2026-11-03-voice-assets-polish]]
 
-## [2026-11-03] ingest | IndexTTS 入队不再写入 P1 假音频路径
-
-来源：[[raw/changes/2026-11-03-indextts-enqueue-media]]
-
-[[concepts/delivery-state]]、[[concepts/message-pipeline]]、[[concepts/model-error-contract]]、[[concepts/voice-asset-binding]]、[[modules/wxbot]]、[[symbols/model-worker]]、[[tables/queue-outbox]]
+[[modules/web]]、[[apis/dashboard-voice-assets]]

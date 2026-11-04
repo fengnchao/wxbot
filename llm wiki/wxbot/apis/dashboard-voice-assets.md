@@ -5,6 +5,9 @@ summary: 音色资产 CRUD、参考音预览与会话 contact_refs 绑定
 coverage: core
 last_verified: 2026-11-03
 sources:
+- path: web/src/styles/voice-assets.css
+  line: 7
+  anchor: '.workspace main:has(> .voice-assets)'
 - path: src/dashboard/routes.py
   line: 57
   anchor: '("GET", "/api/voice-assets", voice_assets.list_assets),'
@@ -15,12 +18,13 @@ sources:
   line: 14
   anchor: 'from wxbot.voice.assets import MAX_UPLOAD_BYTES, VoiceAssetStore, default_assets_dir'
 - path: web/src/views/VoiceAssetsView.vue
-  line: 228
-  anchor: '<section id="pane" class="voice-assets" aria-labelledby="voice-assets-title">'
+  line: 229
+  anchor: '<section id="pane" class="voice-assets"'
 - path: web/src/components/ContactDialog.vue
   line: 354
   anchor: '回复音色'
 changes:
+- raw/changes/2026-11-03-voice-assets-polish
 - raw/changes/2026-11-03-feat-voice-003-voice-assets
 ---
 # 管理台音色资产与绑定 API
@@ -46,3 +50,11 @@ egistered_reference） |
 
 - [[concepts/voice-asset-binding]] [[symbols/voice-asset-store]] [[modules/dashboard]]
 - 变更：[[raw/changes/2026-11-03-feat-voice-003-voice-assets]]
+
+## 音色页展示约束（2026-11-03 核对）
+
+- `web/src/views/VoiceAssetsView.vue:229` 的音色页是单内容区，不含联系人侧栏；`web/src/styles/voice-assets.css:7` 通过限定到 `.voice-assets` 的选择器覆盖共享双栏布局，并兼容 `list-open` / `list-collapsed` 偏好。保持说明、上传表单、资产清单顺序，未修改共享导航。
+- 专用样式复用 `theme.css` 中 `--fg2` / `--fg3` / `--line` / `--line-strong` / `--wx`，不再引用未定义的 muted/border/accent。页内 header 取消共享 header 的定位、底色与边框；文件控件与操作保持原生键盘行为。
+- `load()` 并行读取 assets/bindings，成功后调用 shell 的 `markRefreshed()`；加载首屏显示静态骨架，读取失败不显示“还没有音色”，表单成功/失败仍由既有服务结果驱动。窄屏保留表格 DOM 与表头，用 `data-label` 展示字段标签。
+- 接口不变：`GET /api/voice-assets` 的 `assets[].id/name/created_at/duration_seconds` 与 `limits.max_bytes` 来自 VoiceAdmin.list_assets / VoiceAsset.as_dict；绑定列仍从 `GET /api/voice-bindings` 的 `contact_refs[contact].asset_id` 反查。POST register/rename/delete 的请求体、确认流程及 `X-Wxbot-Voice-Action` 请求头不变；preview 仍只读取参考 WAV。
+- 仅 UI 与现有状态投影变更，不涉及数据库、迁移、音色文件内容、配置写入或新异步任务。参考 [[raw/changes/2026-11-03-voice-assets-polish]]。

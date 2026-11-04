@@ -4,6 +4,8 @@
 
 ## 已建档
 
+- 音色页单内容区、加载/空/失败/有数据展示、字段血缘与响应式约束，见 [[modules/web]]、[[apis/dashboard-voice-assets]]；后端契约保持不变。
+
 - 主要模块职责、入口、依赖和边界，见 [[index]] 的 modules。
 - 消息处理：[[apis/butler-handle]]、[[apis/butler-handle-stream]]，含请求/响应字段、wxbot 调用方。
 - 最终队列结构：[[tables/queue-inbox]]、[[tables/queue-batches]]、[[tables/queue-outbox]]，结合建表及补列阅读。

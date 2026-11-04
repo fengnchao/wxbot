@@ -457,16 +457,11 @@
       ],
       "date": "2026-11-03"
     },
-    "raw/changes/2026-11-03-indextts-enqueue-media": {
-      "sha256": "3e7b376516cd2fc9038c3a15f4d1ece735b4b9f6d04b9f0928cbc83881015bb9",
+    "raw/changes/2026-11-03-voice-assets-polish": {
+      "sha256": "d0e97e62dd16e78a32e84722d4cd0a9c86bc6505353075ff2db11e6f9b0977f8",
       "pages": [
-        "concepts/delivery-state",
-        "concepts/message-pipeline",
-        "concepts/model-error-contract",
-        "concepts/voice-asset-binding",
-        "modules/wxbot",
-        "symbols/model-worker",
-        "tables/queue-outbox"
+        "modules/web",
+        "apis/dashboard-voice-assets"
       ],
       "date": "2026-11-03"
     }
@@ -506,13 +501,13 @@
       }
     },
     "concepts/delivery-state": {
-      "sha256": "fcc0ad8b390b6b1f46a8467ffc0fc064017b818de483459b58bc8fa4163ec605",
+      "sha256": "545d133940f1ad585a997617dc1ba962b18653c0193ebe5cafbb134219c0d70a",
       "sources": {
         "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e",
         "src/wxbot/delivery_policy.py": "a8965b1706292117d8ff49181078ac22d6c9eb9f8651e206c327dfbf347893b9",
-        "src/wxbot/queue_worker.py": "dbdd347bd675284cc632e02f183fa42c239249a4c0cc5cf1fe795a7fe76adf96",
+        "src/wxbot/queue_worker.py": "e9bb0a9e3d3f9ec44bd59b5a30e12b1ea95946ebedcecbbd185894df69e0fc8f",
         "src/wxbot/ui_contract.py": "18362287ae4fee6df51e357935f48c4da0cc5a02f393686d5b7dc0ed2f20b112",
-        "src/wxbot/delivery.py": "c82e4c203cb7bec9b18ca0a062ac2585a238df70511d0c6064abd040df0f1959"
+        "src/wxbot/delivery.py": "c66caa63eff070d8f6feafb86c993b2fa043e83560186a4e874028923a5b925a"
       }
     },
     "concepts/identity-authority": {
@@ -523,10 +518,10 @@
       }
     },
     "concepts/message-pipeline": {
-      "sha256": "3aeaf413e70aac21396fcf518e2189fbb4d4ab3487c66bf796268be87248c35e",
+      "sha256": "174c76ad9d83a3bee4286e6c7af0f4948249fb93197a2775bc8274d701289f4d",
       "sources": {
         "src/wxbot/inbox.py": "78d74781be053d9c8da898b898ff607fbd73d19ceb90a974446eedc05487c3cd",
-        "src/wxbot/queue_worker.py": "dbdd347bd675284cc632e02f183fa42c239249a4c0cc5cf1fe795a7fe76adf96",
+        "src/wxbot/queue_worker.py": "e9bb0a9e3d3f9ec44bd59b5a30e12b1ea95946ebedcecbbd185894df69e0fc8f",
         "src/wxbot/processor/butler.py": "55dc9aac5baf71ff1f36c0fa7b01c1fb7b0ca2d24a5d4de3eb8eae6cc872cd86",
         "src/butler/agent/core.py": "05f91d9964d4c6ee7f2cf2c74ee4ad9d6b7268daa27501c8657a7c96bb276816",
         "src/wxbot/wechat/chat_window.py": "d6397f9f23d75bb569f76c3908ba32b25c822aa547cb579871a6ab69f919498f",
@@ -605,10 +600,11 @@
       }
     },
     "modules/web": {
-      "sha256": "afa59549a20c374f3ef5995f8be5da09ac65fa48f7e103abf70afa98a5ce6e1e",
+      "sha256": "aac6456557d2a9333bf3d8d8ffbae5e149a0e73de16fd3e351a35f49064e01c9",
       "sources": {
+        "web/src/styles/voice-assets.css": "b85de993f04c609730399b901abd2f2966e5300c8f6b4aa927f221e3f2550a4e",
         "web/src/router.js": "b993ca97bfb3248da60f7deafd4589bb108365ea3e920a4fdb714f11b4c4ef13",
-        "web/src/views/VoiceAssetsView.vue": "751a7d28c729320d1ef70212e2f1216258fbf4d50bd93187b4022ebf2f630560",
+        "web/src/views/VoiceAssetsView.vue": "9486b12287f6258af5abdf412da889a0cfd93eae97b75164572d1fb0eaff8c61",
         "web/src/components/ContactDialog.vue": "989a677a0cb9ff9dc54239a42e0076a4a2d84f99876681e11cb2cd411a3aeb6b",
         "web/src/api.js": "33f5fc3542b631867008c89eb6beab53aaf5c027680e05dd1f55f39ba8901265",
         "web/src/views/WorkflowView.vue": "8f93fe97e79316cc2b07648335836b2e4983704a95ffd9aba1fe2b15d95f0cb9",
@@ -627,12 +623,12 @@
       }
     },
     "modules/wxbot": {
-      "sha256": "73137a488af33b0db57d5762c9c9f4f4a960422f77ce5c3322fa32bdd021dad4",
+      "sha256": "2adc523566518a94378d663ec2069ddff361de036d32a126015d1fdd57a5e9a5",
       "sources": {
         "src/wxbot/voice/assets.py": "7d6ac0e28401ca5e1209e95e70d29665e856d50b9d86755df00e984d50813f12",
-        "src/wxbot/voice/policy.py": "08d660c811314b23d31b21c75c479bb2c71c7c7825856637cef6d4341a4f240d",
+        "src/wxbot/voice/policy.py": "bdb7864ba12a27f686feea5af77d56f510e1351fbea374c4f16a24daab70658f",
         "src/wxbot/inbox.py": "78d74781be053d9c8da898b898ff607fbd73d19ceb90a974446eedc05487c3cd",
-        "src/wxbot/queue_worker.py": "dbdd347bd675284cc632e02f183fa42c239249a4c0cc5cf1fe795a7fe76adf96",
+        "src/wxbot/queue_worker.py": "e9bb0a9e3d3f9ec44bd59b5a30e12b1ea95946ebedcecbbd185894df69e0fc8f",
         "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e",
         "src/wxbot/main.py": "420f4bf195774c615a3c10cb92af745361e58d69556d7a765047d23614f614ac",
         "src/wxbot/ui_contract.py": "18362287ae4fee6df51e357935f48c4da0cc5a02f393686d5b7dc0ed2f20b112",
@@ -662,9 +658,9 @@
       }
     },
     "symbols/model-worker": {
-      "sha256": "058de8b01054bd65747616b372ca346bb1c0465a91a9a62d514101412f40cbf8",
+      "sha256": "230ccd2e9d21c0f1ca5cf25ec5e465484fd8be5afebb6be488bb3a195800dd6f",
       "sources": {
-        "src/wxbot/queue_worker.py": "dbdd347bd675284cc632e02f183fa42c239249a4c0cc5cf1fe795a7fe76adf96"
+        "src/wxbot/queue_worker.py": "e9bb0a9e3d3f9ec44bd59b5a30e12b1ea95946ebedcecbbd185894df69e0fc8f"
       }
     },
     "symbols/queue-finish": {
@@ -694,11 +690,11 @@
       }
     },
     "tables/queue-outbox": {
-      "sha256": "62a3cfbfddcf9ac783844aaf5d164fa03dbf8b8c9f48f687692763cc813a12e2",
+      "sha256": "6b01ec8861e0a1632a807efe2bf118569e666dca2079e500ee0f58de9bcc517b",
       "sources": {
         "src/wxbot/queue_schema.py": "5123cc18a37feaa4233c9ceaddaf849afbb61f2ec5d68e7f76e452a099996b7f",
         "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e",
-        "src/wxbot/delivery.py": "c82e4c203cb7bec9b18ca0a062ac2585a238df70511d0c6064abd040df0f1959"
+        "src/wxbot/delivery.py": "c66caa63eff070d8f6feafb86c993b2fa043e83560186a4e874028923a5b925a"
       }
     },
     "modules/models": {
@@ -737,7 +733,7 @@
       }
     },
     "concepts/model-error-contract": {
-      "sha256": "9c8bf8d491767efd5f960dbd7dac3b1aa772466f751c510b7c6b910e97b5975d",
+      "sha256": "103ae354c88cec8a024e213432a5e657bc22a139cf50f746c510f0e638293ea5",
       "sources": {
         "src/butler/agent/hermes.py": "6416947f305cf115ede4c95bc132da550469fd4513398ab66badbd27c453b977",
         "src/butler/backends/compatible.py": "9878d7bc3cfee249c4dcca38d4ee82d9ee3d1d0bd158b87ea8363f2487a6b3de",
@@ -748,7 +744,7 @@
         "src/butler/server.py": "e78ec9625d74fe10618691131a5720295c5ff106fad469a60c4884283f2ee782",
         "src/wxbot/processor/butler.py": "55dc9aac5baf71ff1f36c0fa7b01c1fb7b0ca2d24a5d4de3eb8eae6cc872cd86",
         "src/wxbot/processor/openai_compat.py": "0e814c658bd98c96493713157eb5d368bd9a5567418802f75573c7b97dbbdf17",
-        "src/wxbot/queue_worker.py": "dbdd347bd675284cc632e02f183fa42c239249a4c0cc5cf1fe795a7fe76adf96",
+        "src/wxbot/queue_worker.py": "e9bb0a9e3d3f9ec44bd59b5a30e12b1ea95946ebedcecbbd185894df69e0fc8f",
         "src/wxbot/queue_store.py": "0eb31ecb8f0a916018f144d24cf3271b3557b0a779b6446d52262a186e1d505e",
         "src/wxbot/model_recovery.py": "b6fe61aa0c6565211a36f5023b7ea7c2816413338f7dc8c31e195d44f9909106"
       }
@@ -836,21 +832,22 @@
       }
     },
     "apis/dashboard-voice-assets": {
-      "sha256": "080b7260464c64efc1c6320e577936a9c3ba3b168fd9f934d2b21150427bc52f",
+      "sha256": "0fbe841d11df0dfb6d29ce6aecad608d9ba66730071098059965d277ebc873ce",
       "sources": {
+        "web/src/styles/voice-assets.css": "b85de993f04c609730399b901abd2f2966e5300c8f6b4aa927f221e3f2550a4e",
         "src/dashboard/routes.py": "a57a7539f50eaa792856dc10af8b491fd71ca569f52c894fcb878f0b4ffb18e3",
         "src/dashboard/api/voice_assets.py": "ad037345c50efa2f9f844217d8cf0bad0c71afc844beaf4c4f5366cf7b152a41",
         "src/dashboard/voice_admin.py": "1c76f476a3d0fd4093e59025a8b6bc17c9188ac469445a40fe209b5b577c007a",
-        "web/src/views/VoiceAssetsView.vue": "751a7d28c729320d1ef70212e2f1216258fbf4d50bd93187b4022ebf2f630560",
+        "web/src/views/VoiceAssetsView.vue": "9486b12287f6258af5abdf412da889a0cfd93eae97b75164572d1fb0eaff8c61",
         "web/src/components/ContactDialog.vue": "989a677a0cb9ff9dc54239a42e0076a4a2d84f99876681e11cb2cd411a3aeb6b"
       }
     },
     "concepts/voice-asset-binding": {
-      "sha256": "40c054f9f125f81b7da6216da5363dcd03e960ab0484ba19f81dbb1778894dc2",
+      "sha256": "e684dbbb8d5b493a935f9983a0e05d9ee509321842c59f6c0f6fd5e599c4b770",
       "sources": {
-        "src/wxbot/voice/policy.py": "08d660c811314b23d31b21c75c479bb2c71c7c7825856637cef6d4341a4f240d",
-        "src/wxbot/delivery.py": "c82e4c203cb7bec9b18ca0a062ac2585a238df70511d0c6064abd040df0f1959",
-        "src/wxbot/queue_worker.py": "dbdd347bd675284cc632e02f183fa42c239249a4c0cc5cf1fe795a7fe76adf96"
+        "src/wxbot/voice/policy.py": "bdb7864ba12a27f686feea5af77d56f510e1351fbea374c4f16a24daab70658f",
+        "src/wxbot/delivery.py": "c66caa63eff070d8f6feafb86c993b2fa043e83560186a4e874028923a5b925a",
+        "src/wxbot/queue_worker.py": "e9bb0a9e3d3f9ec44bd59b5a30e12b1ea95946ebedcecbbd185894df69e0fc8f"
       }
     },
     "symbols/voice-asset-store": {

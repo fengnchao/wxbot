@@ -15,7 +15,7 @@
 | [[modules/plugin]] | 角色和工具 Skill 分类，权限仍由业务服务验证 | `src/butler/agent/catalogue.py:8` | 2026-11-02 |
 | [[modules/runtime]] | 安装、迁移、并发、MCP 与知识库提炼调度等运行基础设施 | `src/butler/runtime/setup.py:28` | 2026-11-02 |
 | [[modules/telegram]] | Telethon、Bot API 和桌面中继三个不同边界 | `src/butler/channels/telegram/bot/queue.py:9` | 2026-11-01 |
-| [[modules/web]] | 共享导航壳和现有请求封装的管理界面 | `web/src/router.js:11` | 2026-11-03 |
+| [[modules/web]] | 共享导航壳和现有请求封装的管理界面 | `web/src/styles/voice-assets.css:7` | 2026-11-03 |
 | [[modules/wiki]] | 本地关键词检索、证据入库和一致性巡检 | `AGENTS.md:28` | 2026-11-02 |
 | [[modules/wxbot]] | 微信 UI 主线程与不接触 UI 的模型队列线程 | `src/wxbot/voice/assets.py:80` | 2026-11-03 |
 
@@ -27,7 +27,7 @@
 | [[apis/butler-handle-stream]] | SSE 增量观察与最终 result，断流不能当完整结果 | `src/butler/server.py:370` | 2026-11-01 |
 | [[apis/dashboard-knowledge]] | 对话原文与知识图谱事实的只读查询、自动提炼的状态与手动触发转发，以及知识模板的读取与校验保存；vault 不存在时返回空态而不是错误 | `src/dashboard/routes.py:45` | 2026-11-02 |
 | [[apis/dashboard-queue]] | 队列分页诊断，展示状态和可用动作而不执行恢复 | `src/dashboard/routes.py:44` | 2026-11-02 |
-| [[apis/dashboard-voice-assets]] | 音色资产 CRUD、参考音预览与会话 contact_refs 绑定 | `src/dashboard/routes.py:57` | 2026-11-03 |
+| [[apis/dashboard-voice-assets]] | 音色资产 CRUD、参考音预览与会话 contact_refs 绑定 | `web/src/styles/voice-assets.css:7` | 2026-11-03 |
 | [[apis/dashboard-workflow]] | 队列与 Telegram 工作流只读聚合及前端消费 | `src/dashboard/routes.py:41` | 2026-11-02 |
 
 ## tables / table
@@ -54,7 +54,7 @@
 | [[symbols/knowledge-template]] | 知识图谱模板的解析与加载——一份 Markdown 决定节点目录、事实分类、索引分区与提炼规则，覆盖层优先，坏模板回退内置 | `src/butler/runtime/knowledge_template.py:28` | 2026-11-02 |
 | [[symbols/local-model-backend]] | 原生函数工具走服务签发身份，完整结果才进入历史 | `src/butler/backends/models.py:16` | 2026-11-01 |
 | [[symbols/mention-selection]] | UI 线程内的 @ 提及选择器，先等候选面板再输入昵称，失败时只清理并登记自己输入的字面前缀 | `src/wxbot/wechat/mentions.py:67` | 2026-11-02 |
-| [[symbols/model-worker]] | 领取批次、调用模型并保存回复，绝不访问 UI | `src/wxbot/queue_worker.py:45` | 2026-11-03 |
+| [[symbols/model-worker]] | 领取批次、调用模型并保存回复，绝不访问 UI | `src/wxbot/queue_worker.py:44` | 2026-11-03 |
 | [[symbols/queue-finish]] | 完整分句入 outbox，模型完成和发送完成分开 | `src/wxbot/queue_store.py:339` | 2026-11-02 |
 | [[symbols/queue-store]] | 短事务管理收件、合批、模型状态与 UI 发件状态 | `src/wxbot/queue_store.py:91` | 2026-11-02 |
 | [[symbols/reloadable-backend]] | 请求固定后端代际，在途完成后才关闭旧工作进程 | `src/butler/runtime/model_switch.py:50` | 2026-10-31 |
@@ -68,7 +68,7 @@
 | [[concepts/group-identity-evidence]] | 群成员先按同群 member_key 与昵称认人，头像 dhash 只作证据且不足以区分个体 | `src/butler/identity/user_registry.py:350` | 2026-11-02 |
 | [[concepts/identity-authority]] | 窗口/头像/昵称是证据，服务签发上下文才是工具授权边界 | `src/butler/agent/tools.py:43` | 2026-11-02 |
 | [[concepts/message-pipeline]] | 窗口→收件→批次→Butler→分句→UI→只读投影 | `src/wxbot/inbox.py:264` | 2026-11-03 |
-| [[concepts/model-error-contract]] | 模型失败的分类、脱敏、自动重试与超时放行契约 | `src/butler/agent/hermes.py:36` | 2026-11-03 |
+| [[concepts/model-error-contract]] | 模型失败的分类、脱敏、自动重试与超时放行契约 | `src/butler/agent/hermes.py:36` | 2026-11-02 |
 | [[concepts/unread-capture-retry]] | 未读任务只有采集成才清除，读不到文字时必须退避并最终放弃，否则阻塞发送队列 | `src/wxbot/inbox.py:449` | 2026-11-02 |
 | [[concepts/voice-asset-binding]] | 会话须有可用音色绑定才合成/RALT；绑定与 voice.contacts 模式正交 | `src/wxbot/voice/policy.py:103` | 2026-11-03 |
 
@@ -115,4 +115,4 @@
 - [[raw/changes/2026-11-03-feat-voice-002-indextts]]
 - [[raw/changes/2026-11-03-feat-voice-003-model-worker-drift]]
 - [[raw/changes/2026-11-03-feat-voice-003-voice-assets]]
-- [[raw/changes/2026-11-03-indextts-enqueue-media]]
+- [[raw/changes/2026-11-03-voice-assets-polish]]
