@@ -279,3 +279,88 @@
 来源：[[raw/changes/2026-11-03-voice-assets-polish]]
 
 [[modules/web]]、[[apis/dashboard-voice-assets]]
+
+## [2026-11-03] change | 统一当前开发基线、配置来源与发送实现文档
+
+来源：[[raw/changes/2026-11-03-development-doc-baseline]]
+
+## [2026-11-03] ingest | 统一当前开发基线、配置来源与发送实现文档
+
+来源：[[raw/changes/2026-11-03-development-doc-baseline]]
+
+[[concepts/development-baseline]]、[[modules/wiki]]
+
+## [2026-11-04] change | 统一主目录 main 与可编辑安装绑定
+
+来源：[[raw/changes/2026-11-04-root-workspace-unification]]
+
+## [2026-11-04] ingest | 统一主目录 main 与可编辑安装绑定
+
+来源：[[raw/changes/2026-11-04-root-workspace-unification]]
+
+[[concepts/development-baseline]]、[[modules/wiki]]
+
+## [2026-11-04] ingest | 网页预设文字转语音 Skill 与分段虚拟麦投递
+
+来源：[[raw/changes/2026-11-04-index-tts-skill]]
+
+[[modules/butler]]、[[modules/common]]、[[modules/delivery]]、[[modules/identity]]、[[modules/plugin]]、[[modules/wiki]]、[[modules/wxbot]]、[[apis/butler-handle-stream]]、[[apis/butler-handle]]、[[apis/dashboard-knowledge]]、[[apis/index-tts]]、[[tables/queue-batches]]、[[tables/queue-inbox]]、[[tables/queue-outbox]]、[[symbols/butler-handle]]、[[symbols/butler-result]]、[[symbols/knowledge-auto]]、[[symbols/mention-selection]]、[[symbols/queue-finish]]、[[symbols/queue-store]]、[[concepts/delivery-state]]、[[concepts/development-baseline]]、[[concepts/group-identity-evidence]]、[[concepts/identity-authority]]、[[concepts/message-pipeline]]、[[concepts/model-error-contract]]、[[concepts/unread-capture-retry]]、[[concepts/voice-asset-binding]]
+
+## [2026-11-04] change | 网页预设语音工具与一次授权实机验证
+
+来源：[[raw/changes/2026-11-04-index-tts-skill]]
+
+手工创建记录补登记；28 个关联词条已完成源码/契约核对与入库。局部 22 项通过，较大范围回归保留 2 项既有失败；一次真实发送的个人运行数据不入图谱。
+
+
+## [2026-11-04] change | 联系人配置加入 IndexTTS 授权与语音设置
+
+来源：[[raw/changes/2026-11-04-contact-index-tts]]
+
+## [2026-11-04] ingest | 联系人配置加入 IndexTTS 授权与语音设置联动
+
+来源：[[raw/changes/2026-11-04-contact-index-tts]]
+
+[[modules/dashboard]]、[[modules/web]]、[[modules/wiki]]、[[apis/dashboard-voice-assets]]、[[apis/index-tts]]、[[concepts/development-baseline]]
+
+
+## [2026-11-04] change | 网页音色预设列表与联系人默认绑定
+
+来源：[[raw/changes/2026-11-04-webui-preset-binding]]
+
+## [2026-11-04] ingest | 网页音色预设列表与联系人默认绑定
+
+来源：[[raw/changes/2026-11-04-webui-preset-binding]]
+
+[[modules/butler]]、[[modules/dashboard]]、[[modules/delivery]]、[[modules/identity]]、[[modules/plugin]]、[[modules/web]]、[[modules/wiki]]、[[apis/dashboard-knowledge]]、[[apis/dashboard-queue]]、[[apis/dashboard-voice-assets]]、[[apis/dashboard-workflow]]、[[apis/index-tts]]、[[tables/knowledge-vault]]、[[concepts/development-baseline]]、[[concepts/identity-authority]]
+
+
+## [2026-11-04] change | 网页预设图谱契约说明补充
+
+来源：[[raw/changes/2026-11-04-webui-preset-graph-note]]
+
+## [2026-11-04] ingest | 网页预设图谱契约说明补充
+
+来源：[[raw/changes/2026-11-04-webui-preset-graph-note]]
+
+[[modules/butler]]、[[modules/dashboard]]、[[modules/delivery]]、[[modules/identity]]、[[modules/plugin]]、[[modules/web]]、[[modules/wiki]]、[[apis/dashboard-knowledge]]、[[apis/dashboard-queue]]、[[apis/dashboard-voice-assets]]、[[apis/dashboard-workflow]]、[[apis/index-tts]]、[[tables/knowledge-vault]]、[[concepts/development-baseline]]、[[concepts/identity-authority]]
+
+## [2026-11-05] change | 修复联系人策略保存锁等待与不可见旧技能
+
+来源：[[raw/changes/2026-11-05-contact-policy-save]]
+
+## [2026-11-05] ingest | 修复联系人策略保存锁等待与不可见旧技能
+
+来源：[[raw/changes/2026-11-05-contact-policy-save]]
+
+[[apis/dashboard-contact-policy]]、[[modules/identity]]、[[modules/dashboard]]、[[modules/web]]、[[apis/index-tts]]、[[apis/dashboard-voice-assets]]、[[concepts/development-baseline]]
+
+## [2026-11-05] change | 修复群聊越屏采集与自动语音回复链路
+
+来源：[[raw/changes/2026-11-05-group-auto-voice]]
+
+## [2026-11-05] ingest | 修复群聊越屏采集与自动语音回复链路
+
+来源：[[raw/changes/2026-11-05-group-auto-voice]]
+
+[[modules/delivery]]、[[modules/wiki]]、[[modules/wxbot]]、[[apis/dashboard-voice-assets]]、[[apis/index-tts]]、[[symbols/mention-selection]]、[[symbols/model-worker]]、[[tables/queue-outbox]]、[[concepts/automatic-voice-reply]]、[[concepts/capture-viewport]]、[[concepts/delivery-state]]、[[concepts/development-baseline]]、[[concepts/group-identity-evidence]]、[[concepts/message-pipeline]]、[[concepts/model-error-contract]]、[[concepts/unread-capture-retry]]、[[concepts/voice-asset-binding]]

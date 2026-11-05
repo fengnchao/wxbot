@@ -482,14 +482,23 @@ class QueueStore(StreamQueue, DeliveryPolicy):
 
     def enqueue_package(self, contact, items, request_id, *, media_paths, now, received_at=None):
         """Insert an ordered package in one transaction. Paths are trusted cache outputs only."""
-        from common.media_bundle import validate_items, validate_request_id
-        items = validate_items(items)
+        from common.media_bundle import validate_items
+        return self._enqueue_package(contact, validate_items(items), request_id,
+            media_paths=media_paths, now=now, received_at=received_at)
+
+    def enqueue_voice_package(self, contact, items, request_id, *, media_paths, now, received_at=None):
+        from common.media_bundle import validate_voice_items
+        return self._enqueue_package(contact, validate_voice_items(items), request_id,
+            media_paths=media_paths, now=now, received_at=received_at)
+
+    def _enqueue_package(self, contact, items, request_id, *, media_paths, now, received_at=None):
+        from common.media_bundle import validate_request_id
         if not isinstance(contact, str) or not contact.strip() or len(contact) > 256:
             raise ValueError('无效联系人')
         validate_request_id(request_id)
         for item in items:
-            if item['kind'] == 'image' and item['media_id'] not in media_paths:
-                raise ValueError('图片尚未准备完成')
+            if item['kind'] in ('image', 'voice') and item['media_id'] not in media_paths:
+                raise ValueError('媒体尚未准备完成')
         payload = json.dumps(items, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
         digest = hashlib.sha256(payload.encode()).hexdigest()
         with self._transaction() as db:

@@ -3,7 +3,7 @@ type: table
 module: wxbot
 summary: 逐分句发件与不确定结果审计，包含迁移新增字段
 coverage: core
-last_verified: 2026-11-03
+last_verified: '2026-11-05'
 sources:
 - path: src/wxbot/queue_schema.py
   line: 34
@@ -21,13 +21,13 @@ sources:
   line: 22
   anchor: OUTBOX_SQL =
 - path: src/wxbot/queue_store.py
-  line: 630
+  line: 639
   anchor: def finish_delivery(
 - path: src/wxbot/queue_store.py
   line: 21
   anchor: FAILURE_DETAIL_FIELDS =
 - path: src/wxbot/delivery.py
-  line: 524
+  line: 655
   anchor: details.update(confirm_evidence=evidence
 changes:
 - raw/changes/2026-11-03-indextts-enqueue-media
@@ -38,6 +38,8 @@ changes:
 - raw/changes/2026-11-01-mention-fallback-unread-retry
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-mention-picker-gating-residue
+- raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-05-group-auto-voice
 ---
 # SQLite outbox
 
@@ -76,6 +78,8 @@ UNIQUE(batch_id,part_seq)，outbox_state(state,seq)。batch_id 指向 [[tables/q
 
 ## 风险与测试
 
+[[apis/index-tts]] 复用 kind=voice、package_id、media_id、media_path、part_seq，不新增列；路径只能来自鉴权音频缓存，部分顺序由原 outbox.seq 约束。该包不要求管理台参考音绑定，失败停止后续部分；已录音异常为 uncertain，不自动重放。该路径与原自动语音字段血缘分开。
+
 uncertain/confirming 记录需要保守保留及人工核对，不能任意自动重放；detached 标记与超时/关闭轮次有关。本地 test_delivery_queue.py、test_delivery_failure_policy.py、test_queue_migration.py。
 
 ## 代码依据
@@ -85,9 +89,9 @@ uncertain/confirming 记录需要保守保留及人工核对，不能任意自�
 - `src/wxbot/queue_schema.py:149` — `for sql in ('CREATE INDEX`
 - `src/wxbot/queue_schema.py:7` — `VERSION = 10`
 - `src/wxbot/queue_schema.py:22` — `OUTBOX_SQL =`
-- `src/wxbot/queue_store.py:591` — `def finish_delivery(`
+- `src/wxbot/queue_store.py:639` — `def finish_delivery(`
 - `src/wxbot/queue_store.py:21` — `FAILURE_DETAIL_FIELDS =`
-- `src/wxbot/delivery.py:524` — `details.update(confirm_evidence=evidence, ref_available=by_ref)`
+- `src/wxbot/delivery.py:655` — `details.update(confirm_evidence=evidence, ref_available=by_ref)`
 
 ## 入库来源
 
@@ -102,3 +106,13 @@ uncertain/confirming 记录需要保守保留及人工核对，不能任意自�
 ## 变更
 
 - 2026-11-03: FEAT-VOICE-001 P1 outbox kind=voice（虚拟麦+RALT）；见 [[raw/changes/2026-11-03-feat-voice-001-virtual-mic]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+
+## 群聊采集与自动语音复核（2026-11-05）
+
+自动回复的 webui 默认推导、实时语音策略、流式缓冲、daemon 合成及录音前准确预设复核见 [[concepts/automatic-voice-reply]]；旧媒体包/离线提供者合同保留。自动 webui 的录音前失败终结并仅回退一次文字，不让 blocked 重试重复投递，无数据库迁移。来源 [[raw/changes/2026-11-05-group-auto-voice]]。

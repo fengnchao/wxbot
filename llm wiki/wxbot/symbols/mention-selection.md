@@ -3,7 +3,7 @@ type: symbol
 module: wxbot
 summary: UI 线程内的 @ 提及选择器，先等候选面板再输入昵称，失败时只清理并登记自己输入的字面前缀
 coverage: core
-last_verified: '2026-11-02'
+last_verified: '2026-11-05'
 sources:
 - path: src/wxbot/wechat/mentions.py
   line: 67
@@ -24,13 +24,15 @@ sources:
   line: 129
   anchor: result = self._mention.step()
 - path: src/wxbot/wechat/chat_window.py
-  line: 426
+  line: 434
   anchor: auto.SendKeys('{Back}', waitTime=0.05)
 changes:
 - raw/changes/2026-11-03-feat-voice-001-anchor-refresh
 - raw/changes/2026-11-01-mention-fallback-unread-retry
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-mention-picker-gating-residue
+- raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-05-group-auto-voice
 calls: []
 called_by: []
 ---
@@ -72,7 +74,7 @@ called_by: []
 - `src/wxbot/wechat/mentions.py:255` — `def _cleanup(self):`
 - `src/wxbot/wechat/mentions.py:282` — `auto.SendKeys('{Back}',waitTime=0)`
 - `src/wxbot/wechat/typing.py:129` — `result = self._mention.step()`
-- `src/wxbot/wechat/chat_window.py:426` — `auto.SendKeys('{Back}', waitTime=0.05)`
+- `src/wxbot/wechat/chat_window.py:434` — `auto.SendKeys('{Back}', waitTime=0.05)`
 
 ## 入库来源
 
@@ -81,3 +83,13 @@ called_by: []
 [[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
 
 [[raw/changes/2026-11-02-mention-picker-gating-residue]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+
+## 群聊采集与自动语音复核（2026-11-05）
+
+采集前的越屏恢复和 row_offscreen 显式拒绝见 [[concepts/capture-viewport]]；不放宽 gutter 阈值，不推进未知发送方快照。语音准备期间继续采集，恢复录音任务后本轮不再切换收件会话，见 [[concepts/automatic-voice-reply]]。来源 [[raw/changes/2026-11-05-group-auto-voice]]。

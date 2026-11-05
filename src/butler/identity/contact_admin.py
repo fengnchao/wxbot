@@ -378,6 +378,25 @@ class ContactAdmin:
         from butler.business import BusinessStore
         from butler.identity.user_registry import UserRegistry
         registry = UserRegistry(BusinessStore(self.path))
+        # Catalogue validation can read this directory (or call another service).
+        # Do it without a write lock, then recheck the version in the write transaction.
+        validated_policy = None
+        if action in {'person', 'conversation'} and 'policy' in payload:
+            with closing(sqlite3.connect(self.path.as_uri()+'?mode=ro', uri=True)) as db:
+                db.row_factory = sqlite3.Row
+                snapshot = ContactStore._snapshot(db)
+                if snapshot['version'] != version:
+                    raise ValueError('contact version conflict; reload before saving')
+                if action == 'conversation':
+                    route = next((c for c in snapshot['conversations'] if c['id']==payload.get('id')), None)
+                    if route is None: raise ValueError('会话不存在')
+                    route = dict(route, **{k:v for k,v in payload.items() if k not in {'action','version','id'}})
+                else:
+                    person = db.execute('SELECT * FROM user_profiles WHERE user_id=?', (payload.get('id'),)).fetchone()
+                    if person is None: raise ValueError('联系人不存在')
+                    route = next((c for c in snapshot['conversations'] if c.get('person_id')==person['user_id'] and c['channel_type']=='dm'),
+                                 {'name':person['display_name'], 'profile':'default'})
+            validated_policy = self._policy(route, payload['policy'])
         with store.transaction() as db:
             state = store._snapshot(db)
             if state['version'] != version: raise ValueError('contact version conflict; reload before saving')
@@ -418,8 +437,7 @@ class ContactAdmin:
                             c['enabled']=payload['enabled']
                             if not payload['enabled']:c['listening']=False
                 if 'policy' in payload:
-                    route = next((c for c in state['conversations'] if c.get('person_id')==pid and c['channel_type']=='dm'),{'name':person['display_name'],'profile':'default'})
-                    policy = self._policy(route,payload['policy'])
+                    policy = validated_policy
                     if policy and policy['heartbeat_enabled'] and not any(c.get('person_id')==pid and c['channel_type']=='dm' and c['enabled'] for c in state['conversations']):
                         raise ValueError('个人心跳需要明确的私聊投递会话')
                     state['person_policies'][pid] = policy
@@ -434,7 +452,7 @@ class ContactAdmin:
                     if c.get('person_id') and c['person_id'] != updates['person_id']:
                         raise ValueError('窗口归属改变需要先预览并确认身份合并')
                 if 'policy' in updates:
-                    updates['policy'] = self._policy(dict(c,**updates),updates['policy'])
+                    updates['policy'] = validated_policy
                     updates['inherit_person_policy']=True
                 old_name = c['name']
                 if 'name' in updates: updates['name'] = self._name(updates['name'])

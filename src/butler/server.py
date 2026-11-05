@@ -99,6 +99,20 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                 except ValueError:
                     self._send(503,{'error':'新闻订阅策略暂不可用'});return
                 self._send(200,{'contact':contact,'allowed':allowed});return
+            if path.path.startswith('/v1/audio/'):
+                if not self._authed():return
+                from butler.delivery.tts import AudioStore
+                try:
+                    data = AudioStore(cfg.data_path()/'audio').read(path.path[len('/v1/audio/'):])
+                except FileNotFoundError:
+                    self._send(404, {'error': '音频不存在'});return
+                except (ValueError, OSError):
+                    self._send(400, {'error': '音频标识或缓存无效'});return
+                self.send_response(200)
+                self.send_header('Content-Type', 'audio/wav')
+                self.send_header('Content-Length', str(len(data)))
+                self.send_header('Cache-Control', 'no-store')
+                self.end_headers();self.wfile.write(data);return
             if path.path.startswith('/v1/media/'):
                 if not self._authed():return
                 from butler.delivery.media import MediaStore

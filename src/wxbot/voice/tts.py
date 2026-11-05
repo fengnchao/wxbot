@@ -16,7 +16,7 @@ import os
 import subprocess
 import tempfile
 import wave
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from io import BytesIO
 from pathlib import Path
 
@@ -36,6 +36,7 @@ class TtsAudio:
     channels: int
     sample_width: int
     duration_seconds: float
+    source_preset: str = ''
 
 
 def validate_wav_bytes(
@@ -246,8 +247,28 @@ class IndexTtsSource:
                 pass
 
 
+class WebUiTtsSource:
+    """Thin WAV adapter; Butler owns preset selection and WebUI synthesis."""
+    def __init__(self, policy):
+        from butler.delivery.automatic_tts import AutomaticReplyTts
+        self.policy = policy
+        if policy.webui_presets_path is None:
+            raise ValueError('未配置网页音色预设存储')
+        self.service = AutomaticReplyTts(policy.webui_presets_path)
+
+    def prepare(self, text='', *, data=None, contact=''):
+        preset = ''
+        if data is None:
+            preset = self.service.bindings.get(contact)
+            data = self.service.synthesize(text, contact, max_seconds=self.policy.max_seconds, expected_preset=preset)
+        audio = validate_wav_bytes(data, min_seconds=self.policy.min_seconds, max_seconds=self.policy.max_seconds)
+        return replace(audio, source_preset=preset)
+
+
 def build_tts_source(policy: VoicePolicy):
     """按 voice.tts_provider 构造可插源；fixture 可随时切回排障。"""
+    if policy.tts_provider == 'webui':
+        return WebUiTtsSource(policy)
     if policy.tts_provider == "indextts":
         if policy.indextts is None:
             raise ValueError("tts_provider=indextts 但未加载 IndexTtsSettings")

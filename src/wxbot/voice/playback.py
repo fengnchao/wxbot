@@ -110,9 +110,11 @@ class WaveOutPlayer:
         self._opened = False
         self._prepared = False
         self._error = ""
-        self._lock = threading.Lock()
+        self._playing = False
+        self._lock = threading.RLock()
 
-    def start(self) -> None:
+    def prepare(self) -> None:
+        """Open and prepare the output device before pressing the recording key."""
         with self._lock:
             if self._opened:
                 return
@@ -139,12 +141,19 @@ class WaveOutPlayer:
                 self.close()
                 raise RuntimeError(f"waveOutPrepareHeader 失败: {result}")
             self._prepared = True
+
+    def start(self) -> None:
+        with self._lock:
+            if self._playing:
+                return
+            self.prepare()
             result = winmm.waveOutWrite(
                 self._handle, ctypes.byref(self._header), ctypes.sizeof(self._header)
             )
             if result != 0:
                 self.close()
                 raise RuntimeError(f"waveOutWrite 失败: {result}")
+            self._playing = True
 
     def done(self) -> bool:
         with self._lock:
@@ -182,3 +191,4 @@ class WaveOutPlayer:
             except Exception:
                 pass
             self._opened = False
+            self._playing = False

@@ -26,7 +26,7 @@ def _supports_events(router):
 class ModelWorker:
     def __init__(self, store, router, *, quiet=3, max_wait=10, prefix="/",
                  reply_delay_min=0, reply_delay_max=0, clock=time.time, max_concurrency=2, trace=None,
-                 typing_mode='chunked', voice_policy=None):
+                 typing_mode='chunked', voice_policy=None, voice_policy_loader=None):
         validate_model_concurrency(max_concurrency)
         self.max_concurrency = max_concurrency
         self.store, self.router = store, router
@@ -38,6 +38,7 @@ class ModelWorker:
             raise ValueError('invalid typing mode')
         self.typing_mode = typing_mode
         self.voice_policy = voice_policy
+        self.voice_policy_loader = voice_policy_loader
         self._stop = threading.Event()
         self._threads = []
         self._claims = threading.Lock()
@@ -109,10 +110,18 @@ class ModelWorker:
                     log.info("[队列][%s][%s] 本批次静默（已进上下文，不回复）", batch.contact, batch.id)
                 else:
                     record('wxbot_model','started')
+                    policy = self.voice_policy_loader() if self.voice_policy_loader else self.voice_policy
+                    voice_mode = 'off'
+                    voice_media = ''
+                    if policy is not None:
+                        delivery_mode = getattr(policy, 'delivery_mode_for', None)
+                        voice_mode = delivery_mode(batch.contact) if callable(delivery_mode) else policy.mode_for(batch.contact)
+                        if voice_mode != 'off':
+                            voice_media = resolve_queued_media_path(policy)
                     # Freeze mode for this batch. Group mention identity is only
                     # service-resolved in the final result: buffer groups safely.
                     stream_mode = self.typing_mode
-                    if (batch.member_key or getattr(self.store,'is_group_batch',lambda _:False)(batch.id)) and stream_mode == 'streaming':
+                    if (voice_mode != 'off' or batch.member_key or getattr(self.store,'is_group_batch',lambda _:False)(batch.id)) and stream_mode == 'streaming':
                         stream_mode = 'chunked'
                     begin = getattr(self.store,'begin_stream',None)
                     if begin is not None:
@@ -121,7 +130,7 @@ class ModelWorker:
                         persist=getattr(self.store,'record_model_event',None)
                         if persist is not None:
                             persist(batch.id,{'type':'backend','streaming':False,
-                                'fallback':'群聊等待服务确认提及身份后完整发送'},now=self.clock())
+                                'fallback':'语音回复等待完整正文' if voice_mode != 'off' else '群聊等待服务确认提及身份后完整发送'},now=self.clock())
                     streamed = []
                     def on_event(event):
                         if not isinstance(event,dict):
@@ -151,19 +160,6 @@ class ModelWorker:
                         self.store.append_stream(batch.id,reply.text[len(prefix):],now=self.clock(),final=True)
                     else:
                         parts=(reply.text,) if self.typing_mode=='full' and (reply.text or '').strip() else reply.parts
-                        voice_mode = 'off'
-                        voice_media = ''
-                        policy = self.voice_policy
-                        if policy is not None:
-                            # 无可用绑定时即使 replace/coexist 也走文字，不改配置里的 mode。
-                            delivery_mode = getattr(policy, 'delivery_mode_for', None)
-                            voice_mode = (
-                                delivery_mode(batch.contact)
-                                if callable(delivery_mode)
-                                else policy.mode_for(batch.contact)
-                            )
-                            if voice_mode != 'off':
-                                voice_media = resolve_queued_media_path(policy)
                         self.store.finish_batch_parts(batch.id, parts, reply_text=reply.text, now=self.clock(),
                                                       delay=random.uniform(self.delay_min, self.delay_max),
                                                       mention_name=getattr(reply, 'mention_name', ''),

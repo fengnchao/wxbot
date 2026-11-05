@@ -3,7 +3,7 @@ type: module
 module: common
 summary: 仓库根、事件追踪、流和 wire schema 的跨包纯基础层
 coverage: overview
-last_verified: '2026-11-01'
+last_verified: '2026-11-04'
 sources:
 - path: src/common/paths.py
   line: 29
@@ -21,6 +21,7 @@ changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-04-index-tts-skill
 ---
 # 共享基础能力
 
@@ -34,6 +35,8 @@ changes:
 
 ## 头像证据
 
+`voice_audio` 是无 UI/业务依赖的 PCM16 转换与分段工具。`media_bundle.validate_voice_items` 单独校验 `{kind: voice, media_id}`；原图文 `validate_items` 仍只接受 text/image。使用方与限制见 [[apis/index-tts]]。
+
 `avatar_identity.normalize_avatar` 统一输出 36×36 PNG + dhash-v1，透明区域用 `#1F1F1F` 兜底。`avatar_is_informative` 只拒绝颜色数不超过 `BLANK_AVATAR_COLORS` 的纯色块：窗口被遮挡、最小化或元素滚出视口时抓到的就是这种图，dhash 仍有值，不能当身份证据。不能改用颜色丰富度、亮度标准差或比特位数做判据，实测这些都和真实头像重叠（见 [[concepts/group-identity-evidence]]）。
 
 ## 代码依据
@@ -46,3 +49,8 @@ changes:
 ## 入库来源
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。

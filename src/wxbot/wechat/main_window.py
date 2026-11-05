@@ -8,6 +8,7 @@ import uiautomation as auto
 from ..log import log
 from .chat_window import ChatWindow
 from .locator import find, wait_until
+from .viewport import ensure_window_visible
 
 
 @dataclass(frozen=True)
@@ -283,11 +284,15 @@ class MainWindow:
         win = self.window()
         if win is None:
             return None
+        if not ensure_window_visible(win):
+            return None
         if self.matches(win, contact) and not click_current:
             win.SetActive()
             return win
         # 已经拆为独立窗口的聊天，微信点击会话时会激活那个窗口。
         detached = self._detached(contact)
+        if detached is not None and not ensure_window_visible(detached):
+            return None
         if detached is not None and not click_current:
             win.SetActive()
             self._handoff(win, contact)

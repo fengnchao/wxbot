@@ -3,19 +3,19 @@ type: symbol
 module: butler
 summary: 单轮身份解析、会话互斥、补发优先与最终合成
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-04'
 sources:
 - path: src/butler/agent/core.py
-  line: 213
+  line: 217
   anchor: 'def handle(self, contact_name:'
 - path: src/butler/agent/core.py
-  line: 269
+  line: 273
   anchor: def _handle_request(
 - path: src/butler/agent/core.py
-  line: 331
+  line: 335
   anchor: 'def _handle(self, c:'
 - path: src/butler/server.py
-  line: 382
+  line: 396
   anchor: res = butler.handle(contact, text,
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
@@ -25,6 +25,7 @@ changes:
 - raw/changes/2026-11-01-knowledge-sharding
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-04-index-tts-skill
 calls:
 - symbols/butler-result
 called_by: []
@@ -53,10 +54,10 @@ called_by: []
 
 ## 代码依据
 
-- `src/butler/agent/core.py:210` — `def handle(self, contact_name:`
-- `src/butler/agent/core.py:266` — `def _handle_request(`
-- `src/butler/agent/core.py:317` — `def _handle(self, c:`
-- `src/butler/server.py:383` — `res = butler.handle(contact, text,`
+- `src/butler/agent/core.py:217` — `def handle(self, contact_name:`
+- `src/butler/agent/core.py:273` — `def _handle_request(`
+- `src/butler/agent/core.py:335` — `def _handle(self, c:`
+- `src/butler/server.py:396` — `res = butler.handle(contact, text,`
 
 ## 入库来源
 
@@ -78,3 +79,8 @@ handle 在 [[symbols/reloadable-backend]] 的 request 上下文中固定后端�
 [[raw/changes/2026-11-01-knowledge-sharding]]
 
 [[raw/changes/2026-11-01-knowledge-auto]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。

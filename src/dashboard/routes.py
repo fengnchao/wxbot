@@ -6,7 +6,7 @@
 `/` 跳转与 `/app/` 静态文件属于传输层，见 dashboard.http，不在这张表里。
 """
 from dashboard.api import (config, contacts, flow, groups, heartbeat, jobs, knowledge,
-                           queue, relay, runtime, system, users, voice_assets, workflow)
+                           queue, relay, runtime, system, users, voice_assets, workflow, tts_presets)
 
 # 对接外部管理台时（installation.mode != "local"），这些路径的读写一律 503：
 # 用户、联系人、心跳与转发都由对端维护。列表与原实现的拦截范围逐条对应。
@@ -17,6 +17,7 @@ BUSINESS_GET = frozenset({
     '/api/skills', '/api/telegram-relay', '/api/knowledge', '/api/knowledge/facts',
     '/api/knowledge/extract', '/api/knowledge/template',
     '/api/voice-assets', '/api/voice-assets/preview', '/api/voice-bindings',
+    '/api/tts-presets',
 })
 
 BUSINESS_POST = frozenset({
@@ -25,6 +26,7 @@ BUSINESS_POST = frozenset({
     '/api/telegram-relay', '/api/telegram-relay/resolve',
     '/api/knowledge/extract', '/api/knowledge/template',
     '/api/voice-assets',
+    '/api/tts-presets',
 })
 
 ROUTES = (
@@ -57,9 +59,11 @@ ROUTES = (
     ("GET", "/api/voice-assets", voice_assets.list_assets),
     ("GET", "/api/voice-assets/preview", voice_assets.preview),
     ("GET", "/api/voice-bindings", voice_assets.bindings),
+    ("GET", "/api/tts-presets", tts_presets.read),
 
     ("POST", "/api/contacts", contacts.save),
     ("POST", "/api/voice-assets", voice_assets.save),
+    ("POST", "/api/tts-presets", tts_presets.save),
     ("POST", "/api/workflow-delete", workflow.delete),
     ("POST", "/api/jobs/delete", jobs.delete),
     ("POST", "/api/telegram-relay/resolve", relay.resolve),

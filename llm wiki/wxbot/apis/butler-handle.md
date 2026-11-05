@@ -3,10 +3,10 @@ type: api
 module: butler
 summary: 同步消息处理契约，从 wxbot 批次到完整 Butler 回复
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-04'
 sources:
 - path: src/butler/server.py
-  line: 349
+  line: 363
   anchor: 'if self.path in ("/v1/handle","/v1/handle-stream"):'
 - path: src/butler/server.py
   line: 68
@@ -28,6 +28,7 @@ changes:
 - raw/changes/2026-11-01-knowledge-sharding
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-04-index-tts-skill
 ---
 # POST /v1/handle
 
@@ -80,9 +81,9 @@ POST `/v1/handle`；Bearer token 经 Handler._authed 校验，无服务 token �
 
 ## 代码依据
 
-- `src/butler/server.py:350` — `if self.path in ("/v1/handle","/v1/handle-stream"):`
+- `src/butler/server.py:363` — `if self.path in ("/v1/handle","/v1/handle-stream"):`
 - `src/butler/server.py:68` — `def _authed(`
-- `src/butler/agent/core.py:70` — `def as_dict(`
+- `src/butler/agent/core.py:73` — `def as_dict(`
 - `src/wxbot/processor/butler.py:60` — `def handle_reply(`
 - `src/wxbot/processor/butler.py:129` — `def _decode_reply(`
 
@@ -100,3 +101,8 @@ POST `/v1/handle`；Bearer token 经 Handler._authed 校验，无服务 token �
 [[raw/changes/2026-11-01-knowledge-sharding]]
 
 [[raw/changes/2026-11-01-knowledge-auto]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。

@@ -77,11 +77,10 @@ class MainInbox:
         for row in self.store.pending_sessions():
             self.pending[row["contact"]] = Session(row["contact"], row["unread_count"], bool(row["mentioned"]))
         from common.paths import REPO_ROOT
-        from .voice.policy import load_voice_policy
-        from .voice.tts import build_tts_source
+        from .voice.policy import VoicePolicyReloader
 
-        self.voice_policy = load_voice_policy(cfg, root=REPO_ROOT)
-        tts_source = build_tts_source(self.voice_policy)
+        self.voice_settings = VoicePolicyReloader(cfg, root=REPO_ROOT)
+        self.voice_policy = self.voice_settings.snapshot()
         self.worker = ModelWorker(
             self.store, router, quiet=quiet, max_wait=max_wait,
             prefix=self.bot.get("command_prefix", "/"), clock=clock,
@@ -90,13 +89,14 @@ class MainInbox:
             max_concurrency=concurrency,trace=self.trace,
             typing_mode=validate_typing_mode(cfg.get('wechat', {})),
             voice_policy=self.voice_policy,
+            voice_policy_loader=self.voice_settings.snapshot,
         )
         self.delivery = DeliveryPump(
             self.store, self._chat, self._capture_target, self._discover,
             timeout=confirm_timeout, clock=clock, monotonic=monotonic,
             capture_messages=self._capture_for_delivery,
             voice_policy=self.voice_policy,
-            tts_source=tts_source,
+            voice_policy_loader=self.voice_settings.snapshot,
         )
         self.desktop.before_switch = self._before_switch
         self._connected = None
@@ -549,6 +549,8 @@ class MainInbox:
             if not self.delivery.busy:
                 self._next_poll = 0
             return
+        if self.delivery.busy:
+            return  # Background speech just acquired the UI target this tick.
         receive_ready = bool(self._connected and any(
             self._receive_retry.get(name, 0) <= self.monotonic() for name in self.pending))
         send_ready = self.store.has_ready_delivery(now=self.clock())

@@ -47,6 +47,8 @@ class VoiceSession:
         self._pressed = False
         self._release_at = 0.0
         self._started = False
+        self._play_at = 0.0
+        self._playing = False
         self.confirm_evidence = "ptt_release"
 
     def close(self) -> bool:
@@ -84,16 +86,14 @@ class VoiceSession:
                 return
         try:
             self._player = WaveOutPlayer(self.audio.data, device_name=self.playback_device)
-            self._player.start()
-            auto.PressKey(RALT_CODE)
+            self._player.prepare()
             self._pressed = True
             self.enter_attempted = True
-            hold = max(self.audio.duration_seconds, 0.4) + self.hold_padding_seconds
-            self._release_at = self.clock() + hold
+            auto.PressKey(RALT_CODE)
+            self._play_at = self.clock() + 0.25
             log.info(
-                "[%s] 语音条 PTT 已按下 RALT，计划保持 %.2fs（音频 %.2fs）",
+                "[%s] 语音条 PTT 已按下 RALT，等待录音就绪（音频 %.2fs）",
                 self.chat.title,
-                hold,
                 self.audio.duration_seconds,
             )
         except Exception as exc:
@@ -110,6 +110,29 @@ class VoiceSession:
             if self.state != "typing":
                 return self.state
             return "typing"
+        try:
+            current = self.chat.target_is_current(self.win)
+        except Exception:
+            current = False
+        if not current:
+            self.close()
+            self.state = 'error'
+            self.error = '语音录制期间目标会话变化，结果待人工核对'
+            self.failure_details = {'error_code': 'target_changed', 'phase': 'voice_ptt'}
+            return self.state
+        if not self._playing:
+            if self.clock() < self._play_at:
+                return 'typing'
+            try:
+                self._player.start()
+                self._playing = True
+                self._release_at = self.clock() + self.audio.duration_seconds + self.hold_padding_seconds
+            except Exception as exc:
+                self.close()
+                self.state = 'error'
+                self.error = f'语音灌音失败: {type(exc).__name__}'
+                self.failure_details = {'error_code': 'ui_error', 'phase': 'voice_playback'}
+                return self.state
         if self.clock() < self._release_at:
             return "typing"
         try:
@@ -117,10 +140,7 @@ class VoiceSession:
                 auto.ReleaseKey(RALT_CODE)
                 self._pressed = False
             if self._player is not None:
-                try:
-                    self._player.wait(timeout=2.0)
-                except Exception:
-                    pass
+                self._player.wait(timeout=2.0)
                 self._player.close()
                 self._player = None
             self.state = "submitted"

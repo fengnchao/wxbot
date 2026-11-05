@@ -3,10 +3,10 @@ type: api
 module: dashboard
 summary: 队列分页诊断，展示状态和可用动作而不执行恢复
 coverage: core
-last_verified: '2026-11-02'
+last_verified: '2026-11-04'
 sources:
 - path: src/dashboard/routes.py
-  line: 44
+  line: 46
   anchor: ("GET", "/api/queue", queue.read)
 - path: src/dashboard/api/queue.py
   line: 10
@@ -28,6 +28,8 @@ changes:
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-knowledge-vault-graph
 - raw/changes/2026-11-02-knowledge-graph-template
+- raw/changes/2026-11-04-webui-preset-binding
+- raw/changes/2026-11-04-webui-preset-graph-note
 ---
 # GET /api/queue
 
@@ -68,3 +70,11 @@ GET `/api/queue`；可选 contact（字符串过滤）、state（默认 all）�
 [[raw/changes/2026-11-01-knowledge-sharding]]
 
 [[raw/changes/2026-11-02-knowledge-graph-template]]
+
+
+## 联系人语音配置核对
+
+[[raw/changes/2026-11-04-webui-preset-binding]]：接入网页预设列表与会话默认绑定；原有接口保持，新增接口及可选音色参数见 [[apis/index-tts]]。
+
+
+图谱契约说明来源：[[raw/changes/2026-11-04-webui-preset-graph-note]]。

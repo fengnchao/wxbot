@@ -51,6 +51,26 @@ class ButlerMediaClient:
                         raise ValueError('图片超过大小上限')
                 return bytes(data)
 
+    def fetch_audio(self, media_id):
+        import requests
+        from common.media_bundle import validate_media_id
+        validate_media_id(media_id)
+        if not self.url or not self.token:
+            raise ValueError('Butler 音频服务未配置')
+        with requests.Session() as session:
+            session.trust_env = False
+            with session.get(self.url + '/v1/audio/' + media_id,
+                    headers={'Authorization': 'Bearer ' + self.token}, stream=True,
+                    timeout=(5, 15), allow_redirects=False) as response:
+                if response.status_code != 200:
+                    raise ValueError('音频下载未成功')
+                data = bytearray()
+                for chunk in response.iter_content(65536):
+                    data.extend(chunk)
+                    if len(data) > 2 * 1024 * 1024:
+                        raise ValueError('音频超过大小上限')
+                return bytes(data)
+
 
 class BundleMediaCache:
     """Network-thread image preparation; callers cannot supply filesystem paths."""
@@ -85,11 +105,37 @@ class BundleMediaCache:
             paths[media_id]=target
         return paths
 
+    def resolve_voice(self, items):
+        from common.media_bundle import validate_voice_items
+        from common.voice_audio import validate_voice_wav
+        paths = {}
+        for item in validate_voice_items(items):
+            media_id = item['media_id']
+            if media_id in paths:
+                continue
+            data = self.client.fetch_audio(media_id)
+            validate_voice_wav(data)
+            self.root.mkdir(parents=True, exist_ok=True)
+            target = self.root / (media_id + '.wav')
+            if target.is_symlink() or target.resolve().parent != self.root:
+                raise ValueError('无效音频缓存位置')
+            temporary = self.root / (uuid.uuid4().hex + '.tmp')
+            try:
+                with temporary.open('xb') as stream:
+                    stream.write(data)
+                    stream.flush()
+                    os.fsync(stream.fileno())
+                os.replace(temporary, target)
+            finally:
+                temporary.unlink(missing_ok=True)
+            paths[media_id] = target
+        return paths
+
 
 class OutboundRequest:
     """一次外发请求：带一个 Event 和结果槽，主循环发完 set() 通知等待方。"""
 
-    __slots__ = ("contact", "text", "event", "ok", "detail", "items", "request_id", "media_paths", "received_at", "kind")
+    __slots__ = ("contact", "text", "event", "ok", "detail", "items", "request_id", "media_paths", "received_at", "kind", "persisted", "package_id")
 
     def __init__(self, contact: str, text: str, *, items=None, request_id='', media_paths=None, received_at=None, kind='text'):
         self.contact = contact
@@ -100,6 +146,7 @@ class OutboundRequest:
         self.items, self.request_id, self.media_paths = items, request_id, media_paths or {}
         self.received_at = time.time() if received_at is None else received_at
         self.kind = kind or 'text'
+        self.persisted, self.package_id = threading.Event(), None
 
     def finish(self, ok: bool, detail: str = "") -> None:
         self.ok = bool(ok)
@@ -127,9 +174,11 @@ class OutboundQueue:
             self._q.clear()
         return items
 
-    def submit_bundle(self, contact, items, request_id, *, media_paths, received_at=None):
-        from common.media_bundle import validate_items
-        req=OutboundRequest(contact,'',items=validate_items(items),request_id=request_id,media_paths=media_paths,received_at=received_at)
+    def submit_bundle(self, contact, items, request_id, *, media_paths, received_at=None, voice=False):
+        from common.media_bundle import validate_items, validate_voice_items
+        validate = validate_voice_items if voice else validate_items
+        req=OutboundRequest(contact,'',items=validate(items),request_id=request_id,media_paths=media_paths,
+                            received_at=received_at,kind='voice_bundle' if voice else 'text')
         with self._lock:
             self._q.append(req)
         return req
@@ -166,7 +215,7 @@ def make_handler(queue: OutboundQueue, token: str, *, media_cache=None,allow_bun
 
         def _authed(self) -> bool:
             got = self.headers.get("X-Wxbot-Token") or ""
-            if (self.path=='/send-bundle' and not token) or (token and got != token):
+            if (self.path in ('/send-bundle', '/send-voice-bundle') and not token) or (token and got != token):
                 self._send(401, {"ok": False, "detail": "unauthorized"})
                 return False
             return True
@@ -180,6 +229,30 @@ def make_handler(queue: OutboundQueue, token: str, *, media_cache=None,allow_bun
 
         def do_POST(self):
             received_at = time.time()
+            if self.path == '/send-voice-bundle':
+                if not self._authed():return
+                if not allow_bundles or media_cache is None:
+                    self._send(400, {'ok': False, 'detail': '语音包需要主窗口队列和媒体服务'});return
+                try:
+                    from common.media_bundle import validate_voice_items, validate_request_id
+                    body = self._body()
+                    if not isinstance(body, dict) or set(body) != {'contact', 'items', 'request_id'}:
+                        raise ValueError('语音包字段无效')
+                    contact = body['contact']
+                    if not isinstance(contact, str) or not contact.strip() or len(contact) > 256:
+                        raise ValueError('无效联系人')
+                    items = validate_voice_items(body['items'])
+                    request_id = validate_request_id(body['request_id'])
+                    paths = media_cache.resolve_voice(items)
+                    req = queue.submit_bundle(contact, items, request_id, media_paths=paths,
+                                              received_at=received_at, voice=True)
+                except Exception:
+                    self._send(400, {'ok': False, 'detail': '语音包校验失败，未入队'});return
+                if not req.persisted.wait(20):
+                    self._send(200, {'status': 'delivery_unknown', 'detail': '持久化回执超时，勿自动重发'});return
+                if req.package_id is None:
+                    self._send(400, {'ok': False, 'detail': '语音开关或入队失败，未提交'});return
+                self._send(200, {'status': 'queued', 'contact': contact, 'request_id': request_id});return
             if self.path in {'/send','/send-bundle'}:
                 if not self._authed():
                     return

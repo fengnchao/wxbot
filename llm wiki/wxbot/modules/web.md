@@ -3,66 +3,77 @@ type: module
 module: web
 summary: 共享导航壳和现有请求封装的管理界面
 coverage: overview
-last_verified: 2026-11-03
+last_verified: '2026-11-05'
 sources:
-  - path: web/src/styles/voice-assets.css
-    line: 7
-    anchor: '.workspace main:has(> .voice-assets)'
-  - path: web/src/router.js
-    line: 11
-    anchor: "{ id: 'voice-assets', title: '音色', group: '用户与任务' },"
-  - path: web/src/views/VoiceAssetsView.vue
-    line: 229
-    anchor: '<section id="pane" class="voice-assets"'
-  - path: web/src/components/ContactDialog.vue
-    line: 354
-    anchor: '回复音色'
-  - path: web/src/router.js
-    line: 4
-    anchor: 'export '
-  - path: web/src/api.js
-    line: 23
-    anchor: 'export '
-  - path: web/src/views/WorkflowView.vue
-    line: 356
-    anchor: fetch('/api/workflow',
-  - path: web/src/views/QueueView.vue
-    line: 248
-    anchor: apiGet('/api/queue?'
-  - path: web/src/views/ConfigurationView.vue
-    line: 37
-    anchor: const backendName =
-  - path: web/src/views/FactsView.vue
-    line: 116
-    anchor: async function loadExtract() {
-  - path: web/src/views/FactsView.vue
-    line: 39
-    anchor: const kinds = computed(
-  - path: web/src/views/KnowledgeTemplateView.vue
-    line: 43
-    anchor: async function load(force = false) {
-  - path: web/src/views/ConfigurationView.vue
-    line: 14
-    anchor: '[''contacts'', ''联系人与策略''], [''knowledge'', ''知识库''], [''logging'', ''日志''],
-    [''advanced'', ''高级配置'']'
+- path: web/src/styles/voice-assets.css
+  line: 7
+  anchor: .workspace main:has(> .voice-assets)
+- path: web/src/router.js
+  line: 11
+  anchor: '{ id: ''voice-assets'', title: ''音色'', group: ''用户与任务'' },'
+- path: web/src/views/VoiceAssetsView.vue
+  line: 229
+  anchor: <section id="pane" class="voice-assets"
+- path: web/src/components/ContactDialog.vue
+  line: 519
+  anchor: 自动回复音色
+- path: web/src/router.js
+  line: 4
+  anchor: 'export '
+- path: web/src/api.js
+  line: 23
+  anchor: 'export '
+- path: web/src/views/WorkflowView.vue
+  line: 356
+  anchor: fetch('/api/workflow',
+- path: web/src/views/QueueView.vue
+  line: 248
+  anchor: apiGet('/api/queue?'
+- path: web/src/views/ConfigurationView.vue
+  line: 37
+  anchor: const backendName =
+- path: web/src/views/FactsView.vue
+  line: 116
+  anchor: async function loadExtract() {
+- path: web/src/views/FactsView.vue
+  line: 39
+  anchor: const kinds = computed(
+- path: web/src/views/KnowledgeTemplateView.vue
+  line: 43
+  anchor: async function load(force = false) {
+- path: web/src/views/ConfigurationView.vue
+  line: 14
+  anchor: '[''contacts'', ''联系人与策略''], [''knowledge'', ''知识库''], [''logging'', ''日志''], [''advanced'', ''高级配置'']'
 changes:
-  - raw/changes/2026-11-03-voice-assets-polish
-  - raw/changes/2026-11-03-feat-voice-003-voice-assets
-  - raw/changes/2026-11-02-web-global-search-clear
-  - raw/changes/2026-10-31-knowledge-graph-bootstrap
-  - raw/changes/2026-10-31-switchable-models
-  - raw/changes/2026-10-31-model-access-switch
-  - raw/changes/2026-11-01-knowledge-episodes
-  - raw/changes/2026-11-01-knowledge-sharding
-  - raw/changes/2026-11-01-knowledge-sessions
-  - raw/changes/2026-11-01-knowledge-auto
-  - raw/changes/2026-11-01-knowledge-vault-graph
-  - raw/changes/2026-11-01-knowledge-atlas-index
-  - raw/changes/2026-11-02-knowledge-graph-template
+- raw/changes/2026-11-03-voice-assets-polish
+- raw/changes/2026-11-03-feat-voice-003-voice-assets
+- raw/changes/2026-11-02-web-global-search-clear
+- raw/changes/2026-10-31-knowledge-graph-bootstrap
+- raw/changes/2026-10-31-switchable-models
+- raw/changes/2026-10-31-model-access-switch
+- raw/changes/2026-11-01-knowledge-episodes
+- raw/changes/2026-11-01-knowledge-sharding
+- raw/changes/2026-11-01-knowledge-sessions
+- raw/changes/2026-11-01-knowledge-auto
+- raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-01-knowledge-atlas-index
+- raw/changes/2026-11-02-knowledge-graph-template
+- raw/changes/2026-11-04-contact-index-tts
+- raw/changes/2026-11-04-webui-preset-binding
+- raw/changes/2026-11-04-webui-preset-graph-note
+- raw/changes/2026-11-05-contact-policy-save
 depends_on:
-  - modules/dashboard
+- modules/dashboard
 ---
 # Vue 管理台
+
+## 联系人 IndexTTS 配置
+
+网页音色预设不来自本地 voiceAssets，新增 /api/tts-presets 直接获取 Gradio 保存的选项及当前窗口默认值。加载、刷新、旧绑定保留、冲突/部分失败由 ContactDialog 管理；省略音色时服务端使用绑定。保存前冻结目标/值，后续按返回的稳定会话 ID/规范化名投递各设置，避免异步期间串写另一联系人。契约与更正见 [[apis/index-tts]]、[[raw/changes/2026-11-04-webui-preset-binding]]。
+
+ContactsView.openConversation 传入当前生效策略；ContactDialog 的会话表单新增 IndexTTS 授权开关，并与原语音发送模式同屏。只在开关变化时提交 policy 的 index-tts 增删，保留角色/其他技能/心跳；未修改不创建会话覆盖，明确取消继承不采用联系人默认。技能/语音各有读取、错误和原位重试，提交期间禁用对应控件，部分保存不关闭弹窗。语音模式单独改变不清资产；重命名复制当前模式/资产到新键。契约见 [[apis/index-tts]]、[[apis/dashboard-voice-assets]]。
+
+新增控件沿用 theme.css 和 contacts.css 令牌、焦点/按下/禁用状态；375px 和桌面实际构建预览已核对。烟测覆盖授权保留、继承开关、重试新版本、部分失败与重命名；web/dist 与源码一同发布。全页 Hallmark 仍有背景旧控件/字号等样式发现，限定新控件检查通过，不扩大本次局部修订。
 
 ## 范围与依赖
 
@@ -137,3 +148,16 @@ UI 修改按根 AGENTS 的 Hallmark 流程，保留现有设计系统；构建�
 - `load()` 并行读取 assets/bindings，成功后调用 shell 的 `markRefreshed()`；加载首屏显示静态骨架，读取失败不显示“还没有音色”，表单成功/失败仍由既有服务结果驱动。窄屏保留表格 DOM 与表头，用 `data-label` 展示字段标签。
 - 接口不变：`GET /api/voice-assets` 的 `assets[].id/name/created_at/duration_seconds` 与 `limits.max_bytes` 来自 VoiceAdmin.list_assets / VoiceAsset.as_dict；绑定列仍从 `GET /api/voice-bindings` 的 `contact_refs[contact].asset_id` 反查。POST register/rename/delete 的请求体、确认流程及 `X-Wxbot-Voice-Action` 请求头不变；preview 仍只读取参考 WAV。
 - 仅 UI 与现有状态投影变更，不涉及数据库、迁移、音色文件内容、配置写入或新异步任务。参考 [[raw/changes/2026-11-03-voice-assets-polish]]。
+
+
+## 联系人语音配置核对
+
+[[raw/changes/2026-11-04-contact-index-tts]]：新增会话授权控件与原接口消费，源码位置已核对；后端契约保持。
+
+
+图谱契约说明来源：[[raw/changes/2026-11-04-webui-preset-graph-note]]。
+
+
+## 策略保存复核（2026-11-05）
+
+联系人策略保存的事务外目录校验、事务内版本复查及未安装技能的显式取消入口见 [[apis/dashboard-contact-policy]]。保留原角色与工具权限规则，无数据库迁移，不自动删除已有技能引用。来源 [[raw/changes/2026-11-05-contact-policy-save]]。

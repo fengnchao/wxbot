@@ -2,13 +2,14 @@
 #
 #   pip install -r requirements.txt
 #
-# 说明：butler 管家层是纯 Python 标准库，无需第三方包；
-#       下面这些是 wxbot UI 自动化层需要的。
+# 依赖声明以 pyproject.toml 为准，精确版本以 uv.lock 为准；本文件保留为兼容 pip 的安装清单。
+# Butler 与 wxbot 共用以下第三方依赖，包括配置编辑、提醒调度、知识库解析和模型 SDK；
+# Butler 的 HTTP 服务使用标准库实现，不代表整个 Butler 无第三方依赖。
 
 uiautomation>=2.0.18   # Windows 控件自动化（读写微信窗口）
 requests>=2.31         # 调用大模型 HTTP 接口
 pillow>=10.0           # 截图判断消息发送方
-tomlkit>=0.13,<1       # log 配置编辑：保留 TOML 注释和未修改格式
+tomlkit>=0.13,<1       # 配置编辑：保留 TOML 注释和未修改格式
 openai-codex==0.163.0
 openai-codex-cli-bin==0.163.0
 croniter==6.2.4

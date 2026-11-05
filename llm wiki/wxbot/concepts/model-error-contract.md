@@ -3,7 +3,7 @@ type: concept
 module: butler
 summary: 模型失败的分类、脱敏、自动重试与超时放行契约
 coverage: core
-last_verified: 2026-11-03
+last_verified: '2026-11-05'
 sources:
 - path: src/butler/agent/hermes.py
   line: 36
@@ -15,16 +15,16 @@ sources:
   line: 72
   anchor: 'except HermesError as exc:'
 - path: src/butler/backends/codex.py
-  line: 349
+  line: 350
   anchor: failure.retry_safe=not submitted
 - path: src/butler/runtime/model_switch.py
   line: 21
   anchor: 'class ModelConfigurationError(HermesError):'
 - path: src/butler/agent/core.py
-  line: 255
+  line: 259
   anchor: emit('error',code='incomplete_result'
 - path: src/butler/server.py
-  line: 391
+  line: 405
   anchor: stream_event({'type':'error','code':type(e).__name__,
 - path: src/wxbot/processor/butler.py
   line: 99
@@ -36,7 +36,7 @@ sources:
   line: 141
   anchor: if on_event is not None:exc.retry_safe=False
 - path: src/wxbot/queue_worker.py
-  line: 190
+  line: 186
   anchor: safe=getattr(exc,'retry_safe',False) is True
 - path: src/wxbot/queue_store.py
   line: 424
@@ -61,6 +61,8 @@ changes:
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-details-whitelist-reverify
 - raw/changes/2026-11-02-mention-residue-reverify
+- raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-05-group-auto-voice
 ---
 # 模型失败契约
 
@@ -77,7 +79,7 @@ changes:
 **什么算可重试**（唯一的 True 来源只有两类）：
 
 1. 配置在碰到任何后端之前就被拒绝——`ModelConfigurationError.retry_safe = True`（`src/butler/runtime/model_switch.py:21`）。这是类属性，不进 `__init__`。
-2. Codex 已判定"未提交"——`retry_safe = not submitted`（`src/butler/backends/codex.py:349`）。提交给远端之后哪怕超时也算不可重试，因为远端可能已产生副作用。
+2. Codex 已判定"未提交"——`retry_safe = not submitted`（`src/butler/backends/codex.py:350`）。提交给远端之后哪怕超时也算不可重试，因为远端可能已产生副作用。
 
 **什么算不可重试**：
 
@@ -105,7 +107,7 @@ changes:
 | Butler core | `src/butler/agent/core.py:387` | `Result(meta={'error','status','reply_complete':False,'retry_safe'})` |
 | SSE | `src/butler/agent/core.py:252` | `error` 事件，`code='incomplete_result'` |
 | wxbot 适配 | `src/wxbot/processor/butler.py:99` | `ValueError('Butler stream failed: {code}: {message}')`，属性 `retry_safe` 在 `:115` 补挂 |
-| 队列 worker | `src/wxbot/queue_worker.py:190` | `fail_batch(..., retry_safe=safe)` |
+| 队列 worker | `src/wxbot/queue_worker.py:186` | `fail_batch(..., retry_safe=safe)` |
 | 队列存储 | `src/wxbot/queue_store.py:389` | `batches.state='uncertain'` + 事件动作二选一 |
 | 维护线程 | `src/wxbot/model_recovery.py:18` | `model_retry` / `model_abandoned` |
 
@@ -137,17 +139,17 @@ changes:
 - `src/butler/agent/hermes.py:36` — `class HermesError(Exception):`
 - `src/butler/backends/compatible.py:112` — `def _error_detail(exc):`
 - `src/butler/backends/models.py:72` — `except HermesError as exc:`
-- `src/butler/backends/codex.py:349` — `failure.retry_safe=not submitted`
+- `src/butler/backends/codex.py:350` — `failure.retry_safe=not submitted`
 - `src/butler/runtime/model_switch.py:21` — `class ModelConfigurationError(HermesError):`
-- `src/butler/agent/core.py:252` — `emit('error',code='incomplete_result'`
-- `src/butler/server.py:392` — `stream_event({'type':'error','code':type(e).__name__,`
+- `src/butler/agent/core.py:259` — `emit('error',code='incomplete_result'`
+- `src/butler/server.py:405` — `stream_event({'type':'error','code':type(e).__name__,`
 - `src/wxbot/processor/butler.py:99` — `raise ValueError('Butler stream failed'`
 - `src/wxbot/processor/butler.py:137` — `error.retry_safe=meta.get('retry_safe') is True`
 - `src/wxbot/processor/openai_compat.py:141` — `if on_event is not None:exc.retry_safe=False`
-- `src/wxbot/queue_worker.py:190` — `safe=getattr(exc,'retry_safe',False) is True`
-- `src/wxbot/queue_store.py:395` — `'model_retryable' if retry_safe else 'model_uncertain'`
+- `src/wxbot/queue_worker.py:186` — `safe=getattr(exc,'retry_safe',False) is True`
+- `src/wxbot/queue_store.py:424` — `'model_retryable' if retry_safe else 'model_uncertain'`
 - `src/wxbot/model_recovery.py:2` — `MODEL_MAX_ATTEMPTS=3`
-- `src/wxbot/queue_store.py:414` — `结束失败批次并放行后续消息`
+- `src/wxbot/queue_store.py:443` — `结束失败批次并放行后续消息`
 
 `retry_safe` 读取点现位于 `queue_worker.py:190`（该文件增加语音 media 导入后下移一行）。失败分类未改。见 [[raw/changes/2026-11-03-indextts-enqueue-media]]。
 
@@ -168,3 +170,13 @@ changes:
 [[raw/changes/2026-11-02-details-whitelist-reverify]]
 
 [[raw/changes/2026-11-02-mention-residue-reverify]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+
+## 群聊采集与自动语音复核（2026-11-05）
+
+[[concepts/automatic-voice-reply]] 补充自动语音的缓冲/后台准备与失败单次回退；[[concepts/capture-viewport]] 补充越屏恢复，未修改模型后端请求/重试合同。来源 [[raw/changes/2026-11-05-group-auto-voice]]。

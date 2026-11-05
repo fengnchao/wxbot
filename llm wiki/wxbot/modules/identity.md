@@ -3,7 +3,7 @@ type: module
 module: identity
 summary: 统一人物、窗口和成员绑定，身份能力由服务端签发
 coverage: overview
-last_verified: '2026-11-01'
+last_verified: '2026-11-05'
 sources:
 - path: src/butler/identity/contact_store.py
   line: 37
@@ -12,10 +12,10 @@ sources:
   line: 24
   anchor: 'class UserRegistry:'
 - path: src/butler/agent/tools.py
-  line: 43
+  line: 47
   anchor: def issue(
 - path: src/butler/agent/tools.py
-  line: 51
+  line: 55
   anchor: def verify(
 - path: src/butler/identity/user_registry.py
   line: 350
@@ -23,10 +23,17 @@ sources:
 - path: src/butler/identity/user_registry.py
   line: 239
   anchor: def _learn_nickname(
+- path: src/butler/identity/contact_admin.py
+  line: 345
+  anchor: 'def save(self, payload):'
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
 - raw/changes/2026-10-31-group-identity-nickname
 - raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-04-webui-preset-binding
+- raw/changes/2026-11-04-webui-preset-graph-note
+- raw/changes/2026-11-05-contact-policy-save
 ---
 # 联系人身份与权限
 
@@ -49,12 +56,30 @@ changes:
 ## 代码依据
 
 - `src/butler/identity/contact_store.py:37` — `class ContactStore:`
-- `src/butler/identity/user_registry.py:25` — `class UserRegistry:`
+- `src/butler/identity/user_registry.py:24` — `class UserRegistry:`
 - `src/butler/agent/tools.py:47` — `def issue(`
-- `src/butler/agent/tools.py:56` — `def verify(`
-- `src/butler/identity/user_registry.py:355` — `def observe(`
-- `src/butler/identity/user_registry.py:244` — `def _learn_nickname(`
+- `src/butler/agent/tools.py:55` — `def verify(`
+- `src/butler/identity/user_registry.py:350` — `def observe(`
+- `src/butler/identity/user_registry.py:239` — `def _learn_nickname(`
 
 ## 入库来源
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+
+## 联系人语音配置核对
+
+[[raw/changes/2026-11-04-webui-preset-binding]]：接入网页预设列表与会话默认绑定；原有接口保持，新增接口及可选音色参数见 [[apis/index-tts]]。
+
+
+图谱契约说明来源：[[raw/changes/2026-11-04-webui-preset-graph-note]]。
+
+
+## 策略保存复核（2026-11-05）
+
+联系人策略保存的事务外目录校验、事务内版本复查及未安装技能的显式取消入口见 [[apis/dashboard-contact-policy]]。保留原角色与工具权限规则，无数据库迁移，不自动删除已有技能引用。来源 [[raw/changes/2026-11-05-contact-policy-save]]。

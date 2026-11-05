@@ -104,6 +104,10 @@ class Butler:
             self.catalogue = SkillCatalogue(cfg.plugin_path()/'skills', self.log)
             self.tools = ToolService(self.store,self.catalogue,policy_loader=self.policy_for_contact,
                 event_sink=lambda *args,**kw:self.trace.emit(*args,**kw))
+            from butler.delivery.tts import TTSService, AudioStore
+            from butler.delivery.push import queue_voice_to_wxbot
+            self.tools.tts_service = TTSService(self.store, AudioStore(cfg.data_path()/'audio'),
+                deliver=lambda contact, items, request_id: queue_voice_to_wxbot(cfg, contact, items, request_id))
             from butler.channels.telegram.relay.settings import Settings
             from butler.channels.telegram.relay.store import read_status
             status_path=cfg.data_path()/'telegram-relay'/'desktop-status.json'

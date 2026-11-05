@@ -3,19 +3,19 @@ type: symbol
 module: wxbot
 summary: 领取批次、调用模型并保存回复，绝不访问 UI
 coverage: core
-last_verified: 2026-11-03
+last_verified: '2026-11-05'
 sources:
 - path: src/wxbot/queue_worker.py
-  line: 45
+  line: 46
   anchor: def process_once(
 - path: src/wxbot/queue_worker.py
-  line: 143
+  line: 152
   anchor: reply = self.router.handle_reply(
 - path: src/wxbot/queue_worker.py
-  line: 101
+  line: 102
   anchor: self.store.finish_batch_parts(
 - path: src/wxbot/queue_worker.py
-  line: 166
+  line: 120
   anchor: voice_media = resolve_queued_media_path(policy)
 changes:
 - raw/changes/2026-11-03-indextts-enqueue-media
@@ -23,6 +23,7 @@ changes:
 - raw/changes/2026-11-03-feat-voice-003-voice-assets
 - raw/changes/2026-11-03-feat-voice-001-anchor-refresh
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
+- raw/changes/2026-11-05-group-auto-voice
 calls:
 - symbols/butler-processor
 - symbols/queue-finish
@@ -50,11 +51,16 @@ prepare/claim_batch → Router → [[symbols/butler-processor]]（使用 Butler 
 
 ## 代码依据
 
-- `src/wxbot/queue_worker.py:45` — `def process_once(`
-- `src/wxbot/queue_worker.py:143` — `reply = self.router.handle_reply(`
-- `src/wxbot/queue_worker.py:101` — `self.store.finish_batch_parts(`
-- `src/wxbot/queue_worker.py:166` — `voice_media = resolve_queued_media_path(policy)`
+- `src/wxbot/queue_worker.py:46` — `def process_once(`
+- `src/wxbot/queue_worker.py:152` — `reply = self.router.handle_reply(`
+- `src/wxbot/queue_worker.py:102` — `self.store.finish_batch_parts(`
+- `src/wxbot/queue_worker.py:120` — `voice_media = resolve_queued_media_path(policy)`
 
 ## 入库来源
 
 [[raw/changes/2026-10-31-knowledge-graph-bootstrap]]
+
+
+## 群聊采集与自动语音复核（2026-11-05）
+
+自动回复的 webui 默认推导、实时语音策略、流式缓冲、daemon 合成及录音前准确预设复核见 [[concepts/automatic-voice-reply]]；旧媒体包/离线提供者合同保留。自动 webui 的录音前失败终结并仅回退一次文字，不让 blocked 重试重复投递，无数据库迁移。来源 [[raw/changes/2026-11-05-group-auto-voice]]。

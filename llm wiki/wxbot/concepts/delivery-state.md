@@ -3,22 +3,22 @@ type: concept
 module: wxbot
 summary: 完整回复、排队、已发送和结果不确定分别处理
 coverage: core
-last_verified: 2026-11-03
+last_verified: '2026-11-05'
 sources:
 - path: src/wxbot/queue_store.py
   line: 339
   anchor: def finish_batch_parts(
 - path: src/wxbot/queue_store.py
-  line: 630
+  line: 639
   anchor: def finish_delivery(
 - path: src/wxbot/queue_store.py
-  line: 671
+  line: 680
   anchor: def retry_failed_deliveries(
 - path: src/wxbot/delivery_policy.py
   line: 5
   anchor: def _end_reply(
 - path: src/wxbot/queue_worker.py
-  line: 190
+  line: 186
   anchor: safe=getattr(exc,'retry_safe',False) is True
 - path: src/wxbot/ui_contract.py
   line: 65
@@ -39,6 +39,8 @@ changes:
 - raw/changes/2026-11-01-mention-fallback-unread-retry
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-mention-picker-gating-residue
+- raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-05-group-auto-voice
 ---
 # 模型完成与投递状态
 
@@ -66,15 +68,17 @@ UI 发件器不因「界面里出现了这段文字」就认定已发送。一�
 
 ## 测试与风险
 
+[[apis/index-tts]] 的 queued 是持久化回执而非发送确认。语音包通过原包顺序/停止机制推进；PTT 的设备准备发生在按键前，按键后探测或播放失败必须释放按键并记 uncertain，防止自动重录。正常松键仍沿用 ptt_release 的现有契约，不等同对方已收听。
+
 本地 test_delivery_failure_policy.py / test_reply_delivery_lifecycle.py / test_model_recovery.py，以及快照确认的 test_ui_contract.py。改时限需同步队列维护、只读倒计时和用户配置，不能只改界面；改确认证据要同时看 baseline 的落库形态与 `ref_available` 降级。
 
 ## 代码依据
 
 - `src/wxbot/queue_store.py:339` — `def finish_batch_parts(`
-- `src/wxbot/queue_store.py:591` — `def finish_delivery(`
-- `src/wxbot/queue_store.py:632` — `def retry_failed_deliveries(`
+- `src/wxbot/queue_store.py:639` — `def finish_delivery(`
+- `src/wxbot/queue_store.py:680` — `def retry_failed_deliveries(`
 - `src/wxbot/delivery_policy.py:5` — `def _end_reply(`
-- `src/wxbot/queue_worker.py:190` — `safe=getattr(exc,'retry_safe',False) is True`
+- `src/wxbot/queue_worker.py:186` — `safe=getattr(exc,'retry_safe',False) is True`
 - `src/wxbot/ui_contract.py:65` — `class Snapshot:`
 - `src/wxbot/delivery.py:13` — `def reply_evidence(`
 - `src/wxbot/queue_store.py:21` — `FAILURE_DETAIL_FIELDS =`
@@ -94,3 +98,13 @@ UI 发件器不因「界面里出现了这段文字」就认定已发送。一�
 ## 变更
 
 - 2026-11-03: FEAT-VOICE-001 P1 outbox kind=voice（虚拟麦+RALT）；见 [[raw/changes/2026-11-03-feat-voice-001-virtual-mic]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+
+## 群聊采集与自动语音复核（2026-11-05）
+
+自动回复的 webui 默认推导、实时语音策略、流式缓冲、daemon 合成及录音前准确预设复核见 [[concepts/automatic-voice-reply]]；旧媒体包/离线提供者合同保留。自动 webui 的录音前失败终结并仅回退一次文字，不让 blocked 重试重复投递，无数据库迁移。来源 [[raw/changes/2026-11-05-group-auto-voice]]。

@@ -3,7 +3,7 @@ type: module
 module: butler
 summary: 身份、权限、模型编排和业务工具的服务边界
 coverage: overview
-last_verified: '2026-11-01'
+last_verified: '2026-11-04'
 sources:
 - path: src/butler/server.py
   line: 50
@@ -12,7 +12,7 @@ sources:
   line: 79
   anchor: 'class Butler:'
 - path: src/butler/agent/tools.py
-  line: 27
+  line: 30
   anchor: 'class ToolService:'
 changes:
 - raw/changes/2026-10-31-knowledge-graph-bootstrap
@@ -22,6 +22,9 @@ changes:
 - raw/changes/2026-11-01-knowledge-sharding
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-04-webui-preset-binding
+- raw/changes/2026-11-04-webui-preset-graph-note
 depends_on:
 - modules/common
 ---
@@ -50,8 +53,8 @@ depends_on:
 ## 代码依据
 
 - `src/butler/server.py:50` — `def make_handler(`
-- `src/butler/agent/core.py:76` — `class Butler:`
-- `src/butler/agent/tools.py:31` — `class ToolService:`
+- `src/butler/agent/core.py:79` — `class Butler:`
+- `src/butler/agent/tools.py:30` — `class ToolService:`
 
 ## 入库来源
 
@@ -73,3 +76,16 @@ depends_on:
 [[raw/changes/2026-11-01-knowledge-sharding]]
 
 [[raw/changes/2026-11-01-knowledge-auto]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+
+## 联系人语音配置核对
+
+[[raw/changes/2026-11-04-webui-preset-binding]]：接入网页预设列表与会话默认绑定；原有接口保持，新增接口及可选音色参数见 [[apis/index-tts]]。
+
+
+图谱契约说明来源：[[raw/changes/2026-11-04-webui-preset-graph-note]]。

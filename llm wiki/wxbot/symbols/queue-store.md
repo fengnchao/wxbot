@@ -3,7 +3,7 @@ type: symbol
 module: wxbot
 summary: 短事务管理收件、合批、模型状态与 UI 发件状态
 coverage: core
-last_verified: '2026-11-02'
+last_verified: '2026-11-04'
 sources:
 - path: src/wxbot/queue_store.py
   line: 91
@@ -15,7 +15,7 @@ sources:
   line: 277
   anchor: def prepare(
 - path: src/wxbot/queue_store.py
-  line: 576
+  line: 585
   anchor: def claim_delivery(
 - path: src/wxbot/queue_store.py
   line: 21
@@ -27,6 +27,7 @@ changes:
 - raw/changes/2026-11-01-mention-fallback-unread-retry
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-mention-picker-gating-residue
+- raw/changes/2026-11-04-index-tts-skill
 ---
 # QueueStore
 
@@ -55,7 +56,7 @@ SQLite 状态、队列事件和辅助流；只读消费使用 [[apis/dashboard-q
 - `src/wxbot/queue_store.py:91` — `class QueueStore(`
 - `src/wxbot/queue_store.py:239` — `def capture(`
 - `src/wxbot/queue_store.py:277` — `def prepare(`
-- `src/wxbot/queue_store.py:537` — `def claim_delivery(`
+- `src/wxbot/queue_store.py:585` — `def claim_delivery(`
 - `src/wxbot/queue_store.py:21` — `FAILURE_DETAIL_FIELDS =`
 - `src/wxbot/queue_store.py:229` — `def forget_session(self, contact):`
 
@@ -70,3 +71,8 @@ SQLite 状态、队列事件和辅助流；只读消费使用 [[apis/dashboard-q
 [[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
 
 [[raw/changes/2026-11-02-mention-picker-gating-residue]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。

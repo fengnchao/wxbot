@@ -3,48 +3,57 @@ type: module
 module: dashboard
 summary: 聚合运行事实，读取队列不初始化或迁移数据库
 coverage: overview
-last_verified: 2026-11-03
+last_verified: '2026-11-05'
 sources:
-  - path: src/dashboard/routes.py
-    line: 57
-    anchor: '("GET", "/api/voice-assets", voice_assets.list_assets),'
-  - path: src/dashboard/api/voice_assets.py
-    line: 15
-    anchor: 'def list_assets(ctx):'
-  - path: src/dashboard/routes.py
-    line: 30
-    anchor: ROUTES = (
-  - path: src/dashboard/queue_view.py
-    line: 15
-    anchor: 'class QueueView:'
-  - path: src/dashboard/workflow_view.py
-    line: 41
-    anchor: 'class WorkflowView:'
-  - path: src/dashboard/config_view.py
-    line: 95
-    anchor: 'class ConfigView:'
-  - path: src/dashboard/config_editor.py
-    line: 153
-    anchor: def _access_changes(
-  - path: src/dashboard/api/knowledge.py
-    line: 54
-    anchor: 'def extract_status(ctx):'
-  - path: src/dashboard/knowledge_template_view.py
-    line: 27
-    anchor: 'class KnowledgeTemplateView:'
+- path: src/dashboard/api/tts_presets.py
+  line: 6
+  anchor: 'def _known_contact(ctx, contact):'
+- path: src/dashboard/routes.py
+  line: 59
+  anchor: ("GET", "/api/voice-assets", voice_assets.list_assets),
+- path: src/dashboard/api/voice_assets.py
+  line: 15
+  anchor: 'def list_assets(ctx):'
+- path: src/dashboard/routes.py
+  line: 32
+  anchor: ROUTES = (
+- path: src/dashboard/queue_view.py
+  line: 15
+  anchor: 'class QueueView:'
+- path: src/dashboard/workflow_view.py
+  line: 41
+  anchor: 'class WorkflowView:'
+- path: src/dashboard/config_view.py
+  line: 95
+  anchor: 'class ConfigView:'
+- path: src/dashboard/config_editor.py
+  line: 153
+  anchor: def _access_changes(
+- path: src/dashboard/api/knowledge.py
+  line: 54
+  anchor: 'def extract_status(ctx):'
+- path: src/dashboard/knowledge_template_view.py
+  line: 27
+  anchor: 'class KnowledgeTemplateView:'
 changes:
-  - raw/changes/2026-11-03-feat-voice-003-voice-assets
-  - raw/changes/2026-10-31-knowledge-graph-bootstrap
-  - raw/changes/2026-10-31-model-access-switch
-  - raw/changes/2026-11-01-knowledge-episodes
-  - raw/changes/2026-11-01-knowledge-sharding
-  - raw/changes/2026-11-01-knowledge-auto
-  - raw/changes/2026-11-01-knowledge-vault-graph
-  - raw/changes/2026-11-02-knowledge-graph-template
+- raw/changes/2026-11-03-feat-voice-003-voice-assets
+- raw/changes/2026-10-31-knowledge-graph-bootstrap
+- raw/changes/2026-10-31-model-access-switch
+- raw/changes/2026-11-01-knowledge-episodes
+- raw/changes/2026-11-01-knowledge-sharding
+- raw/changes/2026-11-01-knowledge-auto
+- raw/changes/2026-11-01-knowledge-vault-graph
+- raw/changes/2026-11-02-knowledge-graph-template
+- raw/changes/2026-11-04-contact-index-tts
+- raw/changes/2026-11-04-webui-preset-binding
+- raw/changes/2026-11-04-webui-preset-graph-note
+- raw/changes/2026-11-05-contact-policy-save
 depends_on:
-  - modules/common
+- modules/common
 ---
 # 管理台 HTTP 与投影
+
+联系人表单的 IndexTTS 授权仍复用 /api/skills、/api/contacts 与语音绑定接口；网页预设列表/默认选择现由新增 GET/POST /api/tts-presets 适配 Butler 业务服务。角色与技能仍由 ContactAdmin._policy 的服务端目录验证，UI 勾选不是执行能力；多源保存边界与前端消费者见 [[apis/index-tts]]。新接口需使用者手动重启管理台加载，无新表或迁移。
 
 ## 范围与入口
 
@@ -96,3 +105,21 @@ depends_on:
 
 - [[apis/dashboard-voice-assets]]：资产 CRUD、参考音预览、会话绑定写 config.wxbot.toml。
 
+
+
+## 联系人语音配置核对
+
+[[raw/changes/2026-11-04-contact-index-tts]]：新增会话授权控件与原接口消费，源码位置已核对；后端契约保持。
+
+
+## 联系人语音配置核对
+
+[[raw/changes/2026-11-04-webui-preset-binding]]：接入网页预设列表与会话默认绑定；原有接口保持，新增接口及可选音色参数见 [[apis/index-tts]]。
+
+
+图谱契约说明来源：[[raw/changes/2026-11-04-webui-preset-graph-note]]。
+
+
+## 策略保存复核（2026-11-05）
+
+联系人策略保存的事务外目录校验、事务内版本复查及未安装技能的显式取消入口见 [[apis/dashboard-contact-policy]]。保留原角色与工具权限规则，无数据库迁移，不自动删除已有技能引用。来源 [[raw/changes/2026-11-05-contact-policy-save]]。

@@ -35,3 +35,15 @@ def validate_request_id(value):
     if not isinstance(value, str) or not re.fullmatch(r'[A-Za-z0-9_.:-]{1,200}', value):
         raise ValueError('无效 request_id')
     return value
+
+
+def validate_voice_items(items):
+    """Separate authenticated voice contract; image/text callers stay unchanged."""
+    if not isinstance(items, list) or not 1 <= len(items) <= MAX_ITEMS:
+        raise ValueError('语音包须包含 1-50 条语音')
+    result = []
+    for item in items:
+        if not isinstance(item, dict) or set(item) != {'kind', 'media_id'} or item['kind'] != 'voice':
+            raise ValueError('语音包仅支持服务端音频编号')
+        result.append({'kind': 'voice', 'media_id': validate_media_id(item['media_id'])})
+    return result

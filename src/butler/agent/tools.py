@@ -7,8 +7,10 @@ import secrets
 import time
 
 
-READ_TOOLS = {'skills_list','skill_read','reminder_list','telegram_relay_status'}
+READ_TOOLS = {'skills_list','skill_read','reminder_list','telegram_relay_status','tts_presets'}
 TOOL_SCHEMAS = {
+    'tts_presets': ('List currently saved IndexTTS WebUI voice presets', {}),
+    'tts_generate': ('Generate and queue voice messages to the current chat; omitted preset uses the voice preset bound to this chat. Other settings use WebUI defaults. queued is not confirmed sent. Never automatically retry an unknown result.', {'text':{'type':'string','maxLength':6000},'preset':{'type':'string','maxLength':256}}),
     'skills_list': ('List skills permitted for this identity', {}),
     'skill_read': ('Read an allowed skill or a relative reference file', {'name':{'type':'string'},'file_path':{'type':'string'}}),
     'reminder_create': ('Create a reminder; schedule is in 2m, ISO datetime, or 5-field cron', {'text':{'type':'string'},'schedule':{'type':'string'}}),
@@ -19,6 +21,7 @@ TOOL_SCHEMAS = {
     'telegram_relay_resume': ('Resume the configured Telegram relay (administrators only)', {}),
 }
 REQUIRED_ARGUMENTS = {
+    'tts_generate':('text',),
     'skill_read':('name',),
     'reminder_create':('text','schedule'),'reminder_cancel':('id',),
 }
@@ -31,6 +34,7 @@ class ToolService:
         self.policy_loader = policy_loader
         self.event_sink = event_sink
         self.relay_settings = None
+        self.tts_service = None
 
     def _relay_admin(self, context):
         if self.relay_settings is None:
@@ -120,6 +124,13 @@ class ToolService:
             if args.get('name') not in {c['policy']['role_skill'],*c['policy']['allowed_skills']}:
                 raise PermissionError('Skill not permitted')
             return {'text':self.catalogue.read(args['name'],args.get('file_path','SKILL.md'))}
+        if name in ('tts_presets', 'tts_generate'):
+            if self.tts_service is None:
+                raise ValueError('IndexTTS 服务未配置')
+            if name == 'tts_presets':
+                return self.tts_service.presets(c['contact'])
+            return self.tts_service.generate(c, args['text'], args.get('preset', ''), call_id,
+                                             authorize=lambda: self.verify(token))
         owner=c['owner']
         with self.store.transaction() as db:
             fingerprint=hashlib.sha256(json.dumps([name,args],sort_keys=True,ensure_ascii=False).encode()).hexdigest()

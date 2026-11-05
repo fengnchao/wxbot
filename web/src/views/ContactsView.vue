@@ -150,7 +150,10 @@ function openProfile(row) {
 }
 
 function openConversation(conversation) {
-  openDialog('conversation', '会话设置，' + conversation.name, conversation)
+  openDialog('conversation', '会话设置，' + conversation.name, {
+    ...conversation,
+    effectivePolicy: effectivePolicy(current.value, conversation).policy
+  })
 }
 
 function openPolicy(row, conversation = null) {

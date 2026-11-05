@@ -117,7 +117,8 @@ class CodexBackend:
             'mcp_servers':{'butler':{'url':f'http://127.0.0.1:{self.cfg.port}/mcp',
                 'bearer_token_env_var':'BUTLER_TOOL_CAPABILITY','required':True,
                 'default_tools_approval_mode':'approve',
-                'tool_timeout_sec':30,'enabled_tools':list(__import__('butler.agent.tools',fromlist=['TOOL_SCHEMAS']).TOOL_SCHEMAS)}}}
+                'tool_timeout_sec':max(30, int(self.cfg.codex_timeout)),
+                'enabled_tools':list(__import__('butler.agent.tools',fromlist=['TOOL_SCHEMAS']).TOOL_SCHEMAS)}}}
 
     def _workspace(self,scope,policy):
         workspace=self.cfg.data_path()/'workspaces'/scope

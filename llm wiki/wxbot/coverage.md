@@ -4,8 +4,15 @@
 
 ## 已建档
 
+- 网页预设动态列表、联系人默认绑定及可选工具音色参数，见 [[apis/index-tts]]；区分本地自动回复资产，含保存快照、防串写、停用联系人、修订冲突与原子 JSON 配置。
+
+- 联系人会话的 IndexTTS 授权开关、现有策略继承/局部变更与语音设置保存边界，见 [[apis/index-tts]]、[[modules/web]]；无新后端接口。
+
+- 网页音色预设工具、同会话 Gradio 队列、分段标准 WAV、鉴权音频编号、语音包入队/发送状态及原自动音色绑定例外，见 [[apis/index-tts]]。
+
 - 音色页单内容区、加载/空/失败/有数据展示、字段血缘与响应式约束，见 [[modules/web]]、[[apis/dashboard-voice-assets]]；后端契约保持不变。
 
+- 开发工作树与解释器基线、现行配置与依赖来源、生产后端与旁路的层级、历史布局边界，见 [[concepts/development-baseline]]；不记录真实配置或运行进程状态。
 - 主要模块职责、入口、依赖和边界，见 [[index]] 的 modules。
 - 消息处理：[[apis/butler-handle]]、[[apis/butler-handle-stream]]，含请求/响应字段、wxbot 调用方。
 - 最终队列结构：[[tables/queue-inbox]]、[[tables/queue-batches]]、[[tables/queue-outbox]]，结合建表及补列阅读。

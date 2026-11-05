@@ -209,6 +209,9 @@ const payloads = {
     assets: [],
     modes: ['off', 'replace', 'coexist']
   },
+  '/api/tts-presets': {
+    ok: true, available: true, error: '', presets: ['网页预设一', '网页预设二'], preset: '网页预设一', version: 'preset-v1'
+  },
   '/api/contacts': {
     active: true, version: 3, total: 4,
     rows: [
@@ -217,7 +220,7 @@ const payloads = {
         conversations: [{
           id: 'conv-dm', name: 'Alice', channel_type: 'dm', enabled: true, listening: true,
           subscriptions: [1], uid: 'alice', profile: 'default', label: '', session_key: '',
-          needs_route: false, policy: { role_skill: 'assistant', allowed_skills: ['news'], heartbeat_enabled: true }
+          needs_route: false, policy: { role_skill: 'assistant', allowed_skills: ['news', 'legacy-memory'], heartbeat_enabled: true }
         }],
         memberships: [{
           binding_id: 'b-group-1', contact: '产品群', nickname: '小A', enabled: true,
@@ -327,7 +330,8 @@ const payloads = {
   '/api/skills': {
     skills: [
       { name: 'assistant', description: '通用助手', category: '角色', tags: ['butler-role'] },
-      { name: 'news', description: '新闻检索', category: '工具', tags: [] }
+        { name: 'news', description: '新闻检索', category: '工具', tags: [] },
+        { name: 'index-tts', description: '文字转微信语音', category: '工具', tags: [] }
     ]
   },
   '/api/telegram-relay': {
@@ -475,10 +479,43 @@ const mergeRequests = []
 const deleteRequests = []
 const extractRequests = []
 const templateRequests = []
+const contactRequests = []
+const voiceBindingRequests = []
+let rejectTtsSkills = false
+let rejectVoiceBinding = false
+let progressiveTtsVersion = false
+const presetBindingRequests = []
+let presetRevision = 1
+let offlinePresets = false
+let rejectPresetSave = false
+let holdContactSave = false
+let releaseContactSave = null
 let rejectMerge = false
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(typeof input === 'string' ? input : input.url, 'http://127.0.0.1')
   const method = String(init.method || 'GET').toUpperCase()
+  if (url.pathname === '/api/tts-presets' && method === 'GET' && offlinePresets) {
+    return { ok: true, status: 200, text: async () => JSON.stringify({ ...payloads['/api/tts-presets'],
+      available: false, presets: [], error: '测试网页暂不可达' }) }
+  }
+  if (url.pathname === '/api/tts-presets' && method === 'POST') {
+    const body = JSON.parse(init.body || '{}')
+    presetBindingRequests.push(body)
+    if (rejectPresetSave) return { ok: false, status: 503, text: async () => JSON.stringify({ error: '测试预设保存失败' }) }
+    if (body.version !== payloads['/api/tts-presets'].version) {
+      return { ok: false, status: 409, text: async () => JSON.stringify({ error: 'preset version conflict' }) }
+    }
+    payloads['/api/tts-presets'] = { ...payloads['/api/tts-presets'], preset: body.preset, version: 'preset-v' + (++presetRevision) }
+    return { ok: true, status: 200, text: async () => JSON.stringify(payloads['/api/tts-presets']) }
+  }
+  if (url.pathname === '/api/skills' && rejectTtsSkills) {
+    return { ok: false, status: 503, text: async () => JSON.stringify({ error: '测试技能目录不可用' }) }
+  }
+  if (url.pathname === '/api/voice-assets' && method === 'POST') {
+    voiceBindingRequests.push(JSON.parse(init.body || '{}'))
+    if (rejectVoiceBinding) return { ok: false, status: 500, text: async () => JSON.stringify({ error: '测试语音设置保存失败' }) }
+    return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true }) }
+  }
   if (url.pathname === '/api/knowledge/extract' && method === 'POST') {
     extractRequests.push(JSON.parse(init.body || '{}'))
     return {
@@ -515,6 +552,11 @@ globalThis.fetch = async (input, init = {}) => {
   }
   if (url.pathname === '/api/contacts' && method === 'POST') {
     const body = JSON.parse(init.body || '{}')
+    contactRequests.push(body)
+    if (holdContactSave) {
+      holdContactSave = false
+      await new Promise(resolve => { releaseContactSave = resolve })
+    }
     if (body.action === 'contact_delete') deleteRequests.push(body)
     if (body.action === 'merge') {
       mergeRequests.push(body)
@@ -524,7 +566,13 @@ globalThis.fetch = async (input, init = {}) => {
       throw new Error('个人记忆接口已下线，前端不应再调用')
     }
     const current = payloads['/api/contacts']
-    const next = { ...current, version: current.version + 1 }
+    const next = { ...current, version: (progressiveTtsVersion ? body.version : current.version) + 1 }
+    if (body.action === 'conversation') {
+      const fields = ['name', 'enabled', 'listening', 'subscriptions', 'uid', 'profile', 'label', 'session_key', 'policy']
+      const changed = Object.fromEntries(fields.filter(key => Object.hasOwn(body, key)).map(key => [key, body[key]]))
+      next.rows = current.rows.map(row => ({ ...row, conversations: row.conversations.map(c =>
+        c.id === body.id ? { ...c, ...changed, name: (body.name || c.name).trim() } : c) }))
+    }
     if (body.action === 'aliases') next.aliases = body.aliases
     return { ok: true, status: 200, text: async () => JSON.stringify(next) }
   }
@@ -644,11 +692,185 @@ document.querySelector('#list .contact-row')?.click()
 await contactDetail('ai')
 expect(text('#pane').includes('assistant') && text('#pane').includes('此窗口单独设置'), 'AI 设置应展示生效角色和覆盖来源')
 expect(text('#pane').includes('news'), 'AI 设置应展示实际允许功能')
+;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('设置此窗口角色与功能'))?.click()
+await pause()
+const missingSkill = document.querySelector('#contact-policy-form input[value="legacy-memory"]')
+expect(missingSkill?.checked && text('#contact-policy-form').includes('未安装'), '已配置但未安装的技能必须显示并保留勾选，不能静默删除')
+if (!missingSkill) throw new Error('缺少未安装技能的显式取消入口')
+missingSkill.checked = false
+missingSkill.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+holdContactSave = true
+document.querySelector('#contact-policy-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+await pause()
+expect(document.querySelector('#contact-policy-form button[type=submit]')?.disabled && text('#contact-policy-form').includes('保存中'), '保存策略等待回执时应显示保存中并阻止重复提交')
+releaseContactSave()
+await pause()
+expect(contactRequests.at(-1).policy.allowed_skills.join(',') === 'news', '只有用户明确取消才移除未安装技能，并保留其他功能')
+;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('设置此窗口角色与功能'))?.click()
+await pause()
+expect(!document.querySelector('#contact-policy-form input[value="legacy-memory"]') && document.querySelector('#contact-policy-form input[value="news"]')?.checked,
+  '保存后重开应显示返回的新策略')
+document.querySelector('.user-dialog button')?.click()
+await pause()
 await contactDetail('push')
 expect(text('#pane').includes('发送窗口：Alice') && text('#pane').includes('新闻'), '主动消息应明确订阅与发送目标')
 ;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('查看此窗口运行记录'))?.click()
 await pause()
 expect(text('#pane').includes('主动问候运行记录') && text('#pane').includes('建议已发送'), '应展示选定窗口的主动问候记录')
+await contactDetail('basic')
+;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('编辑窗口与收发设置'))?.click()
+await pause()
+const indexTtsToggle = document.querySelector('#contact-conversation-form input[name=indexTtsEnabled]')
+expect(Boolean(indexTtsToggle) && !indexTtsToggle.disabled, '会话配置应提供可用的 IndexTTS 授权开关')
+const webuiPreset = document.querySelector('#contact-conversation-form select[name=webuiPreset]')
+expect(webuiPreset?.value === '网页预设一' && webuiPreset.options.length === 3, '联系人应显示网页预设与当前绑定，不能读取本地资产列表冒充网页预设')
+if (webuiPreset) {
+  webuiPreset.value = '网页预设二'
+  webuiPreset.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+}
+indexTtsToggle.checked = true
+indexTtsToggle.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+const voiceMode = document.querySelector('#contact-conversation-form select[name=voiceMode]')
+voiceMode.value = 'coexist'
+voiceMode.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+document.querySelector('#contact-conversation-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+await pause()
+const ttsSave = contactRequests.at(-1)
+expect(ttsSave.policy.role_skill === 'assistant' && ttsSave.policy.heartbeat_enabled === true,
+  '授权 IndexTTS 不能改变原角色或自动问候')
+expect(ttsSave.policy.allowed_skills.includes('news') && ttsSave.policy.allowed_skills.includes('index-tts'),
+  '授权 IndexTTS 必须保留其他技能')
+expect(voiceBindingRequests.at(-1).mode === 'coexist', '同一次会话保存应提交所选语音模式')
+expect(!Object.hasOwn(voiceBindingRequests.at(-1), 'asset_id'), '只改语音模式不能清空旧参考音绑定')
+expect(presetBindingRequests.at(-1)?.preset === '网页预设二' && presetBindingRequests.at(-1)?.contact === 'Alice',
+  '联系人保存应绑定网页预设名到当前会话')
+;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('编辑窗口与收发设置'))?.click()
+await pause()
+const bindingCount = voiceBindingRequests.length
+const presetBindingCount = presetBindingRequests.length
+document.querySelector('#contact-conversation-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+await pause()
+expect(!Object.hasOwn(contactRequests.at(-1), 'policy'), '未改 IndexTTS 开关不应写回策略或创建覆盖')
+expect(voiceBindingRequests.length === bindingCount, '未改语音设置不应覆盖参考音绑定')
+expect(presetBindingRequests.length === presetBindingCount, '未改网页预设不应覆盖绑定')
+;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('编辑窗口与收发设置'))?.click()
+await pause()
+const frozenName = document.querySelector('#contact-conversation-form input[name=name]')
+const frozenPreset = document.querySelector('select[name=webuiPreset]')
+const frozenMode = document.querySelector('select[name=voiceMode]')
+frozenPreset.value = '网页预设一'
+frozenPreset.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+frozenMode.value = 'coexist'
+frozenMode.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+holdContactSave = true
+document.querySelector('#contact-conversation-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+await pause()
+expect(frozenName.disabled, '保存中应禁止更改会话名')
+frozenName.value = '产品群'
+frozenName.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+frozenPreset.value = '网页预设二'
+frozenPreset.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+frozenMode.value = 'replace'
+frozenMode.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+releaseContactSave()
+await pause()
+expect(voiceBindingRequests.at(-1).contact === 'Alice' && voiceBindingRequests.at(-1).mode === 'coexist' &&
+  presetBindingRequests.at(-1).contact === 'Alice' && presetBindingRequests.at(-1).preset === '网页预设一',
+  '等待联系人响应期间的表单变化不能把语音或预设写到另一联系人，必须固定目标和值')
+offlinePresets = true
+;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('编辑窗口与收发设置'))?.click()
+await pause()
+expect(document.querySelector('select[name=webuiPreset]')?.value === '网页预设一' &&
+  text('#contact-webui-preset-status').includes('测试网页暂不可达'), '网页不可达时必须保留已保存的绑定并展示错误')
+offlinePresets = false
+;[...document.querySelectorAll('#contact-index-tts button')].find(button => button.textContent.includes('刷新网页预设'))?.click()
+await pause()
+expect(document.querySelector('select[name=webuiPreset]')?.options.length === 3 &&
+  !text('#contact-webui-preset-status').includes('测试网页暂不可达'), '刷新后应恢复真实预设列表')
+const failedPreset = document.querySelector('select[name=webuiPreset]')
+failedPreset.value = '网页预设二'
+failedPreset.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+rejectPresetSave = true
+document.querySelector('#contact-conversation-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+await pause()
+expect(document.querySelector('#contact-conversation-form') && text('#user-dialog-error').includes('网页预设尚未保存'),
+  '默认预设保存失败时应保留弹窗并明确已保存范围')
+rejectPresetSave = false
+document.querySelector('#contact-conversation-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+await pause()
+expect(!document.querySelector('#contact-conversation-form') && payloads['/api/tts-presets'].preset === '网页预设二',
+  '默认预设保存失败后应可重试并持久化选择')
+rejectTtsSkills = true
+;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('编辑窗口与收发设置'))?.click()
+await pause()
+expect(document.querySelector('input[name=indexTtsEnabled]')?.disabled && text('#contact-index-tts').includes('测试技能目录不可用'),
+  '技能读取失败时应显示错误并禁止修改授权')
+rejectTtsSkills = false
+;[...document.querySelectorAll('#contact-index-tts button')].find(button => button.textContent.includes('重试'))?.click()
+await pause()
+expect(!document.querySelector('input[name=indexTtsEnabled]')?.disabled, '技能目录应支持原位重试')
+const retryToggle = document.querySelector('input[name=indexTtsEnabled]')
+retryToggle.checked = true
+retryToggle.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+const retryMode = document.querySelector('select[name=voiceMode]')
+retryMode.value = 'coexist'
+retryMode.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+rejectVoiceBinding = true
+progressiveTtsVersion = true
+const partialContactCount = contactRequests.length
+document.querySelector('#contact-conversation-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+await pause()
+expect(document.querySelector('#contact-conversation-form') && text('#user-dialog-error').includes('已保存，语音设置尚未保存'),
+  '语音设置失败时不能关闭弹窗或掩盖已保存的联系人状态')
+rejectVoiceBinding = false
+document.querySelector('#contact-conversation-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+await pause()
+expect(!document.querySelector('#contact-conversation-form') && !Object.hasOwn(contactRequests.at(-1), 'policy'),
+  '部分失败后重试应使用新版本且不重复改写已保存的授权')
+expect(contactRequests.length === partialContactCount + 2 &&
+  contactRequests.at(-1).version === contactRequests[partialContactCount].version + 1,
+  '部分保存重试必须使用前一次联系人响应的新版本')
+progressiveTtsVersion = false
+const originalVoiceBindings = payloads['/api/voice-bindings']
+const renamedAsset = payloads['/api/voice-assets'].assets[0]
+payloads['/api/voice-bindings'] = { ...originalVoiceBindings, contacts: { Alice: 'coexist' },
+  contact_refs: { Alice: { asset_id: renamedAsset.id } }, assets: [renamedAsset] }
+;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('编辑窗口与收发设置'))?.click()
+await pause()
+const renamedInput = document.querySelector('#contact-conversation-form input[name=name]')
+renamedInput.value = 'Alice Renamed'
+renamedInput.dispatchEvent(new dom.window.Event('input', { bubbles: true }))
+document.querySelector('#contact-conversation-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+await pause()
+expect(voiceBindingRequests.at(-1).contact === 'Alice Renamed' && voiceBindingRequests.at(-1).mode === 'coexist' &&
+  voiceBindingRequests.at(-1).asset_id === renamedAsset.id, '重命名会话也必须将现有语音模式和资产写到新会话名')
+payloads['/api/voice-bindings'] = originalVoiceBindings
+const inheritedRow = payloads['/api/contacts'].rows[0]
+const originalPersonPolicy = inheritedRow.policy
+const originalConversationPolicy = inheritedRow.conversations[0].policy
+async function ttsNav(title) {
+  ;[...document.querySelectorAll('.nav-group button')].find(button => button.textContent.trim() === title)?.click()
+  await pause()
+}
+inheritedRow.policy = { role_skill: 'assistant', allowed_skills: ['news', 'index-tts'], heartbeat_enabled: true }
+inheritedRow.conversations[0].policy = null
+await ttsNav('定时任务')
+await ttsNav('联系人')
+await contactDetail('basic')
+;[...document.querySelectorAll('#pane button')].find(button => button.textContent.includes('编辑窗口与收发设置'))?.click()
+await pause()
+const inheritedToggle = document.querySelector('input[name=indexTtsEnabled]')
+expect(inheritedToggle?.checked && text('#contact-index-tts').includes('独立策略'), '应正确显示继承的授权并说明窗口覆盖')
+inheritedToggle.checked = false
+inheritedToggle.dispatchEvent(new dom.window.Event('change', { bubbles: true }))
+document.querySelector('#contact-conversation-form').dispatchEvent(new dom.window.Event('submit', { bubbles: true, cancelable: true }))
+await pause()
+expect(contactRequests.at(-1).policy.role_skill === 'assistant' && contactRequests.at(-1).policy.allowed_skills.join(',') === 'news',
+  '关闭继承的 IndexTTS 时应复制原策略，仅移除该技能')
+inheritedRow.policy = originalPersonPolicy
+inheritedRow.conversations[0].policy = originalConversationPolicy
+await ttsNav('定时任务')
+await ttsNav('联系人')
 await contactDetail('basic')
 document.querySelector('#contact-person-edit')?.click()
 await pause()

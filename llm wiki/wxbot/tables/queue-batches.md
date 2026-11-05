@@ -3,7 +3,7 @@ type: table
 module: wxbot
 summary: 模型请求批次与最终回复完整性，非发送回执
 coverage: core
-last_verified: '2026-11-02'
+last_verified: '2026-11-04'
 sources:
 - path: src/wxbot/queue_schema.py
   line: 34
@@ -32,6 +32,7 @@ changes:
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-details-whitelist-reverify
 - raw/changes/2026-11-02-mention-residue-reverify
+- raw/changes/2026-11-04-index-tts-skill
 ---
 # SQLite batches
 
@@ -94,3 +95,8 @@ prepare 合并 inbox 得 text/context/member/回复模式；claim_batch 标记 p
 [[raw/changes/2026-11-02-details-whitelist-reverify]]
 
 [[raw/changes/2026-11-02-mention-residue-reverify]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。

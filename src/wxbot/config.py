@@ -1,4 +1,4 @@
-"""读取 config.toml，其他模块只从这里取配置。"""
+"""读取 config.wxbot.toml，其他模块只从这里取配置。"""
 import math
 import os
 from pathlib import Path

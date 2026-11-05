@@ -3,7 +3,7 @@ type: symbol
 module: wxbot
 summary: 完整分句入 outbox，模型完成和发送完成分开
 coverage: core
-last_verified: '2026-11-02'
+last_verified: '2026-11-04'
 sources:
 - path: src/wxbot/queue_store.py
   line: 339
@@ -22,6 +22,7 @@ changes:
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-details-whitelist-reverify
 - raw/changes/2026-11-02-mention-residue-reverify
+- raw/changes/2026-11-04-index-tts-skill
 calls: []
 called_by:
 - symbols/model-worker
@@ -46,7 +47,7 @@ parts 必须是完整、非空字符串的 tuple（允许空 tuple 表示无需�
 
 - `src/wxbot/queue_store.py:339` — `def finish_batch_parts(`
 - `src/wxbot/queue_store.py:321` — `def _insert_delivery(`
-- `src/wxbot/queue_store.py:359` — `def _recompute_batch(`
+- `src/wxbot/queue_store.py:388` — `def _recompute_batch(`
 
 ## 入库来源
 
@@ -59,3 +60,8 @@ parts 必须是完整、非空字符串的 tuple（允许空 tuple 表示无需�
 [[raw/changes/2026-11-02-details-whitelist-reverify]]
 
 [[raw/changes/2026-11-02-mention-residue-reverify]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。

@@ -177,7 +177,8 @@ class BaseHandler(BaseHTTPRequestHandler):
             if policy['role_skill'] not in roles:
                 raise ValueError('角色 Skill 不存在或不属于角色分类')
             if not set(policy['allowed_skills']) <= tools:
-                raise ValueError('工具白名单包含目录中不存在的 Skill')
+                missing = '、'.join(sorted(set(policy['allowed_skills']) - tools))
+                raise ValueError('工具白名单包含未安装的 Skill：' + missing + '；请取消对应勾选后保存')
 
         return ContactAdmin(directory_path(self._svc('butler_config_path')()),
                             policy_validator=validate)

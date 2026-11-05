@@ -3,54 +3,59 @@ type: module
 module: wxbot
 summary: 微信 UI 主线程与不接触 UI 的模型队列线程
 coverage: overview
-last_verified: 2026-11-03
+last_verified: '2026-11-05'
 sources:
-  - path: src/wxbot/voice/assets.py
-    line: 80
-    anchor: 'class VoiceAssetStore:'
-  - path: src/wxbot/voice/policy.py
-    line: 103
-    anchor: 'def has_usable_binding(self, contact: str) -> bool:'
-  - path: src/wxbot/inbox.py
-    line: 45
-    anchor: 'class MainInbox:'
-  - path: src/wxbot/queue_worker.py
-    line: 26
-    anchor: 'class ModelWorker:'
-  - path: src/wxbot/queue_store.py
-    line: 91
-    anchor: class QueueStore(
-  - path: src/wxbot/main.py
-    line: 29
-    anchor: def build_processor(
-  - path: src/wxbot/inbox.py
-    line: 120
-    anchor: def sync_users(
-  - path: src/wxbot/queue_store.py
-    line: 192
-    anchor: def identity_observations(
-  - path: src/wxbot/ui_contract.py
-    line: 65
-    anchor: 'class Snapshot:'
-  - path: src/wxbot/wechat/locator.py
-    line: 9
-    anchor: def wait_until(
-  - path: src/wxbot/wechat/chat_window.py
-    line: 36
-    anchor: 'ref: str = '''''
+- path: src/wxbot/voice/assets.py
+  line: 80
+  anchor: 'class VoiceAssetStore:'
+- path: src/wxbot/voice/policy.py
+  line: 112
+  anchor: 'def has_usable_binding(self, contact: str) -> bool:'
+- path: src/wxbot/inbox.py
+  line: 45
+  anchor: 'class MainInbox:'
+- path: src/wxbot/queue_worker.py
+  line: 26
+  anchor: 'class ModelWorker:'
+- path: src/wxbot/queue_store.py
+  line: 91
+  anchor: class QueueStore(
+- path: src/wxbot/main.py
+  line: 29
+  anchor: def build_processor(
+- path: src/wxbot/inbox.py
+  line: 120
+  anchor: def sync_users(
+- path: src/wxbot/queue_store.py
+  line: 192
+  anchor: def identity_observations(
+- path: src/wxbot/ui_contract.py
+  line: 65
+  anchor: 'class Snapshot:'
+- path: src/wxbot/wechat/locator.py
+  line: 9
+  anchor: def wait_until(
+- path: src/wxbot/wechat/chat_window.py
+  line: 37
+  anchor: 'ref: str = '''''
+- path: src/wxbot/wechat/viewport.py
+  line: 86
+  anchor: 'def ensure_window_visible(window):'
 changes:
-  - raw/changes/2026-11-03-indextts-enqueue-media
-  - raw/changes/2026-11-03-feat-voice-003-voice-assets
-  - raw/changes/2026-11-03-feat-voice-001-virtual-mic
-  - raw/changes/2026-10-31-knowledge-graph-bootstrap
-  - raw/changes/2026-10-31-switchable-models
-  - raw/changes/2026-10-31-group-identity-nickname
-  - raw/changes/2026-10-31-identity-placeholder-names
-  - raw/changes/2026-11-01-mention-fallback-unread-retry
-  - raw/changes/2026-11-02-ui-snapshot-ref-contract
-  - raw/changes/2026-11-02-mention-picker-gating-residue
+- raw/changes/2026-11-03-indextts-enqueue-media
+- raw/changes/2026-11-03-feat-voice-003-voice-assets
+- raw/changes/2026-11-03-feat-voice-001-virtual-mic
+- raw/changes/2026-10-31-knowledge-graph-bootstrap
+- raw/changes/2026-10-31-switchable-models
+- raw/changes/2026-10-31-group-identity-nickname
+- raw/changes/2026-10-31-identity-placeholder-names
+- raw/changes/2026-11-01-mention-fallback-unread-retry
+- raw/changes/2026-11-02-ui-snapshot-ref-contract
+- raw/changes/2026-11-02-mention-picker-gating-residue
+- raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-05-group-auto-voice
 depends_on:
-  - modules/common
+- modules/common
 ---
 # wxbot UI 与持久队列
 
@@ -65,6 +70,8 @@ depends_on:
 模型适配通过 processor.router.Router；Butler 适配是 [[symbols/butler-processor]]，消费 [[apis/butler-handle]] / [[apis/butler-handle-stream]]。主动推送入口属于 outbound 服务，详细契约待建档。
 
 ## 影响边界
+
+[[apis/index-tts]] 的 `/send-voice-bundle` 下载已验证的标准 WAV，由 UI 线程一次事务写入语音包再确认 queued。`DeliveryPump` 直接加载媒体而不重复合成，依旧检查总开关/联系人模式；已提供网页参考音的包不要求管理台绑定。`VoiceSession` 先准备设备、按 RALT，等 250ms 再灌音；异常释放键，已开始录音的失败记 uncertain。包失败停止剩余项且不自动发文字回退。
 
 改队列字段需检查 [[modules/dashboard]] 的只读 SQL 和 [[modules/web]] 展示。改分句/流式协议需检查 [[symbols/queue-finish]]、[[concepts/delivery-state]] 及 [[concepts/message-pipeline]]。用户自己重启服务，离线验证不能发送真人微信。
 
@@ -89,11 +96,11 @@ depends_on:
 - `src/wxbot/queue_store.py:91` — `class QueueStore(`
 - `src/wxbot/main.py:29` — `def build_processor(`
 - `src/wxbot/inbox.py:23` — `def member_nickname(`
-- `src/wxbot/inbox.py:111` — `def sync_users(`
+- `src/wxbot/inbox.py:120` — `def sync_users(`
 - `src/wxbot/queue_store.py:192` — `def identity_observations(`
 - `src/wxbot/ui_contract.py:65` — `class Snapshot:`
 - `src/wxbot/wechat/locator.py:9` — `def wait_until(`
-- `src/wxbot/wechat/chat_window.py:36` — `ref: str = ''`
+- `src/wxbot/wechat/chat_window.py:37` — `ref: str = ''`
 
 ## 入库来源
 
@@ -120,3 +127,13 @@ depends_on:
 
 - 2026-11-03: FEAT-VOICE-001 P1 outbox kind=voice（虚拟麦+RALT）；见 [[raw/changes/2026-11-03-feat-voice-001-virtual-mic]]
 - [[raw/changes/2026-11-03-feat-voice-003-voice-assets]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+
+## 群聊采集与自动语音复核（2026-11-05）
+
+[[concepts/automatic-voice-reply]] 补充自动语音的缓冲/后台准备与失败单次回退；[[concepts/capture-viewport]] 补充越屏恢复，未修改模型后端请求/重试合同。来源 [[raw/changes/2026-11-05-group-auto-voice]]。

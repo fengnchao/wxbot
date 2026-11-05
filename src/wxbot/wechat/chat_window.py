@@ -17,6 +17,7 @@ from PIL import Image, ImageChops, ImageGrab
 
 from ..log import log
 from .locator import find, matches, wait_until
+from .viewport import ensure_window_visible, rect_bounds, rect_is_visible
 
 
 class ReadDeferred(RuntimeError):
@@ -110,6 +111,10 @@ class ChatWindow:
         if bottom - top < 10 or right - left < 100:
             self._sender_diagnostics['reason'] = 'row_too_small'
             return None
+        screens = [rect_bounds(monitor) for monitor in auto.GetMonitorsRect()]
+        if not rect_is_visible((left, top, right, bottom), screens):
+            self._sender_diagnostics.update(reason='row_offscreen', screens=screens)
+            return None
         img = ImageGrab.grab(bbox=(left, top, right, bottom), all_screens=True).convert("RGB")
         w, h = img.size
         px = img.load()
@@ -148,7 +153,8 @@ class ChatWindow:
                 sender = "other"
             elif rc >= min_px and rc > lc * 2:
                 sender = "self"
-        if sender == "unknown" and use_sent_cache and text in self._sent:
+        if (sender == "unknown" and use_sent_cache and text in self._sent
+                and self._sender_diagnostics.get('reason') != 'row_offscreen'):
             return "self"
         if sender == 'unknown':
             now = time.monotonic()
@@ -170,7 +176,7 @@ class ChatWindow:
         import ctypes
         try:
             # _window() can select a conversation in main-window mode. Avatar
-            # sampling also runs in read_from_window(), which must stay read-only.
+            # sampling also runs in read_from_window(), which must not select a chat.
             hwnd = getattr(self._win, 'NativeWindowHandle', 0) or auto.GetForegroundWindow()
             function = ctypes.windll.user32.GetDpiForWindow
             function.argtypes = [ctypes.c_void_p]
@@ -338,7 +344,9 @@ class ChatWindow:
         return [message for message, is_text in self._read_entries(strict_sender=strict_sender)]
 
     def read_from_window(self, root, *, strict_sender=False) -> list[Message]:
-        """只读当前面板，不选择会话；用于离开会话前的最后一次收件。"""
+        """采集当前面板，不选择会话；先恢复越屏窗口以免截到黑色补边。"""
+        if not ensure_window_visible(root):
+            raise ReadDeferred('capture_viewport_unavailable', '聊天窗口尚未完整显示，保留快照等待重读')
         lst = self._find(root, self.wcfg["message_list"])
         if lst is None:
             raise ReadDeferred('message_list_unavailable',f"[{self.title}] 当前面板消息列表暂时不可读取")
@@ -478,6 +486,10 @@ class ChatWindow:
             return None
         edit.Click(simulateMove=False)
         wait_until(lambda: self._can_send(win, edit), timeout=0.5)
+        draft = self._input_text(edit)
+        if draft != '' or not self._can_send(win, edit):
+            self.draft_conflict = draft is not None and draft != ''
+            return None
         return VoiceSession(
             self,
             win,

@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "微信管家管理台（Vue 3 + Vite）；构建产物由 log/server.py 挂在 /app/。",
+  "description": "微信管家管理台（Vue 3 + Vite）；构建产物由 src/dashboard 的 HTTP 服务挂在 /app/。",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

@@ -3,10 +3,10 @@ type: api
 module: dashboard
 summary: 队列与 Telegram 工作流只读聚合及前端消费
 coverage: core
-last_verified: '2026-11-02'
+last_verified: '2026-11-04'
 sources:
 - path: src/dashboard/routes.py
-  line: 41
+  line: 43
   anchor: ("GET", "/api/workflow", workflow.read)
 - path: src/dashboard/api/workflow.py
   line: 10
@@ -25,6 +25,8 @@ changes:
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-knowledge-vault-graph
 - raw/changes/2026-11-02-knowledge-graph-template
+- raw/changes/2026-11-04-webui-preset-binding
+- raw/changes/2026-11-04-webui-preset-graph-note
 ---
 # GET /api/workflow
 
@@ -62,3 +64,11 @@ GET `/api/workflow`，本接口没有业务查询 DTO；走 [[modules/dashboard]
 [[raw/changes/2026-11-01-knowledge-sharding]]
 
 [[raw/changes/2026-11-02-knowledge-graph-template]]
+
+
+## 联系人语音配置核对
+
+[[raw/changes/2026-11-04-webui-preset-binding]]：接入网页预设列表与会话默认绑定；原有接口保持，新增接口及可选音色参数见 [[apis/index-tts]]。
+
+
+图谱契约说明来源：[[raw/changes/2026-11-04-webui-preset-graph-note]]。

@@ -3,7 +3,7 @@ type: table
 module: wxbot
 summary: 原始收件与群成员证据，batch_id 指向合并批次
 coverage: core
-last_verified: '2026-11-02'
+last_verified: '2026-11-04'
 sources:
 - path: src/wxbot/queue_schema.py
   line: 34
@@ -28,6 +28,7 @@ changes:
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-details-whitelist-reverify
 - raw/changes/2026-11-02-mention-residue-reverify
+- raw/changes/2026-11-04-index-tts-skill
 ---
 # SQLite inbox
 
@@ -82,3 +83,8 @@ MainInbox 收件 → QueueStore.capture：窗口标题进入 contact，正文进
 [[raw/changes/2026-11-02-details-whitelist-reverify]]
 
 [[raw/changes/2026-11-02-mention-residue-reverify]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。

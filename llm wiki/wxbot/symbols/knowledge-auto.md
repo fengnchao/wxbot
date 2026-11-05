@@ -3,7 +3,7 @@ type: symbol
 module: runtime
 summary: Butler 进程内的定时提炼调度器，一轮只喂模型一批，并与 CLI 共用跨进程单飞锁
 coverage: core
-last_verified: '2026-11-01'
+last_verified: '2026-11-04'
 sources:
 - path: src/butler/runtime/knowledge_auto.py
   line: 29
@@ -21,7 +21,7 @@ sources:
   line: 320
   anchor: 'def trigger(self, owner='''', batch=None, dry_run=False):'
 - path: src/butler/server.py
-  line: 476
+  line: 490
   anchor: knowledge_extract = ExtractScheduler(butler, cfg, log=_log)
 - path: src/butler/__main__.py
   line: 74
@@ -30,6 +30,7 @@ changes:
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-knowledge-vault-graph
 - raw/changes/2026-11-01-knowledge-atlas-index
+- raw/changes/2026-11-04-index-tts-skill
 calls:
 - symbols/knowledge-extract
 called_by: []
@@ -61,7 +62,7 @@ ExtractScheduler(butler, cfg, log=None)
 ## 所属模块
 
 [[modules/runtime]]。它不是 HTTP 处理器，也不在请求路径上：`serve()` 只负责构造、`start()` 与 `stop()`
-（`src/butler/server.py:476`、`:487`、`:495`）。
+（`src/butler/server.py:490`、`:487`、`:495`）。
 
 放这里而不是 `agent/`：它不参与 prompt 编排，只调度 [[symbols/knowledge-extract]]。
 
@@ -109,9 +110,14 @@ ExtractScheduler(butler, cfg, log=None)
 - `src/butler/runtime/knowledge_auto.py:163` — `def run_once(self, owner='', batch=None, dry_run=False):`
 - `src/butler/runtime/knowledge_auto.py:258` — `def _round(self):`
 - `src/butler/runtime/knowledge_auto.py:320` — `def trigger(self, owner='', batch=None, dry_run=False):`
-- `src/butler/server.py:476` — `knowledge_extract = ExtractScheduler(butler, cfg, log=_log)`
+- `src/butler/server.py:490` — `knowledge_extract = ExtractScheduler(butler, cfg, log=_log)`
 - `src/butler/__main__.py:74` — `lock=acquire(cfg.knowledge_extract_lock_path())`
 
 [[raw/changes/2026-11-01-knowledge-auto]]
 
 [[raw/changes/2026-11-01-knowledge-atlas-index]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。

@@ -3,25 +3,25 @@ type: api
 module: dashboard
 summary: 对话原文与知识图谱事实的只读查询、自动提炼的状态与手动触发转发，以及知识模板的读取与校验保存；vault 不存在时返回空态而不是错误
 coverage: core
-last_verified: '2026-11-02'
+last_verified: '2026-11-04'
 sources:
 - path: src/dashboard/routes.py
-  line: 45
+  line: 47
   anchor: '"GET", "/api/knowledge", knowledge.read'
 - path: src/dashboard/routes.py
-  line: 46
+  line: 48
   anchor: '"GET", "/api/knowledge/facts", knowledge.facts'
 - path: src/dashboard/routes.py
-  line: 47
+  line: 49
   anchor: '"GET", "/api/knowledge/extract", knowledge.extract_status'
 - path: src/dashboard/routes.py
-  line: 73
+  line: 77
   anchor: '"POST", "/api/knowledge/extract", knowledge.extract_trigger'
 - path: src/dashboard/routes.py
-  line: 48
+  line: 50
   anchor: '"GET", "/api/knowledge/template", knowledge.template_read'
 - path: src/dashboard/routes.py
-  line: 74
+  line: 78
   anchor: '"POST", "/api/knowledge/template", knowledge.template_save'
 - path: src/dashboard/api/knowledge.py
   line: 10
@@ -61,13 +61,15 @@ sources:
   anchor: 'def owners(self, kind=''episodes''):'
 - path: src/dashboard/knowledge_view.py
   line: 56
-  anchor: 'def read(self, owner='''', query='''', limit=50, offset=0, contact='''', channel_type=''''):'
+  anchor: 'def read(self, owner='''', query='''', limit=50, offset=0, contact='''',
+    channel_type=''''):'
 - path: src/dashboard/knowledge_view.py
   line: 71
   anchor: 'def facts(self, owner='''', query='''', limit=50, offset=0, contact=''''):'
 - path: src/butler/runtime/knowledge_store.py
   line: 642
-  anchor: 'def read(self, owner='''', query='''', limit=50, offset=0, contact='''', channel_type=''''):'
+  anchor: 'def read(self, owner='''', query='''', limit=50, offset=0, contact='''',
+    channel_type=''''):'
 - path: src/butler/runtime/knowledge_store.py
   line: 671
   anchor: 'def facts(self, owner='''', query='''', limit=50, offset=0, contact=''''):'
@@ -85,15 +87,16 @@ sources:
   anchor: async function loadExtract() {
 - path: web/src/views/FactsView.vue
   line: 39
-  anchor: const kinds = computed(() => new Map((data.value?.kinds || []).map(item => [item.key, item.label])))
+  anchor: const kinds = computed(() => new Map((data.value?.kinds || []).map(item
+    => [item.key, item.label])))
 - path: src/dashboard/api/support.py
   line: 172
   anchor: 'def trigger_butler_extract(config, payload):'
 - path: src/butler/server.py
-  line: 141
+  line: 155
   anchor: 'if self.path == ''/v1/knowledge/extract'':'
 - path: src/butler/server.py
-  line: 342
+  line: 356
   anchor: started, reason = extract.trigger(owner=owner, batch=batch, dry_run=dry_run)
 changes:
 - raw/changes/2026-11-03-feat-voice-003-voice-assets
@@ -106,6 +109,9 @@ changes:
 - raw/changes/2026-11-01-knowledge-atlas-index
 - raw/changes/2026-11-01-knowledge-atomic-retry
 - raw/changes/2026-11-02-knowledge-graph-template
+- raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-04-webui-preset-binding
+- raw/changes/2026-11-04-webui-preset-graph-note
 ---
 # GET /api/knowledge、/api/knowledge/facts、自动提炼两条与知识模板两条
 
@@ -150,7 +156,7 @@ changes:
 | GET | `/api/knowledge/extract` | 无 | `{available: true, ...status}` 或 `{available: false, error}` |
 | POST | `/api/knowledge/extract` | 可选 `{owner?, batch?, dry_run?}` | `202 {ok, status}` / `400` / `409` 忙 / `503` 转发失败 |
 
-GET 的字段全部来自 Butler 的 `ExtractScheduler.status()`（`src/butler/server.py:141`）：`enabled`、`knowledge_enabled`、`auto_extract`、`auto_prune`、`interval_minutes`、`batch`、`max_owners`、`min_backlog`、`idle_seconds`、`next_run_at`、`last_run_at`、`last_report`、`failures`、`last_error`、`next_prune_at`。管理台**不解析数据目录、不读状态文件**，只把 Butler 的回答包一层 `available`（`api/knowledge.py:54`）。
+GET 的字段全部来自 Butler 的 `ExtractScheduler.status()`（`src/butler/server.py:155`）：`enabled`、`knowledge_enabled`、`auto_extract`、`auto_prune`、`interval_minutes`、`batch`、`max_owners`、`min_backlog`、`idle_seconds`、`next_run_at`、`last_run_at`、`last_report`、`failures`、`last_error`、`next_prune_at`。管理台**不解析数据目录、不读状态文件**，只把 Butler 的回答包一层 `available`（`api/knowledge.py:54`）。
 
 Butler 不可达时**不是错误**：`fetch_butler_data` 抛的 `RuntimeError`（以及非本机模式的 `ValueError`）被折成 `200 {available: false, error}`，页面显示一行提示并隐藏按钮（`api/knowledge.py:58`）。理由和 vault 不存在一致——这一侧看不到，不等于业务坏了。
 
@@ -223,12 +229,12 @@ Butler 侧的 `GET/POST /v1/knowledge/extract` 由 `tests/butler/test_knowledge_
 
 ## 代码依据与修改来源
 
-- `src/dashboard/routes.py:43` — `("GET", "/api/knowledge", knowledge.read)`
-- `src/dashboard/routes.py:44` — `("GET", "/api/knowledge/facts", knowledge.facts)`
-- `src/dashboard/routes.py:45` — `("GET", "/api/knowledge/extract", knowledge.extract_status)`
-- `src/dashboard/routes.py:46` — `("GET", "/api/knowledge/template", knowledge.template_read)`
-- `src/dashboard/routes.py:67` — `("POST", "/api/knowledge/extract", knowledge.extract_trigger)`
-- `src/dashboard/routes.py:68` — `("POST", "/api/knowledge/template", knowledge.template_save)`
+- `src/dashboard/routes.py:49` — `("GET", "/api/knowledge", knowledge.read)`
+- `src/dashboard/routes.py:50` — `("GET", "/api/knowledge/facts", knowledge.facts)`
+- `src/dashboard/routes.py:49` — `("GET", "/api/knowledge/extract", knowledge.extract_status)`
+- `src/dashboard/routes.py:50` — `("GET", "/api/knowledge/template", knowledge.template_read)`
+- `src/dashboard/routes.py:77` — `("POST", "/api/knowledge/extract", knowledge.extract_trigger)`
+- `src/dashboard/routes.py:78` — `("POST", "/api/knowledge/template", knowledge.template_save)`
 - `src/dashboard/api/knowledge.py:10` — `def _view(ctx):`
 - `src/dashboard/api/knowledge.py:16` — `def _template_view(ctx):`
 - `src/dashboard/api/knowledge.py:23` — `def _session(ctx):`
@@ -251,8 +257,8 @@ Butler 侧的 `GET/POST /v1/knowledge/extract` 由 `tests/butler/test_knowledge_
 - `web/src/views/FactsView.vue:116` — `async function loadExtract() {`
 - `web/src/views/FactsView.vue:39` — `const kinds = computed(() => new Map((data.value?.kinds || []).map(item => [item.key, item.label])))`
 - `src/dashboard/api/support.py:172` — `def trigger_butler_extract(config, payload):`
-- `src/butler/server.py:141` — `if self.path == '/v1/knowledge/extract':`（GET）
-- `src/butler/server.py:342` — `started, reason = extract.trigger(owner=owner, batch=batch, dry_run=dry_run)`（POST）
+- `src/butler/server.py:155` — `if self.path == '/v1/knowledge/extract':`（GET）
+- `src/butler/server.py:356` — `started, reason = extract.trigger(owner=owner, batch=batch, dry_run=dry_run)`（POST）
 
 [[raw/changes/2026-11-01-knowledge-episodes]]
 [[raw/changes/2026-11-01-knowledge-sharding]]
@@ -261,3 +267,16 @@ Butler 侧的 `GET/POST /v1/knowledge/extract` 由 `tests/butler/test_knowledge_
 [[raw/changes/2026-11-01-knowledge-vault-graph]]
 [[raw/changes/2026-11-01-knowledge-atlas-index]]
 [[raw/changes/2026-11-01-knowledge-atomic-retry]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+
+## 联系人语音配置核对
+
+[[raw/changes/2026-11-04-webui-preset-binding]]：接入网页预设列表与会话默认绑定；原有接口保持，新增接口及可选音色参数见 [[apis/index-tts]]。
+
+
+图谱契约说明来源：[[raw/changes/2026-11-04-webui-preset-graph-note]]。

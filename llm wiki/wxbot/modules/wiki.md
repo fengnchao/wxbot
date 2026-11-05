@@ -3,13 +3,13 @@ type: module
 module: wiki
 summary: 本地关键词检索、证据入库和一致性巡检
 coverage: core
-last_verified: '2026-11-02'
+last_verified: '2026-11-05'
 sources:
 - path: AGENTS.md
   line: 28
   anchor: '## Project knowledge graph'
 - path: README.md
-  line: 703
+  line: 785
   anchor: '### 项目知识图谱'
 - path: llm wiki/wxbot/scripts/wiki.py
   line: 69
@@ -29,12 +29,25 @@ changes:
 - raw/changes/2026-11-02-knowledge-graph-template
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-mention-picker-gating-residue
+- raw/changes/2026-11-03-development-doc-baseline
+- raw/changes/2026-11-04-root-workspace-unification
+- raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-04-contact-index-tts
+- raw/changes/2026-11-04-webui-preset-binding
+- raw/changes/2026-11-04-webui-preset-graph-note
+- raw/changes/2026-11-05-group-auto-voice
 ---
 # 项目知识图谱工具
 
 ## 入口和流程
 
 `llm wiki/wxbot/scripts/wiki.py` 是本地开发工具，依赖 [[modules/common]] 的 REPO_ROOT 和已有 PyYAML。query 展开双向双链；change 创建追加记录；ingest 验证词条来源并刷新索引/日志/快照；lint 只读检查；status 查看规模及待入库记录。操作见 [[guide]]。
+
+开发前先核对实际工作树、分支、SHA、未提交修改及解释器的 `REPO_ROOT`，见 [[concepts/development-baseline]]。
+若可编辑安装误指向另一工作树，本地工具支持 `--repo-root <当前项目根目录>` 显式限定图谱读写；
+这不能替代修正业务运行环境，也不授权切分支、合并或重启服务。
+2026-11-04 的主目录与可编辑安装统一已在 [[concepts/development-baseline]] 记录；
+仍须按当前解释器和实际导入位置核验，不能把本次结果当成后续永久保证。
 
 ## 边界
 
@@ -47,7 +60,7 @@ changes:
 ## 代码依据
 
 - `AGENTS.md:28` — `## Project knowledge graph`
-- `README.md:703` — `### 项目知识图谱`
+- `README.md:785` — `### 项目知识图谱`
 - `llm wiki/wxbot/scripts/wiki.py:69` — `class Wiki:`
 - `llm wiki/wxbot/scripts/wiki.py:250` — `def ingest(`
 - `llm wiki/wxbot/scripts/wiki.py:301` — `def query(`
@@ -66,3 +79,30 @@ changes:
 [[raw/changes/2026-11-02-knowledge-graph-template]]
 
 [[raw/changes/2026-11-02-mention-picker-gating-residue]]
+
+[[raw/changes/2026-11-03-development-doc-baseline]]
+
+[[raw/changes/2026-11-04-root-workspace-unification]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+
+## 联系人语音配置核对
+
+[[raw/changes/2026-11-04-contact-index-tts]]：新增会话授权控件与原接口消费，源码位置已核对；后端契约保持。
+
+
+## 联系人语音配置核对
+
+[[raw/changes/2026-11-04-webui-preset-binding]]：接入网页预设列表与会话默认绑定；原有接口保持，新增接口及可选音色参数见 [[apis/index-tts]]。
+
+
+图谱契约说明来源：[[raw/changes/2026-11-04-webui-preset-graph-note]]。
+
+
+## 群聊采集与自动语音复核（2026-11-05）
+
+README 追加自动语音真实 WebUI 默认、配置热读和窗口越屏恢复说明；安装路径、静态文件位置及图谱 CLI 合同不变。功能依据见 [[concepts/automatic-voice-reply]]、[[concepts/capture-viewport]]。来源 [[raw/changes/2026-11-05-group-auto-voice]]。

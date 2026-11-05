@@ -12,7 +12,7 @@ from tomlkit.items import Table
 from common.config_lock import config_lock
 from common.paths import REPO_ROOT
 from wxbot.voice.assets import MAX_UPLOAD_BYTES, VoiceAssetStore, default_assets_dir
-from wxbot.voice.policy import VOICE_MODES, normalize_voice_mode
+from wxbot.voice.policy import VOICE_MODES, normalize_voice_mode, resolve_tts_provider
 
 
 def _wxbot_config_path() -> Path:
@@ -174,7 +174,7 @@ class VoiceAdmin:
                             'lang': str(v.get('lang') or 'ZH'),
                         }
             enabled = bool(voice.get('enabled', False)) if hasattr(voice, 'get') else False
-            tts_provider = str(voice.get('tts_provider') or 'fixture') if hasattr(voice, 'get') else 'fixture'
+            tts_provider = resolve_tts_provider(voice)
         assets = [a.as_dict() for a in self.store().list()]
         return {
             'ok': True,

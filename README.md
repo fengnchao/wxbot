@@ -3,6 +3,7 @@
 Windows 上的个人微信机器人：wxbot 负责微信窗口收发与持久队列，Butler 负责用户身份、权限、
 提醒、心跳、知识库和消息接口，管理台负责展示与配置；模型可以是本机 Codex，也可以是已有的
 智能体或 OpenAI 兼容 API。
+正文通过剪贴板粘贴到微信输入框；默认分批粘贴并读回核对，再按回车、检查发送回执。
 
 | 进程 | 入口 | 端口 | 职责 |
 |---|---|---|---|
@@ -49,6 +50,11 @@ cd butler-wxbot
 其它智能体使用已有的兼容协议接入，不假设任意 CLI 都支持 Cursor 协议。
 外部 Butler 能力由远端管理，本机管理台会关闭对应的远端账户／心跳入口。
 向导只写配置，不验证真实模型连接，也不启动服务。
+
+生产默认链路固定为 `wxbot → Butler → 模型后端`。Hermes、OpenAI 兼容 API、Ollama 等作为
+**Butler 后端**时属于正常接入方式；`src/wxbot/processor/` 中直接调用这些服务的适配器仅供
+旁路调试和旧配置兼容，不作为生产默认。含 `[installation]` 的配置会拒绝非 `butler` 的
+`[model].backend`；旧 direct 安装按下面的迁移步骤处理。
 
 在管理台「配置管理 → 模型后端」切换 provider，页面按草稿选择显示地址、模型名、密钥或 Cursor 目录等适用字段。
 保存模型设置后由后续请求使用；在途请求继续使用原后端，切换不会重放请求。运行监听、认证和数据目录仍需由使用者自行重启加载。
@@ -116,6 +122,40 @@ config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，�
 `python -m dashboard.server`、`python -m wxbot.main` 在仓库外也能跑。
 仓库根统一从 `common.paths.REPO_ROOT` 取，不要再写 `Path(__file__).resolve().parents[N]`。
 
+## 开发基线与历史布局
+
+每张工单先记录实际工作目录、分支、HEAD SHA 和未提交修改，再决定开发基线。分支名不是
+运行版本证明；`main`、正式运行目录和开发 worktree 可能处于不同进度，不能跨版本拼接文档与代码。
+
+```powershell
+git rev-parse --show-toplevel
+git branch --show-current
+git rev-parse HEAD
+git status --short
+git worktree list
+```
+
+再用当前目录的解释器核对实际代码根目录，避免可编辑安装误指向另一个 worktree：
+
+```powershell
+.\.venv\Scripts\python.exe -c "import sys; from common.paths import REPO_ROOT; print(sys.executable); print(REPO_ROOT)"
+```
+
+解释器路径和 `REPO_ROOT` 都应属于本次任务的工作树；不一致时先处理环境绑定，不能用另一份
+代码的检查结果作为当前基线证据。图谱 CLI 可用 `--repo-root <当前项目根目录>` 显式限定读写范围，
+但这不能替代修正业务运行时的可编辑安装。
+
+比较正式目录与开发目录时，分别执行上述检查，再核对提交关系及差异；不要假定
+`codex-butler-distribution` 和 `codex/grok-setup` 永远是当前分支或指向同一个 SHA。
+已提交代码、未提交修改和进程已加载的版本分别核对，不自动切分支、合并或重启服务。
+开发事实以任务指定工作树的代码、根 README 与依赖锁文件为准，结构导航见 `llm wiki/wxbot/`。
+
+旧资料中的 `butler/README.md`、`PROJECT_MEMORY.md`、`kmg/`、`hermes_butler` 与 `D:\bot`
+属于历史布局或安装示例；当前工作分支已无这些文档／包入口，不作为配置或导入依据。
+Python 包只认 `src/butler/`、`src/wxbot/`、`src/dashboard/` 和 `src/common/`；旧目录里即使
+残留 `__pycache__`，也不代表存在可维护的嵌套包。现存 `heartbeat/` 是受版本控制的辅助
+看门狗脚本，不是 Butler 的心跳实现（`src/butler/runtime/heartbeat.py`），不整目录忽略或自动删除。
+
 ## 模块与文件职责
 
 以下按目录列出每个模块的职责。`__init__.py` 只做包说明，不再单列。
@@ -170,6 +210,9 @@ config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，�
 | `delivery/push_client.py` | 按既有 Butler 契约提交新闻；结果未知绝不重试 |
 | `delivery/pending.py` | 补发队列：先标记认领再拼装，一条只吐一次 |
 | `delivery/media.py` | Butler 持有的图片字节；调用方只能引用服务端签发的不透明 ID |
+| `delivery/gradio_tts.py` | 复用本机 IndexTTS WebUI，同会话队列、动态预设和网页默认参数 |
+| `delivery/tts.py` | 授权语音生成、operations 幂等和按身份分区的 WAV 存储 |
+| `delivery/tts_presets.py` | 网页预设列表与当前会话默认音色，原子保存和版本冲突检查 |
 | `delivery/message_forwarding.py` | 校验后的单向 HTTP 消息投递（按联系人） |
 | `delivery/reminders.py` | Butler 自己的提醒调度，不依赖模型是否可用 |
 
@@ -243,6 +286,7 @@ config.*.toml   本机配置（默认路径硬编码在 src/butler/config.py，�
 | `common/config_lock.py` | 配置写入的跨进程锁（管理台与 Butler 共用） |
 | `common/flow_trace.py` | 只追加、不含消息正文的流转事件与字段白名单 |
 | `common/media_bundle.py` | 两个服务之间严格、精简的图文 wire schema |
+| `common/voice_audio.py` | PCM16 单声道重采样、按句拆文字与按静音分段音频 |
 | `common/model_stream.py` | 公开、有界的模型观察，作用域是单个同步请求 |
 | `common/avatar_identity.py` | 共享的带版本头像归一化；不访问桌面与剪贴板 |
 | `common/news_config.py` | 管理台与日报共用的新闻目录与设置 |
@@ -451,6 +495,7 @@ web/dist/                 构建产物，随仓库提交
 | `skills/roles/tong-jincheng-perspective/` | 角色：童锦程视角及研究参考材料 |
 | `skills/tools/create-cron-job/SKILL.md` | 工具：创建定时任务 |
 | `skills/tools/telegram-relay/SKILL.md` | 工具：Telegram 频道窗口转发 |
+| `skills/tools/index-tts/SKILL.md` | 工具：文字和网页音色预设生成微信语音，长文本自动分段 |
 | `skills/tools/setup/SKILL.md` | 工具：安装引导（仅安装时使用，不进入业务工具白名单） |
 | `knowledge/graph-template.md` | 知识图谱内置模板：节点目录、事实分类、索引分区与追加规则 |
 | `THIRD_PARTY.md` | 第三方素材来源与许可 |
@@ -549,10 +594,13 @@ Butler 递归读取统一的 `skills/` 根目录，按 `roles/` 和 `tools/` 子
 
 ## 配置
 
-- 单一 `pyproject.toml` / `requirements.txt` / `.venv`，声明 Python 3.14+；
-  核心依赖 `uiautomation`、`requests`、`pillow`、`tomlkit`，锁文件 `uv.lock`。
-- 从 `config.butler.example.toml`、`config.wxbot.example.toml`、`config.log.example.toml`
-  生成本地配置，或直接跑 `python -m butler setup` 由向导写入。含 token/key 的本地配置不要提交。
+- Python 3.14+；依赖声明以 `pyproject.toml` 为准，精确版本以 `uv.lock` 为准。
+  `requirements.txt` 保留为兼容 pip 安装清单；Butler 也依赖 `tomlkit`、`croniter`、`PyYAML`
+  和 Codex SDK 等第三方包，并非纯标准库。每个开发 worktree 使用自己的 `.venv`。
+- 配置由 `src/butler/defaults.py` 的无凭据默认值和安装向导生成：运行 `python -m butler setup`，
+  或用幂等的 `python -m butler init` 初始化并保留已有配置。当前仓库不提供独立示例 TOML 文件。
+  实际文件名分别是 `config.butler.toml`、`config.wxbot.toml`、`config.log.toml`，不统一改成
+  `config.toml`；这三个运行配置均已在 `.gitignore` 中排除，含 token/key 的文件不要提交。
 - 相对运行路径以对应配置文件所在目录为基准，切换工作目录不会改变数据库或队列位置。
 - 管理台自身配置是 `config.log.toml`（`LOG_CONFIG` 可覆盖）；命令行与环境变量优先于文件。
 - 队列默认 `cache/wxbot_queue.sqlite3`；业务数据在 `data/business.sqlite3`；
@@ -630,6 +678,8 @@ data/knowledge/
 - 人物显示名、微信窗口名称、群成员昵称分别维护。“微信窗口名称”用于在微信主窗口定位聊天，不是真实微信账号。
 - 修改人物姓名或群昵称不会合并人物；不同人物在同一群可以重名，管理页面保留各自入口。仅有群身份无需创建私聊。
 - 角色与允许功能显示最终配置及来源；会话单独设置优先于联系人默认设置，明确取消继承的会话不会误显示默认角色。
+- 在「联系人 → 基本资料 → 编辑窗口与收发设置」勾选「允许此会话使用 IndexTTS」，并选择语音发送模式。只改变该技能授权，保留原角色、其他技能和自动问候；继承策略会提示保存为窗口覆盖。IndexTTS 使用网页音色预设，不需要另绑自动回复音色。角色尚未配置时先到「AI 设置」选择角色。
+- 同一区域的「网页音色预设」直接读取 IndexTTS 网页保存的预设，选择后随会话保存为默认值；它与下方「自动回复音色」的本地资产列表用途不同。网页不可达保留旧选择，可刷新重试。停用的会话也能预先配置，保存期间固定目标与全部选项，防止异步等待时串到另一联系人。
 - 主动消息按窗口维护订阅和自动问候，显示发送目标与运行记录；手动触发会先明确确认可能发送消息。
 - 移除一条成员身份只清除该绑定及识别证据，最后一条被移除后也保留人物和窗口。“删除联系人”会清理该人物的全部身份、私聊窗口和头像，操作不可撤销；知识库里的 Markdown 文件不跟着删。
 - 联系人详情头部直接提供“删除联系人”，群聊详情提供“移除群聊”，所有详情分区均可使用，执行前保留原有确认提示。
@@ -656,8 +706,9 @@ data/knowledge/
   待读任务；未读数或「有人@我」变化后重新纳入。放弃前该会话的发送也会被待读任务挡住。
 - 队列：`quiet_seconds` 默认 3、`max_wait_seconds` 10、`confirm_timeout` 5，模型并发由
   `[queue].max_model_requests` 控制（默认 2）。同会话同成员连续文本合并，命令与其他成员发言形成边界。
-- 发送：每批字符数 `wechat.typing.chunk_size`（默认 5）、间隔 `chunk_interval`（默认 0.5 秒）；
-  支持 `full` / `chunked` / `streaming` 三种模式，缺省 `chunked`。
+- 正文发送走剪贴板租约与 `Ctrl+V`，不是逐字符模拟键盘键入；回车等控制键仍由 UI 自动化执行。
+  每批字符数 `wechat.typing.chunk_size`（默认 5）、间隔 `chunk_interval`（默认 0.25 秒）。
+  `full` 整段粘贴，`chunked` 分批粘贴，`streaming` 随追加内容分批粘贴；缺省 `chunked`。
 - 发件失败（`blocked`/`uncertain`）从首次失败起按 `retry_delay_seconds`（默认 20）自动重试，
   最多 `max_delivery_retries`（默认 2）次；满 `failure_discard_seconds`（默认 180）丢弃并留审计。
   同一个参数也是模型失败批次的放行时限：`retry_safe` 为否时不重试，到点后丢弃并继续后续消息。
@@ -669,6 +720,37 @@ data/knowledge/
 - 剪贴板备份失败时降级为清空写入并在发送后不恢复，但「序号为 0 且已有内容」这类风险仍拒绝。
 - `[wechat.emoji]` 未校准（button/item 为空）时自动改发文字，校准后自动恢复发图。
 - UI 自动化要求窗口可见、不遮挡、机器不锁屏；控件随微信版本变化，用 `tools/probe.py` 重新校准。
+
+### IndexTTS 网页预设转微信语音
+
+在联系人会话设置中启用 IndexTTS 授权（AI 设置的允许功能中也保留此技能），由使用者启动本机 IndexTTS 网页（`http://127.0.0.1:7860`）、Butler 和 wxbot。
+工具 `tts_presets()` 列出网页实时保存的预设及当前会话的 `default_preset`；`tts_generate(text, preset?)` 只接收文字和可选预设名，
+目标固定为当前授权会话。只使用预设的参考音频，其余语言、语速、情感和采样设置采用网页默认值。
+显式预设优先；省略时使用联系人绑定，未绑定则提示选择，不自动挑第一种声音。默认值改变或清除后，重复调用仍复用原操作，不会按新绑定重发。
+
+管理台通过 `GET /api/tts-presets?contact=...` 读实时列表和保存值，`POST /api/tts-presets`
+用原确认机制及 `X-Wxbot-TTS-Action` 保存 `{contact,preset,version}`。服务端核对完整联系人记录（含停用会话）、
+网页预设及修订哈希；冲突要求刷新后重选。仅预设名称写入 Butler `data_dir/tts-presets.json`，不复制预设音频或高级参数。
+网页断开时可读取旧绑定，清除默认不要求网页在线。此接口和默认解析属于后端更新，加载这次代码需使用者手动重启管理台与 Butler。
+
+文字一次提交，最多 6000 字。服务按句拆分，音频统一为 16kHz 单声道 PCM16，并在需要时按静音位置切分，
+每条最长 55 秒、整包最多 50 条。Butler 的 `data/audio/<owner-hash>/` 保存生成文件，wxbot 通过鉴权编号下载到本机缓存，
+按序进入既有虚拟麦与 Right Alt 长按发送链路。播放设备是 `CABLE Input`，微信录音设备应为 `CABLE Output`。
+
+仍须开启 `[voice].enabled`，并将 `[voice.contacts]` 中目标会话设为 `replace` 或 `coexist`；
+这个工具使用网页预设的参考音，不要求另绑管理台音色资产。自动回复使用 `webui` 提供者时同样按会话绑定的网页预设朗读正文；离线 `indextts` 路径仍须绑定管理台音色资产。
+使用 `fixture` 提供者时沿用既有可用 fixture 文件要求。技能不修改系统麦克风设置，也不启动第二份模型。
+
+`queued` 只代表已生成并持久化排队；不能当作微信送达回执。生成后会重新验证授权，
+重复调用复用同一操作，结果未知不自动重发。语音包一条失败即停止余下部分；录音已开始后的异常记 `uncertain`，
+需人工核对，不自动再次按键。Codex MCP 工具时限随 `codex.timeout`，整轮仍受模型请求总预算约束。
+未显式设置 `voice.tts_provider` 和 `voice.fixture_wav` 时，自动回复默认复用本机 IndexTTS 网页（`webui`），不再播放测试提示音。显式 `fixture` 或旧 `fixture_wav` 配置仍保留测试用途；显式 `indextts` 沿用离线 worker。默认网页预设必须按会话绑定，不自动猜声音。自动路径只支持本安装可读取的预设绑定，外部 Butler 的远端绑定不可用时回退文字。
+
+语音总开关、会话模式与绑定在后续批次和录音前重新读取；语音模式下先收齐模型正文，再后台合成，等待合成期间继续收件。自动回复仍受单条语音时长上限约束，超长或合成失败按原模式回退，不截断正文。显式 `tts_generate` 的多条分段包不变。
+
+微信窗口越出实际监视器范围时，选择会话或采集当前面板前会尝试恢复到可见工作区；已完整可见的窗口保持原位置。无法恢复时保留快照并暂缓，不能根据屏外补黑猜发送方。
+
+加载本次新代码需使用者手动重启 wxbot；现有 IndexTTS 网页继续复用，不自动启动第二份模型。仅新增的自动语音服务为 wxbot 导入的 Butler 库，不要求为此重启 Butler。
 
 ## Telegram 通道
 
@@ -723,8 +805,8 @@ cd web; npm.cmd run build; npm.cmd run smoke                 # 前端构建与�
 - Butler、wxbot 和管理台都由使用者在 IDE 里手动启停；改代码后明确告知需要重启哪个进程，
   不要代为停止或重启，也不要在未授权时给真人发微信。
 - UI 自动化是非官方方式，存在账号风险；发送走剪贴板分批粘贴，仍依赖窗口焦点。
-- `config.*.example.toml` 是安全的示例来源；运行时配置可能含真实密钥，不要在日志、
-  提交或回复里复制秘密。
+- 公开配置参考 `src/butler/defaults.py`；新增 `config.*.example.toml` 时必须保持无凭据。
+  运行时配置可能含真实密钥，不要在日志、提交或回复里复制秘密。
 - `src/butler/agent/skills.py` 的 `HERMES_HINT` 只是本地行动协议，实际提示词仍需由
   Hermes Profile 的 SOUL/skill 引导模型发标记。
 - `reminder.create/list/cancel` 是本地实现，其余 catalog 项再委派模型；

@@ -3,22 +3,22 @@ type: concept
 module: wxbot
 summary: 窗口→收件→批次→Butler→分句→UI→只读投影
 coverage: core
-last_verified: 2026-11-03
+last_verified: '2026-11-05'
 sources:
 - path: src/wxbot/inbox.py
   line: 264
   anchor: def _capture(
 - path: src/wxbot/queue_worker.py
-  line: 143
+  line: 152
   anchor: reply = self.router.handle_reply(
 - path: src/wxbot/processor/butler.py
   line: 72
   anchor: body["msg_id"] = request_id
 - path: src/butler/agent/core.py
-  line: 304
+  line: 308
   anchor: result.meta["msg_id"] = msg_id
 - path: src/wxbot/wechat/chat_window.py
-  line: 36
+  line: 37
   anchor: 'ref: str = '''''
 - path: src/wxbot/ui_contract.py
   line: 56
@@ -39,6 +39,8 @@ changes:
 - raw/changes/2026-11-01-knowledge-atlas-index
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-mention-residue-reverify
+- raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-05-group-auto-voice
 ---
 # 消息主链路与字段传递
 
@@ -64,13 +66,13 @@ changes:
 
 ## 代码依据
 
-- `src/butler/agent/core.py:318` — `def _record_episode(self, c, contact_name, channel_type, text, reply, outcome):`
-- `src/butler/agent/core.py:324` — `self.knowledge.record(`
-- `src/wxbot/inbox.py:255` — `def _capture(`
-- `src/wxbot/queue_worker.py:143` — `reply = self.router.handle_reply(`
+- `src/butler/agent/core.py:322` — `def _record_episode(self, c, contact_name, channel_type, text, reply, outcome):`
+- `src/butler/agent/core.py:328` — `self.knowledge.record(`
+- `src/wxbot/inbox.py:264` — `def _capture(`
+- `src/wxbot/queue_worker.py:152` — `reply = self.router.handle_reply(`
 - `src/wxbot/processor/butler.py:72` — `body["msg_id"] = request_id`
-- `src/butler/agent/core.py:301` — `result.meta["msg_id"] = msg_id`
-- `src/wxbot/wechat/chat_window.py:36` — `ref: str = ''`
+- `src/butler/agent/core.py:308` — `result.meta["msg_id"] = msg_id`
+- `src/wxbot/wechat/chat_window.py:37` — `ref: str = ''`
 - `src/wxbot/ui_contract.py:56` — `def persisted_rows(`
 
 `queue_worker.py` 的 `handle_reply` 锚点因同文件增加导入下移一行。入队语音路径见 [[raw/changes/2026-11-03-indextts-enqueue-media]]。
@@ -99,3 +101,13 @@ changes:
 ## 变更
 
 - 2026-11-03: FEAT-VOICE-001 P1 outbox kind=voice（虚拟麦+RALT）；见 [[raw/changes/2026-11-03-feat-voice-001-virtual-mic]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+
+## 群聊采集与自动语音复核（2026-11-05）
+
+采集前的越屏恢复和 row_offscreen 显式拒绝见 [[concepts/capture-viewport]]；不放宽 gutter 阈值，不推进未知发送方快照。语音准备期间继续采集，恢复录音任务后本轮不再切换收件会话，见 [[concepts/automatic-voice-reply]]。来源 [[raw/changes/2026-11-05-group-auto-voice]]。

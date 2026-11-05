@@ -3,7 +3,7 @@ type: concept
 module: wxbot
 summary: 未读任务只有采集成才清除，读不到文字时必须退避并最终放弃，否则阻塞发送队列
 coverage: core
-last_verified: '2026-11-02'
+last_verified: '2026-11-05'
 sources:
 - path: src/wxbot/inbox.py
   line: 449
@@ -18,10 +18,10 @@ sources:
   line: 269
   anchor: if (fresh is None and session and session.unread_count
 - path: src/wxbot/inbox.py
-  line: 552
+  line: 554
   anchor: receive_ready = bool(self._connected and any(
 - path: src/wxbot/wechat/chat_window.py
-  line: 356
+  line: 364
   anchor: raise ReadDeferred('unread_messages_not_visible'
 - path: src/wxbot/queue_store.py
   line: 229
@@ -32,6 +32,8 @@ changes:
 - raw/changes/2026-11-01-mention-fallback-unread-retry
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-mention-residue-reverify
+- raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-05-group-auto-voice
 ---
 # 未读采集的重试与放弃
 
@@ -67,12 +69,12 @@ changes:
 
 ## 代码依据与修改来源
 
-- `src/wxbot/inbox.py:440` — `def _receive_one(self):`
-- `src/wxbot/inbox.py:470` — `def _abandon_unread(self, session, attempts):`
+- `src/wxbot/inbox.py:449` — `def _receive_one(self):`
+- `src/wxbot/inbox.py:479` — `def _abandon_unread(self, session, attempts):`
 - `src/wxbot/inbox.py:367` — 放弃快照比较
-- `src/wxbot/inbox.py:260` — `_capture` 的不可读守卫
-- `src/wxbot/inbox.py:543` — `receive_ready`
-- `src/wxbot/wechat/chat_window.py:356` — `read_bundle` 抛 `unread_messages_not_visible`
+- `src/wxbot/inbox.py:264` — `_capture` 的不可读守卫
+- `src/wxbot/inbox.py:554` — `receive_ready`
+- `src/wxbot/wechat/chat_window.py:350` — `read_bundle` 抛 `unread_messages_not_visible`
 - `src/wxbot/queue_store.py:229` — `forget_session`
 
 [[raw/changes/2026-11-01-mention-fallback-unread-retry]]
@@ -80,3 +82,13 @@ changes:
 [[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
 
 [[raw/changes/2026-11-02-mention-residue-reverify]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+
+## 群聊采集与自动语音复核（2026-11-05）
+
+采集前的越屏恢复和 row_offscreen 显式拒绝见 [[concepts/capture-viewport]]；不放宽 gutter 阈值，不推进未知发送方快照。语音准备期间继续采集，恢复录音任务后本轮不再切换收件会话，见 [[concepts/automatic-voice-reply]]。来源 [[raw/changes/2026-11-05-group-auto-voice]]。

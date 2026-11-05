@@ -1,6 +1,6 @@
-"""管家流水日志：把每轮「收到 / 回复 / 调用失败」写成 log 看板能解析的格式。
+"""管家流水日志：把每轮「收到 / 回复 / 调用失败」写成管理台能解析的格式。
 
-看板 log/server.py 逐行解析 {HERMES_HOME}/cache/wxbot.log，认这几种行：
+管理台 src/dashboard/flowlog.py 逐行解析配置指定的流水日志，认这几种行：
     [YYYY-MM-DD HH:MM:SS] INFO  [uid] 收到: <正文>
     [YYYY-MM-DD HH:MM:SS] INFO  [uid] 回复: <正文>
     [YYYY-MM-DD HH:MM:SS] ERROR [uid] Hermes API 调用失败: <详情>

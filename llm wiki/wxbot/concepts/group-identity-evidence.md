@@ -3,7 +3,7 @@ type: concept
 module: identity
 summary: 群成员先按同群 member_key 与昵称认人，头像 dhash 只作证据且不足以区分个体
 coverage: core
-last_verified: '2026-11-02'
+last_verified: '2026-11-05'
 sources:
 - path: src/butler/identity/user_registry.py
   line: 350
@@ -24,10 +24,10 @@ sources:
   line: 57
   anchor: def avatar_is_informative(
 - path: src/wxbot/wechat/chat_window.py
-  line: 246
+  line: 252
   anchor: def _runtime_avatar(
 - path: src/wxbot/wechat/main_window.py
-  line: 28
+  line: 29
   anchor: 'def plausible_nickname(name: str) -> bool:'
 changes:
 - raw/changes/2026-11-03-feat-voice-003-voice-assets
@@ -39,6 +39,8 @@ changes:
 - raw/changes/2026-11-01-knowledge-vault-graph
 - raw/changes/2026-11-02-ui-snapshot-ref-contract
 - raw/changes/2026-11-02-mention-residue-reverify
+- raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-05-group-auto-voice
 ---
 # 群成员身份：昵称优先，头像退为证据
 
@@ -60,18 +62,18 @@ wxbot 启动时 `sync_users` 会重放 `inbox` 里的头像证据，这是「每
 
 同群两个人用完全相同的昵称会被并成一条，接受这个取舍：现有头像证据本来就没有区分度，靠相似度防误并只会让重复继续增长。
 
-昵称来自消息预览时另受 `preview_sender` 的格式约束（`src/wxbot/wechat/main_window.py:45`）：长度超过 16（微信昵称上限）、含换行或句读、以 `[` 开头、以「你/我」开头且含空白的整句都不当昵称（`plausible_nickname`，`src/wxbot/wechat/main_window.py:28`）。这条约束是 2026-11-01 补的：此前「你收到一笔群分红 请在手机上查看」这类卡片文案被学成成员昵称，进而成为 `mention_name`，让 @ 永远选不中候选。人工在管理台确认的昵称不受此约束。
+昵称来自消息预览时另受 `preview_sender` 的格式约束（`src/wxbot/wechat/main_window.py:45`）：长度超过 16（微信昵称上限）、含换行或句读、以 `[` 开头、以「你/我」开头且含空白的整句都不当昵称（`plausible_nickname`，`src/wxbot/wechat/main_window.py:29`）。这条约束是 2026-11-01 补的：此前「你收到一笔群分红 请在手机上查看」这类卡片文案被学成成员昵称，进而成为 `mention_name`，让 @ 永远选不中候选。人工在管理台确认的昵称不受此约束。
 
 ## 代码依据
 
-- `src/butler/identity/user_registry.py:355` — `def observe(`
-- `src/butler/identity/user_registry.py:244` — `def _learn_nickname(`
-- `src/wxbot/inbox.py:111` — `def sync_users(`
+- `src/butler/identity/user_registry.py:350` — `def observe(`
+- `src/butler/identity/user_registry.py:239` — `def _learn_nickname(`
+- `src/wxbot/inbox.py:120` — `def sync_users(`
 - `src/wxbot/inbox.py:23` — `def member_nickname(`
 - `src/wxbot/queue_store.py:192` — `def identity_observations(`
 - `src/common/avatar_identity.py:57` — `def avatar_is_informative(`
-- `src/wxbot/wechat/chat_window.py:246` — `def _runtime_avatar(`
-- `src/wxbot/wechat/main_window.py:28` — `def plausible_nickname(name: str) -> bool:`
+- `src/wxbot/wechat/chat_window.py:252` — `def _runtime_avatar(`
+- `src/wxbot/wechat/main_window.py:29` — `def plausible_nickname(name: str) -> bool:`
 - `src/wxbot/wechat/main_window.py:45` — `def preview_sender(preview: str, text: str) -> str | None:`
 
 ## 入库来源
@@ -85,3 +87,13 @@ wxbot 启动时 `sync_users` 会重放 `inbox` 里的头像证据，这是「每
 [[raw/changes/2026-11-02-ui-snapshot-ref-contract]]
 
 [[raw/changes/2026-11-02-mention-residue-reverify]]
+
+
+## 本次核对
+
+[[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+
+## 群聊采集与自动语音复核（2026-11-05）
+
+采集前的越屏恢复和 row_offscreen 显式拒绝见 [[concepts/capture-viewport]]；不放宽 gutter 阈值，不推进未知发送方快照。语音准备期间继续采集，恢复录音任务后本轮不再切换收件会话，见 [[concepts/automatic-voice-reply]]。来源 [[raw/changes/2026-11-05-group-auto-voice]]。

@@ -1,14 +1,16 @@
 ﻿"""语音开关与白名单：配置文件驱动；音色资产绑定由管理台维护。"""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
+import threading
+import tomllib
 
 from .assets import VoiceAssetStore, default_assets_dir
 
 
 VOICE_MODES = ("off", "replace", "coexist")
-TTS_PROVIDERS = ("fixture", "indextts")
+TTS_PROVIDERS = ("fixture", "indextts", "webui")
 
 
 def normalize_voice_mode(value) -> str:
@@ -21,8 +23,14 @@ def normalize_voice_mode(value) -> str:
 def normalize_tts_provider(value) -> str:
     provider = str(value or "fixture").strip().lower()
     if provider not in TTS_PROVIDERS:
-        raise ValueError("voice.tts_provider 必须是 fixture 或 indextts")
+        raise ValueError("voice.tts_provider 必须是 fixture、indextts 或 webui")
     return provider
+
+
+def resolve_tts_provider(section) -> str:
+    """Keep explicit test fixtures; otherwise use the already running WebUI."""
+    default = 'fixture' if 'fixture_wav' in section else 'webui'
+    return normalize_tts_provider(section.get('tts_provider', default))
 
 
 def _resolve_path(value: str, *, root: Path, field_name: str) -> Path:
@@ -71,6 +79,7 @@ class VoicePolicy:
     indextts: IndexTtsSettings | None = None
     contact_refs: dict[str, ContactVoiceRef] = field(default_factory=dict)
     assets_dir: Path | None = None
+    webui_presets_path: Path | None = None
 
     def mode_for(self, contact: str) -> str:
         if not self.enabled:
@@ -101,6 +110,14 @@ class VoicePolicy:
         return None
 
     def has_usable_binding(self, contact: str) -> bool:
+        if self.tts_provider == 'webui':
+            if self.webui_presets_path is None:
+                return False
+            from butler.delivery.tts_presets import PresetBindings
+            try:
+                return bool(PresetBindings(self.webui_presets_path).get(contact))
+            except (OSError, ValueError):
+                return False
         return self.binding_path(contact) is not None
 
     def delivery_mode_for(self, contact: str) -> str:
@@ -212,7 +229,7 @@ def _load_contact_refs(section: dict, *, root: Path) -> dict[str, ContactVoiceRe
     return out
 
 
-def load_voice_policy(cfg: dict, *, root: Path) -> VoicePolicy:
+def load_voice_policy(cfg: dict, *, root: Path, presets_path=None) -> VoicePolicy:
     section = cfg.get("voice") or {}
     if not isinstance(section, dict):
         raise ValueError("voice 必须是配置表")
@@ -237,7 +254,12 @@ def load_voice_policy(cfg: dict, *, root: Path) -> VoicePolicy:
         if not isinstance(name, str) or not name.strip():
             raise ValueError("voice.contacts 键必须是联系人/会话名")
         contacts[name.strip()] = normalize_voice_mode(mode)
-    tts_provider = normalize_tts_provider(section.get("tts_provider", "fixture"))
+    tts_provider = resolve_tts_provider(section)
+    if tts_provider == 'webui' and presets_path is None:
+        from butler.delivery.automatic_tts import preset_bindings_path
+        base = cfg.get('_config_dir') or (Path(cfg['_config_path']).parent if cfg.get('_config_path') else root)
+        configured_installation = enabled or cfg.get('_config_path') or cfg.get('_config_dir')
+        presets_path = preset_bindings_path(base) if configured_installation else Path(base) / 'data' / 'tts-presets.json'
     indextts = None
     if tts_provider == "indextts":
         indextts = _load_indextts(section, root=root)
@@ -272,5 +294,40 @@ def load_voice_policy(cfg: dict, *, root: Path) -> VoicePolicy:
         indextts=indextts,
         contact_refs=materialized,
         assets_dir=assets_dir,
+        webui_presets_path=Path(presets_path) if presets_path is not None else None,
     )
+
+
+class VoicePolicyReloader:
+    """Bounded, voice-only snapshots; invalid updates disable speech safely."""
+    def __init__(self, cfg, *, root):
+        self.root = Path(root)
+        self.path = Path(cfg['_config_path']) if cfg.get('_config_path') else None
+        self.base = {'_config_dir': cfg.get('_config_dir') or (str(self.path.parent) if self.path else str(root))}
+        self._policy = load_voice_policy(cfg, root=self.root)
+        self._signature = None
+        self._lock = threading.Lock()
+
+    def snapshot(self):
+        if self.path is None:
+            return self._policy
+        with self._lock:
+            signature = None
+            try:
+                stat = self.path.stat()
+                signature = (stat.st_mtime_ns, stat.st_size)
+                if signature == self._signature:
+                    return self._policy
+                with self.path.open('rb') as stream:
+                    data = stream.read(1024 * 1024 + 1)
+                if len(data) > 1024 * 1024:
+                    raise ValueError('语音配置超过大小上限')
+                raw = tomllib.loads(data.decode('utf-8-sig'))
+                self._policy = load_voice_policy({**self.base, 'voice': raw.get('voice', {})},
+                    root=self.root, presets_path=self._policy.webui_presets_path)
+                self._signature = signature
+            except (OSError, ValueError, UnicodeError, TypeError):
+                self._policy = replace(self._policy, enabled=False)
+                self._signature = signature
+            return self._policy
 

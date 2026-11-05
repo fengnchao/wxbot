@@ -75,3 +75,30 @@ def push_bundle_to_wxbot(cfg, contact, items, request_id, log=None):
         return False, f'wxbot HTTP {exc.code}；图文包未确认'
     except Exception:
         return False, 'wxbot 图文包连接或回执异常；结果未知，不自动重发'
+
+
+def queue_voice_to_wxbot(cfg, contact, items, request_id):
+    """Wait for durable enqueue, not for minutes of PTT playback. No retries."""
+    from common.media_bundle import validate_voice_items
+    items = validate_voice_items(items)
+    validate_request_id(request_id)
+    if not cfg.wxbot_url or not cfg.wxbot_token:
+        return {'status': 'failed', 'detail': 'wxbot 地址或令牌未配置'}
+    request = urllib.request.Request(cfg.wxbot_url.rstrip('/') + '/send-voice-bundle',
+        data=json.dumps({'contact': contact, 'items': items, 'request_id': request_id}, ensure_ascii=False).encode(),
+        headers={'Content-Type': 'application/json', 'X-Wxbot-Token': cfg.wxbot_token}, method='POST')
+    try:
+        # The configured service is trusted; localhost must bypass system proxies.
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(request, timeout=25) as response:
+            result = json.loads(response.read(65537))
+        if (result.get('status') == 'queued' and result.get('contact') == contact
+                and result.get('request_id') == request_id):
+            return {'status': 'queued', 'detail': '音频已持久化排队，尚未确认微信发送'}
+        return {'status': 'delivery_unknown', 'detail': '入队回执未确认，勿自动重发'}
+    except urllib.error.HTTPError as exc:
+        if exc.code in (400, 401, 403, 404):
+            return {'status': 'failed', 'detail': f'wxbot 拒绝语音包 HTTP {exc.code}'}
+        return {'status': 'delivery_unknown', 'detail': 'wxbot 入队结果未知，勿自动重发'}
+    except Exception:
+        return {'status': 'delivery_unknown', 'detail': 'wxbot 连接或回执异常，勿自动重发'}

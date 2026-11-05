@@ -3,7 +3,7 @@ type: table
 module: butler
 summary: 用户知识图谱的存储形态——一人一个 Obsidian vault，目录骨架、事实分类与索引分区由 Markdown 模板决定
 coverage: core
-last_verified: '2026-11-02'
+last_verified: '2026-11-04'
 sources:
 - path: src/butler/runtime/knowledge_store.py
   line: 1
@@ -66,7 +66,7 @@ sources:
   line: 22
   anchor: 'class KnowledgeView:'
 - path: src/dashboard/routes.py
-  line: 45
+  line: 47
   anchor: '"GET", "/api/knowledge", knowledge.read'
 changes:
 - raw/changes/2026-11-03-feat-voice-003-voice-assets
@@ -76,6 +76,8 @@ changes:
 - raw/changes/2026-11-01-knowledge-atlas-index
 - raw/changes/2026-11-01-knowledge-atomic-retry
 - raw/changes/2026-11-02-knowledge-graph-template
+- raw/changes/2026-11-04-webui-preset-binding
+- raw/changes/2026-11-04-webui-preset-graph-note
 ---
 # 用户知识库：一人一个 Obsidian vault
 
@@ -215,3 +217,11 @@ data/knowledge/
 [[raw/changes/2026-11-01-knowledge-atomic-retry]]
 
 [[raw/changes/2026-11-02-knowledge-graph-template]]
+
+
+## 联系人语音配置核对
+
+[[raw/changes/2026-11-04-webui-preset-binding]]：接入网页预设列表与会话默认绑定；原有接口保持，新增接口及可选音色参数见 [[apis/index-tts]]。
+
+
+图谱契约说明来源：[[raw/changes/2026-11-04-webui-preset-graph-note]]。
