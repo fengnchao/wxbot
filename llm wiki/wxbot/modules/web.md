@@ -15,7 +15,7 @@ sources:
   line: 229
   anchor: <section id="pane" class="voice-assets"
 - path: web/src/components/ContactDialog.vue
-  line: 519
+  line: 387
   anchor: 自动回复音色
 - path: web/src/router.js
   line: 4
@@ -62,18 +62,18 @@ changes:
 - raw/changes/2026-11-04-webui-preset-binding
 - raw/changes/2026-11-04-webui-preset-graph-note
 - raw/changes/2026-11-05-contact-policy-save
+- raw/changes/2026-11-05-contact-enrollment-and-tts-ui
+- raw/changes/2026-11-05-enable-group-binding
 depends_on:
 - modules/dashboard
 ---
 # Vue 管理台
 
-## 联系人 IndexTTS 配置
+## 联系人和语音设置
 
-网页音色预设不来自本地 voiceAssets，新增 /api/tts-presets 直接获取 Gradio 保存的选项及当前窗口默认值。加载、刷新、旧绑定保留、冲突/部分失败由 ContactDialog 管理；省略音色时服务端使用绑定。保存前冻结目标/值，后续按返回的稳定会话 ID/规范化名投递各设置，避免异步期间串写另一联系人。契约与更正见 [[apis/index-tts]]、[[raw/changes/2026-11-04-webui-preset-binding]]。
+私聊、群聊列表消费 GET /api/contacts 返回的 conversations，缺失窗口由 [[modules/identity]] 在处理新消息时补建。会话弹窗不再提供独立 IndexTTS 授权和预设入口，技能由 AI 设置保存。会话弹窗仍管理语音发送模式和本地音色资产，保留部分保存的重试和按稳定会话 ID 确定目标的规则。见 [[apis/index-tts]]、[[apis/dashboard-voice-assets]]、[[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。
 
-ContactsView.openConversation 传入当前生效策略；ContactDialog 的会话表单新增 IndexTTS 授权开关，并与原语音发送模式同屏。只在开关变化时提交 policy 的 index-tts 增删，保留角色/其他技能/心跳；未修改不创建会话覆盖，明确取消继承不采用联系人默认。技能/语音各有读取、错误和原位重试，提交期间禁用对应控件，部分保存不关闭弹窗。语音模式单独改变不清资产；重命名复制当前模式/资产到新键。契约见 [[apis/index-tts]]、[[apis/dashboard-voice-assets]]。
-
-新增控件沿用 theme.css 和 contacts.css 令牌、焦点/按下/禁用状态；375px 和桌面实际构建预览已核对。烟测覆盖授权保留、继承开关、重试新版本、部分失败与重命名；web/dist 与源码一同发布。全页 Hallmark 仍有背景旧控件/字号等样式发现，限定新控件检查通过，不扩大本次局部修订。
+群成员和个人群身份页面的「启用」使用 [[apis/dashboard-contact-policy]] 的 `binding_enable`，只针对停用的绑定，等待期间禁用按钮并显示进度。来源 [[raw/changes/2026-11-05-enable-group-binding]]。
 
 ## 范围与依赖
 

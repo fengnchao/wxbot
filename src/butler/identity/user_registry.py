@@ -347,6 +347,31 @@ class UserRegistry:
                 return distance + color_error / 24
         return None
 
+    def enroll_conversation(self, contact, channel_type, binding_id=''):
+        """Expose a window from live traffic without enabling any explicit policy."""
+        from butler.identity.contact_store import ContactStore
+
+        contact = _text(contact, '会话名称')
+        with self.store.transaction() as db:
+            if not contact_identity.is_active(db):
+                return
+            state = ContactStore._snapshot(db)
+            if any(row['name'] == contact for row in state['conversations']):
+                return
+            person_id = ''
+            if channel_type == 'dm':
+                binding = db.execute(
+                    "SELECT user_id FROM user_bindings WHERE binding_id=? AND channel_type='dm' AND contact=? AND enabled=1",
+                    (binding_id, contact)).fetchone()
+                if binding is None:
+                    return
+                person_id = binding['user_id']
+            state['conversations'].append(dict(
+                id=uuid.uuid4().hex, name=contact, channel_type=channel_type, person_id=person_id,
+                needs_route=True, inherit_person_policy=False,
+            ))
+            ContactStore._save(db, state, state['version'])
+
     def observe(self, contact, channel_type, member_key='', avatar='', nickname=''):
         """Create an empty, isolated identity independently of a model request."""
         if channel_type not in {'dm', 'group'}:

@@ -3,7 +3,7 @@ type: symbol
 module: butler
 summary: 生成 reply/actions/reply_parts/meta 的公开边界
 coverage: core
-last_verified: '2026-11-04'
+last_verified: '2026-11-05'
 sources:
 - path: src/butler/agent/core.py
   line: 68
@@ -23,6 +23,7 @@ changes:
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-knowledge-vault-graph
 - raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-05-contact-enrollment-and-tts-ui
 calls: []
 called_by:
 - symbols/butler-handle
@@ -70,3 +71,7 @@ reply 原样；actions 调各项 as_dict；reply_parts 经 split_reply 切分；
 ## 本次核对
 
 [[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+## 本次核对
+
+补建窗口属于入站业务库副作用，公开 Result 字段沿用。 来源 [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。

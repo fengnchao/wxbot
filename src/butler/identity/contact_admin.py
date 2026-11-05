@@ -357,6 +357,7 @@ class ContactAdmin:
             'avatar':{'id','avatar'},
             'avatar_cleanup':set(),
             'binding':{'id','binding_id','nickname','enabled'},
+            'binding_enable':{'id','binding_id'},
             'binding_disable':{'id','binding_id'},
             'merge':{'id','source_id','preview_version'},
             'person_delete':{'id'},
@@ -504,15 +505,22 @@ class ContactAdmin:
                 registry._audit(db, 'person:cleanup', 'avatar_cleanup',
                                 {'source':'administrator','removed':removed})
                 contact_identity.touch_version(db)
-            elif action in {'binding','binding_disable'}:
+            elif action in {'binding','binding_enable','binding_disable'}:
                 from butler.identity import contact_identity
                 member = db.execute('SELECT * FROM user_bindings WHERE binding_id=?',(payload.get('binding_id'),)).fetchone()
                 if member is None: raise ValueError('成员关系不存在，请刷新列表')
                 if member['user_id'] != payload.get('id'): raise ValueError('该成员关系不属于这个联系人')
-                if action == 'binding_disable':
-                    db.execute('UPDATE user_bindings SET enabled=0,version=version+1 WHERE binding_id=?',(member['binding_id'],))
-                    registry._audit(db, member['binding_id'], 'disabled',
-                                    {'source':'administrator','reason':'duplicate'})
+                if action != 'binding':
+                    enabled = action == 'binding_enable'
+                    if enabled and member['channel_type'] != 'group':
+                        raise ValueError('只能启用群成员身份')
+                    db.execute('UPDATE user_bindings SET enabled=?,version=version+1 WHERE binding_id=?',
+                               (int(enabled), member['binding_id']))
+                    if enabled:
+                        registry._audit(db, member['binding_id'], 'enabled', {'source':'administrator'})
+                    else:
+                        registry._audit(db, member['binding_id'], 'disabled',
+                                        {'source':'administrator','reason':'duplicate'})
                 else:
                     nickname = payload.get('nickname', contact_identity.binding_name(db, member))
                     if not isinstance(nickname,str) or not nickname.strip() or len(nickname)>200:

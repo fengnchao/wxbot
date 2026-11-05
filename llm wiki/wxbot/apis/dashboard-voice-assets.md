@@ -21,7 +21,7 @@ sources:
   line: 229
   anchor: <section id="pane" class="voice-assets"
 - path: web/src/components/ContactDialog.vue
-  line: 519
+  line: 387
   anchor: 自动回复音色
 changes:
 - raw/changes/2026-11-03-voice-assets-polish
@@ -31,6 +31,7 @@ changes:
 - raw/changes/2026-11-04-webui-preset-graph-note
 - raw/changes/2026-11-05-contact-policy-save
 - raw/changes/2026-11-05-group-auto-voice
+- raw/changes/2026-11-05-contact-enrollment-and-tts-ui
 ---
 # 管理台音色资产与绑定 API
 
@@ -87,3 +88,7 @@ ContactDialog 新增未安装技能的可见勾选项和保存中提示；IndexT
 ## 群聊采集与自动语音复核（2026-11-05）
 
 自动回复的 webui 默认推导、实时语音策略、流式缓冲、daemon 合成及录音前准确预设复核见 [[concepts/automatic-voice-reply]]；旧媒体包/离线提供者合同保留。自动 webui 的录音前失败终结并仅回退一次文字，不让 blocked 重试重复投递，无数据库迁移。来源 [[raw/changes/2026-11-05-group-auto-voice]]。
+
+## 本次核对
+
+会话弹窗保留语音回复模式、本地音色资产、变更才写入以及会话改名复制资产逻辑。 来源 [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。

@@ -191,6 +191,8 @@ class Butler:
         result = self.group_context.archive(contact,source_id,messages)
         with self.trace.bind(contact,source_id):
             self.observe_users(contact,'group',messages)
+            if self.registry and any(item.get('sender', 'other') == 'other' for item in messages):
+                self.registry.enroll_conversation(contact, 'group')
         return result
 
     def observe_users(self, contact, channel_type, messages):
@@ -284,6 +286,8 @@ class Butler:
                               if r.enabled and c.channel_type == 'dm' and r.contact == c.name), None)
                 if route is None:
                     c = self._resolved_contact(c)
+                    if self.registry:
+                        self.registry.enroll_conversation(c.name, c.channel_type, c.binding_id)
                 record('butler_session','waiting')
                 with self.runtime_locks.session(c):
                     record('butler_session','ok')

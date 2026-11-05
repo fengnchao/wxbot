@@ -1,6 +1,6 @@
 ---
 type: impact
-status: draft
+status: completed
 date: 2026-11-05
 ---
 # 新消息补建会话与移除会话 IndexTTS 专区
@@ -22,3 +22,7 @@ HTTP 请求和响应格式保持兼容。现有 `GET /api/contacts` 返回补建
 ## 验证、异步任务与回滚
 
 在临时库验证删除、重收、幂等、停用、群聊静默归档；用管理台假数据验证无预设请求且普通语音设置仍可保存。沿用现有队列，不新增后台任务。回滚源码和 dist 即停止补建，已经登记的会话可从联系人页面管理。
+
+## 实际改动与 raw 归档
+
+实现与验证见 [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。

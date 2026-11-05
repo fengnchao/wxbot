@@ -364,3 +364,15 @@
 来源：[[raw/changes/2026-11-05-group-auto-voice]]
 
 [[modules/delivery]]、[[modules/wiki]]、[[modules/wxbot]]、[[apis/dashboard-voice-assets]]、[[apis/index-tts]]、[[symbols/mention-selection]]、[[symbols/model-worker]]、[[tables/queue-outbox]]、[[concepts/automatic-voice-reply]]、[[concepts/capture-viewport]]、[[concepts/delivery-state]]、[[concepts/development-baseline]]、[[concepts/group-identity-evidence]]、[[concepts/message-pipeline]]、[[concepts/model-error-contract]]、[[concepts/unread-capture-retry]]、[[concepts/voice-asset-binding]]
+
+## [2026-11-05] ingest | 新消息补建联系人窗口与移除会话 IndexTTS 专区
+
+来源：[[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]
+
+[[modules/identity]]、[[concepts/message-pipeline]]、[[symbols/butler-handle]]、[[modules/web]]、[[apis/index-tts]]、[[apis/dashboard-contact-policy]]、[[apis/dashboard-voice-assets]]、[[apis/butler-handle]]、[[concepts/development-baseline]]、[[concepts/group-identity-evidence]]、[[concepts/model-error-contract]]、[[modules/butler]]、[[modules/wiki]]、[[symbols/butler-result]]
+
+## [2026-11-05] ingest | 为停用的群成员身份增加启用按钮
+
+来源：[[raw/changes/2026-11-05-enable-group-binding]]
+
+[[apis/dashboard-contact-policy]]、[[apis/index-tts]]、[[modules/identity]]、[[modules/web]]

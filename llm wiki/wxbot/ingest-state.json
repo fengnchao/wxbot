@@ -604,14 +604,44 @@
         "concepts/voice-asset-binding"
       ],
       "date": "2026-11-05"
+    },
+    "raw/changes/2026-11-05-contact-enrollment-and-tts-ui": {
+      "sha256": "67398ea81dba096be98cf6d7e27f11dabe9c7d8d4501a6987eb656323fb58bb0",
+      "pages": [
+        "modules/identity",
+        "concepts/message-pipeline",
+        "symbols/butler-handle",
+        "modules/web",
+        "apis/index-tts",
+        "apis/dashboard-contact-policy",
+        "apis/dashboard-voice-assets",
+        "apis/butler-handle",
+        "concepts/development-baseline",
+        "concepts/group-identity-evidence",
+        "concepts/model-error-contract",
+        "modules/butler",
+        "modules/wiki",
+        "symbols/butler-result"
+      ],
+      "date": "2026-11-05"
+    },
+    "raw/changes/2026-11-05-enable-group-binding": {
+      "sha256": "fd6f75895e78dee9ca3959c7741b8cc39cdd8c96ade74ba0f423cc448fd30658",
+      "pages": [
+        "apis/dashboard-contact-policy",
+        "apis/index-tts",
+        "modules/identity",
+        "modules/web"
+      ],
+      "date": "2026-11-05"
     }
   },
   "pages": {
     "apis/butler-handle": {
-      "sha256": "29514cba86dc71bbca8d28b7b563af0b57228be0197ac92c9c7edd2460289a7d",
+      "sha256": "f7cd0493fe9d735acfa232eaf0f1871b7837cc39854f36393d61df02cc24680c",
       "sources": {
         "src/butler/server.py": "3560af65d8c9bac80004563400872fc83450a4d593b5acf158379ae23285bea1",
-        "src/butler/agent/core.py": "c06d1e0389921d6a6cd3671914e56fec3278ff5d688ec29ab67a62e6037edfbc",
+        "src/butler/agent/core.py": "5d27fe44189612573f8429cf6c55154979cfb8a5fb4853e7ef1ac4c88737e41f",
         "src/wxbot/processor/butler.py": "55dc9aac5baf71ff1f36c0fa7b01c1fb7b0ca2d24a5d4de3eb8eae6cc872cd86"
       }
     },
@@ -658,21 +688,21 @@
       }
     },
     "concepts/message-pipeline": {
-      "sha256": "5b800a8ca34a3c25f476d13c5372365701689cc8947b4196dde03f3530f19d05",
+      "sha256": "17a956362ebe83b5b788c352bec17c1832e03a2991a59e71655c681e4727b606",
       "sources": {
         "src/wxbot/inbox.py": "6aa27f59f92a1a5716dec8e0569881474ad1a760d3add5ae56a753e3399f35a7",
         "src/wxbot/queue_worker.py": "f7e71526af62a717afcd1c43e5febf5c10254ba2d57583388b257f2cc1b95fc7",
         "src/wxbot/processor/butler.py": "55dc9aac5baf71ff1f36c0fa7b01c1fb7b0ca2d24a5d4de3eb8eae6cc872cd86",
-        "src/butler/agent/core.py": "c06d1e0389921d6a6cd3671914e56fec3278ff5d688ec29ab67a62e6037edfbc",
+        "src/butler/agent/core.py": "5d27fe44189612573f8429cf6c55154979cfb8a5fb4853e7ef1ac4c88737e41f",
         "src/wxbot/wechat/chat_window.py": "76ac6ffbbad269b029b41d67d17aa09ebd07d7e6c92100205024882c349bbd3f",
         "src/wxbot/ui_contract.py": "18362287ae4fee6df51e357935f48c4da0cc5a02f393686d5b7dc0ed2f20b112"
       }
     },
     "modules/butler": {
-      "sha256": "ada66edca800472dad95c874f5683f998e913e894865ff507ca713373bcd67c2",
+      "sha256": "82347c0828118ef5e76be92d33e5b49da92fd69d15f6d12ecbcb27c4efd26fb6",
       "sources": {
         "src/butler/server.py": "3560af65d8c9bac80004563400872fc83450a4d593b5acf158379ae23285bea1",
-        "src/butler/agent/core.py": "c06d1e0389921d6a6cd3671914e56fec3278ff5d688ec29ab67a62e6037edfbc",
+        "src/butler/agent/core.py": "5d27fe44189612573f8429cf6c55154979cfb8a5fb4853e7ef1ac4c88737e41f",
         "src/butler/agent/tools.py": "5ec7c60c6ec8900d64aa644abde013c4ef6d8bf91d5108b8273556abe403f371"
       }
     },
@@ -709,12 +739,12 @@
       }
     },
     "modules/identity": {
-      "sha256": "ddcbeb96d164eaf63ada5f8d607246ddf793e87a17071e8a2b9f0f257e4d3556",
+      "sha256": "4cb34eef254d6c07f22179e164b4c4a0a2f6b3b2fde0a0cbe386defe7705fb05",
       "sources": {
+        "src/butler/identity/user_registry.py": "4155160223763bf0303af4cbbbfa6f6f5f64a60a5f7fbfec008c52ca62e6332e",
         "src/butler/identity/contact_store.py": "f2cc6c7cdf7426601e45e74a6ce8d016bc68e667d5805b11359a8159fc86ff9c",
-        "src/butler/identity/user_registry.py": "33722def879aad626dd2490cce1dc109b0baa2107edbf17327d7b64fa27da4e3",
         "src/butler/agent/tools.py": "5ec7c60c6ec8900d64aa644abde013c4ef6d8bf91d5108b8273556abe403f371",
-        "src/butler/identity/contact_admin.py": "d30c06aa016a5a11093aa26cd0d4d3cbdecb988bece8c35942e6960d4a9f38b8"
+        "src/butler/identity/contact_admin.py": "4cb8e71135e82a52d57ab322509a60f3de5ca1650a84afc72479f88b7beded3f"
       }
     },
     "modules/plugin": {
@@ -745,12 +775,12 @@
       }
     },
     "modules/web": {
-      "sha256": "fcc5162fcc99de65d4cfbc521de1092d55ddd6050bec4ae6f9daadcf3071efbd",
+      "sha256": "d3e5b97ae9d09674b366c8fa1d4fe5f8966be6a41ecdb7eb01b211ebd4215622",
       "sources": {
         "web/src/styles/voice-assets.css": "b85de993f04c609730399b901abd2f2966e5300c8f6b4aa927f221e3f2550a4e",
         "web/src/router.js": "b993ca97bfb3248da60f7deafd4589bb108365ea3e920a4fdb714f11b4c4ef13",
         "web/src/views/VoiceAssetsView.vue": "9486b12287f6258af5abdf412da889a0cfd93eae97b75164572d1fb0eaff8c61",
-        "web/src/components/ContactDialog.vue": "f582f72927ee1a285e039c5090fd9afe068746d50034c3f6010a9dd989946da7",
+        "web/src/components/ContactDialog.vue": "db356ab1ba077b85446e71a8ac3d777202f58c3469746a7b3ef2eb590a007b46",
         "web/src/api.js": "33f5fc3542b631867008c89eb6beab53aaf5c027680e05dd1f55f39ba8901265",
         "web/src/views/WorkflowView.vue": "8f93fe97e79316cc2b07648335836b2e4983704a95ffd9aba1fe2b15d95f0cb9",
         "web/src/views/QueueView.vue": "f55641c26fbf54fbaa1303fd18cb533c5606c33f38de0dcf51a07722b54a89eb",
@@ -760,10 +790,10 @@
       }
     },
     "modules/wiki": {
-      "sha256": "69972362d4d17fba508f5052a65f46a7e6ba5f025963889b9606a16e973a8e8d",
+      "sha256": "acafd07b776c9c51ec87eb6571159393cde73de3676fbc4f656dcb1921ef794a",
       "sources": {
         "AGENTS.md": "e802af8beccc7ba68b068fd41134f6f193483262f1e68812abfbd2c723b12d43",
-        "README.md": "71ebe29343e25d8aea3053855116bd0a1e4a199e1ba1b1c432ef8cc798ebeb19",
+        "README.md": "6054ba353fcb8b0b60a761f70b83db0037dbff21b6d7a2d2faa743cc86d553e5",
         "llm wiki/wxbot/scripts/wiki.py": "b69a2f5b4433f10a7deee89d33f692aeae9f0277ae28ea3e3858c513dcc927db"
       }
     },
@@ -783,9 +813,9 @@
       }
     },
     "symbols/butler-handle": {
-      "sha256": "5fe8cb076ce2cfa27e009814c674867cf7fd51112a1b0fe61ff5787460ae9388",
+      "sha256": "6d3db7f8c3d2868dc2957a90019f0f842f467efcb4eec5bdeeec3fd0be555ded",
       "sources": {
-        "src/butler/agent/core.py": "c06d1e0389921d6a6cd3671914e56fec3278ff5d688ec29ab67a62e6037edfbc",
+        "src/butler/agent/core.py": "5d27fe44189612573f8429cf6c55154979cfb8a5fb4853e7ef1ac4c88737e41f",
         "src/butler/server.py": "3560af65d8c9bac80004563400872fc83450a4d593b5acf158379ae23285bea1"
       }
     },
@@ -797,9 +827,9 @@
       }
     },
     "symbols/butler-result": {
-      "sha256": "133e416ee6e1531d57feaddb3bea46107ccee7b7f523adc30a92fd0415fe8336",
+      "sha256": "ea3b453b93d46a82cdee7af5ca808ab60f97eb1160dc501a83bbc5ca30078a8b",
       "sources": {
-        "src/butler/agent/core.py": "c06d1e0389921d6a6cd3671914e56fec3278ff5d688ec29ab67a62e6037edfbc",
+        "src/butler/agent/core.py": "5d27fe44189612573f8429cf6c55154979cfb8a5fb4853e7ef1ac4c88737e41f",
         "src/butler/server.py": "3560af65d8c9bac80004563400872fc83450a4d593b5acf158379ae23285bea1"
       }
     },
@@ -868,9 +898,9 @@
       }
     },
     "concepts/group-identity-evidence": {
-      "sha256": "dff1ad700ed168c1de3049e050b72bd08935051b67318f90cec60d46e0aca22b",
+      "sha256": "45caf79375ef89f58da9e46e006717bf297a3b0fd9e89455d35a8b20bae460ae",
       "sources": {
-        "src/butler/identity/user_registry.py": "33722def879aad626dd2490cce1dc109b0baa2107edbf17327d7b64fa27da4e3",
+        "src/butler/identity/user_registry.py": "4155160223763bf0303af4cbbbfa6f6f5f64a60a5f7fbfec008c52ca62e6332e",
         "src/wxbot/inbox.py": "6aa27f59f92a1a5716dec8e0569881474ad1a760d3add5ae56a753e3399f35a7",
         "src/wxbot/queue_store.py": "725a42fb51e5c788e7576905e42530a4e90ce3c4ccab41f0eb6ae764ac707cf4",
         "src/common/avatar_identity.py": "bff7528b7bb8ac539868586bc35f2741b40d601f241180afe9f02cdf960260a3",
@@ -879,14 +909,14 @@
       }
     },
     "concepts/model-error-contract": {
-      "sha256": "0042a43a8b9d2a440df2be4d3f04b79f063c613f737bfc2242f37671ff4986ef",
+      "sha256": "050aa08133f5bd14bd73829022367c1e5bebb0b1b7528b50d235a288c7210923",
       "sources": {
         "src/butler/agent/hermes.py": "6416947f305cf115ede4c95bc132da550469fd4513398ab66badbd27c453b977",
         "src/butler/backends/compatible.py": "9878d7bc3cfee249c4dcca38d4ee82d9ee3d1d0bd158b87ea8363f2487a6b3de",
         "src/butler/backends/models.py": "50508ff1e12f4338f900aee1012478f2d44b01726f0146074fef3c1035acad21",
         "src/butler/backends/codex.py": "35136fb1bccd5249fa2ab89f53bfec6af1b6f2135fb608a8f6722049d3846255",
         "src/butler/runtime/model_switch.py": "329a2162b85c1fec22c3fa1f9d0a2185ef115702f436abc04c680e622f6ba91e",
-        "src/butler/agent/core.py": "c06d1e0389921d6a6cd3671914e56fec3278ff5d688ec29ab67a62e6037edfbc",
+        "src/butler/agent/core.py": "5d27fe44189612573f8429cf6c55154979cfb8a5fb4853e7ef1ac4c88737e41f",
         "src/butler/server.py": "3560af65d8c9bac80004563400872fc83450a4d593b5acf158379ae23285bea1",
         "src/wxbot/processor/butler.py": "55dc9aac5baf71ff1f36c0fa7b01c1fb7b0ca2d24a5d4de3eb8eae6cc872cd86",
         "src/wxbot/processor/openai_compat.py": "0e814c658bd98c96493713157eb5d368bd9a5567418802f75573c7b97dbbdf17",
@@ -978,14 +1008,14 @@
       }
     },
     "apis/dashboard-voice-assets": {
-      "sha256": "12b23cae3e7926ead76f7449b0a19b838a6e86ae8e1b89daa2a67d01468ecbab",
+      "sha256": "cfd99685b715e86fd9c7aef977636f3a3d89eec0037a5cec9d2fd3f4126c029a",
       "sources": {
         "web/src/styles/voice-assets.css": "b85de993f04c609730399b901abd2f2966e5300c8f6b4aa927f221e3f2550a4e",
         "src/dashboard/routes.py": "65f57c5dd89b9d353d7e96210bba86c0027b50a64ab943a12b2ecc17af7a8bfc",
         "src/dashboard/api/voice_assets.py": "ad037345c50efa2f9f844217d8cf0bad0c71afc844beaf4c4f5366cf7b152a41",
         "src/dashboard/voice_admin.py": "5ec3fac05762520ff5d006591e195f3a7b206b5c642e86ba11a2d1b2d05ee18d",
         "web/src/views/VoiceAssetsView.vue": "9486b12287f6258af5abdf412da889a0cfd93eae97b75164572d1fb0eaff8c61",
-        "web/src/components/ContactDialog.vue": "f582f72927ee1a285e039c5090fd9afe068746d50034c3f6010a9dd989946da7"
+        "web/src/components/ContactDialog.vue": "db356ab1ba077b85446e71a8ac3d777202f58c3469746a7b3ef2eb590a007b46"
       }
     },
     "concepts/voice-asset-binding": {
@@ -1003,9 +1033,9 @@
       }
     },
     "concepts/development-baseline": {
-      "sha256": "475665ed3ef3aa09bdbe36fe89b204effe8e85ab4c8c472baec7ae4c0a95b936",
+      "sha256": "da34d5fa15a2a42a7e14e6a1728a869e1717784c7c70364029efd2cc676c194c",
       "sources": {
-        "README.md": "71ebe29343e25d8aea3053855116bd0a1e4a199e1ba1b1c432ef8cc798ebeb19",
+        "README.md": "6054ba353fcb8b0b60a761f70b83db0037dbff21b6d7a2d2faa743cc86d553e5",
         "pyproject.toml": "7b6d6daf717da5afefc162618442a4e67d9cdf7581990f33d8902b9321001f2a",
         "src/butler/defaults.py": "2c289b264ca788ba65a9c8a800dc3d3f7fdf7df2becdfebe74896b0405442818",
         "src/wxbot/config.py": "abc249afa3cf12e2b4e904905edaafba4b979be382723627b3df0b2ec63a85fa",
@@ -1015,16 +1045,15 @@
       }
     },
     "apis/index-tts": {
-      "sha256": "d87c08ec78681ba7d082fd123348acf954e1ed105eabf2a7d961c7569566c103",
+      "sha256": "a76e430bd38d5bba314d080cd268ae8a897c2935549b7bc69c92fa3181691599",
       "sources": {
         "src/butler/delivery/tts_presets.py": "eb1af13a041b7acdb307b8fefb3616479240db32b7d4548338dcabf56f25806b",
         "src/dashboard/api/tts_presets.py": "0e50bd91275f510caf0868e66e4aa94ff1e029bbeb44d512fac84e6ecbf2fae9",
-        "web/src/components/ContactDialog.vue": "f582f72927ee1a285e039c5090fd9afe068746d50034c3f6010a9dd989946da7",
-        "web/src/views/ContactsView.vue": "248cd790c28da8882622aa12c8dc84310ba51dac93072c207ce2df8972f40bca",
-        "web/src/styles/contacts.css": "ec36fdaba62c02cfc3a23bccc7a07108667d0819f654cdd253b303a8caa9e3c6",
+        "web/src/components/ContactDialog.vue": "db356ab1ba077b85446e71a8ac3d777202f58c3469746a7b3ef2eb590a007b46",
+        "web/src/views/ContactsView.vue": "44ac2dbfc7c118fb004a1c06c7254123b1939e6425589afa728618b29f01a39b",
         "plugins/butler-wechat/skills/tools/index-tts/SKILL.md": "a00f468f38b9e06250bbfb136fb02a9e0de3da98de9c9662e47ef93411902978",
         "src/butler/agent/tools.py": "5ec7c60c6ec8900d64aa644abde013c4ef6d8bf91d5108b8273556abe403f371",
-        "src/butler/agent/core.py": "c06d1e0389921d6a6cd3671914e56fec3278ff5d688ec29ab67a62e6037edfbc",
+        "src/butler/agent/core.py": "5d27fe44189612573f8429cf6c55154979cfb8a5fb4853e7ef1ac4c88737e41f",
         "src/butler/backends/codex.py": "35136fb1bccd5249fa2ab89f53bfec6af1b6f2135fb608a8f6722049d3846255",
         "src/butler/delivery/gradio_tts.py": "3ebc9b1d1371be49ce3933336b9ddadef96f1869a72a356a096ac59abeeec094",
         "src/butler/delivery/tts.py": "12ca0967c455471885ba83fd63d92645bf07d9d58d3df0ce1111c1378998144a",
@@ -1041,13 +1070,14 @@
       }
     },
     "apis/dashboard-contact-policy": {
-      "sha256": "d8c6747a58a8937ca686d519b89a8618599d0eeb3ec95c56dbe5fe75e5ebb30a",
+      "sha256": "b43a79830eb12222dd44d1dd9a4dd9413df7ce0beedd23e5951a945a94efe941",
       "sources": {
-        "src/butler/identity/contact_admin.py": "d30c06aa016a5a11093aa26cd0d4d3cbdecb988bece8c35942e6960d4a9f38b8",
+        "src/butler/identity/contact_admin.py": "4cb8e71135e82a52d57ab322509a60f3de5ca1650a84afc72479f88b7beded3f",
+        "web/src/views/ContactsView.vue": "44ac2dbfc7c118fb004a1c06c7254123b1939e6425589afa728618b29f01a39b",
         "src/dashboard/http.py": "582364c81a6ddf33c8da3175a425ef87b73b92b1f72aca134dfb7ea7abee988e",
         "src/dashboard/api/contacts.py": "57d770211c973e5d3bca056df3887d24b5979d0fa1b32544aaa06e34d400369e",
         "src/butler/identity/contact_store.py": "f2cc6c7cdf7426601e45e74a6ce8d016bc68e667d5805b11359a8159fc86ff9c",
-        "web/src/components/ContactDialog.vue": "f582f72927ee1a285e039c5090fd9afe068746d50034c3f6010a9dd989946da7"
+        "web/src/components/ContactDialog.vue": "db356ab1ba077b85446e71a8ac3d777202f58c3469746a7b3ef2eb590a007b46"
       }
     },
     "concepts/automatic-voice-reply": {

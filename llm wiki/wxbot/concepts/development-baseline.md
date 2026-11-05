@@ -44,6 +44,7 @@ changes:
 - raw/changes/2026-11-04-webui-preset-graph-note
 - raw/changes/2026-11-05-contact-policy-save
 - raw/changes/2026-11-05-group-auto-voice
+- raw/changes/2026-11-05-contact-enrollment-and-tts-ui
 ---
 # 开发基线与历史布局
 
@@ -123,3 +124,7 @@ changes:
 ## 群聊采集与自动语音复核（2026-11-05）
 
 README 追加自动语音真实 WebUI 默认、配置热读和窗口越屏恢复说明；安装路径、静态文件位置及图谱 CLI 合同不变。功能依据见 [[concepts/automatic-voice-reply]]、[[concepts/capture-viewport]]。来源 [[raw/changes/2026-11-05-group-auto-voice]]。
+
+## 本次核对
+
+README 补充联系人建档与 IndexTTS 界面路径，解释器、运行与配置基线沿用。 来源 [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。

@@ -3,7 +3,7 @@ type: module
 module: butler
 summary: 身份、权限、模型编排和业务工具的服务边界
 coverage: overview
-last_verified: '2026-11-04'
+last_verified: '2026-11-05'
 sources:
 - path: src/butler/server.py
   line: 50
@@ -25,6 +25,7 @@ changes:
 - raw/changes/2026-11-04-index-tts-skill
 - raw/changes/2026-11-04-webui-preset-binding
 - raw/changes/2026-11-04-webui-preset-graph-note
+- raw/changes/2026-11-05-contact-enrollment-and-tts-ui
 depends_on:
 - modules/common
 ---
@@ -89,3 +90,7 @@ depends_on:
 
 
 图谱契约说明来源：[[raw/changes/2026-11-04-webui-preset-graph-note]]。
+
+## 本次核对
+
+统一联系人窗口补建由 Butler 管理，wxbot 和管理台分别沿用收件与查询接口。 来源 [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。

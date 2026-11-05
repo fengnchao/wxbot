@@ -15,7 +15,7 @@ sources:
   line: 72
   anchor: body["msg_id"] = request_id
 - path: src/butler/agent/core.py
-  line: 308
+  line: 312
   anchor: result.meta["msg_id"] = msg_id
 - path: src/wxbot/wechat/chat_window.py
   line: 37
@@ -41,12 +41,15 @@ changes:
 - raw/changes/2026-11-02-mention-residue-reverify
 - raw/changes/2026-11-04-index-tts-skill
 - raw/changes/2026-11-05-group-auto-voice
+- raw/changes/2026-11-05-contact-enrollment-and-tts-ui
 ---
 # 消息主链路与字段传递
 
 ## 路径
 
 [[modules/wxbot]] MainInbox → [[tables/queue-inbox]] → prepare 生成 [[tables/queue-batches]] → [[symbols/model-worker]] → Router → [[symbols/butler-processor]] → [[apis/butler-handle]] / [[apis/butler-handle-stream]] → [[symbols/butler-handle]] / [[symbols/butler-result]] → [[symbols/queue-finish]] → [[tables/queue-outbox]] → UI 发件器。
+
+正常入站处理和群归档也会调用 [[modules/identity]] 的窗口补建，先于模型生成；因此群聊静默归档也能登记窗口。历史快照登记仍只收集身份观测。详见 [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。
 
 ## 字段血缘与契约
 
@@ -62,16 +65,16 @@ changes:
 
 模型来源在流转日志里按接入方式展示（deepseek 而不是 openai），字段仍走既有 trace，不新增队列列。
 
-另有旁路支线：[[symbols/butler-handle]] 的 `_record_episode`（`src/butler/agent/core.py:318`）在请求返回前把本轮用户原文与回复写进 [[tables/knowledge-vault]]（`cfg.data_path()/'knowledge'` 下，一人一个 vault，落到 `p-<slug>/vault/对话/YYYY-MM-DD.md`，与队列库无关）。它只读不写队列状态，失败不影响主链路；写入同时还重画该 vault 的 `index.md` 中心索引页（同一轮多一次文件写）。管理台侧的只读消费见 [[apis/dashboard-knowledge]]。
+另有旁路支线：[[symbols/butler-handle]] 的 `_record_episode`（`src/butler/agent/core.py:326`）在请求返回前把本轮用户原文与回复写进 [[tables/knowledge-vault]]（`cfg.data_path()/'knowledge'` 下，一人一个 vault，落到 `p-<slug>/vault/对话/YYYY-MM-DD.md`，与队列库无关）。它只读不写队列状态，失败不影响主链路；写入同时还重画该 vault 的 `index.md` 中心索引页（同一轮多一次文件写）。管理台侧的只读消费见 [[apis/dashboard-knowledge]]。
 
 ## 代码依据
 
-- `src/butler/agent/core.py:322` — `def _record_episode(self, c, contact_name, channel_type, text, reply, outcome):`
-- `src/butler/agent/core.py:328` — `self.knowledge.record(`
+- `src/butler/agent/core.py:326` — `def _record_episode(self, c, contact_name, channel_type, text, reply, outcome):`
+- `src/butler/agent/core.py:332` — `self.knowledge.record(`
 - `src/wxbot/inbox.py:264` — `def _capture(`
 - `src/wxbot/queue_worker.py:152` — `reply = self.router.handle_reply(`
 - `src/wxbot/processor/butler.py:72` — `body["msg_id"] = request_id`
-- `src/butler/agent/core.py:308` — `result.meta["msg_id"] = msg_id`
+- `src/butler/agent/core.py:312` — `result.meta["msg_id"] = msg_id`
 - `src/wxbot/wechat/chat_window.py:37` — `ref: str = ''`
 - `src/wxbot/ui_contract.py:56` — `def persisted_rows(`
 

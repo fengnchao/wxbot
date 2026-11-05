@@ -21,7 +21,7 @@ sources:
   line: 21
   anchor: 'class ModelConfigurationError(HermesError):'
 - path: src/butler/agent/core.py
-  line: 259
+  line: 261
   anchor: emit('error',code='incomplete_result'
 - path: src/butler/server.py
   line: 405
@@ -63,6 +63,7 @@ changes:
 - raw/changes/2026-11-02-mention-residue-reverify
 - raw/changes/2026-11-04-index-tts-skill
 - raw/changes/2026-11-05-group-auto-voice
+- raw/changes/2026-11-05-contact-enrollment-and-tts-ui
 ---
 # 模型失败契约
 
@@ -104,8 +105,8 @@ changes:
 | 层 | 位置 | 表达形式 |
 |---|---|---|
 | 后端 | `src/butler/backends/compatible.py:112` | `HermesError("{provider} model request failed ({type} {status}：{本地提示})")` |
-| Butler core | `src/butler/agent/core.py:387` | `Result(meta={'error','status','reply_complete':False,'retry_safe'})` |
-| SSE | `src/butler/agent/core.py:252` | `error` 事件，`code='incomplete_result'` |
+| Butler core | `src/butler/agent/core.py:406` | `Result(meta={'error','status','reply_complete':False,'retry_safe'})` |
+| SSE | `src/butler/agent/core.py:261` | `error` 事件，`code='incomplete_result'` |
 | wxbot 适配 | `src/wxbot/processor/butler.py:99` | `ValueError('Butler stream failed: {code}: {message}')`，属性 `retry_safe` 在 `:115` 补挂 |
 | 队列 worker | `src/wxbot/queue_worker.py:186` | `fail_batch(..., retry_safe=safe)` |
 | 队列存储 | `src/wxbot/queue_store.py:389` | `batches.state='uncertain'` + 事件动作二选一 |
@@ -141,7 +142,7 @@ changes:
 - `src/butler/backends/models.py:72` — `except HermesError as exc:`
 - `src/butler/backends/codex.py:350` — `failure.retry_safe=not submitted`
 - `src/butler/runtime/model_switch.py:21` — `class ModelConfigurationError(HermesError):`
-- `src/butler/agent/core.py:259` — `emit('error',code='incomplete_result'`
+- `src/butler/agent/core.py:261` — `emit('error',code='incomplete_result'`
 - `src/butler/server.py:405` — `stream_event({'type':'error','code':type(e).__name__,`
 - `src/wxbot/processor/butler.py:99` — `raise ValueError('Butler stream failed'`
 - `src/wxbot/processor/butler.py:137` — `error.retry_safe=meta.get('retry_safe') is True`
@@ -180,3 +181,7 @@ changes:
 ## 群聊采集与自动语音复核（2026-11-05）
 
 [[concepts/automatic-voice-reply]] 补充自动语音的缓冲/后台准备与失败单次回退；[[concepts/capture-viewport]] 补充越屏恢复，未修改模型后端请求/重试合同。来源 [[raw/changes/2026-11-05-group-auto-voice]]。
+
+## 本次核对
+
+联系人补建先于模型处理，模型错误分类、流式契约与重试判断沿用。 来源 [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。

@@ -5,6 +5,9 @@ summary: 统一人物、窗口和成员绑定，身份能力由服务端签发
 coverage: overview
 last_verified: '2026-11-05'
 sources:
+- path: src/butler/identity/user_registry.py
+  line: 350
+  anchor: def enroll_conversation(
 - path: src/butler/identity/contact_store.py
   line: 37
   anchor: 'class ContactStore:'
@@ -18,7 +21,7 @@ sources:
   line: 55
   anchor: def verify(
 - path: src/butler/identity/user_registry.py
-  line: 350
+  line: 375
   anchor: def observe(
 - path: src/butler/identity/user_registry.py
   line: 239
@@ -34,6 +37,8 @@ changes:
 - raw/changes/2026-11-04-webui-preset-binding
 - raw/changes/2026-11-04-webui-preset-graph-note
 - raw/changes/2026-11-05-contact-policy-save
+- raw/changes/2026-11-05-contact-enrollment-and-tts-ui
+- raw/changes/2026-11-05-enable-group-binding
 ---
 # 联系人身份与权限
 
@@ -49,6 +54,14 @@ changes:
 
 群成员按「已登记 member_key → 同群昵称 → 新建」认人，头像只补证据和展示。群目录后来学到的昵称会补到待命名档案上，管理员确认过的名字不被覆盖；同群同名且唯一时会并回既有档案。实测 dhash 无法区分同一个人和不同的人，不能用头像相似度防误并。规则与实测数据见 [[concepts/group-identity-evidence]]。
 
+## 新消息补建窗口
+
+已登记人物与已登记窗口分别来自 user_profiles/user_bindings 和 unified_contacts.payload.conversations。Butler 正常处理新消息或归档群消息时调用 UserRegistry.enroll_conversation。它在业务事务内检查窗口名、活跃模式与私聊启用绑定，补建待补充的窗口，既有窗口和策略保留。历史身份同步只登记证据。消费点见 [[modules/web]]，入站链路见 [[concepts/message-pipeline]]。来源 [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。
+
+## 群身份开关
+
+停用记录可通过 [[apis/dashboard-contact-policy]] 的单绑定动作恢复，更新 `user_bindings.enabled`，并保留身份确认标记、昵称、识别证据与会话设置。来源 [[raw/changes/2026-11-05-enable-group-binding]]。
+
 ## 待建档
 
 完整业务表、合并预览/版本摘要契约、用户 API/管理台消费点尚未在本批逐项建立；修改这些功能必须先查源码扩展，不能从概览推断字段。
@@ -59,7 +72,7 @@ changes:
 - `src/butler/identity/user_registry.py:24` — `class UserRegistry:`
 - `src/butler/agent/tools.py:47` — `def issue(`
 - `src/butler/agent/tools.py:55` — `def verify(`
-- `src/butler/identity/user_registry.py:350` — `def observe(`
+- `src/butler/identity/user_registry.py:375` — `def observe(`
 - `src/butler/identity/user_registry.py:239` — `def _learn_nickname(`
 
 ## 入库来源

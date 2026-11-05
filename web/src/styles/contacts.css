@@ -25,14 +25,9 @@
 .contact-filter select:focus-visible{outline:2px solid var(--wx);outline-offset:4px}
 .contact-tabs button:active:not(:disabled){background:var(--bg3)}
 .contact-section button:disabled,.contact-tabs button:disabled,.user-dialog button:disabled{opacity:.5;cursor:not-allowed}
-#contact-index-tts input:disabled,.voice-bind-fieldset select:disabled{opacity:.55;cursor:not-allowed}
-#contact-index-tts input[type=checkbox]{border-color:var(--fg3)}
-#contact-index-tts select{min-width:0;max-width:100%;border-color:var(--fg3);flex:1 1 180px}
-#contact-index-tts .tts-preset-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-#contact-index-tts .tts-preset-controls button{white-space:nowrap}
-#contact-index-tts select:disabled{opacity:.55;cursor:not-allowed}
-#contact-index-tts .user-hint,#contact-conversation-form .voice-bind-fieldset .user-hint{color:var(--fg2)}
-#contact-index-tts .contact-tts-warning,#contact-conversation-form .voice-bind-fieldset .contact-tts-warning{color:var(--warn)}
+.voice-bind-fieldset select:disabled{opacity:.55;cursor:not-allowed}
+#contact-conversation-form .voice-bind-fieldset .user-hint{color:var(--fg2)}
+#contact-conversation-form .voice-bind-fieldset .contact-tts-warning{color:var(--warn)}
 #contact-conversation-form .voice-bind-fieldset>label{display:grid;grid-template-columns:7em minmax(0,1fr);align-items:center;gap:8px}
 #contact-conversation-form input:not([type=checkbox]),#contact-conversation-form select{border-color:var(--fg3)}
 .contact-section .contact-member{flex-wrap:wrap;gap:12px;overflow-wrap:anywhere}

@@ -19,6 +19,7 @@ const CATEGORIES = [['chats', '会话'], ['people', '私聊'], ['groups', '群�
 const TABS = [['overview', '概览'], ['basic', '基本资料'], ['ai', 'AI 设置'], ['push', '主动消息'],
   ['groups', '群身份'], ['maintenance', '身份管理']]
 const ISSUES = ['窗口信息待补充', '身份待确认', '疑似重复档案', '缺少身份或窗口']
+const enablingBindingId = ref('')
 const rows = computed(() => (data.value?.rows || []).filter(row =>
   matchesContact(row, category.value, statusFilter.value, query.value, issueFilter.value)))
 const listSections = computed(() => {
@@ -150,10 +151,7 @@ function openProfile(row) {
 }
 
 function openConversation(conversation) {
-  openDialog('conversation', '会话设置，' + conversation.name, {
-    ...conversation,
-    effectivePolicy: effectivePolicy(current.value, conversation).policy
-  })
+  openDialog('conversation', '会话设置，' + conversation.name, conversation)
 }
 
 function openPolicy(row, conversation = null) {
@@ -269,15 +267,18 @@ async function cleanupAvatars() {
   }
 }
 
-async function disableBinding(row, member) {
-  if (!window.confirm('停用「' + member.nickname + '」这条重复的群成员记录？身份保持不变。')) return
+async function enableBinding(member) {
+  if (enablingBindingId.value) return
+  enablingBindingId.value = member.binding_id
   try {
     data.value = await contactRequest({
-      version: data.value.version, action: 'binding_disable', id: row.id, binding_id: member.binding_id
+      version: data.value.version, action: 'binding_enable', id: member.user_id, binding_id: member.binding_id
     })
     error.value = ''
   } catch (err) {
     error.value = err.message || String(err)
+  } finally {
+    enablingBindingId.value = ''
   }
 }
 
@@ -447,11 +448,19 @@ async function cleanupPending() {
             <small v-if="!member.enabled">，已停用</small></span>
           <span class="contact-member-actions"><template v-if="current.kind === 'person'">
             <button @click="openBinding(member)">编辑群身份</button><button @click="deleteBinding(current, member)">移除这条身份</button></template>
-            <button v-else @click="openMember(member)">查看成员资料</button></span></p>
+            <button v-else @click="openMember(member)">查看成员资料</button>
+            <button v-if="!member.enabled" type="button" :disabled="Boolean(enablingBindingId)"
+              :aria-label="'启用群身份：' + member.nickname + '（' + member.contact + '）'" @click="enableBinding(member)">
+              {{ enablingBindingId === member.binding_id ? '启用中…' : '启用' }}
+            </button></span></p>
         <p v-if="!current.memberships.length">暂无群成员关系。</p>
         <details v-if="current.hidden_memberships && current.kind === 'person'"><summary>查看全部群绑定</summary>
           <p v-for="binding in current.bindings.filter(item => item.channel_type === 'group')" :key="binding.binding_id">{{ binding.contact }}，{{ binding.nickname }}
-            <button @click="openBinding(binding)">编辑</button><button @click="deleteBinding(current, binding)">移除身份</button></p></details>
+            <button @click="openBinding(binding)">编辑</button><button @click="deleteBinding(current, binding)">移除身份</button>
+            <button v-if="!binding.enabled" type="button" :disabled="Boolean(enablingBindingId)"
+              :aria-label="'启用群身份：' + binding.nickname + '（' + binding.contact + '）'" @click="enableBinding(binding)">
+              {{ enablingBindingId === binding.binding_id ? '启用中…' : '启用' }}
+            </button></p></details>
       </section>
       <section v-else-if="detailTab === 'maintenance'" class="contact-section">
         <h3>身份管理</h3><p>只有确认属于同一个人后才合并，重名和相似头像都只是候选线索。</p>

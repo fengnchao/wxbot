@@ -12,14 +12,11 @@ sources:
   line: 6
   anchor: 'def _known_contact(ctx, contact):'
 - path: web/src/components/ContactDialog.vue
-  line: 156
-  anchor: async function loadTtsCatalogue()
+  line: 268
+  anchor: function submitPolicy()
 - path: web/src/views/ContactsView.vue
-  line: 152
+  line: 153
   anchor: function openConversation(conversation)
-- path: web/src/styles/contacts.css
-  line: 28
-  anchor: '#contact-index-tts input:disabled'
 - path: plugins/butler-wechat/skills/tools/index-tts/SKILL.md
   line: 2
   anchor: 'name: index-tts'
@@ -75,6 +72,8 @@ changes:
 - raw/changes/2026-11-04-webui-preset-graph-note
 - raw/changes/2026-11-05-contact-policy-save
 - raw/changes/2026-11-05-group-auto-voice
+- raw/changes/2026-11-05-contact-enrollment-and-tts-ui
+- raw/changes/2026-11-05-enable-group-binding
 depends_on:
 - modules/delivery
 - modules/plugin
@@ -118,11 +117,11 @@ PTT 先打开并准备 CABLE Input，再按 RALT，等 250ms 后播放，录音�
 
 ## 前端消费点
 
-联系人基本资料中的会话配置 `ContactDialog.vue` 增加 indexTtsEnabled 授权开关；ContactsView.openConversation 使用 effectivePolicy 传递当前生效策略，明确不继承时保持 null。GET /api/skills 校验可用技能；未配置角色/技能不可用时不能改授权，失败可原位重试。策略未变不创建覆盖；改变时复制角色、其他技能和心跳，只增删 index-tts，沿现有 /api/contacts 的版本与确认头保存，由 ContactAdmin 服务端再次校验。
+会话「编辑窗口与收发设置」已移除 IndexTTS 专区及其读写请求。IndexTTS 授权统一由「AI 设置」提交现有联系人策略，详见 [[apis/dashboard-contact-policy]]。旧网页预设由运行时按窗口名读取；会话改名时页面不再复制预设。来源 [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。
 
-语音模式仍用 /api/voice-bindings 和 /api/voice-assets action=bind；只改 mode 不提交 asset_id，避免清掉旧 ref_wav。重命名必须将当前 mode/asset_id 写到新会话名，沿原行为保留旧键。加载未完成禁止保存，失败不写默认语音值。联系人写成功但语音写失败时显示部分保存，保持弹窗，用联系人响应的新 version 重试，成功才关闭。现有允许功能列表也保留 IndexTTS 入口。
+群身份启用只推进绑定和联系人版本，未改变此处的授权或语音配置路径。来源 [[raw/changes/2026-11-05-enable-group-binding]]。
 
-同区现已增加「网页音色预设」下拉与刷新，明确区分自动回复音色资产。读取失败保留已绑定值、显示错误；未改不写，重命名复制给新名称，部分保存失败单独说明预设未完成。提交前固定目标/选择，并按联系人响应中稳定会话 ID 找规范化名称，所有后续保存使用该名称；保存期间禁用输入，延迟响应时也不能串到其他联系人。新控件使用现有令牌与表单样式；构建产物 web/dist 随源码发布。现有队列只读投影不变。补充与局部更正来源 [[raw/changes/2026-11-04-webui-preset-binding]]。
+本地语音模式和资产仍用 /api/voice-bindings 和 /api/voice-assets action=bind。只改 mode 不提交 asset_id；重命名时沿用按新窗口名复制本地语音设置。保存期间冻结选择，按联系人响应中的稳定会话 ID 查找目标，部分失败时用新 version 重试。见 [[apis/dashboard-voice-assets]]。
 
 ## 网页预设管理端契约
 

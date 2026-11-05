@@ -36,6 +36,7 @@ changes:
 - raw/changes/2026-11-04-webui-preset-binding
 - raw/changes/2026-11-04-webui-preset-graph-note
 - raw/changes/2026-11-05-group-auto-voice
+- raw/changes/2026-11-05-contact-enrollment-and-tts-ui
 ---
 # 项目知识图谱工具
 
@@ -106,3 +107,7 @@ changes:
 ## 群聊采集与自动语音复核（2026-11-05）
 
 README 追加自动语音真实 WebUI 默认、配置热读和窗口越屏恢复说明；安装路径、静态文件位置及图谱 CLI 合同不变。功能依据见 [[concepts/automatic-voice-reply]]、[[concepts/capture-viewport]]。来源 [[raw/changes/2026-11-05-group-auto-voice]]。
+
+## 本次核对
+
+README 的图谱维护流程沿用，更新联系人操作路径。 来源 [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。

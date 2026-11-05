@@ -6,7 +6,7 @@ coverage: core
 last_verified: '2026-11-05'
 sources:
 - path: src/butler/identity/user_registry.py
-  line: 350
+  line: 375
   anchor: def observe(
 - path: src/butler/identity/user_registry.py
   line: 239
@@ -41,6 +41,7 @@ changes:
 - raw/changes/2026-11-02-mention-residue-reverify
 - raw/changes/2026-11-04-index-tts-skill
 - raw/changes/2026-11-05-group-auto-voice
+- raw/changes/2026-11-05-contact-enrollment-and-tts-ui
 ---
 # 群成员身份：昵称优先，头像退为证据
 
@@ -97,3 +98,7 @@ wxbot 启动时 `sync_users` 会重放 `inbox` 里的头像证据，这是「每
 ## 群聊采集与自动语音复核（2026-11-05）
 
 采集前的越屏恢复和 row_offscreen 显式拒绝见 [[concepts/capture-viewport]]；不放宽 gutter 阈值，不推进未知发送方快照。语音准备期间继续采集，恢复录音任务后本轮不再切换收件会话，见 [[concepts/automatic-voice-reply]]。来源 [[raw/changes/2026-11-05-group-auto-voice]]。
+
+## 本次核对
+
+群归档新增缺失群窗口登记，群成员昵称与身份匹配的规则沿用。 来源 [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。

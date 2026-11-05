@@ -3,16 +3,16 @@ type: symbol
 module: butler
 summary: 单轮身份解析、会话互斥、补发优先与最终合成
 coverage: core
-last_verified: '2026-11-04'
+last_verified: '2026-11-05'
 sources:
 - path: src/butler/agent/core.py
-  line: 217
+  line: 219
   anchor: 'def handle(self, contact_name:'
 - path: src/butler/agent/core.py
-  line: 273
+  line: 275
   anchor: def _handle_request(
 - path: src/butler/agent/core.py
-  line: 335
+  line: 339
   anchor: 'def _handle(self, c:'
 - path: src/butler/server.py
   line: 396
@@ -26,6 +26,7 @@ changes:
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-knowledge-vault-graph
 - raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-05-contact-enrollment-and-tts-ui
 calls:
 - symbols/butler-result
 called_by: []
@@ -52,11 +53,13 @@ called_by: []
 
 本地 tests/butler/test_pipeline.py、test_butler_concurrency.py、tests/unit/model_stream/test_model_stream_pipeline.py。
 
+正常入站处理完成身份解析后，调用 [[modules/identity]] 补建待补充窗口；专用 HTTP 转发继续绕过身份流程。来源 [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。
+
 ## 代码依据
 
-- `src/butler/agent/core.py:217` — `def handle(self, contact_name:`
-- `src/butler/agent/core.py:273` — `def _handle_request(`
-- `src/butler/agent/core.py:335` — `def _handle(self, c:`
+- `src/butler/agent/core.py:219` — `def handle(self, contact_name:`
+- `src/butler/agent/core.py:275` — `def _handle_request(`
+- `src/butler/agent/core.py:339` — `def _handle(self, c:`
 - `src/butler/server.py:396` — `res = butler.handle(contact, text,`
 
 ## 入库来源

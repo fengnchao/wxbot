@@ -6,11 +6,11 @@
 
 | 词条 | 简介 | 首个来源 | 最后核对 |
 |---|---|---|---|
-| [[modules/butler]] | 身份、权限、模型编排和业务工具的服务边界 | `src/butler/server.py:50` | 2026-11-04 |
+| [[modules/butler]] | 身份、权限、模型编排和业务工具的服务边界 | `src/butler/server.py:50` | 2026-11-05 |
 | [[modules/common]] | 仓库根、事件追踪、流和 wire schema 的跨包纯基础层 | `src/common/paths.py:29` | 2026-11-04 |
 | [[modules/dashboard]] | 聚合运行事实，读取队列不初始化或迁移数据库 | `src/dashboard/api/tts_presets.py:6` | 2026-11-05 |
 | [[modules/delivery]] | 主动推送、补发、媒体与提醒归业务服务所有 | `src/butler/delivery/tts_presets.py:12` | 2026-11-05 |
-| [[modules/identity]] | 统一人物、窗口和成员绑定，身份能力由服务端签发 | `src/butler/identity/contact_store.py:37` | 2026-11-05 |
+| [[modules/identity]] | 统一人物、窗口和成员绑定，身份能力由服务端签发 | `src/butler/identity/user_registry.py:350` | 2026-11-05 |
 | [[modules/models]] | Butler 管理可切换模型与服务授权工具，wxbot 只调用 Butler | `src/butler/backends/__init__.py:12` | 2026-11-01 |
 | [[modules/plugin]] | 角色和工具 Skill 分类，权限仍由业务服务验证 | `src/butler/agent/tools.py:24` | 2026-11-04 |
 | [[modules/runtime]] | 安装、迁移、并发、MCP 与知识库提炼调度等运行基础设施 | `src/butler/runtime/setup.py:28` | 2026-11-02 |
@@ -23,7 +23,7 @@
 
 | 词条 | 简介 | 首个来源 | 最后核对 |
 |---|---|---|---|
-| [[apis/butler-handle]] | 同步消息处理契约，从 wxbot 批次到完整 Butler 回复 | `src/butler/server.py:363` | 2026-11-04 |
+| [[apis/butler-handle]] | 同步消息处理契约，从 wxbot 批次到完整 Butler 回复 | `src/butler/server.py:363` | 2026-11-05 |
 | [[apis/butler-handle-stream]] | SSE 增量观察与最终 result，断流不能当完整结果 | `src/butler/server.py:384` | 2026-11-04 |
 | [[apis/dashboard-contact-policy]] | 联系人策略事务外校验、并发版本复查及未安装技能显式取消 | `src/butler/identity/contact_admin.py:345` | 2026-11-05 |
 | [[apis/dashboard-knowledge]] | 对话原文与知识图谱事实的只读查询、自动提炼的状态与手动触发转发，以及知识模板的读取与校验保存；vault 不存在时返回空态而不是错误 | `src/dashboard/routes.py:47` | 2026-11-04 |
@@ -48,9 +48,9 @@
 
 | 词条 | 简介 | 首个来源 | 最后核对 |
 |---|---|---|---|
-| [[symbols/butler-handle]] | 单轮身份解析、会话互斥、补发优先与最终合成 | `src/butler/agent/core.py:217` | 2026-11-04 |
+| [[symbols/butler-handle]] | 单轮身份解析、会话互斥、补发优先与最终合成 | `src/butler/agent/core.py:219` | 2026-11-05 |
 | [[symbols/butler-processor]] | wxbot 的 Butler HTTP 适配及完整结果校验 | `src/wxbot/processor/butler.py:60` | 2026-10-31 |
-| [[symbols/butler-result]] | 生成 reply/actions/reply_parts/meta 的公开边界 | `src/butler/agent/core.py:68` | 2026-11-04 |
+| [[symbols/butler-result]] | 生成 reply/actions/reply_parts/meta 的公开边界 | `src/butler/agent/core.py:68` | 2026-11-05 |
 | [[symbols/knowledge-auto]] | Butler 进程内的定时提炼调度器，一轮只喂模型一批，并与 CLI 共用跨进程单飞锁 | `src/butler/runtime/knowledge_auto.py:29` | 2026-11-04 |
 | [[symbols/knowledge-extract]] | 从对话原文提炼知识图谱节点的链路，模板决定分类、节点类型与追加规则，CLI 与进程内调度器共用，游标只在整批成功后前移 | `src/butler/runtime/knowledge_extract.py:25` | 2026-11-02 |
 | [[symbols/knowledge-template]] | 知识图谱模板的解析与加载——一份 Markdown 决定节点目录、事实分类、索引分区与提炼规则，覆盖层优先，坏模板回退内置 | `src/butler/runtime/knowledge_template.py:28` | 2026-11-02 |
@@ -70,7 +70,7 @@
 | [[concepts/capture-viewport]] | 采集前恢复越屏微信窗口，监视器联合区域外的像素不能证明发送方 | `src/wxbot/wechat/viewport.py:15` | 2026-11-05 |
 | [[concepts/delivery-state]] | 完整回复、排队、已发送和结果不确定分别处理 | `src/wxbot/queue_store.py:339` | 2026-11-05 |
 | [[concepts/development-baseline]] | 按实际工作树与解释器确定开发基线，区分当前配置、生产模型链路与历史布局 | `README.md:125` | 2026-11-05 |
-| [[concepts/group-identity-evidence]] | 群成员先按同群 member_key 与昵称认人，头像 dhash 只作证据且不足以区分个体 | `src/butler/identity/user_registry.py:350` | 2026-11-05 |
+| [[concepts/group-identity-evidence]] | 群成员先按同群 member_key 与昵称认人，头像 dhash 只作证据且不足以区分个体 | `src/butler/identity/user_registry.py:375` | 2026-11-05 |
 | [[concepts/identity-authority]] | 窗口/头像/昵称是证据，服务签发上下文才是工具授权边界 | `src/butler/agent/tools.py:47` | 2026-11-04 |
 | [[concepts/message-pipeline]] | 窗口→收件→批次→Butler→分句→UI→只读投影 | `src/wxbot/inbox.py:264` | 2026-11-05 |
 | [[concepts/model-error-contract]] | 模型失败的分类、脱敏、自动重试与超时放行契约 | `src/butler/agent/hermes.py:36` | 2026-11-05 |
@@ -92,7 +92,9 @@
 - [[impacts/2026-11-04-index-tts-skill]]
 - [[impacts/2026-11-04-root-workspace-unification]]
 - [[impacts/2026-11-04-webui-preset-binding]]
+- [[impacts/2026-11-05-contact-enrollment-and-tts-ui]]
 - [[impacts/2026-11-05-contact-policy-save]]
+- [[impacts/2026-11-05-enable-group-binding]]
 - [[impacts/2026-11-05-group-and-auto-voice]]
 - [[raw/changes/2026-10-31-group-identity-nickname]]
 - [[raw/changes/2026-10-31-identity-placeholder-names]]
@@ -135,5 +137,7 @@
 - [[raw/changes/2026-11-04-root-workspace-unification]]
 - [[raw/changes/2026-11-04-webui-preset-binding]]
 - [[raw/changes/2026-11-04-webui-preset-graph-note]]
+- [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]
 - [[raw/changes/2026-11-05-contact-policy-save]]
+- [[raw/changes/2026-11-05-enable-group-binding]]
 - [[raw/changes/2026-11-05-group-auto-voice]]

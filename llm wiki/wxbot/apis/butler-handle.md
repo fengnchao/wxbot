@@ -3,7 +3,7 @@ type: api
 module: butler
 summary: 同步消息处理契约，从 wxbot 批次到完整 Butler 回复
 coverage: core
-last_verified: '2026-11-04'
+last_verified: '2026-11-05'
 sources:
 - path: src/butler/server.py
   line: 363
@@ -29,6 +29,7 @@ changes:
 - raw/changes/2026-11-01-knowledge-auto
 - raw/changes/2026-11-01-knowledge-vault-graph
 - raw/changes/2026-11-04-index-tts-skill
+- raw/changes/2026-11-05-contact-enrollment-and-tts-ui
 ---
 # POST /v1/handle
 
@@ -106,3 +107,7 @@ POST `/v1/handle`；Bearer token 经 Handler._authed 校验，无服务 token �
 ## 本次核对
 
 [[raw/changes/2026-11-04-index-tts-skill]]：对照本次源码 diff 复核来源与行号；新增预设语音路径见 [[apis/index-tts]]，其余已述契约未改。
+
+## 本次核对
+
+入站处理补建窗口是 Butler 内部副作用，请求字段、结果和群成员元数据契约继续沿用。 来源 [[raw/changes/2026-11-05-contact-enrollment-and-tts-ui]]。
