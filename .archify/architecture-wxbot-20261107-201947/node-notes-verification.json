@@ -1,0 +1,16 @@
+{
+  "status": "pass",
+  "artifact": "wxbot.html",
+  "sha256": "cbde95e26f0c4d226c42a8bdb62094b175e895ca8ec1b57751d8f95856d91e78",
+  "browser": "157.0.4341.42",
+  "checks": [
+    "picker cancellation/denial, old-only root rejection, new-only root acceptance, nested Archify HTML validation and safe preview",
+    "read, exclusive save and focus restoration without dismissing the passport",
+    "node mapping, authorization reuse, draft protection and external-edit conflict",
+    "new node files are created only by explicit save",
+    "all 12 node mappings; hide the button for multi-node and relationship selections",
+    "light/dark captures, narrow viewport containment and modal keyboard isolation",
+    "unsupported browser guidance; no page errors"
+  ],
+  "fixtures": "in-memory directory/file handles only"
+}

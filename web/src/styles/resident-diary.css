@@ -1,0 +1,32 @@
+/* Hallmark · shape: app screen · scope: app · genre: modern-minimal · theme: Butler tokens · v2.0.0 */
+/* Hallmark · critique: put the diary text first and keep the linked viewing evidence within each entry. */
+/* Hallmark · waive 75 · Render reports the existing brand caption and navigation group labels at 10px · The diary uses the shared sidebar and keeps its existing navigation typography. */
+html:has(.resident-diary), body:has(.resident-diary){overflow-x:clip}
+.workspace main:has(> .resident-diary){grid-template-columns:minmax(0,1fr)}
+section#pane.resident-diary{overflow-x:clip}
+.diary-reader{width:100%;max-width:52rem;margin-inline:auto;min-width:0}
+.diary-intro{margin:0 0 20px;color:var(--fg2)}
+.diary-entry{padding:20px 0 24px;border-top:1px solid var(--line)}
+.diary-entry-heading{display:flex;align-items:baseline;gap:12px;margin-bottom:8px}
+.diary-entry-heading h2,.diary-state h2{
+  margin:0;min-width:0;overflow-wrap:break-word;color:var(--fg);font-size:1.125rem;line-height:1.4;text-wrap:balance;
+}
+.diary-entry-heading span,.diary-videos li>span,.diary-pager span{color:var(--fg3);font-variant-numeric:tabular-nums}
+.diary-note{margin:0 0 8px;max-width:72ch;font-size:1rem;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+.diary-videos{list-style:none;margin:0;padding:0}
+.diary-videos li{display:flex;align-items:baseline;justify-content:space-between;gap:16px}
+.diary-videos li>span{flex:none}
+.diary-videos a{display:inline-flex;align-items:center;min-width:0;min-height:32px;color:var(--bot);overflow-wrap:anywhere;text-underline-offset:3px}
+.diary-videos a:focus-visible,.resident-diary button:focus-visible{outline:2px solid var(--wx);outline-offset:2px}
+.diary-state{padding:20px;border-radius:var(--radius);background:var(--bg2);color:var(--fg2)}
+.diary-state p{margin:8px 0 12px;overflow-wrap:anywhere}
+.diary-state[role=alert]{border-left:2px solid var(--warn)}
+.diary-placeholder{display:grid;gap:8px;margin:16px 0 4px}
+.diary-placeholder span{width:min(100%,26rem);height:12px;border-radius:var(--radius-sm);background:var(--bg3)}
+.diary-placeholder span:last-child{width:min(70%,16rem)}
+.diary-pager{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding-top:16px;border-top:1px solid var(--line)}
+.resident-diary button{min-height:40px;white-space:nowrap}
+.resident-diary button:active:not(:disabled){background:var(--bg3)}
+.diary-videos a:active{color:var(--fg)}
+.resident-diary button:disabled{cursor:not-allowed}
+@media (pointer:coarse){.resident-diary button,.diary-videos a{min-height:44px}}

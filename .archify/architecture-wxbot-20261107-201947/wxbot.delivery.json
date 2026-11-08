@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "receiptId": "adc44743-89a4-4a78-b2f8-b750437143c7",
+  "status": "current",
+  "command": "deliver",
+  "type": "architecture",
+  "input": "D:\\work\\code\\wxbot\\.archify\\architecture-wxbot-20261107-201947\\candidate.json",
+  "output": "D:\\work\\code\\wxbot\\.archify\\architecture-wxbot-20261107-201947\\wxbot.html",
+  "specification": {
+    "sha256": "cc8d8424ed017ed641cb571dbc6891823a774f2b3d59b0c83e7158235463bdb0",
+    "bytes": 15981
+  },
+  "artifact": {
+    "sha256": "aee7a41fa3f664d2c0a94a2303d41d045a7f1ee38e3cbed08f951d543b0bae8b",
+    "bytes": 871851
+  }
+}

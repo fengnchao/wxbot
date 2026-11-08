@@ -22,6 +22,7 @@ import argparse
 import json
 import sys
 import threading
+from contextlib import nullcontext
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlsplit, parse_qs
 
@@ -30,6 +31,7 @@ from butler.config import Config, load, masked
 from butler.agent.core import Butler
 from butler.runtime.heartbeat import HeartbeatScheduler
 from butler.runtime.knowledge_auto import ExtractScheduler
+from butler.runtime.resident import ForegroundActivity, ResidentRole
 from butler.identity.groups import parse_int as _as_int
 
 MAX_BODY = 1 << 20
@@ -48,7 +50,7 @@ def backend_description(cfg: Config) -> str:
 
 
 def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | None = None,
-                 extract: ExtractScheduler | None = None):
+                 extract: ExtractScheduler | None = None, *, activity: ForegroundActivity | None = None):
     local_runtime = getattr(cfg, 'uses_local_runtime', getattr(cfg, 'provider', 'hermes') == 'codex')
     class Handler(BaseHTTPRequestHandler):
         server_version = "butler/1.0"
@@ -332,6 +334,33 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                     return
                 self._send(202, {"ok": True, "status": "started", "contact": contact})
                 return
+            if self.path == '/v1/knowledge/facts/delete':
+                if not self._authed():
+                    return
+                body = self._body()
+                if (not isinstance(body, dict) or set(body) != {'owner', 'fact_id', 'acknowledge'}
+                        or body['acknowledge'] is not True):
+                    self._send(400, {'error': '请确认要删除的事实'})
+                    return
+                from butler.runtime.knowledge_auto import acquire, release
+                lock = acquire(cfg.knowledge_extract_lock_path())
+                if lock is None:
+                    self._send(409, {'error': '知识库正在更新，请稍后再试'})
+                    return
+                try:
+                    result = butler.knowledge.delete_fact(body['owner'], body['fact_id'])
+                except ValueError as exc:
+                    self._send(400, {'error': str(exc)})
+                except OSError:
+                    self._send(503, {'error': '知识库暂时无法写入，请稍后再试'})
+                else:
+                    if result['deleted']:
+                        self._send(200, {'ok': True, **result})
+                    else:
+                        self._send(404, {'error': '该事实已变更或已删除，请刷新知识库'})
+                finally:
+                    release(lock)
+                return
             if self.path == '/v1/knowledge/extract':
                 if not self._authed():
                     return
@@ -393,12 +422,13 @@ def make_handler(butler: Butler, cfg: Config, heartbeat: HeartbeatScheduler | No
                     self.end_headers()
                     self.close_connection=True
                 try:
-                    res = butler.handle(contact, text, msg_id=b.get("msg_id"),
-                                        channel_type=channel_type,
-                                        member_key=member_key, member_name=member_name,
-                                        **({'avatar':avatar}if avatar else {}),
-                                        **({'group_context_seq':boundary}if boundary else {}),
-                                        **({'on_event':stream_event}if streaming else {}))
+                    with activity.request() if activity is not None else nullcontext():
+                        res = butler.handle(contact, text, msg_id=b.get("msg_id"),
+                                            channel_type=channel_type,
+                                            member_key=member_key, member_name=member_name,
+                                            **({'avatar':avatar}if avatar else {}),
+                                            **({'group_context_seq':boundary}if boundary else {}),
+                                            **({'on_event':stream_event}if streaming else {}))
                 except Exception as e:                     # 绝不让异常变成"通道死了"
                     if streaming:
                         _log("handle-stream 异常: %s: %s", type(e).__name__, e)
@@ -488,6 +518,8 @@ def serve(cfg: Config) -> int:
     butler = Butler(cfg, log=_log)
     heartbeat = HeartbeatScheduler(butler, cfg, log=_log)
     knowledge_extract = ExtractScheduler(butler, cfg, log=_log)
+    activity = ForegroundActivity() if cfg.resident_role.enabled else None
+    resident = ResidentRole(cfg, activity, log=_log) if activity is not None else None
     reminders=None
     if cfg.uses_local_runtime:
         from butler.delivery.reminders import ReminderScheduler
@@ -496,15 +528,19 @@ def serve(cfg: Config) -> int:
          cfg.host, cfg.port, ", ".join(sorted(cfg.contacts.profiles())) or "(无联系人)",
          backend_description(cfg))
     httpd = ThreadingHTTPServer((cfg.host, cfg.port),
-                                make_handler(butler, cfg, heartbeat, knowledge_extract))
+                                make_handler(butler, cfg, heartbeat, knowledge_extract, activity=activity))
     heartbeat.start()
     knowledge_extract.start()
     if reminders: reminders.start()
     try:
+        if resident:
+            resident.start()
         httpd.serve_forever()
     except KeyboardInterrupt:
         _log("收到 Ctrl+C，退出")
     finally:
+        if resident:
+            resident.stop()
         heartbeat.stop()
         knowledge_extract.stop()
         if reminders: reminders.stop()

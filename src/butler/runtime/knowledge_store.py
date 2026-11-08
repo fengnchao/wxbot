@@ -30,7 +30,7 @@ Obsidian 一次只开一个 vault，一个人的图也不会被别人的节点�
 from __future__ import annotations
 
 from contextlib import closing, suppress
-from hashlib import sha1
+from hashlib import sha1, sha256
 import json
 import os
 from pathlib import Path
@@ -188,7 +188,11 @@ def _parse_fact_line(line):
             'links': LINK.findall(body)}
 
 
-def _read_node(path):
+def _fact_id(owner, node, line):
+    return sha256('\0'.join((owner, node.as_posix(), line)).encode('utf-8')).hexdigest()
+
+
+def _read_node(path, *, include_lines=False):
     """节点文件 → (frontmatter, {小节标题: [事实]})；坏行直接跳过，不让一条脏数据拖垮整页。"""
     text = Path(path).read_text('utf-8', 'replace')
     meta, body = _split_frontmatter(text)
@@ -200,6 +204,8 @@ def _read_node(path):
         elif line.startswith('- '):
             item = _parse_fact_line(line)
             if item:
+                if include_lines:
+                    item['line'] = line
                 sections.setdefault(heading, []).append(item)
     return meta, sections
 
@@ -467,8 +473,8 @@ class KnowledgeStore:
             text = text.rstrip('\n') + '\n\n' + _episode_block(
                 contact, channel_type, request_id, user_text, reply_text, outcome, stamp)
             _atomic_write(path, text)
-        self._touch(owner, contact, channel_type, episodes=1, at=stamp)
-        self.rebuild_index(owner)
+            self._touch(owner, contact, channel_type, episodes=1, at=stamp)
+            self.rebuild_index(owner)
         return True
 
     def add_fact(self, owner, contact, fact_value, *, kind='topic', fact_key='',
@@ -503,9 +509,54 @@ class KnowledgeStore:
             text = _insert_line(text, self.template.section(kind), line)
             _atomic_write(path, _rewrite_meta(text, {'updated': _stamp(stamp),
                                                      'updated_ts': round(stamp, 3)}))
-        self._touch(owner, contact, 'dm', facts=1, at=stamp)
-        self.rebuild_index(owner)
+            self._touch(owner, contact, 'dm', facts=1, at=stamp)
+            self.rebuild_index(owner)
         return True
+
+    def delete_fact(self, owner, fact_id):
+        """Remove one exact line and retain its node, episodes and extraction cursor."""
+        if not isinstance(owner, str) or not owner.strip() or len(owner) > 512:
+            raise ValueError('知识归属无效')
+        if not isinstance(fact_id, str) or not re.fullmatch(r'[0-9a-f]{64}', fact_id):
+            raise ValueError('事实编号无效，请刷新知识库')
+        with self._lock:
+            owners, _ = self._catalog()
+            entry = owners.get(owner)
+            if entry is not None:
+                vault = self._vault(entry)
+                vault_root = vault.resolve()
+                if not vault_root.is_relative_to(self.root.resolve()) or vault_root.name != 'vault':
+                    raise ValueError('知识库目录无效')
+                for path in sorted(vault.glob('*/*.md')):
+                    if path.parent.name == self.template.episode_dir or not path.resolve().is_relative_to(vault_root):
+                        continue
+                    try:
+                        text = path.read_text('utf-8')
+                    except UnicodeDecodeError:
+                        continue
+                    _, body = _split_frontmatter(text)
+                    if not body:
+                        continue
+                    lines = body.splitlines(keepends=True)
+                    node = path.relative_to(vault)
+                    matches = [index for index, line in enumerate(lines)
+                               if line.startswith('- ') and _parse_fact_line(line)
+                               and _fact_id(owner, node, line.rstrip('\n')) == fact_id]
+                    if not matches:
+                        continue
+                    if len(matches) != 1:
+                        raise ValueError('节点包含重复内容，无法安全定位这条事实')
+                    del lines[matches[0]]
+                    _atomic_write(path, text[:-len(body)] + ''.join(lines))
+                    try:
+                        entry['facts'] = max(0, int(entry.get('facts') or 0) - 1)
+                        self._save(owners)
+                        self.rebuild_index(owner)
+                    except OSError as exc:
+                        self.log('事实已删除，索引更新失败: %s', type(exc).__name__)
+                        return {'deleted': True, 'indexes_updated': False}
+                    return {'deleted': True, 'indexes_updated': True}
+        return {'deleted': False, 'indexes_updated': True}
 
     # ---------- 游标 ----------
     def extracted_at(self, owner):
@@ -668,7 +719,7 @@ class KnowledgeStore:
                 'has_more': offset + len(page) < total,
                 'owners': [e['owner'] for e in self.owners()]}
 
-    def facts(self, owner='', query='', limit=50, offset=0, contact=''):
+    def facts(self, owner='', query='', limit=50, offset=0, contact='', *, allowed_owners=None):
         """事实列表，按写入时间倒序；query 同时匹配 key 与内容。"""
         limit = max(1, min(MAX_READ_LIMIT, int(limit)))
         offset = max(0, int(offset))
@@ -676,13 +727,15 @@ class KnowledgeStore:
         for entry in self.owners():
             if owner and entry['owner'] != owner:
                 continue
+            if allowed_owners is not None and entry['owner'] not in allowed_owners:
+                continue
             vault = self._vault(entry)
             if not vault.is_dir():
                 continue
             for path in sorted(vault.glob('*/*.md')):
                 if path.parent.name == self.template.episode_dir:
                     continue
-                meta, sections = _read_node(path)
+                meta, sections = _read_node(path, include_lines=True)
                 node = str(meta.get('name') or path.stem)
                 row_contact = str(meta.get('contact') or entry['contact'])
                 if contact and row_contact != contact:
@@ -693,6 +746,7 @@ class KnowledgeStore:
                                 item['fact_key'] + ' ' + item['fact_value']).casefold():
                             continue
                         rows.append({'owner': entry['owner'], 'contact': row_contact,
+                                     'fact_id': _fact_id(entry['owner'], path.relative_to(vault), item['line']),
                                      'node': node, 'kind': item['kind'],
                                      'fact_key': item['fact_key'],
                                      'fact_value': item['fact_value'], 'quote': item['quote'],

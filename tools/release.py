@@ -7,9 +7,10 @@ import zipfile
 
 ROOT=Path(__file__).resolve().parents[1]
 VERSION='1.0.0'
-ROOT_FILES={'README.md','AGENTS.md','pyproject.toml','requirements.txt','uv.lock','.gitignore'}
-SOURCE_DIRS={'src','web','plugins'}
-SPECIAL={'.agents/plugins/marketplace.json','scripts/setup.ps1','tools/probe_codex.py','tools/release.py'}
+ROOT_FILES={'AGENTS.md','pyproject.toml','requirements.txt','uv.lock','.gitignore'}
+SOURCE_DIRS={'src','web','plugins','architecture-notes'}
+SPECIAL={'.agents/plugins/marketplace.json','scripts/setup.ps1','tools/probe_codex.py','tools/release.py',
+         '.archify/architecture-wxbot-20261107-201947/wxbot.html'}
 FORBIDDEN_PARTS={'.venv','node_modules','__pycache__','.git','.idea','.pytest_cache','data','cache','dist','.superpowers'}
 
 
@@ -25,6 +26,7 @@ def source_files():
         if path.name.endswith('.session') or '.session-' in path.name or path.name.endswith('.session.relay.lock'):
             continue
         if rel.parts[0] not in SOURCE_DIRS and rel.as_posix() not in ROOT_FILES|SPECIAL:continue
+        if rel.parts[0]=='architecture-notes' and path.suffix.lower()!='.md' and path.name!='index.json':continue
         if path.name.startswith('config.') and path.suffix=='.toml':continue
         if '.config-backup-' in path.name or path.name.endswith('.edit.lock'):continue
         out.append(path)

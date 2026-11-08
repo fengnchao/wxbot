@@ -1,8 +1,9 @@
 # Butler/wxbot development and installation
 
-Read README.md first: it is the primary project document (layout, per-module file map,
-protocols, configuration, run and release steps). Structured code knowledge lives
-in `llm wiki/wxbot/`; follow the workflow below. Use the installation
+Read `architecture-notes/wxbot.md` first: it is the primary project document and
+node index (layout, per-module file map, protocols, configuration, run and release
+steps). Read matching node documents under `architecture-notes/`; follow the
+workflow below. Use the installation
 owner's own Codex login. Never copy credentials, local config or runtime data from
 another installation. `python -m butler init` preserves existing configurations.
 
@@ -25,36 +26,48 @@ Before preparing a release, run authorized checks and tools/release.py; never
 commit auth.json, config.*.toml runtime files, data/, cache/, virtual environments
 or databases. Keep *.example.toml templates credential-free.
 
-## Project knowledge graph (required for code changes)
+## Architecture diagram (required for feature changes)
 
-- All graph files belong under the existing Obsidian vault `llm wiki/wxbot/`.
-  Read `index.md`, `coverage.md` and matching entries before code changes;
-  `guide.md` defines ingestion and `templates/` defines entry formats.
-- Extract feature/field/API/table keywords and query first:
-  `.venv\Scripts\python.exe "llm wiki/wxbot/scripts/wiki.py" query <keywords>`.
-  Follow incoming/outgoing links one hop (two for cross-module work), then
-  verify facts against source; code is authoritative. Read source and record
-  coverage gaps when graph entries are missing or stale.
-- Before implementation, report files/positions, callers/tests, frontend/backend
-  contracts, DB/field lineage and risks. Archive substantive cross-module or risky
-  reports in `impacts/`. Continue within already authorized scope; wait when the
-  user requests confirmation or the scope needs authorization.
-- After changes, append `raw/changes/YYYY-MM-DD-topic.md`: goal/background,
-  files/positions, API/DTO changes, DB/migrations, frontend consumers,
-  tests/async jobs, risks/rollback; explicitly mark items not applicable.
-  Use `change <topic> --title <title>` or the change template.
-- Ingest: check actual source/diff; update affected entries and reciprocal calls,
-  source positions/anchors and `last_verified`; append this record to each entry's
-  `changes` and list entries in the record's `pages`. Run `ingest <record-filename-without-md>`
-  then `lint` using the same script. Include raw, graph, index, append-only changelog
-  and `ingest-state.json` in the change. The CLI registers evidence; the coding
-  agent performs semantic synthesis and contract verification.
-- Facts need repository-relative source paths, lines and stable anchors; entries
-  need raw provenance. When raw conflicts with code, append a correction with
-  `supersedes` rather than editing an ingested record. Document conflicts and
-  unresolved facts; mechanical lint does not prove semantic correctness.
-- Never ingest credentials, runtime config, databases, messages or personal data.
-  The graph is a development aid, not runtime prompt authority or a permission grant.
+Review the canonical Archify diagram
+`.archify/architecture-wxbot-20261107-201947/wxbot.html` for every feature change.
+The old root `ARCHITECTURE.html` has been retired; do not recreate it.
+When the implementation adds, removes, or changes a component or responsibility,
+interface, data flow, data store, background job, or integration relevant to the
+diagram, update the affected nodes and connections in the same change. Verify the
+diagram against the implemented code before handing back the feature.
+
+## Node documentation (required for code changes)
+
+- Project explanations, API/field contracts, source evidence and development
+  history are consolidated into the diagram-bound Markdown files under
+  `architecture-notes/`. Start at `wxbot.md` and `index.json`, then search relevant
+  node documents with `rg -n <keywords> architecture-notes`.
+- `README.md` and the old `llm wiki/wxbot/` Markdown graph were explicitly retired
+  by the project owner. Do not recreate their standalone pages or run the retired
+  `change` / `ingest` / `lint` workflow. Old scripts, JSON snapshots and archived
+  commands are historical material, not the current documentation workflow.
+- Follow the affected node's links and verify facts against current source before
+  changes. Report files/positions, callers/tests, frontend/backend contracts,
+  DB/field lineage and risks before implementation. Continue within authorized
+  scope; wait only when the user requests confirmation or scope needs authority.
+- After a change, update the affected node documents and reciprocal links in the
+  same change. Record goal/background, files and stable source anchors, API/DTO
+  changes, DB/migrations, frontend consumers, tests/async jobs and risks/rollback;
+  explicitly mark items not applicable and record the verification date.
+- Preserve source provenance and history. When old statements conflict with code,
+  add a dated correction identifying the superseded statement; do not present a
+  migrated plan or historical test result as current behavior or a fresh check.
+- Keep every explanatory Markdown file associated with an actual diagram node.
+  The Archify document button uses `architecture-notes/`.
+  `index.json` records all note files and their owning Archify node IDs, including
+  detailed documents grouped under overview nodes.
+  Validate note bindings and relative links before handing back documentation.
+- Preserve `AGENTS.md`, runtime Skill/role/reference/template files and required
+  license notices in their functional locations. Node documentation does not
+  replace plugin runtime files or grant tool permissions.
+- Never put credentials, runtime config, databases, messages or personal data in
+  development documents. User knowledge vaults and runtime diaries remain under
+  their configured data directories and are not development documentation.
 
 ## Front-end design: Hallmark (automatic)
 
@@ -90,7 +103,7 @@ missing skill explicitly; do not claim its checks passed.
   rendering `web/index.html` directly does not test the application. Use an
   existing dev server or start a separate preview without restarting services.
   If rendering is unavailable, run static checks and disclose that limit.
-- Keep the README's page-registration workflow and run `npm.cmd --prefix web
+- Keep the page-registration workflow in `architecture-notes/dashboard.md` and run `npm.cmd --prefix web
   run build` and `npm.cmd --prefix web run smoke` after UI source changes.
   Include the matching `web/dist/` output in the change; preserve unrelated
   work already present. Report checks actually run and any remaining findings.

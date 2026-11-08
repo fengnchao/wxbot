@@ -416,8 +416,13 @@ payloads['/api/knowledge'] = {
   ]
 }
 payloads['/api/knowledge/facts'] = {
-  available: true, total: 1, limit: 50, offset: 0, has_more: false,
-  owners: payloads['/api/knowledge'].owners,
+  available: true, total: 3, limit: 50, offset: 0, has_more: false,
+  owners: [
+    payloads['/api/knowledge'].owners[0],
+    { ...payloads['/api/knowledge'].owners[1], group_only: true },
+    { owner: 'user:member', name: '群内成员', contact: '产品群', channel_type: 'group', group_only: true }
+  ],
+  groups: [{ name: '产品群', facts: 2, episodes: 3 }],
   // 分类文案来自模板的「索引分类」列，页面不再自己维护一份写死的映射。
   kinds: [
     { key: 'profile', label: '用户信息', section: '身份', hint: '' },
@@ -434,9 +439,13 @@ payloads['/api/knowledge/facts'] = {
     { key: 'topic', label: '话题', description: '长期关注的领域或兴趣' }
   ],
   rows: [
-    { owner: 'anon:dm:101', contact: '101', kind: 'preference', fact_key: '常喝的口味',
+    { owner: 'anon:dm:101', contact: '101', fact_id: '1'.repeat(64), kind: 'preference', fact_key: '常喝的口味',
       fact_value: '喜欢喝美式，不加糖。', quote: '我一般只要美式', episode_at: 1700000000,
-      confidence: 0.8, source: 'extract', created: 1700000100 }
+      confidence: 0.8, source: 'extract', created: 1700000100 },
+    { owner: 'user:member', contact: '产品群', fact_id: '2'.repeat(64), source_group: '产品群', source_name: '群内成员',
+      kind: 'event', fact_value: '群内确认开会时间', confidence: 0.9, created: 1700000200 },
+    { owner: 'anon:group:产品群', contact: '产品群', fact_id: '3'.repeat(64), source_group: '产品群', source_name: '未识别成员',
+      kind: 'topic', fact_value: '群内问起会议议题', confidence: 0.7, created: 1700000300 }
   ]
 }
 payloads['/api/knowledge/template'] = {
@@ -481,13 +490,49 @@ const voiceBindingRequests = []
 let rejectVoiceBinding = false
 let progressiveContactVersion = false
 const presetRequests = []
+const factGroupRequests = []
+const factDeleteRequests = []
+let rejectFactDelete = false
 let holdContactSave = false
 let releaseContactSave = null
 let rejectMerge = false
+let diaryMode = 'ready'
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(typeof input === 'string' ? input : input.url, 'http://127.0.0.1')
   const method = String(init.method || 'GET').toUpperCase()
   if (url.pathname === '/api/tts-presets') presetRequests.push(method)
+  if (url.pathname === '/api/resident/diary' && method === 'GET') {
+    if (diaryMode === 'error') return { ok: false, status: 500, text: async () => '{"error":"无法读取小潮日记"}' }
+    const page = Number(url.searchParams.get('page') || 1)
+    const data = diaryMode === 'empty' ? { entries: [], page: 1, pages: 1, total: 0 } : {
+      entries: [{ id: String(page), date: '2026-11-05', updated_at: 1700000000,
+        note: page === 1 ? '小潮的第一条日记 <script>测试</script>' : '较早的一条日记',
+        videos: [{ title: '海边小猫', seconds: '3.5', url: 'https://www.douyin.com/video/123' }] }],
+      page, pages: 2, total: 21
+    }
+    return { ok: true, status: 200, text: async () => JSON.stringify(data) }
+  }
+  if (url.pathname === '/api/knowledge/facts/delete' && method === 'POST') {
+    const body = JSON.parse(init.body)
+    factDeleteRequests.push({ body, confirmed: init.headers['X-Wxbot-Knowledge-Action'] === '1' })
+    if (rejectFactDelete) return { ok: false, status: 409, text: async () => JSON.stringify({ error: '知识库正在更新' }) }
+    const all = payloads['/api/knowledge/facts']
+    const row = all.rows.find(item => item.owner === body.owner && item.fact_id === body.fact_id)
+    if (row) {
+      all.rows = all.rows.filter(item => item !== row)
+      all.total = all.rows.length
+      const group = all.groups.find(item => item.name === row.source_group)
+      if (group) group.facts -= 1
+    }
+    return { ok: true, status: 200, text: async () => JSON.stringify({ ok: true, deleted: true, indexes_updated: true }) }
+  }
+  if (url.pathname === '/api/knowledge/facts' && url.searchParams.has('group')) {
+    const group = url.searchParams.get('group')
+    factGroupRequests.push(group)
+    const all = payloads['/api/knowledge/facts']
+    const rows = all.rows.filter(row => row.source_group === group)
+    return { ok: true, status: 200, text: async () => JSON.stringify({ ...all, rows, total: rows.length }) }
+  }
   if (url.pathname === '/api/voice-assets' && method === 'POST') {
     voiceBindingRequests.push(JSON.parse(init.body || '{}'))
     if (rejectVoiceBinding) return { ok: false, status: 500, text: async () => JSON.stringify({ error: '测试语音设置保存失败' }) }
@@ -604,7 +649,7 @@ const failures = []
 const expect = (ok, message) => { if (!ok) failures.push(message) }
 
 const navButtons = [...document.querySelectorAll('.nav-group button')].map(node => node.textContent.trim())
-expect(navButtons.length === 10, '导航应渲染 10 个标签，实际 ' + navButtons.length + '：' + navButtons.join('/'))
+expect(navButtons.length === 11, '导航应渲染 11 个标签，实际 ' + navButtons.length + '：' + navButtons.join('/'))
 expect(navButtons.includes('音色'), '导航缺少「音色」')
 expect(navButtons.includes('知识模板'), '导航缺少「知识模板」')
 expect(navButtons.includes('Telegram 转发'), '导航缺少「Telegram 转发」')
@@ -1188,12 +1233,45 @@ const factsButton = [...document.querySelectorAll('.nav-group button')]
 factsButton?.click()
 await new Promise(resolve => setTimeout(resolve, 200))
 expect(text('#pane h2').includes('知识库 · 全部知识'), '知识库页未渲染标题，实际 ' + text('#pane h2'))
-expect(document.querySelectorAll('#pane .fact-table tbody tr').length === 1, '知识库应渲染 1 行事实')
+expect(document.querySelectorAll('#pane .fact-table tbody tr').length === 3, '全部知识应保留私聊和群聊事实')
 expect(text('#pane').includes('喜欢喝美式，不加糖。'), '知识库未展示事实内容')
 expect(text('#pane').includes('喜好'), '知识库未使用模板下发的分类文案')
 expect(text('#pane').includes('我一般只要美式'), '知识库未展示支撑原话')
 expect(text('#pane').includes('80%'), '知识库应显示置信度百分比，实际 ' + text('#pane .fact-table tbody tr'))
-expect(document.querySelectorAll('#list .user').length === 3, '知识库左栏应与对话记录同样列出全部人')
+expect(document.querySelectorAll('#list .user').length === 3, '知识库左栏只列全部知识、私聊和一个汇总后的群聊')
+const factGroup = [...document.querySelectorAll('#list .user')].find(node => node.querySelector('.nm')?.textContent === '产品群')
+expect(factGroup?.textContent.includes('2 条事实') && factGroup.textContent.includes('3 条原文'), '左栏应汇总群聊条数')
+factGroup?.dispatchEvent(new dom.window.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
+await pause()
+expect(factGroupRequests.at(-1) === '产品群' && document.querySelectorAll('#pane .fact-table tbody tr').length === 2,
+  '键盘选择群聊应请求群筛选并只显示群事实')
+expect(text('#pane .fact-table').includes('群内成员') && text('#pane .fact-table').includes('未识别成员'), '群事实应标记已知和未知来源')
+expect(text('#pane .extract-bar button').includes('提炼全部'), '群筛选下的提炼动作应说明它会提炼全部')
+const factDelete = document.querySelector('#pane .fact-delete')
+const confirmBeforeFactDelete = dom.window.confirm
+let factDeletePrompt = ''
+dom.window.confirm = message => { factDeletePrompt = message; return false }
+factDelete?.click()
+await pause()
+expect(factDeletePrompt.includes('群内确认开会时间') && factDeletePrompt.includes('聊天原文') && !factDeleteRequests.length,
+  '删除事实前应提示目标和原文范围，取消不提交')
+dom.window.confirm = () => true
+rejectFactDelete = true
+factDelete?.click()
+await pause()
+expect(text('#pane [role=alert]').includes('知识库正在更新') && document.querySelectorAll('#pane .fact-delete').length === 2,
+  '删除失败应显示原因并保留事实')
+rejectFactDelete = false
+factDelete?.click()
+await pause()
+dom.window.confirm = confirmBeforeFactDelete
+const deletion = factDeleteRequests.at(-1)
+expect(deletion?.confirmed && deletion.body.acknowledge && deletion.body.owner === 'user:member' &&
+  deletion.body.fact_id === '2'.repeat(64), '群筛选下的删除应提交这条事实的 owner、编号和确认')
+expect(text('#pane [role=status]').includes('已删除') && document.querySelectorAll('#pane .fact-delete').length === 1 &&
+  text('#pane .fact-table').includes('未识别成员'), '删除后应刷新当前群列表并保留另一条事实')
+document.querySelector('#list .user')?.click()
+await pause()
 expect(text('#pane .extract-bar').includes('写入 1 条'),
   '知识库页应显示自动提炼的上次结果，实际 ' + text('#pane .extract-bar'))
 const extractButton = [...document.querySelectorAll('#pane .extract-bar button')]
@@ -1252,12 +1330,31 @@ expect(text('#pane').includes('添加音色'), '音色页缺少添加音色')
 expect(text('#pane').includes('示例音色'), '音色页应渲染资产列表')
 expect(!text('#pane').includes('训练') && !text('#pane').includes('微调'), '音色页不得出现训练/微调文案')
 
+const diaryButton = [...document.querySelectorAll('.nav-group button')].find(node => node.textContent.trim() === '小潮日记')
+expect(Boolean(diaryButton), '导航缺少「小潮日记」')
+diaryButton?.click()
+await new Promise(resolve => setTimeout(resolve, 50))
+expect(text('.diary-note').includes('小潮的第一条日记 <script>测试</script>'), '日记应按文本展示正文')
+expect(!document.querySelector('.diary-note script'), '日记正文不得解释为 HTML')
+expect(document.querySelector('.diary-videos a')?.getAttribute('href') === 'https://www.douyin.com/video/123', '日记作品链接未渲染')
+document.querySelector('.diary-pager button:last-child')?.click()
+await new Promise(resolve => setTimeout(resolve, 50))
+expect(text('.diary-note').includes('较早的一条日记') && location.search.includes('page=2'), '日记翻页应读取历史并更新地址')
+diaryMode = 'error'
+document.querySelector('.toolbar button')?.click()
+await new Promise(resolve => setTimeout(resolve, 50))
+expect(text('.diary-state[role=alert]').includes('无法读取小潮日记'), '日记读取失败应显示错误')
+diaryMode = 'empty'
+document.querySelector('.diary-state button')?.click()
+await new Promise(resolve => setTimeout(resolve, 50))
+expect(text('.diary-state').includes('还没有日记'), '日记重试应显示空态')
+
 if (problems.length) failures.push('控制台输出：\n  ' + problems.join('\n  '))
 if (failures.length) {
   console.error('smoke failed:\n- ' + failures.join('\n- '))
   process.exit(1)
 }
 
-console.log('smoke passed：导航、实时工作流、联系人、定时任务、收发队列、对话记录、知识库、知识模板、配置管理、Telegram 转发页、音色资产页均正常渲染')
+console.log('smoke passed：导航、实时工作流、联系人、定时任务、收发队列、对话记录、知识库、知识模板、配置管理、Telegram 转发页、音色资产页、小潮日记均正常渲染')
 // 页面带着 1 秒倒计时定时器，断言完成后必须显式退出。
 process.exit(0)

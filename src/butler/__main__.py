@@ -12,7 +12,7 @@ from butler.config import load
 
 def main(argv=None):
     parser=argparse.ArgumentParser(description='Portable Butler/wxbot')
-    parser.add_argument('command',choices=['init','setup','migrate','contacts-preview','contacts-migrate','doctor','login','serve','start','knowledge-prune','knowledge-migrate','knowledge-extract'])
+    parser.add_argument('command',choices=['init','setup','migrate','contacts-preview','contacts-migrate','doctor','login','resident-login','serve','start','knowledge-prune','knowledge-migrate','knowledge-extract'])
     parser.add_argument('--config',default=None)
     parser.add_argument('--directory',default='.')
     parser.add_argument('--no-wechat',action='store_true')
@@ -44,6 +44,22 @@ def main(argv=None):
     chosen=args.config or os.environ.get('BUTLER_CONFIG')
     if not chosen and args.directory!='.':chosen=str(Path(args.directory)/'config.butler.toml')
     cfg=load(chosen)
+    if args.command == 'resident-login':
+        from butler.runtime.resident import login_douyin
+        from butler.runtime.resident_douyin import BrowserUnavailable
+        try:
+            logged_in = login_douyin(cfg)
+        except BrowserUnavailable as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        except Exception as exc:
+            print(f'小潮专用浏览器登录未完成（{type(exc).__name__}）。', file=sys.stderr)
+            return 1
+        if not logged_in:
+            print('专用浏览器没有有效的抖音登录。', file=sys.stderr)
+            return 1
+        print('小潮的抖音登录已保存。')
+        return 0
     from butler.runtime.install_wizard import installation_mode
     mode=installation_mode(cfg.config_dir or REPO_ROOT)
     if args.command=='doctor':
@@ -59,7 +75,17 @@ def main(argv=None):
             print(json.dumps({'ok':True,'migrated':moved},ensure_ascii=False,indent=2));return 0
         store=KnowledgeStore(root,retention_days=cfg.knowledge_retention_days)
         # 目录不存在或为空时直接回 0，绝不为「清理」建出任何库。
-        deleted=store.prune() if store.index_path.is_file() else 0
+        deleted = 0
+        if store.index_path.is_file():
+            from butler.runtime.knowledge_auto import acquire, release
+            lock = acquire(cfg.knowledge_extract_lock_path())
+            if lock is None:
+                print(json.dumps({'ok': False, 'error': '知识库正在更新，请稍后再试'}, ensure_ascii=False))
+                return 1
+            try:
+                deleted = store.prune()
+            finally:
+                release(lock)
         store.close()
         print(json.dumps({'ok':True,'deleted':deleted,'retention_days':cfg.knowledge_retention_days},
                          ensure_ascii=False,indent=2));return 0

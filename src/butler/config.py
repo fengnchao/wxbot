@@ -18,6 +18,35 @@ DEFAULT_CONFIG = REPO_ROOT / "config.butler.toml"
 MODEL_PROVIDERS = ('codex', 'hermes', 'openai', 'responses', 'openclaw', 'cursor', 'ollama', 'echo')
 
 
+@dataclass(frozen=True)
+class ResidentSettings:
+    enabled: bool = False
+    idle_seconds: int = 300
+    round_seconds: int = 180
+    cooldown_seconds: int = 1800
+    daily_seconds: int = 900
+    visible_browser: bool = False
+
+    @classmethod
+    def from_table(cls, table):
+        if not isinstance(table, dict):
+            raise ValueError('resident_role must be a configuration table')
+        defaults = cls()
+        values = {}
+        for name in ('enabled', 'visible_browser'):
+            value = table.get(name, getattr(defaults, name))
+            if type(value) is not bool:
+                raise ValueError(f'resident_role.{name} must be a boolean')
+            values[name] = value
+        for name, maximum in (('idle_seconds', 86400), ('round_seconds', 600),
+                              ('cooldown_seconds', 86400), ('daily_seconds', 86400)):
+            value = table.get(name, getattr(defaults, name))
+            if type(value) is not int or not 1 <= value <= maximum:
+                raise ValueError(f'resident_role.{name} must be an integer from 1 to {maximum}')
+            values[name] = value
+        return cls(**values)
+
+
 @dataclass
 class Config:
     reply_chunk_chars: int = 500
@@ -85,6 +114,7 @@ class Config:
     # 联系人
     contacts: ContactMap = field(default_factory=ContactMap)
     message_routes: tuple[MessageRoute, ...] = field(default_factory=tuple)
+    resident_role: ResidentSettings = field(default_factory=ResidentSettings)
 
     @property
     def have_token(self) -> bool:
@@ -284,6 +314,7 @@ def load(path: str | os.PathLike | None = None) -> Config:
         knowledge_prune_interval_hours=prune_hours,
         contacts=contacts,
         message_routes=load_message_routes(raw.get('message_routes', [])),
+        resident_role=ResidentSettings.from_table(raw.get('resident_role', {})),
     )
 
 

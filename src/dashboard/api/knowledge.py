@@ -7,10 +7,12 @@
 """
 
 
-def _view(ctx):
+def _view(ctx, *, with_identity=False):
     from butler.config import load as load_butler
     cfg = load_butler(ctx.butler_config_path())
-    return ctx.KnowledgeView(cfg.data_path() / 'knowledge')
+    root = cfg.data_path()
+    identity_path = (cfg.contact_database or root / 'business.sqlite3') if with_identity else None
+    return ctx.KnowledgeView(root / 'knowledge', identity_path=identity_path)
 
 
 def _template_view(ctx):
@@ -41,14 +43,25 @@ def read(ctx):
 
 
 def facts(ctx):
-    contact, _ = _session(ctx)
     try:
-        return 200, _view(ctx).facts(owner=ctx.one('owner'), query=ctx.one('q'),
-                                     limit=ctx.num('limit', 50), offset=ctx.num('offset', 0),
-                                     contact=contact)
+        return 200, _view(ctx, with_identity=True).facts(
+            owner=ctx.one('owner'), query=ctx.one('q'),
+            limit=ctx.num('limit', 50), offset=ctx.num('offset', 0),
+            contact=ctx.one('contact'), group=ctx.one('group'))
     except Exception as exc:
         return 500, {'read_only': True, 'status': 'error',
                      'error': '无法读取知识库（' + type(exc).__name__ + '）'}
+
+
+def delete_fact(ctx):
+    from dashboard.api.support import _butler_post
+
+    if not ctx.confirm('X-Wxbot-Knowledge-Action'):
+        return 403, {'error': '事实删除只接受当前页面的确认请求'}
+    try:
+        return _butler_post(ctx.load_butler_config(), '/v1/knowledge/facts/delete', ctx.body())
+    except (RuntimeError, ValueError) as exc:
+        return 503, {'ok': False, 'error': str(exc)}
 
 
 def extract_status(ctx):

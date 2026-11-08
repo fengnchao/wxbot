@@ -1,0 +1,473 @@
+{
+  "root": "D:\\work\\code\\wxbot",
+  "targets": [
+    {
+      "path": ".tmp-check-migrated.py",
+      "directory": false,
+      "bytes": 1055,
+      "files": 1
+    },
+    {
+      "path": ".tmp-config-keys.py",
+      "directory": false,
+      "bytes": 790,
+      "files": 1
+    },
+    {
+      "path": ".tmp-fix-migrated.py",
+      "directory": false,
+      "bytes": 1660,
+      "files": 1
+    },
+    {
+      "path": ".tmp-lines.py",
+      "directory": false,
+      "bytes": 1187,
+      "files": 1
+    },
+    {
+      "path": ".tmp-prove-gap.py",
+      "directory": false,
+      "bytes": 1654,
+      "files": 1
+    },
+    {
+      "path": ".tmp-rebuild-index.py",
+      "directory": false,
+      "bytes": 355,
+      "files": 1
+    },
+    {
+      "path": ".tmp-refresh-lines.py",
+      "directory": false,
+      "bytes": 3463,
+      "files": 1
+    },
+    {
+      "path": ".tmp-seed-101.py",
+      "directory": false,
+      "bytes": 6187,
+      "files": 1
+    },
+    {
+      "path": ".tmp-symbols.py",
+      "directory": false,
+      "bytes": 1329,
+      "files": 1
+    },
+    {
+      "path": "tests/.scratch",
+      "directory": true,
+      "bytes": 145012569,
+      "files": 1944
+    },
+    {
+      "path": "tests/.tmp-default-preset-green",
+      "directory": true,
+      "bytes": 417704,
+      "files": 19
+    },
+    {
+      "path": "tests/.tmp-delivery-baseline-1107a",
+      "directory": true,
+      "bytes": 5270894,
+      "files": 124
+    },
+    {
+      "path": "tests/.tmp-delivery-baseline-1107b",
+      "directory": true,
+      "bytes": 5334982,
+      "files": 126
+    },
+    {
+      "path": "tests/.tmp-delivery-final-1107a",
+      "directory": true,
+      "bytes": 5466055,
+      "files": 128
+    },
+    {
+      "path": "tests/.tmp-delivery-full-1107a",
+      "directory": true,
+      "bytes": 53385020,
+      "files": 3153
+    },
+    {
+      "path": "tests/.tmp-delivery-green-1107a",
+      "directory": true,
+      "bytes": 785284,
+      "files": 49
+    },
+    {
+      "path": "tests/.tmp-delivery-old-confirm-1107a",
+      "directory": true,
+      "bytes": 131073,
+      "files": 2
+    },
+    {
+      "path": "tests/.tmp-delivery-red-1107a",
+      "directory": true,
+      "bytes": 131073,
+      "files": 2
+    },
+    {
+      "path": "tests/.tmp-disabled-preset-red",
+      "directory": true,
+      "bytes": 0,
+      "files": 0
+    },
+    {
+      "path": "tests/.tmp-four-failures-full-1107a",
+      "directory": true,
+      "bytes": 53517027,
+      "files": 3155
+    },
+    {
+      "path": "tests/.tmp-four-failures-green-1107a",
+      "directory": true,
+      "bytes": 262146,
+      "files": 4
+    },
+    {
+      "path": "tests/.tmp-four-failures-green-1107b",
+      "directory": true,
+      "bytes": 262146,
+      "files": 4
+    },
+    {
+      "path": "tests/.tmp-four-failures-red-1107a",
+      "directory": true,
+      "bytes": 131073,
+      "files": 2
+    },
+    {
+      "path": "tests/.tmp-group-auto-final",
+      "directory": true,
+      "bytes": 52216295,
+      "files": 3048
+    },
+    {
+      "path": "tests/.tmp-group-auto-final.log",
+      "directory": false,
+      "bytes": 5487,
+      "files": 1
+    },
+    {
+      "path": "tests/.tmp-group-auto-final.xml",
+      "directory": false,
+      "bytes": 228804,
+      "files": 1
+    },
+    {
+      "path": "tests/.tmp-group-auto-full",
+      "directory": true,
+      "bytes": 52182806,
+      "files": 3040
+    },
+    {
+      "path": "tests/.tmp-group-auto-suite.log",
+      "directory": false,
+      "bytes": 10939,
+      "files": 1
+    },
+    {
+      "path": "tests/.tmp-group-auto-suite.xml",
+      "directory": false,
+      "bytes": 230981,
+      "files": 1
+    },
+    {
+      "path": "tests/.tmp-group-auto-wiki-check.log",
+      "directory": false,
+      "bytes": 4125,
+      "files": 1
+    },
+    {
+      "path": "tests/.tmp-group-auto-wiki-final.log",
+      "directory": false,
+      "bytes": 127,
+      "files": 1
+    },
+    {
+      "path": "tests/.tmp-group-current.jpg",
+      "directory": false,
+      "bytes": 49691,
+      "files": 1
+    },
+    {
+      "path": "tests/.tmp-index-core",
+      "directory": true,
+      "bytes": 186244,
+      "files": 5
+    },
+    {
+      "path": "tests/.tmp-index-core2",
+      "directory": true,
+      "bytes": 186244,
+      "files": 5
+    },
+    {
+      "path": "tests/.tmp-index-core3",
+      "directory": true,
+      "bytes": 231300,
+      "files": 6
+    },
+    {
+      "path": "tests/.tmp-policy-full-20261105",
+      "directory": true,
+      "bytes": 52080795,
+      "files": 3008
+    },
+    {
+      "path": "tests/.tmp-policy-hallmark.log",
+      "directory": false,
+      "bytes": 13019,
+      "files": 1
+    },
+    {
+      "path": "tests/.tmp-policy-save-green",
+      "directory": true,
+      "bytes": 2901125,
+      "files": 54
+    },
+    {
+      "path": "tests/.tmp-policy-save-green2",
+      "directory": true,
+      "bytes": 2933893,
+      "files": 56
+    },
+    {
+      "path": "tests/.tmp-policy-save-red",
+      "directory": true,
+      "bytes": 552960,
+      "files": 6
+    },
+    {
+      "path": "tests/.tmp-policy-suite.log",
+      "directory": false,
+      "bytes": 5406,
+      "files": 1
+    },
+    {
+      "path": "tests/.tmp-policy-wiki-before.log",
+      "directory": false,
+      "bytes": 1044,
+      "files": 1
+    },
+    {
+      "path": "tests/.tmp-policy-wiki-final.log",
+      "directory": false,
+      "bytes": 297,
+      "files": 1
+    },
+    {
+      "path": "tests/.tmp-preset-core-green",
+      "directory": true,
+      "bytes": 340521,
+      "files": 13
+    },
+    {
+      "path": "tests/.tmp-preset-integration-green",
+      "directory": true,
+      "bytes": 340504,
+      "files": 13
+    },
+    {
+      "path": "tests/.tmp-preset-red",
+      "directory": true,
+      "bytes": 0,
+      "files": 0
+    },
+    {
+      "path": "tests/.tmp-preset-review-green",
+      "directory": true,
+      "bytes": 417783,
+      "files": 23
+    },
+    {
+      "path": "tests/.tmp-reply-impact-query.md",
+      "directory": false,
+      "bytes": 4035,
+      "files": 1
+    },
+    {
+      "path": "tests/.tmp-review-green",
+      "directory": true,
+      "bytes": 231300,
+      "files": 6
+    },
+    {
+      "path": "tests/.tmp-review-red",
+      "directory": true,
+      "bytes": 263344,
+      "files": 7
+    },
+    {
+      "path": "tests/.tmp-tts-final-host",
+      "directory": true,
+      "bytes": 426461,
+      "files": 10
+    },
+    {
+      "path": "tests/.tmp-tts-final-unit",
+      "directory": true,
+      "bytes": 231300,
+      "files": 6
+    },
+    {
+      "path": "tests/.tmp-tts-green",
+      "directory": true,
+      "bytes": 231300,
+      "files": 6
+    },
+    {
+      "path": "tests/.tmp-tts-regression",
+      "directory": true,
+      "bytes": 16401068,
+      "files": 707
+    },
+    {
+      "path": "tests/.tmp-tts-regression-host",
+      "directory": true,
+      "bytes": 30682020,
+      "files": 1840
+    },
+    {
+      "path": "tests/.tmp-tts-transport-green",
+      "directory": true,
+      "bytes": 195161,
+      "files": 4
+    },
+    {
+      "path": "tests/.tmp-tts-wire",
+      "directory": true,
+      "bytes": 195161,
+      "files": 4
+    },
+    {
+      "path": "tests/.tmp-tts-wire2",
+      "directory": true,
+      "bytes": 426461,
+      "files": 10
+    },
+    {
+      "path": "tests/.tmp-voice-graph-two-hop.md",
+      "directory": false,
+      "bytes": 17711,
+      "files": 1
+    },
+    {
+      "path": "tests/.tmp-voice-projection-green",
+      "directory": true,
+      "bytes": 975,
+      "files": 15
+    },
+    {
+      "path": "tests/.tmp-voice-projection-red",
+      "directory": true,
+      "bytes": 965,
+      "files": 15
+    },
+    {
+      "path": "tests/.tmp-webui-preset-final",
+      "directory": true,
+      "bytes": 15688625,
+      "files": 610
+    },
+    {
+      "path": "tests/.tmp-webui-preset-regression",
+      "directory": true,
+      "bytes": 15688812,
+      "files": 608
+    },
+    {
+      "path": "tests/__pycache__",
+      "directory": true,
+      "bytes": 4900182,
+      "files": 196
+    },
+    {
+      "path": ".pytest_cache",
+      "directory": true,
+      "bytes": 321303,
+      "files": 5
+    },
+    {
+      "path": ".archify/architecture-wxbot-20261107-201947/.archify-finalize-ef74b370-b7dc-43e6-8128-9f84af7138bc.json",
+      "directory": false,
+      "bytes": 909,
+      "files": 1
+    },
+    {
+      "path": ".archify/architecture-wxbot-20261107-201947/node-document-button.png",
+      "directory": false,
+      "bytes": 61929,
+      "files": 1
+    },
+    {
+      "path": ".archify/architecture-wxbot-20261107-201947/node-notes-dark.png",
+      "directory": false,
+      "bytes": 132403,
+      "files": 1
+    },
+    {
+      "path": ".archify/architecture-wxbot-20261107-201947/node-notes-light.png",
+      "directory": false,
+      "bytes": 129039,
+      "files": 1
+    },
+    {
+      "path": ".archify/document-migration-20261107-204541/__pycache__",
+      "directory": true,
+      "bytes": 40946,
+      "files": 1
+    },
+    {
+      "path": ".archify/document-migration-20261107-204541/pytest-red",
+      "directory": true,
+      "bytes": 827,
+      "files": 6
+    },
+    {
+      "path": ".archify/document-migration-20261107-204541/pytest-green",
+      "directory": true,
+      "bytes": 1385,
+      "files": 6
+    },
+    {
+      "path": ".archify/document-migration-20261107-204541/pytest-retire-red",
+      "directory": true,
+      "bytes": 1399,
+      "files": 8
+    },
+    {
+      "path": ".archify/document-migration-20261107-204541/pytest-retire-green",
+      "directory": true,
+      "bytes": 1473,
+      "files": 8
+    },
+    {
+      "path": ".archify/document-migration-20261107-204541/release-check",
+      "directory": true,
+      "bytes": 1154548,
+      "files": 2
+    },
+    {
+      "path": ".archify/document-migration-20261107-204541/release-after-retirement",
+      "directory": true,
+      "bytes": 1373902,
+      "files": 2
+    },
+    {
+      "path": ".archify/document-migration-20261107-204541/staged",
+      "directory": true,
+      "bytes": 26146,
+      "files": 1
+    },
+    {
+      "path": ".archify/document-migration-20261107-204541/AGENTS.new.txt",
+      "directory": false,
+      "bytes": 7043,
+      "files": 1
+    }
+  ]
+}

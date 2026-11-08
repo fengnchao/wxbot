@@ -10,6 +10,7 @@ import JobsView from './views/JobsView.vue'
 import KnowledgeView from './views/KnowledgeView.vue'
 import KnowledgeTemplateView from './views/KnowledgeTemplateView.vue'
 import QueueView from './views/QueueView.vue'
+import ResidentDiaryView from './views/ResidentDiaryView.vue'
 import WorkflowView from './views/WorkflowView.vue'
 import TelegramRelayView from './views/TelegramRelayView.vue'
 import VoiceAssetsView from './views/VoiceAssetsView.vue'
@@ -22,6 +23,7 @@ const VIEWS = {
   knowledge: KnowledgeView,
   'knowledge-template': KnowledgeTemplateView,
   queue: QueueView,
+  'resident-diary': ResidentDiaryView,
   workflow: WorkflowView,
   'telegram-relay': TelegramRelayView,
   'voice-assets': VoiceAssetsView
@@ -46,7 +48,7 @@ provide('logWebCtx', {
 // 外部接入模式下业务页面由对端管理台维护，隐藏本机不承担的业务页。
 const hidden = computed(() => {
   const mode = connection.value.mode || 'local'
-  return mode === 'local' ? new Set() : new Set(['contacts', 'voice-assets', 'jobs', 'knowledge', 'facts', 'knowledge-template', 'telegram-relay'])
+  return mode === 'local' ? new Set() : new Set(['contacts', 'voice-assets', 'jobs', 'knowledge', 'facts', 'knowledge-template', 'telegram-relay', 'resident-diary'])
 })
 
 const navGroups = computed(() => {
@@ -66,7 +68,7 @@ const navGroups = computed(() => {
 const title = computed(() => tabTitle(activeTab.value))
 const view = computed(() => VIEWS[activeTab.value] || WorkflowView)
 // 配置页与转发页用页内筛选，不显示全局搜索框。
-const searchHidden = computed(() => ['configuration', 'telegram-relay', 'knowledge-template', 'voice-assets'].includes(activeTab.value))
+const searchHidden = computed(() => ['configuration', 'telegram-relay', 'knowledge-template', 'voice-assets', 'resident-diary'].includes(activeTab.value))
 const searchPlaceholder = computed(() => ({
   workflow: '搜索用户 / UID / 消息 ID',
   queue: '筛选本页任务',
@@ -159,7 +161,7 @@ async function clearSearch() {
       </div>
       <div class="row toolbar">
         <!-- 工作流页自行每秒轮询，同样隐藏列表与自动刷新按钮。 -->
-        <button v-if="activeTab !== 'workflow'" id="b-contacts" :aria-expanded="String(!listCollapsed)" @click="toggleList">
+        <button v-if="activeTab !== 'workflow' && activeTab !== 'resident-diary'" id="b-contacts" :aria-expanded="String(!listCollapsed)" @click="toggleList">
           {{ listCollapsed ? '展开列表' : '收起列表' }}
         </button>
         <button @click="refresh">刷新</button>
@@ -184,8 +186,10 @@ async function clearSearch() {
             @click="clearSearch"
           >清空</button>
         </span>
-        <button @click="expand(true)">展开本页</button>
-        <button @click="expand(false)">收起本页</button>
+        <template v-if="activeTab !== 'resident-diary'">
+          <button @click="expand(true)">展开本页</button>
+          <button @click="expand(false)">收起本页</button>
+        </template>
       </div>
     </header>
     <main>

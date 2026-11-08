@@ -1,0 +1,15 @@
+{
+  "source": "ARCHITECTURE.html",
+  "sha256": "b5042da09ba4e10e0f1b01775e03fd70f5d409373819425c05fc51e0d0e67993",
+  "backup": "retired-architecture.zip",
+  "replacement": ".archify/architecture-wxbot-20261107-201947/wxbot.html",
+  "notes_retained": 33,
+  "status": "removed-and-verified",
+  "checks": [
+    "old root file absent",
+    "all 33 notes retained and associated with new diagram nodes",
+    "2073 local links verified",
+    "release regression passed",
+    "release contains canonical Archify HTML and excludes old HTML"
+  ]
+}

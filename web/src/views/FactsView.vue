@@ -20,11 +20,15 @@ const LEGACY_KINDS = {
 
 const data = ref(null)
 const failure = ref('')
+const deletingFact = ref('')
+const deleteError = ref('')
+const deleteNotice = ref('')
 const extract = ref(null)       // 自动提炼状态：开关、上次结果、下次时间
 const extractError = ref('')
 const extractNote = ref('')     // 刚点完「立即提炼」的即时反馈
 const extracting = ref(false)
 const owner = ref(readPreference('factOwner', ''))
+const group = ref(readPreference('factGroup', ''))
 const session = ref('')
 const offset = ref(0)
 let request = 0
@@ -33,7 +37,8 @@ let extractTimers = []
 
 const query = computed(() => String(ctx?.search?.[props.tab] || '').trim())
 const rows = computed(() => data.value?.rows || [])
-const owners = computed(() => data.value?.owners || [])
+const owners = computed(() => (data.value?.owners || []).filter(item => !item.group_only))
+const groups = computed(() => data.value?.groups || [])
 const current = computed(() => owners.value.find(item => item.owner === owner.value) || null)
 // 分类名来自模板：模板新增一类，这里不用改代码就会出现对应文案。
 const kinds = computed(() => new Map((data.value?.kinds || []).map(item => [item.key, item.label])))
@@ -49,7 +54,7 @@ const emptyText = computed(() => (recorded.value
   : '还没有提炼过任何事实'))
 const emptyHint = computed(() => (recorded.value
   ? ''
-  : '新对话进来后，自动提炼会在消息间隙把原文整理成事实；本页只读。'))
+  : '新对话进来后，自动提炼会在消息间隙把原文整理成事实。'))
 const extractReady = computed(() => Boolean(extract.value && extract.value.available !== false))
 const extractWarn = computed(() => Boolean(extractError.value)
   || extract.value?.available === false
@@ -76,8 +81,9 @@ const extractLine = computed(() => {
     + ' 条；下次约 ' + clock(info.next_run_at)
 })
 
-watch(owner, value => {
-  savePreference('factOwner', value)
+watch([owner, group], ([person, chat]) => {
+  savePreference('factOwner', person)
+  savePreference('factGroup', chat)
   session.value = ''          // 换人不继承上一个人的会话筛选
   offset.value = 0
   load()
@@ -96,13 +102,18 @@ onUnmounted(() => {
 async function load() {
   const mine = ++request
   const params = new URLSearchParams({ limit: String(PAGE_SIZE), offset: String(offset.value) })
-  if (owner.value) params.set('owner', owner.value)
-  if (activeSession.value) params.set('contact', activeSession.value.contact)
+  if (group.value) params.set('group', group.value)
+  else {
+    if (owner.value) params.set('owner', owner.value)
+    if (activeSession.value) params.set('contact', activeSession.value.contact)
+  }
   if (query.value) params.set('q', query.value)
   try {
     const payload = await apiGet('/api/knowledge/facts?' + params.toString())
     if (mine !== request) return
     data.value = payload
+    if (group.value && !(payload.groups || []).some(item => item.name === group.value)) group.value = ''
+    if (owner.value && (payload.owners || []).some(item => item.owner === owner.value && item.group_only)) owner.value = ''
     failure.value = ''
     if (ctx?.markRefreshed) ctx.markRefreshed()
   } catch (err) {
@@ -141,6 +152,31 @@ async function runExtract() {
   }
 }
 
+async function deleteFact(row) {
+  if (!row.fact_id || deletingFact.value) return
+  const preview = String(row.fact_value || row.fact_key).replace(/\s+/g, ' ').slice(0, 100)
+  if (!window.confirm('删除这条事实？\n' + preview + '\n删除后无法撤销，聊天原文仍会保留。')) return
+  deletingFact.value = row.fact_id
+  deleteError.value = ''
+  deleteNotice.value = ''
+  try {
+    const result = await apiPost('/api/knowledge/facts/delete', {
+      owner: row.owner, fact_id: row.fact_id, acknowledge: true
+    }, 'X-Wxbot-Knowledge-Action')
+    deleteNotice.value = result.indexes_updated === false ? '事实已删除，索引暂未更新。' : '已删除这条事实。'
+    await load()
+    if (data.value && !rows.value.length && offset.value > 0) {
+      offset.value = Math.max(0, Math.floor((total.value - 1) / PAGE_SIZE) * PAGE_SIZE)
+      await load()
+    }
+  } catch (err) {
+    deleteError.value = err.message || '删除失败，请刷新后重试。'
+    if (err.status === 404) await load()
+  } finally {
+    deletingFact.value = ''
+  }
+}
+
 // 后台一轮要几十秒：先刷状态，再刷表格；反馈文案最后自己消失。
 function scheduleExtractRefresh() {
   clearExtractTimers()
@@ -166,8 +202,13 @@ function clock(value) {
 }
 
 function selectOwner(value) {
-  if (owner.value === value) return
+  group.value = ''
   owner.value = value
+}
+
+function selectGroup(value) {
+  owner.value = ''
+  group.value = value
 }
 
 function clearOwner() {
@@ -220,10 +261,17 @@ function percent(value) {
 
 <template>
   <aside id="list">
-    <div class="user" :class="{ sel: !owner }" role="button" tabindex="0" @click="clearOwner"
+    <div class="user" :class="{ sel: !owner && !group }" role="button" tabindex="0" @click="clearOwner"
          @keydown.enter.prevent="clearOwner" @keydown.space.prevent="clearOwner">
       <div class="nm">全部知识</div>
       <div class="st">按提炼时间倒序查看所有人的事实</div>
+    </div>
+    <div v-for="item in groups" :key="'fact-group-' + item.name" class="user"
+         :class="{ sel: group === item.name }" role="button" tabindex="0" :aria-pressed="group === item.name"
+         @click="selectGroup(item.name)" @keydown.enter.prevent="selectGroup(item.name)"
+         @keydown.space.prevent="selectGroup(item.name)">
+      <div class="nm">{{ item.name }}</div>
+      <div class="st">群聊，{{ item.facts }} 条事实，{{ item.episodes }} 条原文</div>
     </div>
     <div
       v-for="item in owners"
@@ -239,12 +287,12 @@ function percent(value) {
       <div class="nm">{{ item.name }}</div>
       <div class="st">{{ sessionSummary(item) }}，{{ item.facts }} 条事实，{{ item.episodes }} 条原文</div>
     </div>
-    <div v-if="data && !owners.length" class="st">还没有可筛选的联系人</div>
+    <div v-if="data && !owners.length && !groups.length" class="st">还没有可筛选的联系人或群聊</div>
   </aside>
 
   <section id="pane">
     <div class="head">
-      <h2>知识库 · {{ current ? current.name : '全部知识' }}</h2>
+      <h2>知识库 · {{ group || current?.name || '全部知识' }}</h2>
       <div v-if="data" class="monitor-grid">
         <span class="chip">共 <b>{{ total }}</b> 条</span>
         <span class="chip">本页 <b>{{ rows.length }}</b> 条</span>
@@ -264,12 +312,14 @@ function percent(value) {
       <div v-if="extract || extractError" class="extract-bar">
         <div class="note" :class="{ warn: extractWarn }">{{ extractLine }}</div>
         <button v-if="extractReady" type="button" :disabled="extracting" @click="runExtract">
-          {{ extracting ? '正在提炼…' : '立即提炼' }}
+          {{ extracting ? '正在提炼…' : group ? '立即提炼全部' : '立即提炼' }}
         </button>
       </div>
       <div class="monitor-note">
-        从对话原文里提炼的长期事实，只读留存；新的对话进来后由自动提炼整理。
+        从对话原文里提炼的长期事实。可逐条删除，聊天原文仍会保留。
       </div>
+      <div v-if="deleteNotice" class="monitor-note" role="status">{{ deleteNotice }}</div>
+      <div v-if="deleteError" class="monitor-note warn" role="alert">{{ deleteError }}</div>
       <div v-if="failure" class="monitor-note warn">{{ failure }}</div>
     </div>
 
@@ -284,12 +334,15 @@ function percent(value) {
       <div v-else class="monitor-table-wrap">
         <table class="monitor-table kb-table fact-table">
           <thead>
-            <tr><th>时间</th><th>联系人</th><th>类型</th><th>事实</th><th>原话</th><th>置信</th></tr>
+            <tr><th>时间</th><th>来源</th><th>类型</th><th>事实</th><th>原话</th><th>置信</th><th>操作</th></tr>
           </thead>
           <tbody>
             <tr v-for="(row, index) in rows" :key="'fact-row-' + index">
               <td class="kb-when">{{ fullTime(row.created) }}</td>
-              <td class="kb-who">{{ row.contact }}</td>
+              <td class="kb-source">
+                {{ row.source_name || row.contact }}
+                <div v-if="row.source_group" class="fact-key">群聊 {{ row.source_group }}</div>
+              </td>
               <td class="kb-who"><span class="sbadge sb-ok">{{ kindOf(row) }}</span></td>
               <td class="kb-text">
                 <div v-if="row.fact_key" class="fact-key">{{ row.fact_key }}</div>
@@ -300,6 +353,12 @@ function percent(value) {
                 <span v-else class="kb-gap">没有引用原话</span>
               </td>
               <td class="kb-when kb-conf">{{ percent(row.confidence) }}</td>
+              <td>
+                <button v-if="row.fact_id" class="fact-delete" type="button" :disabled="Boolean(deletingFact)"
+                        :aria-label="'删除事实：' + (row.fact_key || row.fact_value)" @click="deleteFact(row)">
+                  {{ deletingFact === row.fact_id ? '删除中…' : '删除' }}
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>

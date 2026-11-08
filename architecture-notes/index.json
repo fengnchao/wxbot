@@ -1,0 +1,917 @@
+{
+  "version": 1,
+  "date": "2026-11-07",
+  "entry": "wxbot.md",
+  "nodes": [
+    {
+      "key": "business-storage",
+      "title": "业务存储",
+      "file": "business-storage.md",
+      "diagram_nodes": [
+        "business"
+      ]
+    },
+    {
+      "key": "butler",
+      "title": "Butler",
+      "file": "butler.md",
+      "diagram_nodes": [
+        "butler"
+      ]
+    },
+    {
+      "key": "butler-functions",
+      "title": "Butler 功能",
+      "file": "butler-functions.md",
+      "diagram_nodes": [
+        "butler"
+      ]
+    },
+    {
+      "key": "codex",
+      "title": "Codex",
+      "file": "codex.md",
+      "diagram_nodes": [
+        "backends"
+      ]
+    },
+    {
+      "key": "configuration",
+      "title": "配置管理",
+      "file": "configuration.md",
+      "diagram_nodes": [
+        "config"
+      ]
+    },
+    {
+      "key": "conversation-extraction",
+      "title": "聊天记录提炼",
+      "file": "conversation-extraction.md",
+      "diagram_nodes": [
+        "vault"
+      ]
+    },
+    {
+      "key": "dashboard",
+      "title": "管理台",
+      "file": "dashboard.md",
+      "diagram_nodes": [
+        "web",
+        "dashboard"
+      ]
+    },
+    {
+      "key": "delivery-emoji",
+      "title": "表情处理器",
+      "file": "delivery-emoji.md",
+      "diagram_nodes": [
+        "wxui"
+      ]
+    },
+    {
+      "key": "delivery-image",
+      "title": "图片处理器",
+      "file": "delivery-image.md",
+      "diagram_nodes": [
+        "wxui"
+      ]
+    },
+    {
+      "key": "delivery-pump",
+      "title": "统一发件调度",
+      "file": "delivery-pump.md",
+      "diagram_nodes": [
+        "wxui"
+      ]
+    },
+    {
+      "key": "delivery-text",
+      "title": "文字处理器",
+      "file": "delivery-text.md",
+      "diagram_nodes": [
+        "wxui"
+      ]
+    },
+    {
+      "key": "delivery-voice",
+      "title": "语音处理器",
+      "file": "delivery-voice.md",
+      "diagram_nodes": [
+        "wxui"
+      ]
+    },
+    {
+      "key": "douyin",
+      "title": "刷抖音",
+      "file": "douyin.md",
+      "diagram_nodes": [
+        "butler"
+      ]
+    },
+    {
+      "key": "identity-tools",
+      "title": "联系人身份与业务工具",
+      "file": "identity-tools.md",
+      "diagram_nodes": [
+        "authority"
+      ]
+    },
+    {
+      "key": "inbox",
+      "title": "收件队列",
+      "file": "inbox.md",
+      "diagram_nodes": [
+        "queue"
+      ]
+    },
+    {
+      "key": "inbox-file",
+      "title": "文件队列",
+      "file": "inbox-file.md",
+      "diagram_nodes": [
+        "queue"
+      ]
+    },
+    {
+      "key": "inbox-image",
+      "title": "图片队列",
+      "file": "inbox-image.md",
+      "diagram_nodes": [
+        "queue"
+      ]
+    },
+    {
+      "key": "inbox-link",
+      "title": "链接队列",
+      "file": "inbox-link.md",
+      "diagram_nodes": [
+        "queue"
+      ]
+    },
+    {
+      "key": "inbox-text",
+      "title": "文字队列",
+      "file": "inbox-text.md",
+      "diagram_nodes": [
+        "queue"
+      ]
+    },
+    {
+      "key": "index-tts",
+      "title": "IndexTTS",
+      "file": "index-tts.md",
+      "diagram_nodes": [
+        "authority"
+      ]
+    },
+    {
+      "key": "knowledge-vault",
+      "title": "用户知识 vault",
+      "file": "knowledge-vault.md",
+      "diagram_nodes": [
+        "vault"
+      ]
+    },
+    {
+      "key": "model-backends",
+      "title": "可切换模型后端",
+      "file": "model-backends.md",
+      "diagram_nodes": [
+        "backends"
+      ]
+    },
+    {
+      "key": "outbox-file",
+      "title": "文件发件队列",
+      "file": "outbox-file.md",
+      "diagram_nodes": [
+        "queue"
+      ]
+    },
+    {
+      "key": "outbox-text",
+      "title": "文字发件队列",
+      "file": "outbox-text.md",
+      "diagram_nodes": [
+        "queue"
+      ]
+    },
+    {
+      "key": "outbox-voice",
+      "title": "语音发件队列",
+      "file": "outbox-voice.md",
+      "diagram_nodes": [
+        "queue"
+      ]
+    },
+    {
+      "key": "queue-storage",
+      "title": "收发队列存储",
+      "file": "queue-storage.md",
+      "diagram_nodes": [
+        "queue"
+      ]
+    },
+    {
+      "key": "queue-worker",
+      "title": "队列工作器",
+      "file": "queue-worker.md",
+      "diagram_nodes": [
+        "worker"
+      ]
+    },
+    {
+      "key": "reminders",
+      "title": "定时提醒",
+      "file": "reminders.md",
+      "diagram_nodes": [
+        "butler"
+      ]
+    },
+    {
+      "key": "resident",
+      "title": "冯草草",
+      "file": "resident.md",
+      "diagram_nodes": [
+        "butler"
+      ]
+    },
+    {
+      "key": "resident-skills",
+      "title": "Skill",
+      "file": "resident-skills.md",
+      "diagram_nodes": [
+        "authority"
+      ]
+    },
+    {
+      "key": "wechat-client",
+      "title": "微信客户端",
+      "file": "wechat-client.md",
+      "diagram_nodes": [
+        "wechat"
+      ]
+    },
+    {
+      "key": "wechat-ui",
+      "title": "界面线程",
+      "file": "wechat-ui.md",
+      "diagram_nodes": [
+        "wxui"
+      ]
+    },
+    {
+      "key": "wxbot",
+      "title": "wxbot 进程",
+      "file": "wxbot.md",
+      "diagram_nodes": [
+        "wxui",
+        "queue",
+        "worker"
+      ]
+    }
+  ],
+  "legacy_sources": {
+    "README.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-444746a8f4ae45"
+    },
+    "docs/superpowers/plans/2026-11-05-resident-xiaochao.md": {
+      "file": "resident.md",
+      "anchor": "doc-68e9f87f4924a8"
+    },
+    "docs/superpowers/plans/2026-11-07-delivery-handlers-verification.md": {
+      "file": "delivery-pump.md",
+      "anchor": "doc-a85671cf7b8516"
+    },
+    "docs/superpowers/plans/2026-11-07-delivery-handlers.md": {
+      "file": "delivery-pump.md",
+      "anchor": "doc-7281dbe7fcbbd1"
+    },
+    "docs/superpowers/plans/2026-11-07-stale-regression-tests-verification.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-b664511b293d11"
+    },
+    "docs/superpowers/specs/2026-11-07-delivery-handlers-design.md": {
+      "file": "delivery-pump.md",
+      "anchor": "doc-4382681f9a2f3e"
+    },
+    "llm wiki/wxbot/apis/butler-handle-stream.md": {
+      "file": "butler.md",
+      "anchor": "doc-5135f5350303bc"
+    },
+    "llm wiki/wxbot/apis/butler-handle.md": {
+      "file": "butler.md",
+      "anchor": "doc-4f70359e7ae440"
+    },
+    "llm wiki/wxbot/apis/dashboard-contact-policy.md": {
+      "file": "identity-tools.md",
+      "anchor": "doc-fdc456753803cc"
+    },
+    "llm wiki/wxbot/apis/dashboard-knowledge.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-17461d21600be6"
+    },
+    "llm wiki/wxbot/apis/dashboard-queue.md": {
+      "file": "queue-storage.md",
+      "anchor": "doc-0b08697b4d4a4f"
+    },
+    "llm wiki/wxbot/apis/dashboard-resident-diary.md": {
+      "file": "resident.md",
+      "anchor": "doc-38ef2f5a72288d"
+    },
+    "llm wiki/wxbot/apis/dashboard-voice-assets.md": {
+      "file": "delivery-voice.md",
+      "anchor": "doc-d265cc1e47a521"
+    },
+    "llm wiki/wxbot/apis/dashboard-workflow.md": {
+      "file": "dashboard.md",
+      "anchor": "doc-0d1f17e6436714"
+    },
+    "llm wiki/wxbot/apis/index-tts.md": {
+      "file": "index-tts.md",
+      "anchor": "doc-fdc576d6ee7fbd"
+    },
+    "llm wiki/wxbot/changelog.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-2359f8bc64950b"
+    },
+    "llm wiki/wxbot/concepts/architecture-node-notes.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-6372a6d15b637a"
+    },
+    "llm wiki/wxbot/concepts/automatic-voice-reply.md": {
+      "file": "delivery-voice.md",
+      "anchor": "doc-070a8b5f81ad00"
+    },
+    "llm wiki/wxbot/concepts/capture-viewport.md": {
+      "file": "wechat-ui.md",
+      "anchor": "doc-62362beb7f9b66"
+    },
+    "llm wiki/wxbot/concepts/delivery-state.md": {
+      "file": "delivery-pump.md",
+      "anchor": "doc-1e3fe9ed2e96f6"
+    },
+    "llm wiki/wxbot/concepts/development-baseline.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-f0b302749d6eb3"
+    },
+    "llm wiki/wxbot/concepts/group-identity-evidence.md": {
+      "file": "identity-tools.md",
+      "anchor": "doc-82631ed77ef07a"
+    },
+    "llm wiki/wxbot/concepts/identity-authority.md": {
+      "file": "identity-tools.md",
+      "anchor": "doc-8dc39a23945b37"
+    },
+    "llm wiki/wxbot/concepts/message-pipeline.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-6cbfc97cc45d15"
+    },
+    "llm wiki/wxbot/concepts/model-error-contract.md": {
+      "file": "model-backends.md",
+      "anchor": "doc-77e385a27b73a6"
+    },
+    "llm wiki/wxbot/concepts/unread-capture-retry.md": {
+      "file": "wechat-ui.md",
+      "anchor": "doc-8bf7e570157f43"
+    },
+    "llm wiki/wxbot/concepts/voice-asset-binding.md": {
+      "file": "delivery-voice.md",
+      "anchor": "doc-7159ca2e34cdf0"
+    },
+    "llm wiki/wxbot/coverage.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-3d945de7c38143"
+    },
+    "llm wiki/wxbot/design.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-ba7d4d46f1c73f"
+    },
+    "llm wiki/wxbot/guide.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-9cf47fd939c877"
+    },
+    "llm wiki/wxbot/impacts/2026-10-31-group-identity-nickname.md": {
+      "file": "identity-tools.md",
+      "anchor": "doc-fbe924ce9641ad"
+    },
+    "llm wiki/wxbot/impacts/2026-10-31-knowledge-graph-bootstrap.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-0c3db1f926d782"
+    },
+    "llm wiki/wxbot/impacts/2026-10-31-switchable-models.md": {
+      "file": "model-backends.md",
+      "anchor": "doc-7e58558178e006"
+    },
+    "llm wiki/wxbot/impacts/2026-11-01-knowledge-atlas-index.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-528d62fcf07d59"
+    },
+    "llm wiki/wxbot/impacts/2026-11-01-knowledge-vault-graph.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-b92e2632af0e9b"
+    },
+    "llm wiki/wxbot/impacts/2026-11-02-knowledge-graph-template.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-f77e7236a67711"
+    },
+    "llm wiki/wxbot/impacts/2026-11-03-development-doc-baseline.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-6981deab6390ae"
+    },
+    "llm wiki/wxbot/impacts/2026-11-04-contact-index-tts.md": {
+      "file": "index-tts.md",
+      "anchor": "doc-f3a570551cedc3"
+    },
+    "llm wiki/wxbot/impacts/2026-11-04-index-tts-skill.md": {
+      "file": "index-tts.md",
+      "anchor": "doc-f72ff421fb5c31"
+    },
+    "llm wiki/wxbot/impacts/2026-11-04-root-workspace-unification.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-1002b3869f9b4f"
+    },
+    "llm wiki/wxbot/impacts/2026-11-04-webui-preset-binding.md": {
+      "file": "index-tts.md",
+      "anchor": "doc-b47165c49a3a7a"
+    },
+    "llm wiki/wxbot/impacts/2026-11-05-contact-enrollment-and-tts-ui.md": {
+      "file": "identity-tools.md",
+      "anchor": "doc-98f596dd5f8d22"
+    },
+    "llm wiki/wxbot/impacts/2026-11-05-contact-policy-save.md": {
+      "file": "identity-tools.md",
+      "anchor": "doc-62206a40735cb5"
+    },
+    "llm wiki/wxbot/impacts/2026-11-05-delete-knowledge-fact.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-2d4c142263c11b"
+    },
+    "llm wiki/wxbot/impacts/2026-11-05-enable-group-binding.md": {
+      "file": "identity-tools.md",
+      "anchor": "doc-b934820de6d35e"
+    },
+    "llm wiki/wxbot/impacts/2026-11-05-group-and-auto-voice.md": {
+      "file": "delivery-voice.md",
+      "anchor": "doc-b194f18a38699d"
+    },
+    "llm wiki/wxbot/impacts/2026-11-05-knowledge-group-sources.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-53fb2c0d450b09"
+    },
+    "llm wiki/wxbot/impacts/2026-11-05-resident-diary-web.md": {
+      "file": "resident.md",
+      "anchor": "doc-5b4e90fba08643"
+    },
+    "llm wiki/wxbot/impacts/2026-11-05-resident-xiaochao.md": {
+      "file": "resident.md",
+      "anchor": "doc-6323d188bd37df"
+    },
+    "llm wiki/wxbot/impacts/2026-11-06-resident-visible-edge.md": {
+      "file": "resident.md",
+      "anchor": "doc-6cee41da4b9fa7"
+    },
+    "llm wiki/wxbot/impacts/2026-11-07-delivery-handlers.md": {
+      "file": "delivery-pump.md",
+      "anchor": "doc-26369af37d5fda"
+    },
+    "llm wiki/wxbot/impacts/2026-11-07-stale-regression-tests.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-a371c9f059b5c8"
+    },
+    "llm wiki/wxbot/index.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-6e5a10e80a7955"
+    },
+    "llm wiki/wxbot/model-switch-verification.md": {
+      "file": "model-backends.md",
+      "anchor": "doc-c5a09700a83870"
+    },
+    "llm wiki/wxbot/modules/butler.md": {
+      "file": "butler.md",
+      "anchor": "doc-38393df7a7b4da"
+    },
+    "llm wiki/wxbot/modules/common.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-dd2bd595b3d8f8"
+    },
+    "llm wiki/wxbot/modules/dashboard.md": {
+      "file": "dashboard.md",
+      "anchor": "doc-bb47c9474691fe"
+    },
+    "llm wiki/wxbot/modules/delivery.md": {
+      "file": "butler-functions.md",
+      "anchor": "doc-f61f55fe09c5e9"
+    },
+    "llm wiki/wxbot/modules/identity.md": {
+      "file": "identity-tools.md",
+      "anchor": "doc-5e308350a1ba25"
+    },
+    "llm wiki/wxbot/modules/models.md": {
+      "file": "model-backends.md",
+      "anchor": "doc-69928b2a06b8f9"
+    },
+    "llm wiki/wxbot/modules/plugin.md": {
+      "file": "resident-skills.md",
+      "anchor": "doc-709338d3e083eb"
+    },
+    "llm wiki/wxbot/modules/runtime.md": {
+      "file": "butler-functions.md",
+      "anchor": "doc-241e7c8bdd1c05"
+    },
+    "llm wiki/wxbot/modules/telegram.md": {
+      "file": "butler-functions.md",
+      "anchor": "doc-8b0e2206d40805"
+    },
+    "llm wiki/wxbot/modules/web.md": {
+      "file": "dashboard.md",
+      "anchor": "doc-aeec90dfe23cd3"
+    },
+    "llm wiki/wxbot/modules/wiki.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-ed5d88ddcd1b47"
+    },
+    "llm wiki/wxbot/modules/wxbot.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-8508032cbe5131"
+    },
+    "llm wiki/wxbot/plan.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-f68e362b618ab8"
+    },
+    "llm wiki/wxbot/raw/changes/2026-10-31-group-identity-nickname.md": {
+      "file": "identity-tools.md",
+      "anchor": "doc-f39c15a6fe0885"
+    },
+    "llm wiki/wxbot/raw/changes/2026-10-31-identity-placeholder-names.md": {
+      "file": "identity-tools.md",
+      "anchor": "doc-f3232d3cef51df"
+    },
+    "llm wiki/wxbot/raw/changes/2026-10-31-knowledge-graph-bootstrap.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-f0c0814f02ebe4"
+    },
+    "llm wiki/wxbot/raw/changes/2026-10-31-model-access-switch-core-emit.md": {
+      "file": "model-backends.md",
+      "anchor": "doc-6510cadeadeb37"
+    },
+    "llm wiki/wxbot/raw/changes/2026-10-31-model-access-switch.md": {
+      "file": "model-backends.md",
+      "anchor": "doc-954a7ea1e7487b"
+    },
+    "llm wiki/wxbot/raw/changes/2026-10-31-queue-batches-format.md": {
+      "file": "queue-worker.md",
+      "anchor": "doc-33b232c2a9cf1f"
+    },
+    "llm wiki/wxbot/raw/changes/2026-10-31-switchable-models.md": {
+      "file": "model-backends.md",
+      "anchor": "doc-85f41883967373"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-citation-sweep.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-4d0e5fc0ed39d9"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-atlas-index.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-69eb9deaf900e3"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-atomic-retry.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-8614fbc4e2f39c"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-auto.md": {
+      "file": "conversation-extraction.md",
+      "anchor": "doc-4f707cfb04b69a"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-episodes.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-697690fcf2df43"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-migrate-source-recheck.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-97b2533a5ffcf7"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-06dbdfdc7302a4"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-sessions.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-ba214c308af8ff"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-sharding.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-c0bff474452694"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-vault-alignment.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-3f269e1ad8b05e"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-vault-graph.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-13c52ea2bba75a"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-mention-fallback-unread-retry.md": {
+      "file": "wechat-ui.md",
+      "anchor": "doc-a5d65ee79e182a"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-model-error-contract.md": {
+      "file": "model-backends.md",
+      "anchor": "doc-60c1969bb5f6f6"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-model-request-error-visibility.md": {
+      "file": "model-backends.md",
+      "anchor": "doc-507fd880895f6c"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-01-readme-unread-note.md": {
+      "file": "wechat-ui.md",
+      "anchor": "doc-0dfa536a596503"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-02-details-whitelist-reverify.md": {
+      "file": "delivery-pump.md",
+      "anchor": "doc-ae7b71a2b37518"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-02-knowledge-graph-template.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-a582ec7ef75fe6"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-02-mention-picker-gating-residue.md": {
+      "file": "wechat-ui.md",
+      "anchor": "doc-980ea358badbe6"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-02-mention-residue-reverify.md": {
+      "file": "wechat-ui.md",
+      "anchor": "doc-989f2003dec3a1"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-02-ui-snapshot-ref-contract.md": {
+      "file": "delivery-pump.md",
+      "anchor": "doc-5688ce5c14b7b6"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-02-web-global-search-clear.md": {
+      "file": "dashboard.md",
+      "anchor": "doc-5c4b4348a3410a"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-03-development-doc-baseline.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-f9d149494a6267"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-001-anchor-refresh.md": {
+      "file": "delivery-voice.md",
+      "anchor": "doc-d313df34d8cc8b"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-001-virtual-mic.md": {
+      "file": "delivery-voice.md",
+      "anchor": "doc-3b7c8dcbc01ec2"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-002-indextts.md": {
+      "file": "index-tts.md",
+      "anchor": "doc-56093eafa42389"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-003-model-worker-drift.md": {
+      "file": "delivery-voice.md",
+      "anchor": "doc-2f6dcdc8d592e1"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-003-voice-assets.md": {
+      "file": "delivery-voice.md",
+      "anchor": "doc-a855357d83ac5d"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-03-indextts-enqueue-media.md": {
+      "file": "index-tts.md",
+      "anchor": "doc-29fc2d893f2889"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-03-voice-assets-polish.md": {
+      "file": "delivery-voice.md",
+      "anchor": "doc-5f445f7abfb4d8"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-04-contact-index-tts.md": {
+      "file": "index-tts.md",
+      "anchor": "doc-cdb6f65d88730c"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-04-index-tts-skill.md": {
+      "file": "index-tts.md",
+      "anchor": "doc-a62e0514c7634a"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-04-root-workspace-unification.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-b44eb256c557c6"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-04-webui-preset-binding.md": {
+      "file": "index-tts.md",
+      "anchor": "doc-14cc58d084986d"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-04-webui-preset-graph-note.md": {
+      "file": "index-tts.md",
+      "anchor": "doc-a877b64be56f43"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-05-contact-enrollment-and-tts-ui.md": {
+      "file": "identity-tools.md",
+      "anchor": "doc-f267229129f9a4"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-05-contact-policy-save.md": {
+      "file": "identity-tools.md",
+      "anchor": "doc-ef8af1106d1713"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-05-delete-knowledge-fact.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-dde024d7417249"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-05-enable-group-binding.md": {
+      "file": "identity-tools.md",
+      "anchor": "doc-6f2fac571f1610"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-05-group-auto-voice.md": {
+      "file": "delivery-voice.md",
+      "anchor": "doc-264d648c9acbbe"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-05-knowledge-group-sources.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-867b5eee05957a"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-05-resident-diary-web.md": {
+      "file": "resident.md",
+      "anchor": "doc-f24e68fc0316c1"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-05-resident-xiaochao-readme.md": {
+      "file": "resident.md",
+      "anchor": "doc-3b5de0b90aca6b"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-05-resident-xiaochao.md": {
+      "file": "resident.md",
+      "anchor": "doc-2d4efb23ee9751"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-06-resident-recommend-navigation.md": {
+      "file": "resident.md",
+      "anchor": "doc-b2141987114c61"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-06-resident-visible-edge.md": {
+      "file": "resident.md",
+      "anchor": "doc-eb3bb4d27e3f68"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-07-archify-node-documents.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-1968450e794d2a"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-07-architecture-diagram-trim.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-7574510a1cf96f"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-07-architecture-node-notes-readme.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-65d1db0ccb5dda"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-07-architecture-node-notes.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-8790acdf96d310"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-07-delivery-handlers.md": {
+      "file": "delivery-pump.md",
+      "anchor": "doc-83d2ae6b4c4ac1"
+    },
+    "llm wiki/wxbot/raw/changes/2026-11-07-stale-regression-tests.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-df3c99eaa835f8"
+    },
+    "llm wiki/wxbot/raw/legacy/CLAUDE-wiki-schema.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-5fd0435fe93ef7"
+    },
+    "llm wiki/wxbot/symbols/butler-handle.md": {
+      "file": "butler.md",
+      "anchor": "doc-eba67ca6f97d80"
+    },
+    "llm wiki/wxbot/symbols/butler-processor.md": {
+      "file": "queue-worker.md",
+      "anchor": "doc-0b0a168dc38d24"
+    },
+    "llm wiki/wxbot/symbols/butler-result.md": {
+      "file": "butler.md",
+      "anchor": "doc-a9181bbf2979fd"
+    },
+    "llm wiki/wxbot/symbols/delivery-handlers.md": {
+      "file": "delivery-pump.md",
+      "anchor": "doc-9ba04de08ae10c"
+    },
+    "llm wiki/wxbot/symbols/delivery-pump.md": {
+      "file": "delivery-pump.md",
+      "anchor": "doc-7ca25975c49fca"
+    },
+    "llm wiki/wxbot/symbols/knowledge-auto.md": {
+      "file": "conversation-extraction.md",
+      "anchor": "doc-8d31785e6eb1e7"
+    },
+    "llm wiki/wxbot/symbols/knowledge-extract.md": {
+      "file": "conversation-extraction.md",
+      "anchor": "doc-7d9303870f5774"
+    },
+    "llm wiki/wxbot/symbols/knowledge-template.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-4656beba355895"
+    },
+    "llm wiki/wxbot/symbols/local-model-backend.md": {
+      "file": "model-backends.md",
+      "anchor": "doc-058aec74f1727e"
+    },
+    "llm wiki/wxbot/symbols/mention-selection.md": {
+      "file": "wechat-ui.md",
+      "anchor": "doc-c251b5ba0c9ae7"
+    },
+    "llm wiki/wxbot/symbols/model-worker.md": {
+      "file": "queue-worker.md",
+      "anchor": "doc-0183b6974519f0"
+    },
+    "llm wiki/wxbot/symbols/queue-finish.md": {
+      "file": "outbox-text.md",
+      "anchor": "doc-b3c365f5c9fdf1"
+    },
+    "llm wiki/wxbot/symbols/queue-store.md": {
+      "file": "queue-storage.md",
+      "anchor": "doc-37f6245b143a25"
+    },
+    "llm wiki/wxbot/symbols/reloadable-backend.md": {
+      "file": "model-backends.md",
+      "anchor": "doc-85aba8d0cc88bd"
+    },
+    "llm wiki/wxbot/symbols/resident-role.md": {
+      "file": "resident.md",
+      "anchor": "doc-81303bd5af31f1"
+    },
+    "llm wiki/wxbot/symbols/voice-asset-store.md": {
+      "file": "delivery-voice.md",
+      "anchor": "doc-a41b10d5400ad9"
+    },
+    "llm wiki/wxbot/tables/kb-episodes.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-84df4a3514bf20"
+    },
+    "llm wiki/wxbot/tables/kb-facts.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-eae62eb158097e"
+    },
+    "llm wiki/wxbot/tables/kb-owners.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-68c7e63f609bfb"
+    },
+    "llm wiki/wxbot/tables/knowledge-vault.md": {
+      "file": "knowledge-vault.md",
+      "anchor": "doc-dc9956670d38fd"
+    },
+    "llm wiki/wxbot/tables/queue-batches.md": {
+      "file": "queue-worker.md",
+      "anchor": "doc-8e6cc338038d9a"
+    },
+    "llm wiki/wxbot/tables/queue-inbox.md": {
+      "file": "inbox.md",
+      "anchor": "doc-6529d9966e604a"
+    },
+    "llm wiki/wxbot/tables/queue-outbox.md": {
+      "file": "queue-storage.md",
+      "anchor": "doc-6dd6d137f99cdf"
+    },
+    "llm wiki/wxbot/templates/api.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-9be513138ee5dc"
+    },
+    "llm wiki/wxbot/templates/change.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-876e1a0156045c"
+    },
+    "llm wiki/wxbot/templates/concept.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-66a8899f322d51"
+    },
+    "llm wiki/wxbot/templates/impact.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-2595bebb318aaa"
+    },
+    "llm wiki/wxbot/templates/module.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-6a76d4ecff85eb"
+    },
+    "llm wiki/wxbot/templates/symbol.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-b7b71e230e267e"
+    },
+    "llm wiki/wxbot/templates/table.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-b29fabcf0318a0"
+    },
+    "llm wiki/wxbot/verification.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-951820f4d5f621"
+    },
+    "tools/README.md": {
+      "file": "wxbot.md",
+      "anchor": "doc-aa2bc4bbdc2544"
+    },
+    "tools/indextts-ops.md": {
+      "file": "index-tts.md",
+      "anchor": "doc-5606dd82f2b492"
+    },
+    "tools/voice-ptt-ops.md": {
+      "file": "delivery-voice.md",
+      "anchor": "doc-153f05bdd2f77f"
+    }
+  },
+  "diagram": ".archify/architecture-wxbot-20261107-201947/wxbot.html"
+}

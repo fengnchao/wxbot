@@ -1,0 +1,288 @@
+<!-- wxbot-node-notes:start -->
+<style id="wxbot-node-notes-style">
+    .note-dialog {
+      box-sizing: border-box;
+      position: fixed;
+      inset: 0;
+      margin: auto;
+      width: min(760px, calc(100% - 32px));
+      max-height: calc(100% - 32px);
+      padding: 24px;
+      border: 1px solid var(--toolbar-border);
+      border-radius: 12px;
+      background: var(--mask);
+      color: var(--text);
+      font: 14px/1.5 "Segoe UI", "Microsoft YaHei", sans-serif;
+    }
+    .note-dialog::backdrop { background: rgb(5 10 16 / 76%); }
+    .note-dialog h2 { margin: 0; font-size: 24px; }
+    .note-path { margin: 4px 0 0; color: var(--text-muted); overflow-wrap: anywhere; }
+    .note-status { margin: 14px 0; min-height: 1.5em; color: var(--text-muted); }
+    .note-status[data-error] { color: var(--security-stroke); }
+    .note-source {
+      box-sizing: border-box;
+      width: 100%;
+      min-height: min(18rem, 40vh);
+      max-height: 52vh;
+      margin: 0;
+      padding: 14px;
+      border: 1px solid var(--toolbar-border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.6 Consolas, "Microsoft YaHei", monospace;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      overflow: auto;
+    }
+    textarea.note-source { resize: vertical; }
+    .note-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .note-actions button {
+      padding: 7px 13px;
+      border: 1px solid var(--toolbar-border);
+      border-radius: 6px;
+      background: var(--toolbar-menu-bg);
+      color: var(--text);
+      font: inherit;
+      cursor: pointer;
+    }
+    .note-actions button[data-primary] { background: var(--backend-fill); border-color: var(--backend-stroke); }
+    .note-actions button:hover:enabled { border-color: var(--frontend-stroke); }
+    .note-actions button:disabled { opacity: .55; cursor: default; }
+    .note-dialog :focus-visible { outline: 2px solid var(--frontend-stroke); outline-offset: 2px; }
+    #btn-node-note[hidden] { display: none; }
+    @media print { .note-dialog { display: none !important; } }
+</style>
+  <dialog class="note-dialog" id="node-note" aria-labelledby="note-title">
+    <h2 id="note-title"></h2>
+    <p class="note-path"><code id="note-path"></code></p>
+    <p class="note-status" id="note-status" role="status"></p>
+    <pre class="note-source" id="note-preview" tabindex="0" aria-label="Markdown 文件内容" hidden></pre>
+    <textarea class="note-source" id="note-editor" aria-label="编辑 Markdown 源文" spellcheck="false" hidden></textarea>
+    <div class="note-actions">
+      <button id="note-connect" type="button" data-primary>选择项目目录</button>
+      <button id="note-edit" type="button" data-primary hidden>编辑</button>
+      <button id="note-save" type="button" data-primary hidden>保存到文件</button>
+      <button id="note-cancel" type="button" hidden>取消编辑</button>
+      <button id="note-close" type="button" autofocus>关闭</button>
+    </div>
+  </dialog>
+<script type="module" id="wxbot-node-notes-runtime">
+    const chip = document.querySelector("#focus-chip");
+    const opener = document.querySelector("#btn-node-note");
+    const nodeNotes = Object.freeze({
+      wechat: "wechat-client", wxui: "wechat-ui", queue: "queue-storage",
+      worker: "queue-worker", butler: "butler", backends: "model-backends",
+      authority: "identity-tools", business: "business-storage", vault: "knowledge-vault",
+      web: "dashboard", dashboard: "dashboard", config: "configuration",
+    });
+    const dialog = document.querySelector("#node-note");
+    const noteTitle = document.querySelector("#note-title");
+    const notePath = document.querySelector("#note-path");
+    const status = document.querySelector("#note-status");
+    const preview = document.querySelector("#note-preview");
+    const editor = document.querySelector("#note-editor");
+    const connect = document.querySelector("#note-connect");
+    const edit = document.querySelector("#note-edit");
+    const save = document.querySelector("#note-save");
+    const cancel = document.querySelector("#note-cancel");
+    const close = document.querySelector("#note-close");
+    const notesFolder = "architecture-notes";
+    const projectDiagram = [".archify", "architecture-wxbot-20261107-201947", "wxbot.html"];
+    const supportsPicker = typeof window.showDirectoryPicker === "function";
+    const folderPrompt = "请选择项目根目录，程序会核对当前 Archify 架构图。首次保存时会创建节点文件。";
+    const conflictMessage = "磁盘上的文件已被修改或删除。请复制草稿，再关闭并重新打开这个节点。";
+    let projectDirectory;
+    let active;
+    let savedText = null;
+    let initialDraft = "";
+    let ready = false;
+    let editing = false;
+    let busy = false;
+
+    function setStatus(message, isError = false) {
+      status.textContent = message;
+      status.toggleAttribute("data-error", isError);
+    }
+
+    function updateControls() {
+      connect.hidden = ready || !supportsPicker;
+      edit.hidden = !ready || editing;
+      preview.hidden = !ready || editing;
+      editor.hidden = save.hidden = cancel.hidden = !editing;
+      connect.disabled = edit.disabled = save.disabled = cancel.disabled = close.disabled = busy;
+      editor.readOnly = busy;
+    }
+
+    async function runFileOperation(progress, failure, operation) {
+      if (busy) return;
+      busy = true;
+      setStatus(progress);
+      updateControls();
+      try {
+        await operation();
+      } catch (error) {
+        setStatus(failure + " " + error.message, true);
+      } finally {
+        busy = false;
+        updateControls();
+      }
+    }
+
+    async function readNote() {
+      try {
+        const directory = await projectDirectory.getDirectoryHandle(notesFolder);
+        const handle = await directory.getFileHandle(active.filename);
+        return await (await handle.getFile()).text();
+      } catch (error) {
+        if (error.name === "NotFoundError") return null;
+        throw error;
+      }
+    }
+
+    function showNote() {
+      preview.textContent = savedText === null
+        ? "还没有节点文件。点击「编辑」开始撰写。"
+        : savedText;
+      ready = true;
+      editing = false;
+      updateControls();
+    }
+
+    async function loadFromDisk() {
+      savedText = await readNote();
+      showNote();
+      setStatus(savedText === null ? "尚未创建文件。" : "");
+    }
+
+    function focusedNode() {
+      const id = Archify.focus.active();
+      if (chip.hidden || typeof id !== "string" || !Object.hasOwn(nodeNotes, id)
+          || Archify.focus.relationship()) return null;
+      return document.getElementById("node-" + id);
+    }
+
+    function syncButton() {
+      const node = focusedNode();
+      if (opener.hidden !== !node) opener.hidden = !node;
+      if (node) {
+        const label = "打开节点文档：" + node.dataset.nodeLabel;
+        if (opener.getAttribute("aria-label") !== label) opener.setAttribute("aria-label", label);
+      }
+    }
+
+    function showNode() {
+      const node = focusedNode();
+      if (dialog.open || !node) return;
+      active = {
+        title: node.dataset.nodeLabel,
+        filename: nodeNotes[node.dataset.nodeId] + ".md",
+        target: opener,
+      };
+      savedText = null;
+      ready = editing = false;
+      editor.value = "";
+      noteTitle.textContent = active.title;
+      notePath.textContent = notesFolder + "/" + active.filename;
+      setStatus(supportsPicker ? folderPrompt : "请在桌面版 Edge 或 Chrome 中打开本页以读写节点文件。", !supportsPicker);
+      updateControls();
+      dialog.showModal();
+      if (projectDirectory) {
+        runFileOperation("正在读取节点文件…", "读取失败。", loadFromDisk);
+      }
+    }
+
+    // Keep the modal within the passport: Archify's capture-phase outside-click
+    // handler then treats all note controls as part of the current node details.
+    chip.append(dialog);
+    opener.addEventListener("click", showNode);
+    dialog.addEventListener("keydown", (event) => event.stopPropagation());
+    new MutationObserver(syncButton).observe(chip, {
+      childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"],
+    });
+    syncButton();
+
+    connect.addEventListener("click", async () => {
+      await runFileOperation("正在连接项目目录…", "连接失败。", async () => {
+        let directory;
+        try {
+          directory = await window.showDirectoryPicker({ id: "wxbot-architecture", mode: "readwrite" });
+        } catch (error) {
+          if (error.name !== "AbortError") throw error;
+          setStatus(folderPrompt);
+          return;
+        }
+        try {
+          let diagramDirectory = directory;
+          for (const name of projectDiagram.slice(0, -1)) {
+            diagramDirectory = await diagramDirectory.getDirectoryHandle(name);
+          }
+          await diagramDirectory.getFileHandle(projectDiagram.at(-1));
+        } catch (error) {
+          if (error.name === "NotFoundError") throw new Error("找不到当前 Archify 架构图，请选择项目根目录。");
+          throw error;
+        }
+        projectDirectory = directory;
+        await loadFromDisk();
+      });
+      if (ready) edit.focus();
+    });
+
+    edit.addEventListener("click", () => {
+      editor.value = savedText ?? ("# " + active.title + "\n\n");
+      initialDraft = editor.value;
+      editing = true;
+      setStatus("编辑 Markdown 源文，保存后写入项目目录。");
+      updateControls();
+      editor.focus();
+    });
+
+    save.addEventListener("click", async () => {
+      const content = savedText?.includes("\r\n") ? editor.value.replaceAll("\n", "\r\n") : editor.value;
+      await runFileOperation("正在保存节点文件…", "保存失败。", async () => {
+        if (await readNote() !== savedText) throw new Error(conflictMessage);
+        const directory = await projectDirectory.getDirectoryHandle(notesFolder, { create: true });
+        const handle = await directory.getFileHandle(active.filename, { create: true });
+        const writer = await handle.createWritable({ mode: "exclusive" });
+        try {
+          if (await (await handle.getFile()).text() !== (savedText ?? "")) throw new Error(conflictMessage);
+          await writer.write(content);
+          await writer.close();
+        } catch (error) {
+          await writer.abort().catch(() => {});
+          throw error;
+        }
+        savedText = content;
+        showNote();
+        setStatus("已保存到文件。");
+      });
+      if (!editing) edit.focus();
+    });
+
+    function hasUnsavedChanges() {
+      return editing && editor.value !== initialDraft;
+    }
+
+    function canDismiss() {
+      return !busy && (!hasUnsavedChanges() || window.confirm("放弃未保存的修改？"));
+    }
+
+    cancel.addEventListener("click", () => {
+      if (!canDismiss()) return;
+      showNote();
+      setStatus(savedText === null ? "尚未创建文件。" : "");
+      edit.focus();
+    });
+    close.addEventListener("click", () => { if (canDismiss()) dialog.close(); });
+    dialog.addEventListener("cancel", (event) => { if (!canDismiss()) event.preventDefault(); });
+    dialog.addEventListener("close", () => {
+      editing = false;
+      active.target.focus({ preventScroll: true });
+    });
+    window.addEventListener("beforeunload", (event) => {
+      if (!hasUnsavedChanges() && !busy) return;
+      event.preventDefault();
+      event.returnValue = "";
+    });
+</script>
+<!-- wxbot-node-notes:end -->

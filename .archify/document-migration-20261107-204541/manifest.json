@@ -1,0 +1,4391 @@
+{
+  "version": 1,
+  "date": "2026-11-07",
+  "repository_root": "D:\\work\\code\\wxbot",
+  "sources": [
+    {
+      "path": "README.md",
+      "sha256": "893c3baf720de6fdb65d3018263e171c1b21b3a33024b258d35e181418be01a2",
+      "bytes": 65607,
+      "parts": [
+        "doc-444746a8f4ae45",
+        "doc-7a2b649bf980a1",
+        "doc-2e0fdb7ecca3dc",
+        "doc-e178651dba2d68",
+        "doc-6b478247a17ac2",
+        "doc-39647c7dcd78d9",
+        "doc-1802b32aa1f822",
+        "doc-59e3b3420d609f",
+        "doc-ec452653482b80",
+        "doc-43f53b95c0c803",
+        "doc-81e20b159a9237",
+        "doc-500bcb6cafa01f",
+        "doc-d1c54564902dd5",
+        "doc-3cc18faa25d1d5",
+        "doc-97a684c459b114",
+        "doc-3e3095a0cf397c",
+        "doc-c2fed6bbc9b2f7",
+        "doc-5838a9ba748b33",
+        "doc-8a288bbf5df118",
+        "doc-26722cd944ac40",
+        "doc-51827c911fad45",
+        "doc-62c4af56a71362",
+        "doc-271abea1efa9ae",
+        "doc-5c0dd8694810ec",
+        "doc-d785adba6e08ef",
+        "doc-6b3ce096bc6d11",
+        "doc-9600492f18d384",
+        "doc-8d1b6a58a9ba38",
+        "doc-f6cee738b73093",
+        "doc-f0447a1ef5f389",
+        "doc-28e203f082f6ba",
+        "doc-ac630fe13429c5",
+        "doc-c12f2710f3c6a2",
+        "doc-adb52ac360f25f",
+        "doc-e6175b44a5c084",
+        "doc-979c90a4e6a946",
+        "doc-de96c7615265db",
+        "doc-037c8e3925abd7",
+        "doc-e225117d9b77d4",
+        "doc-afc7f2edb359cb",
+        "doc-fe89b8634639ba",
+        "doc-f149deca286e0e",
+        "doc-cd58dad2028698",
+        "doc-f544399fcbaca7",
+        "doc-af40558e48160a"
+      ]
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-05-resident-xiaochao.md",
+      "sha256": "9aad12b632949f7731c8d437cd34e31d4359f4bb4f5195ca413f57acacd97b7a",
+      "bytes": 1600,
+      "parts": [
+        "doc-68e9f87f4924a8"
+      ]
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-07-delivery-handlers-verification.md",
+      "sha256": "05571ab8a5e17af1c9fe6b849ac2f9f8f768a03a2837d5a9224487397cf9d9dd",
+      "bytes": 2882,
+      "parts": [
+        "doc-a85671cf7b8516"
+      ]
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-07-delivery-handlers.md",
+      "sha256": "99b12f2f74aeec513e3a6d970bd8791cb653b65299aa5eef5e40001018867858",
+      "bytes": 3814,
+      "parts": [
+        "doc-7281dbe7fcbbd1"
+      ]
+    },
+    {
+      "path": "docs/superpowers/plans/2026-11-07-stale-regression-tests-verification.md",
+      "sha256": "53045f46fc6f786b4f43c62775a407944be3225d58046d7c4e7e8a3d98847b63",
+      "bytes": 2399,
+      "parts": [
+        "doc-b664511b293d11"
+      ]
+    },
+    {
+      "path": "docs/superpowers/specs/2026-11-07-delivery-handlers-design.md",
+      "sha256": "9ca94b1a83842844517a2499a22ca90ac9119104fa6ff83b45f1ec5346b144e9",
+      "bytes": 1778,
+      "parts": [
+        "doc-4382681f9a2f3e"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/apis/butler-handle-stream.md",
+      "sha256": "65d72adeb4f42e75ea64ddf69da14664136e1d51e3636654d9340d2700243ac3",
+      "bytes": 3408,
+      "parts": [
+        "doc-5135f5350303bc"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/apis/butler-handle.md",
+      "sha256": "05cfa3c40c5d2428c302cc8e8bbfb1e084e2753105c3c6d4ef8d571eb58f860b",
+      "bytes": 5915,
+      "parts": [
+        "doc-4f70359e7ae440"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/apis/dashboard-contact-policy.md",
+      "sha256": "b43a79830eb12222dd44d1dd9a4dd9413df7ce0beedd23e5951a945a94efe941",
+      "bytes": 5360,
+      "parts": [
+        "doc-fdc456753803cc"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/apis/dashboard-knowledge.md",
+      "sha256": "9ffcaba823873b76ee6949b67e97122ad62419d580ba06551440eaef07f35786",
+      "bytes": 22131,
+      "parts": [
+        "doc-17461d21600be6"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/apis/dashboard-queue.md",
+      "sha256": "a8519bb91724c97b2d3cee3e208d3476d0f55a59be29c0b157bdba284a8304ff",
+      "bytes": 4139,
+      "parts": [
+        "doc-0b08697b4d4a4f"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/apis/dashboard-resident-diary.md",
+      "sha256": "a0e1197285dbca5d7a8b53797f4d3638d40b0da3a96e3a8f609d3ae5866cb54f",
+      "bytes": 1688,
+      "parts": [
+        "doc-38ef2f5a72288d"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/apis/dashboard-voice-assets.md",
+      "sha256": "b2206a16075c103f455cb61fb2a4dc61d8679fe4690b10ed48aaeaa994abeb8c",
+      "bytes": 5657,
+      "parts": [
+        "doc-d265cc1e47a521"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/apis/dashboard-workflow.md",
+      "sha256": "94c81b05974e08bba83516ae9afbc49a5e05b6518d1ea9c120e214488928cefa",
+      "bytes": 4166,
+      "parts": [
+        "doc-0d1f17e6436714"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/apis/index-tts.md",
+      "sha256": "32d501e78b9b17ec04e335b6fa0adccf36f18c05289465c8696f4cf75188837f",
+      "bytes": 11366,
+      "parts": [
+        "doc-fdc576d6ee7fbd"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/changelog.md",
+      "sha256": "ceac2f7b73f7de694901db1a90d074b93481e6d5e5e664d8c3e77dc0feaf6d79",
+      "bytes": 26005,
+      "parts": [
+        "doc-2359f8bc64950b"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/concepts/architecture-node-notes.md",
+      "sha256": "8af133796e388c307813ac7d91df15e81b16a75e1fc47a90071c1b8798244f08",
+      "bytes": 4780,
+      "parts": [
+        "doc-6372a6d15b637a"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/concepts/automatic-voice-reply.md",
+      "sha256": "b799165925a4c34f8c75db62e0ef730ecaa93773f3049679e6940475f9568688",
+      "bytes": 5042,
+      "parts": [
+        "doc-070a8b5f81ad00"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/concepts/capture-viewport.md",
+      "sha256": "db7524755c1324503baff32edadcd4073a284e360c98f28f09ed4f5f9fc6aa95",
+      "bytes": 3073,
+      "parts": [
+        "doc-62362beb7f9b66"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/concepts/delivery-state.md",
+      "sha256": "8e090d0ab6bf2b619e2e5837843894f3ab9cd2e90259e7d16b3c4eca4d99dd80",
+      "bytes": 7995,
+      "parts": [
+        "doc-1e3fe9ed2e96f6"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/concepts/development-baseline.md",
+      "sha256": "3abc3af17dddd42fbcc618fe61ba0e9cc784ef61a45b8de43e522b3d344f1e21",
+      "bytes": 9501,
+      "parts": [
+        "doc-f0b302749d6eb3"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/concepts/group-identity-evidence.md",
+      "sha256": "45caf79375ef89f58da9e46e006717bf297a3b0fd9e89455d35a8b20bae460ae",
+      "bytes": 5555,
+      "parts": [
+        "doc-82631ed77ef07a"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/concepts/identity-authority.md",
+      "sha256": "7869f7b47b01dbf1279745570383bb7912bf412b67922ddfc357ab5eaddd432e",
+      "bytes": 3762,
+      "parts": [
+        "doc-8dc39a23945b37"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/concepts/message-pipeline.md",
+      "sha256": "e245828715609dbf2eb04a2b8033c87303b5db7838c5b6316d0c3cc81a6e55f7",
+      "bytes": 6275,
+      "parts": [
+        "doc-6cbfc97cc45d15"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/concepts/model-error-contract.md",
+      "sha256": "c8177624804096933a7f30435d3405fb2ead36768313bf612950541ee20b5090",
+      "bytes": 12279,
+      "parts": [
+        "doc-77e385a27b73a6"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/concepts/unread-capture-retry.md",
+      "sha256": "3e0aaf69cd0e21e3786a0d1a3dd299e1bc6331717c4410e6759098c9bec1f0e5",
+      "bytes": 5522,
+      "parts": [
+        "doc-8bf7e570157f43"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/concepts/voice-asset-binding.md",
+      "sha256": "4c3e4d5bf441ae0bf9d3be7d7e727aeac96e95c986992750a3981d1bb9e28605",
+      "bytes": 3614,
+      "parts": [
+        "doc-7159ca2e34cdf0"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/coverage.md",
+      "sha256": "2858bb3ca5e21f457dfe63276e26eab6c66e95a5610a93ead89148d753015ae0",
+      "bytes": 4510,
+      "parts": [
+        "doc-3d945de7c38143"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/design.md",
+      "sha256": "cddf76852065543e30328f9010e42ba4c4d8742dafb4c890638c4bbb23cbf445",
+      "bytes": 2507,
+      "parts": [
+        "doc-ba7d4d46f1c73f"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/guide.md",
+      "sha256": "e2aa81cfc0393ec292a8c2614e9d379500e08e871bcc5002b9a719ac518474ec",
+      "bytes": 5167,
+      "parts": [
+        "doc-9cf47fd939c877"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-10-31-group-identity-nickname.md",
+      "sha256": "b65749059be50c362e76be28c6e2c1f6799c8419d1dff0afff4203a08a8f1d6e",
+      "bytes": 6355,
+      "parts": [
+        "doc-fbe924ce9641ad"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-10-31-knowledge-graph-bootstrap.md",
+      "sha256": "e7b6fbe442c8401bc252d5c1f930bb1914624b9636b0a9bc9853b87227bb044d",
+      "bytes": 1877,
+      "parts": [
+        "doc-0c3db1f926d782"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-10-31-switchable-models.md",
+      "sha256": "9a0ea12ad1b522d648b9bdaa337215221d6cef6b5ad7f89682186c5619e507b0",
+      "bytes": 3495,
+      "parts": [
+        "doc-7e58558178e006"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-01-knowledge-atlas-index.md",
+      "sha256": "01379e2c231280c9fbbb61f9eacd45fd7ac1bec5575999ec2ccc9c4064636aaa",
+      "bytes": 3450,
+      "parts": [
+        "doc-528d62fcf07d59"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-01-knowledge-vault-graph.md",
+      "sha256": "a66c1e4eeec299dc326aba30b498453e75d06a53027828f5b5d0f0876f47f61f",
+      "bytes": 6901,
+      "parts": [
+        "doc-b92e2632af0e9b"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-02-knowledge-graph-template.md",
+      "sha256": "5b715021122bfa0ad37ef2cc30a0c1d56f06b69b7ff5ce1ca6630f34b4c4e0ec",
+      "bytes": 6075,
+      "parts": [
+        "doc-f77e7236a67711"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-03-development-doc-baseline.md",
+      "sha256": "4f366f6d5d186292ffd96c87ffcc2e5bde8ab7408ed0b987e50e61736f350a32",
+      "bytes": 2365,
+      "parts": [
+        "doc-6981deab6390ae"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-04-contact-index-tts.md",
+      "sha256": "96fa0f575558d031d9ec18f9099147c787bfed74cb504a30750f9c572ce08a30",
+      "bytes": 3555,
+      "parts": [
+        "doc-f3a570551cedc3"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-04-index-tts-skill.md",
+      "sha256": "648ff184099036bc5aabaaeb5126ea3ade048c5904223fc7ecb79eb34579f6bb",
+      "bytes": 6596,
+      "parts": [
+        "doc-f72ff421fb5c31"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-04-root-workspace-unification.md",
+      "sha256": "794e48c8cb3767ed3332e586c7cd14612cd233db1efc96785e94a86907515d5d",
+      "bytes": 2472,
+      "parts": [
+        "doc-1002b3869f9b4f"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-04-webui-preset-binding.md",
+      "sha256": "78f54a80934764a0a411d03d9e0ae7718a7dcfdbbee8e1ace4fa0993ecf1c968",
+      "bytes": 3120,
+      "parts": [
+        "doc-b47165c49a3a7a"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-05-contact-enrollment-and-tts-ui.md",
+      "sha256": "716647b138bc96f3e786d1699048703736d00d339993789738323fbeac13c520",
+      "bytes": 2435,
+      "parts": [
+        "doc-98f596dd5f8d22"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-05-contact-policy-save.md",
+      "sha256": "7ea671b73fef0c5a939de5ae3574f7e24bfe853088668a60fe116faf23e777e0",
+      "bytes": 3622,
+      "parts": [
+        "doc-62206a40735cb5"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-05-delete-knowledge-fact.md",
+      "sha256": "f28e88799b4ff6d3dffdee8146b6b2e5020c655e0ff993c2bf95d8673c07e141",
+      "bytes": 1259,
+      "parts": [
+        "doc-2d4c142263c11b"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-05-enable-group-binding.md",
+      "sha256": "7df060d82c7c7e4d9164645b240c91618b98212224a60d693bfc563a86a6516c",
+      "bytes": 1424,
+      "parts": [
+        "doc-b934820de6d35e"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-05-group-and-auto-voice.md",
+      "sha256": "59ee5e2d1870ebee21bd685e6d4224d929006af5928335897d0941823fa7bda7",
+      "bytes": 4930,
+      "parts": [
+        "doc-b194f18a38699d"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-05-knowledge-group-sources.md",
+      "sha256": "be4ed23ac22ebae43ffb1c98d389f40f2b4415c40ceae64f6c25a81d15869da7",
+      "bytes": 1294,
+      "parts": [
+        "doc-53fb2c0d450b09"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-05-resident-diary-web.md",
+      "sha256": "6c2b74d95c7ef03f1c96f0948c467c57704e696ee09d8410720ff6531685d98e",
+      "bytes": 1288,
+      "parts": [
+        "doc-5b4e90fba08643"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-05-resident-xiaochao.md",
+      "sha256": "ed867c2ee332bbcfe44cd3d1eb253491fb58bb4ce85aa6b668aa7bfff0ed0a89",
+      "bytes": 4486,
+      "parts": [
+        "doc-6323d188bd37df"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-06-resident-visible-edge.md",
+      "sha256": "7cb7f91825ff6ee08a2a069567687cee7f4722cf4c8fe85f5129c3a50ae29d4a",
+      "bytes": 1409,
+      "parts": [
+        "doc-6cee41da4b9fa7"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-07-delivery-handlers.md",
+      "sha256": "046168287c70280a40b6fa3c65127fb7023ec5bc221d212ccc2445aa6ee98a35",
+      "bytes": 2066,
+      "parts": [
+        "doc-26369af37d5fda"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/impacts/2026-11-07-stale-regression-tests.md",
+      "sha256": "a7d041fec687ebd03029fa9d83abe60f96a9e6d1d0ae46949bf801548287e251",
+      "bytes": 2026,
+      "parts": [
+        "doc-a371c9f059b5c8"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/index.md",
+      "sha256": "b41c34bc66f00d9e0d0f03153e71a7c14c490c75f00468ca76d45904e2b66a44",
+      "bytes": 13878,
+      "parts": [
+        "doc-6e5a10e80a7955"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/model-switch-verification.md",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1,
+      "parts": [
+        "doc-c5a09700a83870"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/modules/butler.md",
+      "sha256": "2fe00ff7cc327297a0de048c625cd40ba908479bbd1441a18f78d76f1b0f2f96",
+      "bytes": 5429,
+      "parts": [
+        "doc-38393df7a7b4da"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/modules/common.md",
+      "sha256": "b1c541ceff22926daf2ea5c4bd65893fd39f7fac0625bd1ca7181a7a165a1fd2",
+      "bytes": 2457,
+      "parts": [
+        "doc-dd2bd595b3d8f8"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/modules/dashboard.md",
+      "sha256": "53ce3fe51804de68c0649d82da2ce3955efc8bc9832d5784315195485bc035c9",
+      "bytes": 7371,
+      "parts": [
+        "doc-bb47c9474691fe"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/modules/delivery.md",
+      "sha256": "eb0a90883d1497cd4e0fee0eacfa7f1ba9a9d937d57e7c829382f56f837aa8b1",
+      "bytes": 3447,
+      "parts": [
+        "doc-f61f55fe09c5e9"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/modules/identity.md",
+      "sha256": "4cb34eef254d6c07f22179e164b4c4a0a2f6b3b2fde0a0cbe386defe7705fb05",
+      "bytes": 4449,
+      "parts": [
+        "doc-5e308350a1ba25"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/modules/models.md",
+      "sha256": "bf9ba52a8d5fe48a96e9c3bb53762d39032d6575208b51819c1094d7efb705eb",
+      "bytes": 4374,
+      "parts": [
+        "doc-69928b2a06b8f9"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/modules/plugin.md",
+      "sha256": "351cc6fbb8777b513e210df9ed7277b4e7783479e3f05cfac062975b954dece9",
+      "bytes": 3988,
+      "parts": [
+        "doc-709338d3e083eb"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/modules/runtime.md",
+      "sha256": "27b8c9dd6dff770fea40292065339d993317d173691ec072dfc3a5634c0b057e",
+      "bytes": 3966,
+      "parts": [
+        "doc-241e7c8bdd1c05"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/modules/telegram.md",
+      "sha256": "9bdc67b32ac9518401e9544a01f140bb289f768fdcf62b0f2f970dfcd871f2a6",
+      "bytes": 1660,
+      "parts": [
+        "doc-8b0e2206d40805"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/modules/web.md",
+      "sha256": "b6b828a6f04ac45b96677106339ed7221fa1bb967c839c41b0f5e2f0fcfb6196",
+      "bytes": 11924,
+      "parts": [
+        "doc-aeec90dfe23cd3"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/modules/wiki.md",
+      "sha256": "4a624b1696dedde7abd6137109bbc763a19d4c3eadcb3642f7a6a57b5a31ecc2",
+      "bytes": 6515,
+      "parts": [
+        "doc-ed5d88ddcd1b47"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/modules/wxbot.md",
+      "sha256": "07c6bd57f9b90e31c1b501a63edbd5d5132c76dfda69283ff6c2edc76a3afefe",
+      "bytes": 7789,
+      "parts": [
+        "doc-8508032cbe5131"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/plan.md",
+      "sha256": "ad3a69a7d6936c27dafed206f6fb3cc8c1e48a6e3957851cdfdb0126e84dc518",
+      "bytes": 1762,
+      "parts": [
+        "doc-f68e362b618ab8"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-10-31-group-identity-nickname.md",
+      "sha256": "133930c4635e86158c659f4a63796690e74e00b0f4ba83735f9e03b6f4e16aa4",
+      "bytes": 3807,
+      "parts": [
+        "doc-f39c15a6fe0885"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-10-31-identity-placeholder-names.md",
+      "sha256": "a1ba2ece9ee6d006c742bca4490e8bf3bc89535a896879659ce2b338923f7ae1",
+      "bytes": 2583,
+      "parts": [
+        "doc-f3232d3cef51df"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-10-31-knowledge-graph-bootstrap.md",
+      "sha256": "ca7342588d1b623f9ec34ef6e905bdff6ae0b1360e3ba9ae4d6611a3cb7867a2",
+      "bytes": 4463,
+      "parts": [
+        "doc-f0c0814f02ebe4"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-10-31-model-access-switch-core-emit.md",
+      "sha256": "79a61f084ac8f4c4be21c0fdd043f721a7e058bbd6b338cec515f754842f460a",
+      "bytes": 2041,
+      "parts": [
+        "doc-6510cadeadeb37"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-10-31-model-access-switch.md",
+      "sha256": "e68fa2b47cf99cdcd9800432ba10197cac695e5466322265af85a641c5cad8a4",
+      "bytes": 4658,
+      "parts": [
+        "doc-954a7ea1e7487b"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-10-31-queue-batches-format.md",
+      "sha256": "d7ecf9aef9a751c5c702d12d6f3dd73cd0fd2c46cc9f6abe7d7a5045241bed9d",
+      "bytes": 1541,
+      "parts": [
+        "doc-33b232c2a9cf1f"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-10-31-switchable-models.md",
+      "sha256": "f01e63808a70c09d56e8bc238bb4730b151a71796fc5a0f6ff1cd8ef6bc01eca",
+      "bytes": 2612,
+      "parts": [
+        "doc-85f41883967373"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-citation-sweep.md",
+      "sha256": "805e2ae3202a9401b7bbee902614503b94fa6bd80a449b0577361943a55ab4d0",
+      "bytes": 2027,
+      "parts": [
+        "doc-4d0e5fc0ed39d9"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-atlas-index.md",
+      "sha256": "238590263ff1611b3fb235d7c7d3ed481cf3ae3b7c02b2d42d478b76d24e3c21",
+      "bytes": 5571,
+      "parts": [
+        "doc-69eb9deaf900e3"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-atomic-retry.md",
+      "sha256": "c1f7afc0fd3d2d605a3cdb27d649ebcafc5a2a92d0f8824b542341a64a34627a",
+      "bytes": 4698,
+      "parts": [
+        "doc-8614fbc4e2f39c"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-auto.md",
+      "sha256": "e505f54d59b649d79e642c2d3a067b3075426751c9741ad220aaebee16dc3392",
+      "bytes": 9337,
+      "parts": [
+        "doc-4f707cfb04b69a"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-episodes.md",
+      "sha256": "933f98ffb92ed038aad4c1533c525e10a21bfd77da376633f20ee967d13b252a",
+      "bytes": 7914,
+      "parts": [
+        "doc-697690fcf2df43"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-migrate-source-recheck.md",
+      "sha256": "e77db3a46c010b2370263ce5ab0e3ac1ec9439942209dbe25f8a73bd33ffc0f3",
+      "bytes": 1734,
+      "parts": [
+        "doc-97b2533a5ffcf7"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint.md",
+      "sha256": "32bf6f383f4c865eb778e8e43f64c5f542ce4bd726a24288f29b61e09014c483",
+      "bytes": 3967,
+      "parts": [
+        "doc-06dbdfdc7302a4"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-sessions.md",
+      "sha256": "c3ca9eda4dc8326360079809e9869d420608d4b08fe14615a9b8bd76f266c9fa",
+      "bytes": 4626,
+      "parts": [
+        "doc-ba214c308af8ff"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-sharding.md",
+      "sha256": "3cce4b986a59701ee1b2915884d046b1d0799cbf99d33e2b0c71e7aa03472121",
+      "bytes": 10561,
+      "parts": [
+        "doc-c0bff474452694"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-vault-alignment.md",
+      "sha256": "410645112a0e8e1b183521874b3a69e5f3278a132569706ae55d7a73c18b701e",
+      "bytes": 3174,
+      "parts": [
+        "doc-3f269e1ad8b05e"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-vault-graph.md",
+      "sha256": "d7d6866c68f99dc12e90aeeb23a046f408ad1643f16031badfd3db4ee81b79dd",
+      "bytes": 10810,
+      "parts": [
+        "doc-13c52ea2bba75a"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-mention-fallback-unread-retry.md",
+      "sha256": "6e55e9a17eb29a745c33ccff5f931b575f92ce7891ed6256f0586613bf89b5ad",
+      "bytes": 6079,
+      "parts": [
+        "doc-a5d65ee79e182a"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-model-error-contract.md",
+      "sha256": "a89f6a23d8c9088a3944d2f134c6c7deaa82b191c3810b6b72666c212b9d9e5e",
+      "bytes": 3661,
+      "parts": [
+        "doc-60c1969bb5f6f6"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-model-request-error-visibility.md",
+      "sha256": "d82d9938a71726d5c16c19962dd618ce198f95fd0540f2fb274961e85ea73214",
+      "bytes": 2801,
+      "parts": [
+        "doc-507fd880895f6c"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-01-readme-unread-note.md",
+      "sha256": "ae9110f967b3601c011d0912e5c717e5dc452a5b0b1fdb3f15d422076ebff19b",
+      "bytes": 2326,
+      "parts": [
+        "doc-0dfa536a596503"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-02-details-whitelist-reverify.md",
+      "sha256": "f189715c822b1ccda83fab85a52f3ccd8cff8fe8d7b853b0a5acee3fc15b3216",
+      "bytes": 2166,
+      "parts": [
+        "doc-ae7b71a2b37518"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-02-knowledge-graph-template.md",
+      "sha256": "656b34c922f94ff29f8b4ebafdbe237869416e9ff4f72c85639a77f697887ec4",
+      "bytes": 9507,
+      "parts": [
+        "doc-a582ec7ef75fe6"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-02-mention-picker-gating-residue.md",
+      "sha256": "bf80c4f31eeb03d6789d3f5039b9e6428fbcd51afe92d50e2c553412c03616a9",
+      "bytes": 7422,
+      "parts": [
+        "doc-980ea358badbe6"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-02-mention-residue-reverify.md",
+      "sha256": "18f27160b2efd276126d1f7fa29d99869ccbe0719a7c3db1d378affe43253005",
+      "bytes": 2917,
+      "parts": [
+        "doc-989f2003dec3a1"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-02-ui-snapshot-ref-contract.md",
+      "sha256": "56046590699e6e474566b9ddb9c4fb52c3511ff960d488c9cf459ddb0b763fff",
+      "bytes": 7023,
+      "parts": [
+        "doc-5688ce5c14b7b6"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-02-web-global-search-clear.md",
+      "sha256": "4d632f72f799110ebe59be88fba24a2a6973c4e8924d1906130028cca951be76",
+      "bytes": 1676,
+      "parts": [
+        "doc-5c4b4348a3410a"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-03-development-doc-baseline.md",
+      "sha256": "c1a0403f504e8fda4f81ce85892adc17b9db4a549248ccbf105822c92d22cbb7",
+      "bytes": 4828,
+      "parts": [
+        "doc-f9d149494a6267"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-001-anchor-refresh.md",
+      "sha256": "9fc26c61a4844d7a296916ba52a87f2bc705331e430da2641cc6ea7150332f47",
+      "bytes": 1008,
+      "parts": [
+        "doc-d313df34d8cc8b"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-001-virtual-mic.md",
+      "sha256": "e7b1db9446529b6f59dab7b14906f146b290e88e350c16be51bbad54f360f7da",
+      "bytes": 2424,
+      "parts": [
+        "doc-3b7c8dcbc01ec2"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-002-indextts.md",
+      "sha256": "2d42cd10e9fe4dc77fc10bbb55db1483d41097320c5a6e2a319611b12d4d80dc",
+      "bytes": 1653,
+      "parts": [
+        "doc-56093eafa42389"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-003-model-worker-drift.md",
+      "sha256": "d11387e72d73f105f658bec38ce244d957553da7746dbde402d770def73350a0",
+      "bytes": 868,
+      "parts": [
+        "doc-2f6dcdc8d592e1"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-003-voice-assets.md",
+      "sha256": "8c065f58532037524d4a47b57a26043d0d97dc4dba52da439899bc88db2cf580",
+      "bytes": 3942,
+      "parts": [
+        "doc-a855357d83ac5d"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-03-indextts-enqueue-media.md",
+      "sha256": "9695116ab47526175595f9cb9a72da053a9ba2522f0293a701a7528a45c9441d",
+      "bytes": 2946,
+      "parts": [
+        "doc-29fc2d893f2889"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-03-voice-assets-polish.md",
+      "sha256": "14a5f1491efa5453de481d10f4d37172c112fdfab2268ac9aed065c25d714ee8",
+      "bytes": 4209,
+      "parts": [
+        "doc-5f445f7abfb4d8"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-04-contact-index-tts.md",
+      "sha256": "a5d67cb6ca02303f27a0202522ebd8b4550ec76d933e627fde76a336e47b4a42",
+      "bytes": 4473,
+      "parts": [
+        "doc-cdb6f65d88730c"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-04-index-tts-skill.md",
+      "sha256": "bffb852bf48d9ce3fcd49c469b48e6a9d5015001ca6d1ad8d163590332de38a4",
+      "bytes": 5188,
+      "parts": [
+        "doc-a62e0514c7634a"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-04-root-workspace-unification.md",
+      "sha256": "bdbf6bded2cc78ce698ce619d0f68892b4f6d69be1855f017dcfec1231efefc5",
+      "bytes": 3988,
+      "parts": [
+        "doc-b44eb256c557c6"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-04-webui-preset-binding.md",
+      "sha256": "379a6b6ad6c7cb62cd93516d413e9b14a8dde147ea6f0fe298b63a2c0e0144f5",
+      "bytes": 5792,
+      "parts": [
+        "doc-14cc58d084986d"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-04-webui-preset-graph-note.md",
+      "sha256": "0ab6c8383b91da6d018527654793052b267f16bec20eaed99111b14e3d9e374e",
+      "bytes": 1750,
+      "parts": [
+        "doc-a877b64be56f43"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-05-contact-enrollment-and-tts-ui.md",
+      "sha256": "67398ea81dba096be98cf6d7e27f11dabe9c7d8d4501a6987eb656323fb58bb0",
+      "bytes": 3557,
+      "parts": [
+        "doc-f267229129f9a4"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-05-contact-policy-save.md",
+      "sha256": "22ee31babea565df8b3193ba974169f7f5a4febaf40f6e81900a5ed0e050c833",
+      "bytes": 4413,
+      "parts": [
+        "doc-ef8af1106d1713"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-05-delete-knowledge-fact.md",
+      "sha256": "de5b71ccd3098f9bf6e26590fc91388c0fdb44669a78acada982ee02f229f915",
+      "bytes": 2799,
+      "parts": [
+        "doc-dde024d7417249"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-05-enable-group-binding.md",
+      "sha256": "fd6f75895e78dee9ca3959c7741b8cc39cdd8c96ade74ba0f423cc448fd30658",
+      "bytes": 1864,
+      "parts": [
+        "doc-6f2fac571f1610"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-05-group-auto-voice.md",
+      "sha256": "afd952f5997facab00ef0427f1fe0a6bef0209b4360ef291459225e41bc6fb5e",
+      "bytes": 4618,
+      "parts": [
+        "doc-264d648c9acbbe"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-05-knowledge-group-sources.md",
+      "sha256": "0536da5a5a75f0d1b3df6b3d33cc3acd25f4efc7cb58b927d76734711ee73490",
+      "bytes": 2603,
+      "parts": [
+        "doc-867b5eee05957a"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-05-resident-diary-web.md",
+      "sha256": "f48a6ad696606ea802277a73aae2e912e297baedef4dcf1ebaa2b9e1215e697a",
+      "bytes": 2198,
+      "parts": [
+        "doc-f24e68fc0316c1"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-05-resident-xiaochao-readme.md",
+      "sha256": "d625f9d2487d159bab9503543ba66e62ee56fd5877d500e34950f3b68a09d162",
+      "bytes": 813,
+      "parts": [
+        "doc-3b5de0b90aca6b"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-05-resident-xiaochao.md",
+      "sha256": "7465de642872db8b9aad516c452ebec718bee0e16d1c251cfe0981e2a8628e86",
+      "bytes": 2555,
+      "parts": [
+        "doc-2d4efb23ee9751"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-06-resident-recommend-navigation.md",
+      "sha256": "4308db97ccf909dd8e6940bc756bf0a698959120ee45a32757fc515cf3240ee6",
+      "bytes": 1573,
+      "parts": [
+        "doc-b2141987114c61"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-06-resident-visible-edge.md",
+      "sha256": "c0ec377a46c03fef6ed7369c014c94d75de283c882a3a6382d26d2cbbf1b115a",
+      "bytes": 1820,
+      "parts": [
+        "doc-eb3bb4d27e3f68"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-07-archify-node-documents.md",
+      "sha256": "868e4de28d861cfc3e996da173239f0328b39ab07a14cd64379f2cc23b867f5d",
+      "bytes": 4154,
+      "parts": [
+        "doc-1968450e794d2a"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-07-architecture-diagram-trim.md",
+      "sha256": "f7bdbaad2eb98e8544fb7a5fdc99226c7491dd9e2100fdd948323c0de0837458",
+      "bytes": 1058,
+      "parts": [
+        "doc-7574510a1cf96f"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-07-architecture-node-notes-readme.md",
+      "sha256": "fbe65a622421476d7ed7fe124f66fd1949c1875250ad32c13625f1a524560780",
+      "bytes": 963,
+      "parts": [
+        "doc-65d1db0ccb5dda"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-07-architecture-node-notes.md",
+      "sha256": "bea6d7b0a07a448d39413e9a2e14b86e796715816703eb4a76a68a6d3f0f84d6",
+      "bytes": 1485,
+      "parts": [
+        "doc-8790acdf96d310"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-07-delivery-handlers.md",
+      "sha256": "29696a0b1b0277dbd9b9058000402dab2f0cca18b58ff26b15632575c4bfd550",
+      "bytes": 3381,
+      "parts": [
+        "doc-83d2ae6b4c4ac1"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/changes/2026-11-07-stale-regression-tests.md",
+      "sha256": "f8c4052a5fdded3ee7aab8372a245e00d1bac777a76f4f37512d316c4389a24c",
+      "bytes": 2621,
+      "parts": [
+        "doc-df3c99eaa835f8"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/raw/legacy/CLAUDE-wiki-schema.md",
+      "sha256": "2303d7b43f506159ab79bff494c47ec9597f9ae08d2c84321036b46c38556e18",
+      "bytes": 12597,
+      "parts": [
+        "doc-5fd0435fe93ef7"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/butler-handle.md",
+      "sha256": "035f6635c3824f496193a56a69264b31ff011f7ed4fc035c44dec42da902c5ba",
+      "bytes": 4370,
+      "parts": [
+        "doc-eba67ca6f97d80"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/butler-processor.md",
+      "sha256": "89ffcca6d497b15f00fa003b7dbfc60437c6043eb640f4653b72590819771bdb",
+      "bytes": 2046,
+      "parts": [
+        "doc-0b0a168dc38d24"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/butler-result.md",
+      "sha256": "948ae7ff8ca006a1892c7705426f57aade03ce02e115937428d6f46ff5b44349",
+      "bytes": 3580,
+      "parts": [
+        "doc-a9181bbf2979fd"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/delivery-handlers.md",
+      "sha256": "322f318e3f3ce593888d214e513a373d4d0ae9e70cacf73e0aa07da107538e75",
+      "bytes": 3004,
+      "parts": [
+        "doc-9ba04de08ae10c"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/delivery-pump.md",
+      "sha256": "6710478f0cc015bb3a33afe3f738740f41f1de8b432f55bb32e79bf33e6d7c07",
+      "bytes": 2365,
+      "parts": [
+        "doc-7ca25975c49fca"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/knowledge-auto.md",
+      "sha256": "bf12f2f6f98b8181397dfa7532c5411b2def3428232821a5e1c37cfd804d5548",
+      "bytes": 6336,
+      "parts": [
+        "doc-8d31785e6eb1e7"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/knowledge-extract.md",
+      "sha256": "4d44eadc75596461a9036ca6fce82db832e1d77f21c62937a3502ac9fd63e092",
+      "bytes": 10546,
+      "parts": [
+        "doc-7d9303870f5774"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/knowledge-template.md",
+      "sha256": "e8e02227d6885f095a4589cbb05e9274f8434b4d1458ac78f9c6ff7cfd826f6e",
+      "bytes": 6194,
+      "parts": [
+        "doc-4656beba355895"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/local-model-backend.md",
+      "sha256": "77b436586ae20b3c15a83b73ea7efa2d6efec784b4b7a58ba42fb27dce41448e",
+      "bytes": 2832,
+      "parts": [
+        "doc-058aec74f1727e"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/mention-selection.md",
+      "sha256": "894818673002d09d4b97120cd329748862d646b039549bd40b82b8d53301c506",
+      "bytes": 5702,
+      "parts": [
+        "doc-c251b5ba0c9ae7"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/model-worker.md",
+      "sha256": "95a87cfcda325750a7fbb9454f0b75e2abac8dc3a88bf89e8b13526cc1a8eddd",
+      "bytes": 3139,
+      "parts": [
+        "doc-0183b6974519f0"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/queue-finish.md",
+      "sha256": "7de54fa9f7ba6763cd524a93ab0cdef68bfaa6e5ba00763e475acc7b171b4a22",
+      "bytes": 2625,
+      "parts": [
+        "doc-b3c365f5c9fdf1"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/queue-store.md",
+      "sha256": "f50c8ac15140f940911db972bb1a10f92de49f77eb8de1dc6e9c8b7fc558f0c3",
+      "bytes": 4736,
+      "parts": [
+        "doc-37f6245b143a25"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/reloadable-backend.md",
+      "sha256": "f9b78dc2d2a7d0aac5c0e047db23227dcaebafc656ef3d7fa9fa0e64f0bfd524",
+      "bytes": 1609,
+      "parts": [
+        "doc-85aba8d0cc88bd"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/resident-role.md",
+      "sha256": "4e87cd79cdcdd82a69b12c8dc53e28848d2c29d9d10c1960f5bc2d7df517dcd2",
+      "bytes": 3584,
+      "parts": [
+        "doc-81303bd5af31f1"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/symbols/voice-asset-store.md",
+      "sha256": "1cecc787426bee25869cff8a62ff3268ff3051f1af53ba2a70597d25387a34e2",
+      "bytes": 982,
+      "parts": [
+        "doc-a41b10d5400ad9"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/tables/kb-episodes.md",
+      "sha256": "0b70d2dbbf029fa761651c2fa780b55d677ad29a633edb191dd7627e0d5e4f12",
+      "bytes": 5496,
+      "parts": [
+        "doc-84df4a3514bf20"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/tables/kb-facts.md",
+      "sha256": "a81933ce21e1000db39a6c89e5fe3fe26c2bc6826160de3f50d9b07a9ccda15c",
+      "bytes": 6008,
+      "parts": [
+        "doc-eae62eb158097e"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/tables/kb-owners.md",
+      "sha256": "378de9481f8b85fe5367b77100ee24f6634595789366b6124b317506baa223cc",
+      "bytes": 5951,
+      "parts": [
+        "doc-68c7e63f609bfb"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/tables/knowledge-vault.md",
+      "sha256": "464d68487ee97b65d323cda6f3545d1f1f3ec78d3f504933a87cc8951ac3e085",
+      "bytes": 17759,
+      "parts": [
+        "doc-dc9956670d38fd"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/tables/queue-batches.md",
+      "sha256": "72846524c1eb5166d201545cdbf6e4223fad6202a04ffd0e29a3a57bb2451650",
+      "bytes": 4721,
+      "parts": [
+        "doc-8e6cc338038d9a"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/tables/queue-inbox.md",
+      "sha256": "8f70fbd2149807f1c6faef056f75d85f23305a8361929ec875ba8bb96eb29605",
+      "bytes": 3633,
+      "parts": [
+        "doc-6529d9966e604a"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/tables/queue-outbox.md",
+      "sha256": "0665b01e83f597cfe9db8b48fb7a6b228325f4eb0efe13817a8103b07a1e09d1",
+      "bytes": 6446,
+      "parts": [
+        "doc-6dd6d137f99cdf"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/templates/api.md",
+      "sha256": "78938681194822b52d32729243d207c22ff6c714445563a749019a15c52d3a06",
+      "bytes": 1105,
+      "parts": [
+        "doc-9be513138ee5dc"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/templates/change.md",
+      "sha256": "ba5735589aa80e4ae29695049656e627f3b529d00edca2d5314ff5106294bcb5",
+      "bytes": 363,
+      "parts": [
+        "doc-876e1a0156045c"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/templates/concept.md",
+      "sha256": "2ef4bc97bd3a1f8001fb260c897d2cbd03c583a405a93169fc6c8ede3d94717b",
+      "bytes": 839,
+      "parts": [
+        "doc-66a8899f322d51"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/templates/impact.md",
+      "sha256": "85d02550cb0aa161b61a11758336b3ffa98eb30b91bdfbceb366f5107deae36d",
+      "bytes": 737,
+      "parts": [
+        "doc-2595bebb318aaa"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/templates/module.md",
+      "sha256": "c022f6f83fb9ea25a571ee8e5b98f5804d79c7608df6c3e91e61d5c2558b6c05",
+      "bytes": 856,
+      "parts": [
+        "doc-6a76d4ecff85eb"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/templates/symbol.md",
+      "sha256": "c933e7d8531b070859107c7434b70986a84eea8be2a323142cfd0a885a00fad2",
+      "bytes": 965,
+      "parts": [
+        "doc-b7b71e230e267e"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/templates/table.md",
+      "sha256": "577bc98b2a8a70a23351ac2585afa9621875cb505dda0cd103d43d58ae93eaca",
+      "bytes": 1061,
+      "parts": [
+        "doc-b29fabcf0318a0"
+      ]
+    },
+    {
+      "path": "llm wiki/wxbot/verification.md",
+      "sha256": "7fe121dcfd63284f04f55a553b084471dfb68b5a98766451edb56a25434694fd",
+      "bytes": 2814,
+      "parts": [
+        "doc-951820f4d5f621"
+      ]
+    },
+    {
+      "path": "tools/README.md",
+      "sha256": "e23d7e3def79067edb77b35111dfa2a840a80540f2f8a0d0c2ba7a0378f554af",
+      "bytes": 5617,
+      "parts": [
+        "doc-aa2bc4bbdc2544"
+      ]
+    },
+    {
+      "path": "tools/indextts-ops.md",
+      "sha256": "f4b10b0c03bea3bb3ec728f3133ab9f030be13440b2e4183bee2b5607411c87c",
+      "bytes": 4307,
+      "parts": [
+        "doc-5606dd82f2b492"
+      ]
+    },
+    {
+      "path": "tools/voice-ptt-ops.md",
+      "sha256": "3a38718db7c74f8880e9ec904b3d4a5f8f17f76bac085783e8a2e0f8f9d55e03",
+      "bytes": 2598,
+      "parts": [
+        "doc-153f05bdd2f77f"
+      ]
+    }
+  ],
+  "preserved": [
+    {
+      "path": "AGENTS.md",
+      "sha256": "84db7d02ffb0edcbfdd244d8b43ee4d11b4ea10bef03782a6d4e57b2fb3e60f4"
+    },
+    {
+      "path": "plugins/butler-wechat/THIRD_PARTY.md",
+      "sha256": "e3cbf231e134a0526bf67cf4613ab752537e8b619957264c0741ccdcbe6aced3"
+    },
+    {
+      "path": "plugins/butler-wechat/knowledge/graph-template.md",
+      "sha256": "eed3a7e2cc7d70735bd850fbb79e825434992e51417d4fbcf0ae3904dd5153c7"
+    },
+    {
+      "path": "plugins/butler-wechat/resident/xiao-chao.md",
+      "sha256": "06142807e5a43a4d76f9af3500b965afa69b1685c4c47c6c20cc19a259ce153b"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/butler-companion/SKILL.md",
+      "sha256": "30ed1c0152c8bbf27948cdc754fafabb68ca827e9454e91a9843d37e42ae19c2"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/paimon/SKILL.md",
+      "sha256": "4823d679aec75e0a76747922e4939ac42554913f213f3aa04d35e275fba98dbb"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/paimon/conflicts.md",
+      "sha256": "09c922edb2b662e74b4fc8e41466349648d6687d4edfca95450aee6c42d7e7a9"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/paimon/interaction.md",
+      "sha256": "a6ed39f507206742f60776c74debd6b8503abcfddac8db1d9dc90ed94b877492"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/paimon/memory.md",
+      "sha256": "859a2cfa2e8b1891c350f2eadcf50f27f21a4c5514de18a45fc3dec42b68c30a"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/paimon/personality.md",
+      "sha256": "cc93d5e2ba22ede45e8be2915ad4ff22daee7bdb3e30d015cea46155a9679d50"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/paimon/profile.md",
+      "sha256": "d55495f1fcbef25208019814110c9f4972f54824a2ea62746114748e4287dff5"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/paimon/relations.md",
+      "sha256": "e5bbc30d78a8f6b3e755d54954b4316c85b170023844853877f718cdea66f8c0"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/tong-jincheng-perspective/SKILL.md",
+      "sha256": "f04cfa6f95fe261527de6da7fada5d9c7165ac6d8f2670eb70c033a4075edc2d"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/tong-jincheng-perspective/references/research/01-writings.md",
+      "sha256": "b222ec8921b14ae63ec8001e37339a761e3672fb1a4d65724899d4a84d4d99b0"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/tong-jincheng-perspective/references/research/02-conversations.md",
+      "sha256": "efdb788bb5eb2fb2d9001c31d8dabf8dcf6c2e1879a82defb86c0af6926be3c1"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/tong-jincheng-perspective/references/research/03-expression-dna.md",
+      "sha256": "d44a3798a6b845cd277ee5e28d331f64e543857c70fa1cdebfe062214c0500b7"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/tong-jincheng-perspective/references/research/04-external-views.md",
+      "sha256": "9da2bf2b46cbe37341208a9360448fc0db9f39e3efb561baef9ffac7aa78ed66"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/tong-jincheng-perspective/references/research/05-decisions.md",
+      "sha256": "74fa0b6f81462b5189976c551747163d93ebd09a438aa01eeb3e7c547acedec0"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/roles/tong-jincheng-perspective/references/research/06-timeline.md",
+      "sha256": "3277f02399405e25a3161bbd108aa1a8633d87866523b349a3182574f9701098"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/tools/create-cron-job/SKILL.md",
+      "sha256": "433c3c110a0a8f618d415434489fa8689710ed835a8ecf2cb020222a41bddbac"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/tools/index-tts/SKILL.md",
+      "sha256": "a00f468f38b9e06250bbfb136fb02a9e0de3da98de9c9662e47ef93411902978"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/tools/setup/SKILL.md",
+      "sha256": "4b52db5abf590d4934ddc7f9621024469a3650cd44e48dc9c2275334108bef50"
+    },
+    {
+      "path": "plugins/butler-wechat/skills/tools/telegram-relay/SKILL.md",
+      "sha256": "3df3a92685766f6c0e5600efdcde9e33cd1bcbab77804691385b2b637fa2a43c"
+    }
+  ],
+  "notes_before": [
+    {
+      "path": "architecture-notes/business-storage.md",
+      "sha256": "98c63377b25ce6fb7d9e4be39a7166158a78d60f8dd27e8b3de2e9532c5abf39"
+    },
+    {
+      "path": "architecture-notes/butler-functions.md",
+      "sha256": "b626b1d567a2b773e64309b0aed07dac5f4d49b2923445581838b7175545a9cf"
+    },
+    {
+      "path": "architecture-notes/butler.md",
+      "sha256": "e0fd1d7c247748d2e1ecf7ca601e4d39aebcbc4bcfe00d517ed20cfcdb1a529e"
+    },
+    {
+      "path": "architecture-notes/codex.md",
+      "sha256": "0bd298d2b6c7301077ecfdaa04a00883b60cd866e358178868346671dbe27055"
+    },
+    {
+      "path": "architecture-notes/conversation-extraction.md",
+      "sha256": "9c7e494143af4bed96477ad91e4303aa27ac0a7b32b1af7a44de3710623e16a1"
+    },
+    {
+      "path": "architecture-notes/dashboard.md",
+      "sha256": "ecc2716ad63e9ca1083295a98eb3cd02e89fc5fe3deb2a10647d21581b4f5fea"
+    },
+    {
+      "path": "architecture-notes/delivery-emoji.md",
+      "sha256": "97d150435c69c7442ded81750932f7b6720d872ca47ea4a9ef90308b1c7b08ff"
+    },
+    {
+      "path": "architecture-notes/delivery-image.md",
+      "sha256": "d78d63782fc2b9dd19d47dc2ba43a3b5e401a7f64069725e7c56fcc5b83895a5"
+    },
+    {
+      "path": "architecture-notes/delivery-pump.md",
+      "sha256": "0d476e3fdd6c02af73bcbdcc7761b6df77f2017faa22690b03d907d396e4d28f"
+    },
+    {
+      "path": "architecture-notes/delivery-text.md",
+      "sha256": "7bba1b79fd82b462c472f4df5d16d5969d1072f26697c259e7b0fe82b1618d22"
+    },
+    {
+      "path": "architecture-notes/delivery-voice.md",
+      "sha256": "7104e8f30034075ad31c1f28f98c28286bdeb8a51b4e63ece6d8c4318f1ab54e"
+    },
+    {
+      "path": "architecture-notes/douyin.md",
+      "sha256": "4329a44ff426aea690744b42954afbc958cdd5ced30b124951ec5473f970aa50"
+    },
+    {
+      "path": "architecture-notes/inbox-file.md",
+      "sha256": "982ab36ade3ada232ce98df91c38a43f6c80daf7f9c68c50d4bba992d69c0c8d"
+    },
+    {
+      "path": "architecture-notes/inbox-image.md",
+      "sha256": "4c5b71a1d58cf599f2a2108f85df19388c1ecbf289addf13c0c28ea2d508cd17"
+    },
+    {
+      "path": "architecture-notes/inbox-link.md",
+      "sha256": "5b567fd590774ea491a260f237fb6ab50936724b6e642db09320a67b819e4eff"
+    },
+    {
+      "path": "architecture-notes/inbox-text.md",
+      "sha256": "1843f65144f9582b5a20ba4ac9c962f22655942140445c451c49b3f863ef266c"
+    },
+    {
+      "path": "architecture-notes/inbox.md",
+      "sha256": "4e61d3856ecae92ae9aaf1b33786a185b8441c9e8902120a59ae1980c74ed84a"
+    },
+    {
+      "path": "architecture-notes/index-tts.md",
+      "sha256": "18fb096557452123999efaf0c473e51d924171105584a5457ec934da9cf270a3"
+    },
+    {
+      "path": "architecture-notes/outbox-file.md",
+      "sha256": "9faceeddad7ba08af25aa6ae05e9b62116544fbc7be2c9682cffb5073d7d251f"
+    },
+    {
+      "path": "architecture-notes/outbox-text.md",
+      "sha256": "0275d54688d76b63d69489987aa901d42e9b50fe5afc097b8d6e585b7335c285"
+    },
+    {
+      "path": "architecture-notes/outbox-voice.md",
+      "sha256": "b686fefb74c9799496175d5d559546bf502466569068792e2b95cb0f1bccaaa7"
+    },
+    {
+      "path": "architecture-notes/queue-storage.md",
+      "sha256": "0d7971d39a40f3b9813d6c42fa3357d01b1a1ec44dbed802b692fdbd3c535556"
+    },
+    {
+      "path": "architecture-notes/queue-worker.md",
+      "sha256": "7a06596992232c5d58f1d2376da2895334295598ea603c1c44141ec482c1cf42"
+    },
+    {
+      "path": "architecture-notes/reminders.md",
+      "sha256": "ae0859ad5665389805d9a73efc6dc81f8529832b8db73bd3e93b4dabd3152430"
+    },
+    {
+      "path": "architecture-notes/resident-skills.md",
+      "sha256": "1a5c44c061b9909b8c1005b6c4980500d216fbb2152d44d3c5da150e84bf864a"
+    },
+    {
+      "path": "architecture-notes/resident.md",
+      "sha256": "744c407c31b5bfb94988ef7e02fc8b2becacabdfeabd29fe7ce1fadbdd73464b"
+    },
+    {
+      "path": "architecture-notes/wechat-client.md",
+      "sha256": "dcd8803f844d7055ae4a68458bfc41c72dbfbc74589c5e548eb52a3a9e2835b3"
+    },
+    {
+      "path": "architecture-notes/wechat-ui.md",
+      "sha256": "490b4dede30a214304e4d97c2363b9573a92785b25e1296956767ac94ce824ee"
+    },
+    {
+      "path": "architecture-notes/wxbot.md",
+      "sha256": "134edac2a5b8995e12994c33bef202aee3bf8b26c057f6fad67380a903acd754"
+    }
+  ],
+  "parts": [
+    {
+      "id": "doc-444746a8f4ae45",
+      "source": "README.md",
+      "line": 1,
+      "end_line": 17,
+      "node": "wxbot",
+      "label": "wxbot / Butler",
+      "sha256": "be2579ebd50b0aaade17fe222787b6e2d033e84e601cccbbb467f03ac1c80602",
+      "characters": 646,
+      "rendered_sha256": "ca7fdc7c6ef1fa7292deeb03651edc21a0e9e2d5bb01d1544bc010852190be42",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-7a2b649bf980a1",
+      "source": "README.md",
+      "line": 18,
+      "end_line": 67,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 安装",
+      "sha256": "d7d9fa482f0a78717c410c7331291b7c3ee6aefaf183b0df8cedd34526d0de82",
+      "characters": 2068,
+      "rendered_sha256": "45cb14ad48cab889838052677801bda47ca8f89fe5010738d72c322cffb0a4ec",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-2e0fdb7ecca3dc",
+      "source": "README.md",
+      "line": 68,
+      "end_line": 103,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 运行",
+      "sha256": "3fb38dc652214b3dd3e81e0efbb75e5e7fcdf5650e7a2d7d1712be01ad282f26",
+      "characters": 1191,
+      "rendered_sha256": "074ab325c8e5571b661c15bd759786a68f2222b0cc162ec29cc5f24b5ff6ea99",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-e178651dba2d68",
+      "source": "README.md",
+      "line": 104,
+      "end_line": 124,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 目录",
+      "sha256": "2ce988b7cddb5453b2e7d9611a56a8ea08900542bbbe323da277060ff985d158",
+      "characters": 938,
+      "rendered_sha256": "6b005a63ad52eb56f9aae84de84082244574592f0b597f1d461a0b26b459d2a4",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-6b478247a17ac2",
+      "source": "README.md",
+      "line": 125,
+      "end_line": 158,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 开发基线与历史布局",
+      "sha256": "79609945858e4908b2b6af898085331f3f0caa1ee49c62d38caa33b751edeaca",
+      "characters": 1099,
+      "rendered_sha256": "365c2d1f8e07c50a7d0df572883bf8643681c8831e3e140d8c6dc1ff908aed3d",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-39647c7dcd78d9",
+      "source": "README.md",
+      "line": 159,
+      "end_line": 162,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 模块与文件职责",
+      "sha256": "730e050431611b258c4dd533b84428933e06956368fc4573e7eb8cce928ed806",
+      "characters": 54,
+      "rendered_sha256": "6e9f811c30b59bbdd49f5aa996764ab4942a46b0b9a75a1cd135bab5c740ae89",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-1802b32aa1f822",
+      "source": "README.md",
+      "line": 163,
+      "end_line": 164,
+      "node": "butler",
+      "label": "wxbot / Butler / 模块与文件职责 / src/butler —— 编排层",
+      "sha256": "e892f6e050ffe4d544a71e1157a360b330b9fd5d0e9bad49da9d403756e90301",
+      "characters": 23,
+      "rendered_sha256": "f84ada2425196fb4ed16bc7ecb73c4b360f7ee850b5dc05f22d9e86c4fdbd987",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-59e3b3420d609f",
+      "source": "README.md",
+      "line": 165,
+      "end_line": 175,
+      "node": "butler",
+      "label": "wxbot / Butler / 模块与文件职责 / src/butler —— 编排层 / 根目录（高频导入，留在根）",
+      "sha256": "17a185f6dc595b5213fcc618a86fa55b8c6cea9ad59e07ed251a280a25d9d65f",
+      "characters": 445,
+      "rendered_sha256": "7a173c6162a09885b91899104d648b0d90849081de8b30c24aa81177912572ea",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-ec452653482b80",
+      "source": "README.md",
+      "line": 176,
+      "end_line": 189,
+      "node": "butler",
+      "label": "wxbot / Butler / 模块与文件职责 / src/butler —— 编排层 / agent/ —— 决策与执行",
+      "sha256": "f54d5c8467e368086f29b39dfe37d756f3b47c80d8720d51709b7fdf99269357",
+      "characters": 573,
+      "rendered_sha256": "b226f59c129f44ba667cb645f142bc6a9ee2959d7fd6e1c316a0b460db6b0c80",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-43f53b95c0c803",
+      "source": "README.md",
+      "line": 190,
+      "end_line": 204,
+      "node": "identity-tools",
+      "label": "wxbot / Butler / 模块与文件职责 / src/butler —— 编排层 / identity/ —— 联系人身份",
+      "sha256": "7e3c270ecddf9d99a3e3f916f537c8f2fc95e6c003d9909878b5758723930541",
+      "characters": 660,
+      "rendered_sha256": "761871fe2e7e1fc7a1356735b5cba117acd55084a3209d2e0c334a5791b24313",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-81e20b159a9237",
+      "source": "README.md",
+      "line": 205,
+      "end_line": 218,
+      "node": "butler-functions",
+      "label": "wxbot / Butler / 模块与文件职责 / src/butler —— 编排层 / delivery/ —— 投递",
+      "sha256": "19b4982f9c36fff15d344fc15e996679d5410d4520bf4ad23c9919bd0b0d3f81",
+      "characters": 578,
+      "rendered_sha256": "1466ea27c16724755bf1ca102a628e217dde2edff16fab75a199546878833920",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-500bcb6cafa01f",
+      "source": "README.md",
+      "line": 219,
+      "end_line": 239,
+      "node": "butler-functions",
+      "label": "wxbot / Butler / 模块与文件职责 / src/butler —— 编排层 / runtime/ —— 运行支撑",
+      "sha256": "c7aded90d59d9faec800a0715104d0da47fb48035f6195b80234f77c295f5da0",
+      "characters": 1032,
+      "rendered_sha256": "2005332b00119c367a473d1b6a88cfc6d71aa780ea490db0f2875ce0d8522148",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-d1c54564902dd5",
+      "source": "README.md",
+      "line": 240,
+      "end_line": 266,
+      "node": "butler-functions",
+      "label": "wxbot / Butler / 模块与文件职责 / src/butler —— 编排层 / channels/telegram/ —— 外部通道",
+      "sha256": "1733cd6789304271ded0f65dcd8ae50acd58b6ef0c89b5b6a83e8141f45d8479",
+      "characters": 1005,
+      "rendered_sha256": "762ce4f61acdcacbe0a4f465a5bdf2c37529fa739525e54c98c97db571c160ec",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-3cc18faa25d1d5",
+      "source": "README.md",
+      "line": 267,
+      "end_line": 278,
+      "node": "model-backends",
+      "label": "wxbot / Butler / 模块与文件职责 / src/butler —— 编排层 / news/ 与 backends/",
+      "sha256": "2911d6e95903776481d68c468911ff2b156e0e8a4dde5fd05cfafde355abfcba",
+      "characters": 450,
+      "rendered_sha256": "392d091f470ca7a079a3644be41ab6a9b7c400acfddcf2fa09d2d19501aa6e53",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-97a684c459b114",
+      "source": "README.md",
+      "line": 279,
+      "end_line": 293,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 模块与文件职责 / src/common —— 跨包共用",
+      "sha256": "c6c2134e8232c68ef155c7fd8558a16c26951cc68f21cb9efd0a591b90e804b3",
+      "characters": 529,
+      "rendered_sha256": "7fb4bad3107a20292fc463f83b96ac13373fd10de1a690cc0060d81c5d33d699",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-3e3095a0cf397c",
+      "source": "README.md",
+      "line": 294,
+      "end_line": 295,
+      "node": "dashboard",
+      "label": "wxbot / Butler / 模块与文件职责 / src/dashboard —— 管理台",
+      "sha256": "49c892e633da6e08ad0a467407e4c02e7a871904a175362d8ac2bff02c1c23a8",
+      "characters": 26,
+      "rendered_sha256": "338297d460ecca29332ad88f5e6eff4cb02372fd77c87b06c41cba028dd1635f",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-c2fed6bbc9b2f7",
+      "source": "README.md",
+      "line": 296,
+      "end_line": 305,
+      "node": "dashboard",
+      "label": "wxbot / Butler / 模块与文件职责 / src/dashboard —— 管理台 / 组装与传输",
+      "sha256": "3e132bf61801c4e499c314995c9513b767e024fac01c862f06e23179338dedd6",
+      "characters": 322,
+      "rendered_sha256": "3e3cbd235aaad3ef8682cd549d130939e7cffd0746dd288590f3f0603bb9e83a",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-5838a9ba748b33",
+      "source": "README.md",
+      "line": 306,
+      "end_line": 326,
+      "node": "dashboard",
+      "label": "wxbot / Butler / 模块与文件职责 / src/dashboard —— 管理台 / api/ —— 只做 HTTP 胶水",
+      "sha256": "31a7deeada8f84730eebbaf99fc0f79228dcdf2d65891236366b71102a2a1bab",
+      "characters": 795,
+      "rendered_sha256": "4efa3a57d53e24285eefb24d7a97a3986c1f135044e78d6f4c7a50b059a8a834",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-8a288bbf5df118",
+      "source": "README.md",
+      "line": 327,
+      "end_line": 352,
+      "node": "dashboard",
+      "label": "wxbot / Butler / 模块与文件职责 / src/dashboard —— 管理台 / 视图、数据源与动作",
+      "sha256": "694f55d08f01fe9dc8717c7417f201dbbf7e295e9300b2e2922d9372ef787716",
+      "characters": 1262,
+      "rendered_sha256": "c9d373dcc62b45b19b5319817c1dbc8a70e8e2ff7c88a11f11916114973d6757",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-26722cd944ac40",
+      "source": "README.md",
+      "line": 353,
+      "end_line": 354,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 模块与文件职责 / src/wxbot —— 微信 UI 收发层",
+      "sha256": "f26910163348e7138a91aac3639d13ecb9aacabfcfb50b3f4694ce1099a74aad",
+      "characters": 28,
+      "rendered_sha256": "093ff636f373e8232a030f0639050e132b716592ef81f79072d6e1e20e08af06",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-51827c911fad45",
+      "source": "README.md",
+      "line": 355,
+      "end_line": 381,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 模块与文件职责 / src/wxbot —— 微信 UI 收发层 / 根目录",
+      "sha256": "617e27ec1c7a5250a8bbd5a2cf9992a7509d28606e5ce58bd0604894d945a2c9",
+      "characters": 1347,
+      "rendered_sha256": "c7e097be3bd3f21253a9b3eff61d54e009ddcf737c302fa353b0cd0a4fcd7fd5",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-62c4af56a71362",
+      "source": "README.md",
+      "line": 382,
+      "end_line": 394,
+      "node": "wechat-ui",
+      "label": "wxbot / Butler / 模块与文件职责 / src/wxbot —— 微信 UI 收发层 / wechat/ —— 控件层",
+      "sha256": "bae72b7cc12e2ece49af51d98b5bbed3d12df73f7b85e89225c5fbbc6e6f5df7",
+      "characters": 512,
+      "rendered_sha256": "42b85650c5272448f4a7c2f0ceaa498bbb35076bf3dc1ec76dad85b91ad361d5",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-271abea1efa9ae",
+      "source": "README.md",
+      "line": 395,
+      "end_line": 406,
+      "node": "queue-worker",
+      "label": "wxbot / Butler / 模块与文件职责 / src/wxbot —— 微信 UI 收发层 / processor/ —— 消息处理器",
+      "sha256": "12cc03792a506e72622b7ae3391dbf48a0535696cc63aea8114fbc22ff4e9b08",
+      "characters": 497,
+      "rendered_sha256": "cc1a5614fb12dc95f15900ccdd1e78d03f4f61eed3f0a558ea2fc21f51dd1571",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-5c0dd8694810ec",
+      "source": "README.md",
+      "line": 407,
+      "end_line": 456,
+      "node": "dashboard",
+      "label": "wxbot / Butler / 模块与文件职责 / web/ —— 管理台前端",
+      "sha256": "a01a786f6e7bc8062d6d3320a2ce52631832f0818ee69d3202d11470cf3cb484",
+      "characters": 2195,
+      "rendered_sha256": "061daa6dda1c04fc5613bc1ec2689e01c3a698b89368d92e45603fc76a74ba72",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-d785adba6e08ef",
+      "source": "README.md",
+      "line": 457,
+      "end_line": 478,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 模块与文件职责 / scripts/ —— 启动与运维",
+      "sha256": "31230d41b4182acc80f33da8c33fc3af6f51bd3f15c08770677aad6793334744",
+      "characters": 1021,
+      "rendered_sha256": "a4eac53ecb298f1df2cd05156f0b801ec75f83bab959421543aae1206d11a6bc",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-6b3ce096bc6d11",
+      "source": "README.md",
+      "line": 479,
+      "end_line": 489,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 模块与文件职责 / tools/ —— 探活与打包",
+      "sha256": "949870c7ad4b5cf9568480778dcacb9df927701f65daae94d003ea9f5c489870",
+      "characters": 300,
+      "rendered_sha256": "eabc845c1808f5ef1a7c255a6d124ca438e7888323feebd0b985a421cab128f7",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-9600492f18d384",
+      "source": "README.md",
+      "line": 490,
+      "end_line": 508,
+      "node": "resident-skills",
+      "label": "wxbot / Butler / 模块与文件职责 / plugins/butler-wechat —— Codex 插件",
+      "sha256": "0726ef5c4915a8d54fa055f4eceb601f1ee8c8efa427611926fb364fbab17054",
+      "characters": 843,
+      "rendered_sha256": "f3b73d3545faea140dc78e2fb5c2c500647a7eaa7790219dbcd284a7fbf6a643",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-8d1b6a58a9ba38",
+      "source": "README.md",
+      "line": 509,
+      "end_line": 531,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 模块与文件职责 / tests/ —— 离线测试（仅本地，不入 Git）",
+      "sha256": "f2f8d874b6991d6a7ffaed33823048458e20aaa7f78013b9cb172fddba8c9c28",
+      "characters": 922,
+      "rendered_sha256": "7c041bf5ad9d3987e8765c2a5c6d82ae6ce5aa1faf4ab826a090f2d03280dce1",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-f6cee738b73093",
+      "source": "README.md",
+      "line": 532,
+      "end_line": 545,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 数据流与职责边界",
+      "sha256": "a27e246a92dfb27227eadb98f9e203a619000e9263773fc1dcc5b8b5a4c05e8a",
+      "characters": 538,
+      "rendered_sha256": "c0c0e38e241deff46fc4eda19220b88b923dee199897393b40e5a9a2fa8cfeac",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-f0447a1ef5f389",
+      "source": "README.md",
+      "line": 546,
+      "end_line": 547,
+      "node": "butler",
+      "label": "wxbot / Butler / 接口与协议",
+      "sha256": "7cc566c0f3bc2a4503adb4732f6d528c73c6709a979efc91d7dea1c4bc94b037",
+      "characters": 10,
+      "rendered_sha256": "2d277e731648e39322a2e5c5d99229327edd76b44f61114e814a0d9476f7dba0",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-28e203f082f6ba",
+      "source": "README.md",
+      "line": 548,
+      "end_line": 581,
+      "node": "butler",
+      "label": "wxbot / Butler / 接口与协议 / Butler HTTP",
+      "sha256": "b78a28c1c8f9ccbd7bd076a5953e87c209b04f6d1053362ed5d43e78afbb04c6",
+      "characters": 1424,
+      "rendered_sha256": "16fea5bca5fe144e3f39a59c63f5ee3924e1eb20bfb2410c5dbb0edaccb54722",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-ac630fe13429c5",
+      "source": "README.md",
+      "line": 582,
+      "end_line": 596,
+      "node": "dashboard",
+      "label": "wxbot / Butler / 接口与协议 / 管理台 HTTP",
+      "sha256": "47fab813664f9c9de483b5d5f568f20e65db55cb8df51f716cd035a400ae47e7",
+      "characters": 966,
+      "rendered_sha256": "1e629db93a25879c605407ef0703dbdcaae88f25ab3b9fb61e3654c5ed1fa4c7",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-c12f2710f3c6a2",
+      "source": "README.md",
+      "line": 597,
+      "end_line": 613,
+      "node": "configuration",
+      "label": "wxbot / Butler / 配置",
+      "sha256": "e99554dccac283f1abd111c78980c39af10c6959543db1313247e802c061cc42",
+      "characters": 828,
+      "rendered_sha256": "5c41b084913b9877b78fad0b7f68371dcd5fba0b18cc04b838229e026a121cb1",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-adb52ac360f25f",
+      "source": "README.md",
+      "line": 614,
+      "end_line": 656,
+      "node": "knowledge-vault",
+      "label": "wxbot / Butler / 知识库",
+      "sha256": "b786761b50dfc68fe35a19a057ad925f7cad5a91b81eca8eda400fc808197197",
+      "characters": 2008,
+      "rendered_sha256": "d9a18f65271e1d2b303c2f2f3256e95427980a353a5daba8d03211bda115b559",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-e6175b44a5c084",
+      "source": "README.md",
+      "line": 657,
+      "end_line": 677,
+      "node": "dashboard",
+      "label": "wxbot / Butler / 管理台",
+      "sha256": "9cb0b50ee543a5d60626cfd48d83577d3a6566ff096f3eaf377919cfb8356280",
+      "characters": 843,
+      "rendered_sha256": "8108d0caec2b531661abeb5592316065fbe79069801eb59250040772abefbba3",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-979c90a4e6a946",
+      "source": "README.md",
+      "line": 678,
+      "end_line": 694,
+      "node": "identity-tools",
+      "label": "wxbot / Butler / 管理台 / 联系人管理规则",
+      "sha256": "cd3a3e7ceddaab3f3dc3555cd07629e39fa1c251189f9c1b2cae8fb36b5b9295",
+      "characters": 1255,
+      "rendered_sha256": "c31a1d2d99d482b7aa5dcce5e395dba4bc666879696e9569c93daa35e4802d05",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-de96c7615265db",
+      "source": "README.md",
+      "line": 695,
+      "end_line": 725,
+      "node": "wechat-ui",
+      "label": "wxbot / Butler / 微信 UI 与队列",
+      "sha256": "10d483973f1797281e0c1c9c57e95ccc9034fba761bad89b5859c29d1f7f47f4",
+      "characters": 1756,
+      "rendered_sha256": "7bb76e0bce9644375fe51e6a43db1c76c12df4764b3cb6da1f4005457ad52b3a",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-037c8e3925abd7",
+      "source": "README.md",
+      "line": 726,
+      "end_line": 756,
+      "node": "index-tts",
+      "label": "wxbot / Butler / 微信 UI 与队列 / IndexTTS 网页预设转微信语音",
+      "sha256": "c7c36fc18baabd053e64bebc009e6171cedea32934c6816f4aa70271d4df3bf4",
+      "characters": 1788,
+      "rendered_sha256": "49e51b0b73f1e42e43902756f069fec705c525eed62950d49848039d1166d74b",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-e225117d9b77d4",
+      "source": "README.md",
+      "line": 757,
+      "end_line": 769,
+      "node": "butler-functions",
+      "label": "wxbot / Butler / Telegram 通道",
+      "sha256": "5a967619828c113c63d8f64f62fd0fc7ce3a78cec2abf5a9af6011e92e7c8e42",
+      "characters": 445,
+      "rendered_sha256": "a0a81d97840c24a14c99f1e8cf229b202bd36f4762ea15c7af546375c03d6edb",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-afc7f2edb359cb",
+      "source": "README.md",
+      "line": 770,
+      "end_line": 784,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 测试、校验与发布",
+      "sha256": "ab8eddbb9ddef746d61abb6a52b0c81a2841843863bb761236303188acace269",
+      "characters": 551,
+      "rendered_sha256": "39b007c97cfd87d1006431fe229fb708b781548df24980406d9747be8eaa54e5",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-fe89b8634639ba",
+      "source": "README.md",
+      "line": 785,
+      "end_line": 786,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 维护约定",
+      "sha256": "59a514dd372b718b2d83435b3f6e59fbcdd5c8f18d62819b4473d1b77ff28af7",
+      "characters": 9,
+      "rendered_sha256": "5e31468b097b02742cabfead128e239bbba9726acabb19801b36ac401e43dadb",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-f149deca286e0e",
+      "source": "README.md",
+      "line": 787,
+      "end_line": 804,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 维护约定 / 项目知识图谱",
+      "sha256": "38d82fc423f1db5dd0df706015c200373beba2671cd667abe7d0ac6054a99783",
+      "characters": 701,
+      "rendered_sha256": "8ff05ccf0b41882185f37e7192cb927a8af528860f85568462c872ecea52e388",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-cd58dad2028698",
+      "source": "README.md",
+      "line": 805,
+      "end_line": 819,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 维护约定 / 开发边界",
+      "sha256": "3b6150a1dd592900aa542482cd4748d12c29d01f6bf3ab8cb34706db3fdbe8c8",
+      "characters": 636,
+      "rendered_sha256": "e733b546b1e97d2a992cb441f8ba2dd7e38c09afb2702334c0a32c82c45553d2",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-f544399fcbaca7",
+      "source": "README.md",
+      "line": 820,
+      "end_line": 848,
+      "node": "resident",
+      "label": "wxbot / Butler / 小潮常驻角色",
+      "sha256": "93aa5482a61ff1edf470f3017de14d771b4b53ce934d012d61ea93285a6367ac",
+      "characters": 1045,
+      "rendered_sha256": "b821118e2340e900e0c67e530260972b1deac2fae1bc3fb23b837643c0388149",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-af40558e48160a",
+      "source": "README.md",
+      "line": 849,
+      "end_line": 867,
+      "node": "wxbot",
+      "label": "wxbot / Butler / 架构图节点文档",
+      "sha256": "68fa514f61511551697cc84b3767dd4674096c7f2cda64306c1e03d7020a73a1",
+      "characters": 852,
+      "rendered_sha256": "ea37abdeb91accff79bc79e053bf5ad540f68eadccc1be28d2d59bf8bca4633c",
+      "group": "使用说明"
+    },
+    {
+      "id": "doc-68e9f87f4924a8",
+      "source": "docs/superpowers/plans/2026-11-05-resident-xiaochao.md",
+      "line": 1,
+      "end_line": 12,
+      "node": "resident",
+      "label": "小潮常驻角色实施计划",
+      "sha256": "9aad12b632949f7731c8d437cd34e31d4359f4bb4f5195ca413f57acacd97b7a",
+      "characters": 870,
+      "rendered_sha256": "7fbcb928cb52ee88e84a7528e39d0d27ad04165d6ba692c53a12db67e562f33a",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-a85671cf7b8516",
+      "source": "docs/superpowers/plans/2026-11-07-delivery-handlers-verification.md",
+      "line": 1,
+      "end_line": 40,
+      "node": "delivery-pump",
+      "label": "发件重构第一步验证记录",
+      "sha256": "05571ab8a5e17af1c9fe6b849ac2f9f8f768a03a2837d5a9224487397cf9d9dd",
+      "characters": 1582,
+      "rendered_sha256": "5ef5be000b64d09f39037931c886b8526690f973ef70e32d521d93a3e30a1a0b",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-7281dbe7fcbbd1",
+      "source": "docs/superpowers/plans/2026-11-07-delivery-handlers.md",
+      "line": 1,
+      "end_line": 54,
+      "node": "delivery-pump",
+      "label": "Delivery Handlers Implementation Plan",
+      "sha256": "a5c269e647229dc09eaa1f93f12fcd99465baadacff09cd73d77c3d7d11a30b7",
+      "characters": 2124,
+      "rendered_sha256": "e32959c016597ffc8eec87709b294d21ba1a561fc9211a2d8a06bc3649a6f31d",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-b664511b293d11",
+      "source": "docs/superpowers/plans/2026-11-07-stale-regression-tests-verification.md",
+      "line": 1,
+      "end_line": 32,
+      "node": "wxbot",
+      "label": "四项历史回归失败修复记录",
+      "sha256": "53045f46fc6f786b4f43c62775a407944be3225d58046d7c4e7e8a3d98847b63",
+      "characters": 1517,
+      "rendered_sha256": "ac541e4bd8ce790ad0f8c9e0d66fbfdf28d8d9f10b4b994e919a0f9de5faea24",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-4382681f9a2f3e",
+      "source": "docs/superpowers/specs/2026-11-07-delivery-handlers-design.md",
+      "line": 1,
+      "end_line": 24,
+      "node": "delivery-pump",
+      "label": "发件处理器拆分（第一步）",
+      "sha256": "9ca94b1a83842844517a2499a22ca90ac9119104fa6ff83b45f1ec5346b144e9",
+      "characters": 766,
+      "rendered_sha256": "e091534c2e0a3d62ea9e0c8e6dab71eda9719435403a4c021defbe9e7ce0bc43",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-5135f5350303bc",
+      "source": "llm wiki/wxbot/apis/butler-handle-stream.md",
+      "line": 1,
+      "end_line": 74,
+      "node": "butler",
+      "label": "POST /v1/handle-stream",
+      "sha256": "65d72adeb4f42e75ea64ddf69da14664136e1d51e3636654d9340d2700243ac3",
+      "characters": 2530,
+      "rendered_sha256": "ed2a7bc328b4f919d40f0134addc5c29e4ad3ae36c9acb13f9d162c347115abe",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-4f70359e7ae440",
+      "source": "llm wiki/wxbot/apis/butler-handle.md",
+      "line": 1,
+      "end_line": 123,
+      "node": "butler",
+      "label": "POST /v1/handle",
+      "sha256": "05cfa3c40c5d2428c302cc8e8bbfb1e084e2753105c3c6d4ef8d571eb58f860b",
+      "characters": 4299,
+      "rendered_sha256": "f6c8efdc5ae5f63f61379b76458aa207024f302e8da63cfd7a42d8485f08b613",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-fdc456753803cc",
+      "source": "llm wiki/wxbot/apis/dashboard-contact-policy.md",
+      "line": 1,
+      "end_line": 84,
+      "node": "identity-tools",
+      "label": "联系人策略保存",
+      "sha256": "b43a79830eb12222dd44d1dd9a4dd9413df7ce0beedd23e5951a945a94efe941",
+      "characters": 3484,
+      "rendered_sha256": "42470de646ce24213d5c4439144535c38d2670df5cc1368bf326bdca4cb924c7",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-17461d21600be6",
+      "source": "llm wiki/wxbot/apis/dashboard-knowledge.md",
+      "line": 1,
+      "end_line": 314,
+      "node": "knowledge-vault",
+      "label": "对话原文、知识事实、自动提炼和知识模板",
+      "sha256": "9ffcaba823873b76ee6949b67e97122ad62419d580ba06551440eaef07f35786",
+      "characters": 16145,
+      "rendered_sha256": "6e3f6730308b5b756574b94bf483b468ef61b4c820cf2d2c0ebf077c6ffced5a",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-0b08697b4d4a4f",
+      "source": "llm wiki/wxbot/apis/dashboard-queue.md",
+      "line": 1,
+      "end_line": 90,
+      "node": "queue-storage",
+      "label": "GET /api/queue",
+      "sha256": "a8519bb91724c97b2d3cee3e208d3476d0f55a59be29c0b157bdba284a8304ff",
+      "characters": 3223,
+      "rendered_sha256": "aaa035e2a90745814a2ca0e9717084584c9c586be6087da718059047e1c84a44",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-38ef2f5a72288d",
+      "source": "llm wiki/wxbot/apis/dashboard-resident-diary.md",
+      "line": 1,
+      "end_line": 34,
+      "node": "resident",
+      "label": "管理台小潮日记接口",
+      "sha256": "a0e1197285dbca5d7a8b53797f4d3638d40b0da3a96e3a8f609d3ae5866cb54f",
+      "characters": 1186,
+      "rendered_sha256": "1341744d690ece2c55dabd4a86d6b11ebd4b1fc02c4fd8ec69b6e246e77a1bdb",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-d265cc1e47a521",
+      "source": "llm wiki/wxbot/apis/dashboard-voice-assets.md",
+      "line": 1,
+      "end_line": 104,
+      "node": "delivery-voice",
+      "label": "管理台音色资产与绑定 API",
+      "sha256": "b2206a16075c103f455cb61fb2a4dc61d8679fe4690b10ed48aaeaa994abeb8c",
+      "characters": 3921,
+      "rendered_sha256": "bafc400efcee68631a45ee23bf531901b86027c44308631508c3324450a85248",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-0d1f17e6436714",
+      "source": "llm wiki/wxbot/apis/dashboard-workflow.md",
+      "line": 1,
+      "end_line": 84,
+      "node": "dashboard",
+      "label": "GET /api/workflow",
+      "sha256": "94c81b05974e08bba83516ae9afbc49a5e05b6518d1ea9c120e214488928cefa",
+      "characters": 3168,
+      "rendered_sha256": "064823922c17e5021fa30001fa4c3479c8e449bd651eb62ef70fda5d8e77d888",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-fdc576d6ee7fbd",
+      "source": "llm wiki/wxbot/apis/index-tts.md",
+      "line": 1,
+      "end_line": 171,
+      "node": "index-tts",
+      "label": "IndexTTS 网页预设与微信语音包",
+      "sha256": "32d501e78b9b17ec04e335b6fa0adccf36f18c05289465c8696f4cf75188837f",
+      "characters": 7350,
+      "rendered_sha256": "7f5e6c059f4982d8d8e9a9a34e80af8f0ed78faf92cb71a3cbd0d5b0416b087e",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-2359f8bc64950b",
+      "source": "llm wiki/wxbot/changelog.md",
+      "line": 1,
+      "end_line": 488,
+      "node": "wxbot",
+      "label": "[2026-10-31] change | 项目知识图谱首批建档与维护闭环",
+      "sha256": "6c628f685b19e134a7dac43405faf2441cac161f340cc2ea6114038e0aec34a7",
+      "characters": 21395,
+      "rendered_sha256": "f9add7218075465c45120981ab5af7d6d22e39e0ad698fe4fc3c3ea0ca6ecd7b",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-6372a6d15b637a",
+      "source": "llm wiki/wxbot/concepts/architecture-node-notes.md",
+      "line": 1,
+      "end_line": 79,
+      "node": "wxbot",
+      "label": "架构图节点文档",
+      "sha256": "1ea58a3a607a6c9c9a2dae3f45563d409e50de07e73cc929f73c9be7dc844c4d",
+      "characters": 2881,
+      "rendered_sha256": "c7647b58ba6dba8873b2b19c113212ee98afa0c439b7a54e95b41861aee32c40",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-070a8b5f81ad00",
+      "source": "llm wiki/wxbot/concepts/automatic-voice-reply.md",
+      "line": 1,
+      "end_line": 75,
+      "node": "delivery-voice",
+      "label": "自动回复网页语音",
+      "sha256": "b799165925a4c34f8c75db62e0ef730ecaa93773f3049679e6940475f9568688",
+      "characters": 3054,
+      "rendered_sha256": "7d92bac0e0e945212e89343d7fc9abd14bd1c1f2a09839c312b3846af802a35f",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-62362beb7f9b66",
+      "source": "llm wiki/wxbot/concepts/capture-viewport.md",
+      "line": 1,
+      "end_line": 48,
+      "node": "wechat-ui",
+      "label": "截图采集与可见窗口",
+      "sha256": "a1f2fbb33804707a0b44796195e25c2bff329eb147611a31dfef7a5d201ec00b",
+      "characters": 1801,
+      "rendered_sha256": "7c5b09ed1f78d594d32ebeef5200f1466fc3881011db561d4579ee3d67f1f868",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-1e3fe9ed2e96f6",
+      "source": "llm wiki/wxbot/concepts/delivery-state.md",
+      "line": 1,
+      "end_line": 132,
+      "node": "delivery-pump",
+      "label": "模型完成与投递状态",
+      "sha256": "11de2a5d4f4bd7a5e5d2c67231a7277e0b7d5ecf4938120a8657e54fff6adcb5",
+      "characters": 5353,
+      "rendered_sha256": "f5df88a73ae9e47c3d53ce27db8b521f6d1e363b400dea3b0b1755b8bd484dff",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-f0b302749d6eb3",
+      "source": "llm wiki/wxbot/concepts/development-baseline.md",
+      "line": 1,
+      "end_line": 180,
+      "node": "wxbot",
+      "label": "开发基线与历史布局",
+      "sha256": "4d462fda766e468b7f8af2b27e7c2eee49e5c12725242011309dd0f5d52d92f4",
+      "characters": 6049,
+      "rendered_sha256": "322eedc224feadb58f20d69d33b6e9b938489e798d99ea7451ee4602fea578ff",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-82631ed77ef07a",
+      "source": "llm wiki/wxbot/concepts/group-identity-evidence.md",
+      "line": 1,
+      "end_line": 104,
+      "node": "identity-tools",
+      "label": "群成员身份：昵称优先，头像退为证据",
+      "sha256": "45caf79375ef89f58da9e46e006717bf297a3b0fd9e89455d35a8b20bae460ae",
+      "characters": 3835,
+      "rendered_sha256": "c2e9c173dde67f151719ed27d4e492e6d0f32fa4eabb457748758f604cc304f8",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-8dc39a23945b37",
+      "source": "llm wiki/wxbot/concepts/identity-authority.md",
+      "line": 1,
+      "end_line": 81,
+      "node": "identity-tools",
+      "label": "观察证据与身份权限",
+      "sha256": "19b44285b09c830ee5dcdc2d7c80cce9f62676002edbc2c038eb863a9ce48e49",
+      "characters": 2663,
+      "rendered_sha256": "daa901bd03bf70f3eb9e646fe2348d43b1df7133dbad6e2580de2939f9456ad5",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-6cbfc97cc45d15",
+      "source": "llm wiki/wxbot/concepts/message-pipeline.md",
+      "line": 1,
+      "end_line": 124,
+      "node": "wxbot",
+      "label": "消息主链路与字段传递",
+      "sha256": "e245828715609dbf2eb04a2b8033c87303b5db7838c5b6316d0c3cc81a6e55f7",
+      "characters": 4939,
+      "rendered_sha256": "20112801f0ee379a1ed6bbd0c9e971acac3e2ee387843eb53d0ba08ef3f5f1db",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-77e385a27b73a6",
+      "source": "llm wiki/wxbot/concepts/model-error-contract.md",
+      "line": 1,
+      "end_line": 197,
+      "node": "model-backends",
+      "label": "模型失败契约",
+      "sha256": "c8177624804096933a7f30435d3405fb2ead36768313bf612950541ee20b5090",
+      "characters": 9187,
+      "rendered_sha256": "8e8126383a3b2a633b746b8351136e3a3d3e4d9f8b91933a16fe43b8fa3d76d6",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-8bf7e570157f43",
+      "source": "llm wiki/wxbot/concepts/unread-capture-retry.md",
+      "line": 1,
+      "end_line": 94,
+      "node": "wechat-ui",
+      "label": "未读采集的重试与放弃",
+      "sha256": "b05fc9b1f34b0fe9d6f9842537a514d531c2d5f7d1f42d9929b2c14169859131",
+      "characters": 3846,
+      "rendered_sha256": "9da995cd46935166074d3ce71cef6741247ce805c6e5b73fe367078205617ad7",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-7159ca2e34cdf0",
+      "source": "llm wiki/wxbot/concepts/voice-asset-binding.md",
+      "line": 1,
+      "end_line": 68,
+      "node": "delivery-voice",
+      "label": "音色资产绑定与出站门控",
+      "sha256": "4c3e4d5bf441ae0bf9d3be7d7e727aeac96e95c986992750a3981d1bb9e28605",
+      "characters": 2704,
+      "rendered_sha256": "ec3757eedd29070b10ae76c4e798bc1eda72a66b10286b7e30bfe7576913b920",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-3d945de7c38143",
+      "source": "llm wiki/wxbot/coverage.md",
+      "line": 1,
+      "end_line": 50,
+      "node": "wxbot",
+      "label": "建档覆盖范围",
+      "sha256": "464a9f0ed42b755245c0b58b1447e56460fc1ccbe273b6f3d832c47e71ebb60d",
+      "characters": 2450,
+      "rendered_sha256": "b40368b30877939c51f7ad40c34643d2279d31d4703afc5d171bfbf8455206c1",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-ba7d4d46f1c73f",
+      "source": "llm wiki/wxbot/design.md",
+      "line": 1,
+      "end_line": 25,
+      "node": "wxbot",
+      "label": "项目知识图谱实施方案",
+      "sha256": "cddf76852065543e30328f9010e42ba4c4d8742dafb4c890638c4bbb23cbf445",
+      "characters": 1095,
+      "rendered_sha256": "ea5d95752cd7d4efdbeb66a53367a4d94878944f6fc38d9cdcafcfc77206ded2",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-9cf47fd939c877",
+      "source": "llm wiki/wxbot/guide.md",
+      "line": 1,
+      "end_line": 58,
+      "node": "wxbot",
+      "label": "查图与维护",
+      "sha256": "e2aa81cfc0393ec292a8c2614e9d379500e08e871bcc5002b9a719ac518474ec",
+      "characters": 2653,
+      "rendered_sha256": "6754fabfd44735d64bd4470ac4a8d8f4785ec1c28eb8f8fb0ccfbe7385ab084e",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-fbe924ce9641ad",
+      "source": "llm wiki/wxbot/impacts/2026-10-31-group-identity-nickname.md",
+      "line": 1,
+      "end_line": 62,
+      "node": "identity-tools",
+      "label": "群成员身份改用昵称优先，头像退为证据",
+      "sha256": "b65749059be50c362e76be28c6e2c1f6799c8419d1dff0afff4203a08a8f1d6e",
+      "characters": 3499,
+      "rendered_sha256": "85b07221d93aa41c89b8ebccbd5c7c272dee31275dfc246b6f2aabbe45f10d3f",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-0c3db1f926d782",
+      "source": "llm wiki/wxbot/impacts/2026-10-31-knowledge-graph-bootstrap.md",
+      "line": 1,
+      "end_line": 31,
+      "node": "wxbot",
+      "label": "知识图谱落地影响分析",
+      "sha256": "e7b6fbe442c8401bc252d5c1f930bb1914624b9636b0a9bc9853b87227bb044d",
+      "characters": 1003,
+      "rendered_sha256": "9223e23089c06a1ecb2bd9c6e36974e0b0e997196b8a0da7be2f987565a0af18",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-7e58558178e006",
+      "source": "llm wiki/wxbot/impacts/2026-10-31-switchable-models.md",
+      "line": 1,
+      "end_line": 42,
+      "node": "model-backends",
+      "label": "统一 Butler 模型接入与运行中切换",
+      "sha256": "9a0ea12ad1b522d648b9bdaa337215221d6cef6b5ad7f89682186c5619e507b0",
+      "characters": 1903,
+      "rendered_sha256": "5d9645d7159b7f9c1d0fbbe1b08bb824368a332d7358377cb3a702dcad398425",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-528d62fcf07d59",
+      "source": "llm wiki/wxbot/impacts/2026-11-01-knowledge-atlas-index.md",
+      "line": 1,
+      "end_line": 46,
+      "node": "knowledge-vault",
+      "label": "知识库中心索引页与七类事实分组影响分析",
+      "sha256": "01379e2c231280c9fbbb61f9eacd45fd7ac1bec5575999ec2ccc9c4064636aaa",
+      "characters": 2118,
+      "rendered_sha256": "0d4c3fda4eed4ec0ad5d041747619748fa9ac80af1ea618688a07d5af63ede78",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-b92e2632af0e9b",
+      "source": "llm wiki/wxbot/impacts/2026-11-01-knowledge-vault-graph.md",
+      "line": 1,
+      "end_line": 65,
+      "node": "knowledge-vault",
+      "label": "用户知识库改为 Obsidian Markdown 图谱影响分析",
+      "sha256": "a66c1e4eeec299dc326aba30b498453e75d06a53027828f5b5d0f0876f47f61f",
+      "characters": 4597,
+      "rendered_sha256": "d0abd280b8b1fbfade2368c697ff5d1e18c5d9f98c15231895a81a1bd98125ff",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-f77e7236a67711",
+      "source": "llm wiki/wxbot/impacts/2026-11-02-knowledge-graph-template.md",
+      "line": 1,
+      "end_line": 78,
+      "node": "knowledge-vault",
+      "label": "知识图谱模板外部化与在线编辑影响分析",
+      "sha256": "5b715021122bfa0ad37ef2cc30a0c1d56f06b69b7ff5ce1ca6630f34b4c4e0ec",
+      "characters": 3683,
+      "rendered_sha256": "6ed069e9c2e92f1b89c8911b70077aaa41dbe0f16c24e78ba12b24be1b4d21e1",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-6981deab6390ae",
+      "source": "llm wiki/wxbot/impacts/2026-11-03-development-doc-baseline.md",
+      "line": 1,
+      "end_line": 27,
+      "node": "wxbot",
+      "label": "开发文档与技术基线口径核对",
+      "sha256": "0c7c52975148c93f03eedf5c819566e41debb6511eee1c3351b0fde28f860f4c",
+      "characters": 1256,
+      "rendered_sha256": "a1335aceafc4a6bcb93e195a72db0e0271f4c47b34a1758f9254be88b96d0def",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-f3a570551cedc3",
+      "source": "llm wiki/wxbot/impacts/2026-11-04-contact-index-tts.md",
+      "line": 1,
+      "end_line": 37,
+      "node": "index-tts",
+      "label": "联系人配置中的 IndexTTS",
+      "sha256": "96fa0f575558d031d9ec18f9099147c787bfed74cb504a30750f9c572ce08a30",
+      "characters": 1733,
+      "rendered_sha256": "e559e5c626d5a2d997f31e8175db69b3af42c4757bd009e76de160eae0f8f1b0",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-f72ff421fb5c31",
+      "source": "llm wiki/wxbot/impacts/2026-11-04-index-tts-skill.md",
+      "line": 1,
+      "end_line": 62,
+      "node": "index-tts",
+      "label": "Butler IndexTTS 技能设计与影响面",
+      "sha256": "648ff184099036bc5aabaaeb5126ea3ade048c5904223fc7ecb79eb34579f6bb",
+      "characters": 3230,
+      "rendered_sha256": "6aefcd8abc79adb85b34b8454dfa533b317e5df903b57a15747faf6e32bcbdc2",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-1002b3869f9b4f",
+      "source": "llm wiki/wxbot/impacts/2026-11-04-root-workspace-unification.md",
+      "line": 1,
+      "end_line": 32,
+      "node": "wxbot",
+      "label": "主目录、main 与 Python 环境统一",
+      "sha256": "794e48c8cb3767ed3332e586c7cd14612cd233db1efc96785e94a86907515d5d",
+      "characters": 1154,
+      "rendered_sha256": "2b24d6a217057470769702172642b5e34513bd199ad1f405957eba34144dbb8a",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-b47165c49a3a7a",
+      "source": "llm wiki/wxbot/impacts/2026-11-04-webui-preset-binding.md",
+      "line": 1,
+      "end_line": 30,
+      "node": "index-tts",
+      "label": "联系人选择网页音色预设",
+      "sha256": "78f54a80934764a0a411d03d9e0ae7718a7dcfdbbee8e1ace4fa0993ecf1c968",
+      "characters": 1496,
+      "rendered_sha256": "0a5105dbe1810244ab1fabf49124e7f5b76895df84a8db307e957ac98cc2016d",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-98f596dd5f8d22",
+      "source": "llm wiki/wxbot/impacts/2026-11-05-contact-enrollment-and-tts-ui.md",
+      "line": 1,
+      "end_line": 28,
+      "node": "identity-tools",
+      "label": "新消息补建会话与移除会话 IndexTTS 专区",
+      "sha256": "716647b138bc96f3e786d1699048703736d00d339993789738323fbeac13c520",
+      "characters": 1389,
+      "rendered_sha256": "350a94cd2f6be111fb4b3701b404c9bdf35ef0edd8e3610055fdfd1a229a5990",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-62206a40735cb5",
+      "source": "llm wiki/wxbot/impacts/2026-11-05-contact-policy-save.md",
+      "line": 1,
+      "end_line": 46,
+      "node": "identity-tools",
+      "label": "联系人策略保存超时影响分析与实施计划",
+      "sha256": "8379c27e7d79b12c0c1e310d38f79698ed0ca42f6f4c9c4bd23596ae4f3a68dc",
+      "characters": 2004,
+      "rendered_sha256": "f6542eb8f0e8f8fd3c3fc5f1fac5cdf8b2d931c2935f53dfedee855f0b31224c",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-2d4c142263c11b",
+      "source": "llm wiki/wxbot/impacts/2026-11-05-delete-knowledge-fact.md",
+      "line": 1,
+      "end_line": 20,
+      "node": "knowledge-vault",
+      "label": "知识库逐条删除",
+      "sha256": "f28e88799b4ff6d3dffdee8146b6b2e5020c655e0ff993c2bf95d8673c07e141",
+      "characters": 723,
+      "rendered_sha256": "c936886f0088dbcd256551b1df112487d023053f3bcdcdce48cba069560e1c53",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-b934820de6d35e",
+      "source": "llm wiki/wxbot/impacts/2026-11-05-enable-group-binding.md",
+      "line": 1,
+      "end_line": 21,
+      "node": "identity-tools",
+      "label": "启用停用的群成员身份",
+      "sha256": "7df060d82c7c7e4d9164645b240c91618b98212224a60d693bfc563a86a6516c",
+      "characters": 844,
+      "rendered_sha256": "1a00e5ccaa0d98eba3b78e5bb96f6bd3dafc081b514ac25e5f83cd115cbf4f2c",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-b194f18a38699d",
+      "source": "llm wiki/wxbot/impacts/2026-11-05-group-and-auto-voice.md",
+      "line": 1,
+      "end_line": 46,
+      "node": "delivery-voice",
+      "label": "群聊采集与自动语音回复影响分析",
+      "sha256": "ef0823133617bd2cef6cbfd14aa138765b4b4b831faaa5c5a595887a733545c9",
+      "characters": 2360,
+      "rendered_sha256": "7401604060eb6fe181a2531af02938798f22240effda8c18a2d8b52723e09b58",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-53fb2c0d450b09",
+      "source": "llm wiki/wxbot/impacts/2026-11-05-knowledge-group-sources.md",
+      "line": 1,
+      "end_line": 23,
+      "node": "knowledge-vault",
+      "label": "知识库按群汇总与来源标识",
+      "sha256": "be4ed23ac22ebae43ffb1c98d389f40f2b4415c40ceae64f6c25a81d15869da7",
+      "characters": 730,
+      "rendered_sha256": "4e29b5c6fddc417a2e04cece39e0f95e044258a0f0fef78e5cfe8e7b3ccd4eca",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-5b4e90fba08643",
+      "source": "llm wiki/wxbot/impacts/2026-11-05-resident-diary-web.md",
+      "line": 1,
+      "end_line": 15,
+      "node": "resident",
+      "label": "管理台小潮日记",
+      "sha256": "6c2b74d95c7ef03f1c96f0948c467c57704e696ee09d8410720ff6531685d98e",
+      "characters": 694,
+      "rendered_sha256": "569b12aa2d9f04cf36a839e42567e8e928dca4ddb8cc642c42bb1db6a4b1c4a0",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-6323d188bd37df",
+      "source": "llm wiki/wxbot/impacts/2026-11-05-resident-xiaochao.md",
+      "line": 1,
+      "end_line": 38,
+      "node": "resident",
+      "label": "小潮常驻与空闲刷抖音",
+      "sha256": "ed867c2ee332bbcfe44cd3d1eb253491fb58bb4ce85aa6b668aa7bfff0ed0a89",
+      "characters": 2060,
+      "rendered_sha256": "7a53c5bc0f4ad1e495bec1cee3ffbc67c9578f18e9b64afe54913ec226d326fb",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-6cee41da4b9fa7",
+      "source": "llm wiki/wxbot/impacts/2026-11-06-resident-visible-edge.md",
+      "line": 1,
+      "end_line": 14,
+      "node": "resident",
+      "label": "小潮在同一个 Edge 窗口等待验证",
+      "sha256": "7cb7f91825ff6ee08a2a069567687cee7f4722cf4c8fe85f5129c3a50ae29d4a",
+      "characters": 681,
+      "rendered_sha256": "8f604afd79fb336b20486dcd502a90949874ec04db0be23ee7aa9d3de6b33945",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-26369af37d5fda",
+      "source": "llm wiki/wxbot/impacts/2026-11-07-delivery-handlers.md",
+      "line": 1,
+      "end_line": 29,
+      "node": "delivery-pump",
+      "label": "发件处理器拆分影响分析",
+      "sha256": "046168287c70280a40b6fa3c65127fb7023ec5bc221d212ccc2445aa6ee98a35",
+      "characters": 1138,
+      "rendered_sha256": "174d58035124118b3c78418a90eddb03db944b2d3b220dd96cecd0a5334025d8",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-a371c9f059b5c8",
+      "source": "llm wiki/wxbot/impacts/2026-11-07-stale-regression-tests.md",
+      "line": 1,
+      "end_line": 17,
+      "node": "wxbot",
+      "label": "四项历史回归失败核对",
+      "sha256": "a7d041fec687ebd03029fa9d83abe60f96a9e6d1d0ae46949bf801548287e251",
+      "characters": 1090,
+      "rendered_sha256": "148f6e4b8a12604fb278848dac659aabd0a0b2c683fe66139ac2ff5b40262ac3",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-6e5a10e80a7955",
+      "source": "llm wiki/wxbot/index.md",
+      "line": 1,
+      "end_line": 168,
+      "node": "wxbot",
+      "label": "项目知识图谱",
+      "sha256": "796bdbfcf566e8b1e96c33c9abf241f0d7dd0b8553b0c75cf513d42ae725252c",
+      "characters": 10798,
+      "rendered_sha256": "621b9a9118e9abcae7207cfebc59cc6b0155349abac6699a6a21ae6d7fc22f9d",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-c5a09700a83870",
+      "source": "llm wiki/wxbot/model-switch-verification.md",
+      "line": 1,
+      "end_line": 1,
+      "node": "model-backends",
+      "label": "model-switch-verification",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "characters": 1,
+      "rendered_sha256": "e7ace9419377f544ad758c941b302c708aa240718b1bcfd8e77587f294bb7aec",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-38393df7a7b4da",
+      "source": "llm wiki/wxbot/modules/butler.md",
+      "line": 1,
+      "end_line": 106,
+      "node": "butler",
+      "label": "Butler 编排层",
+      "sha256": "2fe00ff7cc327297a0de048c625cd40ba908479bbd1441a18f78d76f1b0f2f96",
+      "characters": 3899,
+      "rendered_sha256": "c6af0d40ab502cb5f6bb43725fb6224989f412226ebb12d8166d907da5519111",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-dd2bd595b3d8f8",
+      "source": "llm wiki/wxbot/modules/common.md",
+      "line": 1,
+      "end_line": 56,
+      "node": "wxbot",
+      "label": "共享基础能力",
+      "sha256": "8e1956982ef6cf2044119fd2659b537a4236cf0021eee8044506c44128076e06",
+      "characters": 1754,
+      "rendered_sha256": "269b16970de9ddc7db0e104150c393e33cd3345cf0bec2dbd4415e9a8bb7640e",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-bb47c9474691fe",
+      "source": "llm wiki/wxbot/modules/dashboard.md",
+      "line": 1,
+      "end_line": 140,
+      "node": "dashboard",
+      "label": "管理台 HTTP 与投影",
+      "sha256": "53ce3fe51804de68c0649d82da2ce3955efc8bc9832d5784315195485bc035c9",
+      "characters": 5373,
+      "rendered_sha256": "7c4a23dac31de258adc94068efbcc414229eba6979fe212811f0686d3c750970",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-f61f55fe09c5e9",
+      "source": "llm wiki/wxbot/modules/delivery.md",
+      "line": 1,
+      "end_line": 71,
+      "node": "butler-functions",
+      "label": "Butler 投递业务",
+      "sha256": "160f26798515fe1e45bd9328a2354fd4a9f02ca75721103abe115fe422ae7b10",
+      "characters": 2282,
+      "rendered_sha256": "cecdc818406511f5e11c9aa398b3326395550bbb393ff859c0aa782e944650a0",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-5e308350a1ba25",
+      "source": "llm wiki/wxbot/modules/identity.md",
+      "line": 1,
+      "end_line": 98,
+      "node": "identity-tools",
+      "label": "联系人身份与权限",
+      "sha256": "4cb34eef254d6c07f22179e164b4c4a0a2f6b3b2fde0a0cbe386defe7705fb05",
+      "characters": 3141,
+      "rendered_sha256": "edd23a50dec81b756a612bbf7285e86912178f0ca5f9cb549a223a16364ad7dc",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-69928b2a06b8f9",
+      "source": "llm wiki/wxbot/modules/models.md",
+      "line": 1,
+      "end_line": 78,
+      "node": "model-backends",
+      "label": "统一模型后端",
+      "sha256": "bf9ba52a8d5fe48a96e9c3bb53762d39032d6575208b51819c1094d7efb705eb",
+      "characters": 3256,
+      "rendered_sha256": "471bf77023fef4f950959f19a9a3fe71d8a2382ec66de03cb11c9ff9fe6eda8b",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-709338d3e083eb",
+      "source": "llm wiki/wxbot/modules/plugin.md",
+      "line": 1,
+      "end_line": 85,
+      "node": "resident-skills",
+      "label": "Butler 运行时插件",
+      "sha256": "fe28444f51821cc8d9900e1ac8633abe56e554b4ef6ebf0be0bf441cd3cea9b0",
+      "characters": 2715,
+      "rendered_sha256": "4fa9d7c22f8a8236ff529b09b041aeac4cd7ee5f1a1a1e22b5e7de0e273d9a94",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-241e7c8bdd1c05",
+      "source": "llm wiki/wxbot/modules/runtime.md",
+      "line": 1,
+      "end_line": 85,
+      "node": "butler-functions",
+      "label": "Butler 运行支撑",
+      "sha256": "27b8c9dd6dff770fea40292065339d993317d173691ec072dfc3a5634c0b057e",
+      "characters": 3002,
+      "rendered_sha256": "cf3e1acb84ade9653dfdb524d90acffbba3b2817cbb590da9958c057e5ddd20e",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-8b0e2206d40805",
+      "source": "llm wiki/wxbot/modules/telegram.md",
+      "line": 1,
+      "end_line": 43,
+      "node": "butler-functions",
+      "label": "Telegram 外部通道",
+      "sha256": "bb7a40f6bf333d483c9410d57371643a23e5d1e500b6ef7f4d934eda0cf97ab0",
+      "characters": 1223,
+      "rendered_sha256": "7d6ba22a17dd4d64185ddc00e534bb5eb6f3d4fca770b9b6258f962e06d836b7",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-aeec90dfe23cd3",
+      "source": "llm wiki/wxbot/modules/web.md",
+      "line": 1,
+      "end_line": 174,
+      "node": "dashboard",
+      "label": "Vue 管理台",
+      "sha256": "b6b828a6f04ac45b96677106339ed7221fa1bb967c839c41b0f5e2f0fcfb6196",
+      "characters": 8318,
+      "rendered_sha256": "2e03bbe0d51eee62197742d2761de69b7463324d6f9454d785114ec83868fc86",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-ed5d88ddcd1b47",
+      "source": "llm wiki/wxbot/modules/wiki.md",
+      "line": 1,
+      "end_line": 147,
+      "node": "wxbot",
+      "label": "项目知识图谱工具",
+      "sha256": "43252324ca01cd1eeb144c7a263a1b6dd4365e125bab30f2ecd8e4453a018e29",
+      "characters": 4518,
+      "rendered_sha256": "166aa019946cf4837943ae8dfd0bc02dad207c39e5a152b9ae91d42b09513810",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-8508032cbe5131",
+      "source": "llm wiki/wxbot/modules/wxbot.md",
+      "line": 1,
+      "end_line": 147,
+      "node": "wxbot",
+      "label": "wxbot UI 与持久队列",
+      "sha256": "07c6bd57f9b90e31c1b501a63edbd5d5132c76dfda69283ff6c2edc76a3afefe",
+      "characters": 5587,
+      "rendered_sha256": "9d2f86613b1e15d93c17177a73dc3f27c802ccdc67420060b12e8c26b85e5994",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-f68e362b618ab8",
+      "source": "llm wiki/wxbot/plan.md",
+      "line": 1,
+      "end_line": 30,
+      "node": "wxbot",
+      "label": "项目知识图谱 Implementation Plan",
+      "sha256": "ad3a69a7d6936c27dafed206f6fb3cc8c1e48a6e3957851cdfdb0126e84dc518",
+      "characters": 906,
+      "rendered_sha256": "d135d46212b7d74d7adcb9c374f856cb19cfd0a1bf01ef306f5e061728e704d2",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-f39c15a6fe0885",
+      "source": "llm wiki/wxbot/raw/changes/2026-10-31-group-identity-nickname.md",
+      "line": 1,
+      "end_line": 54,
+      "node": "identity-tools",
+      "label": "群成员身份改用昵称优先，头像只作证据",
+      "sha256": "133930c4635e86158c659f4a63796690e74e00b0f4ba83735f9e03b6f4e16aa4",
+      "characters": 2301,
+      "rendered_sha256": "42183cf2a20343054ae8b0efed25526d193b49ba9852ff8369e4b79429cba13c",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-f3232d3cef51df",
+      "source": "llm wiki/wxbot/raw/changes/2026-10-31-identity-placeholder-names.md",
+      "line": 1,
+      "end_line": 46,
+      "node": "identity-tools",
+      "label": "截图占位名不再当作群昵称重放",
+      "sha256": "a1ba2ece9ee6d006c742bca4490e8bf3bc89535a896879659ce2b338923f7ae1",
+      "characters": 1519,
+      "rendered_sha256": "ddb8e6754fa74f3f334042f4b37e898595d5f98330fb83fab14c96b4df9c6a95",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-f0c0814f02ebe4",
+      "source": "llm wiki/wxbot/raw/changes/2026-10-31-knowledge-graph-bootstrap.md",
+      "line": 1,
+      "end_line": 71,
+      "node": "wxbot",
+      "label": "项目知识图谱首批建档与维护闭环",
+      "sha256": "ca7342588d1b623f9ec34ef6e905bdff6ae0b1360e3ba9ae4d6611a3cb7867a2",
+      "characters": 2551,
+      "rendered_sha256": "87deabc0f3c6a9c6a808ff473602b978f3848982e94c185372adfe61c15e7aff",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-6510cadeadeb37",
+      "source": "llm wiki/wxbot/raw/changes/2026-10-31-model-access-switch-core-emit.md",
+      "line": 1,
+      "end_line": 39,
+      "node": "model-backends",
+      "label": "模型来源上报改用接入方式（core.py 相关词条更正）",
+      "sha256": "79a61f084ac8f4c4be21c0fdd043f721a7e058bbd6b338cec515f754842f460a",
+      "characters": 1263,
+      "rendered_sha256": "cbde98e9ebcdf8fd2c683eb2025aef1800797d0b641a3443e8f9492eb86431a5",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-954a7ea1e7487b",
+      "source": "llm wiki/wxbot/raw/changes/2026-10-31-model-access-switch.md",
+      "line": 1,
+      "end_line": 54,
+      "node": "model-backends",
+      "label": "配置页接入方式下拉与模型字段随选择变化",
+      "sha256": "e68fa2b47cf99cdcd9800432ba10197cac695e5466322265af85a641c5cad8a4",
+      "characters": 2938,
+      "rendered_sha256": "bd27cf72ee4ed3ac9a01960ff2c46d3ded467ee37a9808ec2876618205553487",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-33b232c2a9cf1f",
+      "source": "llm wiki/wxbot/raw/changes/2026-10-31-queue-batches-format.md",
+      "line": 1,
+      "end_line": 35,
+      "node": "queue-worker",
+      "label": "保留 batches 词条后续表格排版",
+      "sha256": "d7ecf9aef9a751c5c702d12d6f3dd73cd0fd2c46cc9f6abe7d7a5045241bed9d",
+      "characters": 827,
+      "rendered_sha256": "f95beb81498639f9bcd935cfc0e91e4fcfe3d9a9e6dd34f4953e6ea09cce851c",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-85f41883967373",
+      "source": "llm wiki/wxbot/raw/changes/2026-10-31-switchable-models.md",
+      "line": 1,
+      "end_line": 48,
+      "node": "model-backends",
+      "label": "统一 Butler 模型链路与随时切换",
+      "sha256": "f01e63808a70c09d56e8bc238bb4730b151a71796fc5a0f6ff1cd8ef6bc01eca",
+      "characters": 1466,
+      "rendered_sha256": "ca8ed411e82dfbb026a3e2cbf55e0d96b4dbe2ec117253378574ece4fa8f3d1b",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-4d0e5fc0ed39d9",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-citation-sweep.md",
+      "line": 1,
+      "end_line": 38,
+      "node": "wxbot",
+      "label": "词条代码引用行号复核",
+      "sha256": "f987763574aac0bfc9d18b6ebe31cecfca1d94dce7cd93c48529914d6ee593c8",
+      "characters": 1125,
+      "rendered_sha256": "be43718dc9e0a242208802266fc104ddbd7c3e9f79f9709fa7a0ab26a2d1fe60",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-69eb9deaf900e3",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-atlas-index.md",
+      "line": 1,
+      "end_line": 71,
+      "node": "knowledge-vault",
+      "label": "知识库加中心索引页与七类事实分组",
+      "sha256": "fa9ce373acb711f6f35ff081b2fe14289726573649bd34765d313afb8a484c79",
+      "characters": 3250,
+      "rendered_sha256": "1bcbefa1b351edf6da8a8e3c5d3a9a352376476abdc8239687be50c75fadb71c",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-8614fbc4e2f39c",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-atomic-retry.md",
+      "line": 1,
+      "end_line": 57,
+      "node": "knowledge-vault",
+      "label": "知识库写入在文件被占用时退避重试",
+      "sha256": "3bdd7f67e3ffa244ff322066774304b8c2a4110e2cb161f3634b1a259f806929",
+      "characters": 2919,
+      "rendered_sha256": "95558c07ceccc7d573e85fe7dc2b71596a6feb88a59909738b8d0cf2ec8249ca",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-4f707cfb04b69a",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-auto.md",
+      "line": 1,
+      "end_line": 119,
+      "node": "conversation-extraction",
+      "label": "自动提炼：进程内调度器、跨进程单飞与管理台状态",
+      "sha256": "6a748ed2935dd8f06e72e6fe3bb112ddd12122fb2a1e6e6f10b1a5ebd9601159",
+      "characters": 5956,
+      "rendered_sha256": "143f371fa99b85657066873b5f3f0c4129aecf3b580a856043b5ee9ffd4e1d4a",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-697690fcf2df43",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-episodes.md",
+      "line": 1,
+      "end_line": 87,
+      "node": "knowledge-vault",
+      "label": "L1 聊天原文落库与只读看板",
+      "sha256": "933f98ffb92ed038aad4c1533c525e10a21bfd77da376633f20ee967d13b252a",
+      "characters": 4868,
+      "rendered_sha256": "9abd480c4444de778f975421a4010f2b6d4eec98304e303b51b501ad5f6d3d6e",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-97b2533a5ffcf7",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-migrate-source-recheck.md",
+      "line": 1,
+      "end_line": 41,
+      "node": "knowledge-vault",
+      "label": "迁移改动后复核知识库词条来源",
+      "sha256": "86c76f1800390d888169dfdf9e96e7befb8552db13c550fffb308eb9073320d2",
+      "characters": 1023,
+      "rendered_sha256": "5afd49223dc1170d9f36ef1c4ef2a6c000a093e61b8373d0c84c74ee018a6fbb",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-06dbdfdc7302a4",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-migrate-wal-checkpoint.md",
+      "line": 1,
+      "end_line": 57,
+      "node": "knowledge-vault",
+      "label": "知识库迁移改名留底前先合并 WAL",
+      "sha256": "fa56c6e83c3bd5c2e36296b122427eeb4bded310b9b703cbc2eb6ac39412208c",
+      "characters": 2234,
+      "rendered_sha256": "878463cb2b760bebfaa5524b38906f6130251ad05c1ef52da0f569de1bc170cf",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-ba214c308af8ff",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-sessions.md",
+      "line": 1,
+      "end_line": 64,
+      "node": "knowledge-vault",
+      "label": "会话维度：左栏按人、右栏按私聊/群聊再筛",
+      "sha256": "40695a05009a92d9caa16b3dbae7d605713b616cd5e3975aa3b521c30619d367",
+      "characters": 2840,
+      "rendered_sha256": "a9a6920e856c5520606eea36d70589e73fdf8e1c6b2dc987ff76aff51733765c",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-c0bff474452694",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-sharding.md",
+      "line": 1,
+      "end_line": 107,
+      "node": "knowledge-vault",
+      "label": "知识库拆分为一人一库并新增提炼事实库",
+      "sha256": "d4e46246cc4b0d7b7b038388722bba23c53e3eae2c9295209a26eef331514f50",
+      "characters": 6688,
+      "rendered_sha256": "51f42637a06489f1b97583b8dced0f630cc65b034f3401e36924fc8728c00425",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-3f269e1ad8b05e",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-vault-alignment.md",
+      "line": 1,
+      "end_line": 54,
+      "node": "knowledge-vault",
+      "label": "知识库 vault 词条与实现对齐",
+      "sha256": "9ada338781d8765c80ade4f3cd6f881ed841f222be6cba1d3a86d5963d19f3e3",
+      "characters": 1732,
+      "rendered_sha256": "e43d1e1d526025d2cd74acfb48ebdc46dc311a8e6def675951dcf092f9a970d7",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-13c52ea2bba75a",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-knowledge-vault-graph.md",
+      "line": 1,
+      "end_line": 160,
+      "node": "knowledge-vault",
+      "label": "用户知识库改为一人一个 Obsidian vault 并删除 memory 链路",
+      "sha256": "48182af9d0481eb562a3f58f3f5b2c31c64013606e471799096b196b544b7bd0",
+      "characters": 7250,
+      "rendered_sha256": "d809ab984abb51ba954efae6a520661ef76f7293665905ea662a5ecad1c9298b",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-a5d65ee79e182a",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-mention-fallback-unread-retry.md",
+      "line": 1,
+      "end_line": 66,
+      "node": "wechat-ui",
+      "label": "群聊提及回退清理与不可读未读的退避放弃",
+      "sha256": "2c37a60cb624f5605d82da9756405bf4126451dc91daebe49b3c123e82e76c11",
+      "characters": 3763,
+      "rendered_sha256": "6018734aeaa970a027571dde794bce986a986205e5621eb10222da740e13af96",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-60c1969bb5f6f6",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-model-error-contract.md",
+      "line": 1,
+      "end_line": 58,
+      "node": "model-backends",
+      "label": "修改记录",
+      "sha256": "a89f6a23d8c9088a3944d2f134c6c7deaa82b191c3810b6b72666c212b9d9e5e",
+      "characters": 2461,
+      "rendered_sha256": "57d781ddc5b21faf11bd1c4bace48c40a96b88bab71db221db76b7554edd7de4",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-507fd880895f6c",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-model-request-error-visibility.md",
+      "line": 1,
+      "end_line": 39,
+      "node": "model-backends",
+      "label": "模型请求失败保留脱敏状态码",
+      "sha256": "d82d9938a71726d5c16c19962dd618ce198f95fd0540f2fb274961e85ea73214",
+      "characters": 1667,
+      "rendered_sha256": "5718e99669f13bbafe9b8f7ab1c4ef7685e4cabf24bb83c9a7410d0318e52386",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-0dfa536a596503",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-01-readme-unread-note.md",
+      "line": 1,
+      "end_line": 37,
+      "node": "wechat-ui",
+      "label": "README 补不可采集未读的说明与图谱来源修正",
+      "sha256": "5c6613f2344927799c513d1027abb5ad07d885788ab1d1710324ff176bb36185",
+      "characters": 1317,
+      "rendered_sha256": "8590834da48df1890369c3427e8cb40d7ef291f82cac8e6a600ca2ffddd5a2ef",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-ae7b71a2b37518",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-02-details-whitelist-reverify.md",
+      "line": 1,
+      "end_line": 44,
+      "node": "delivery-pump",
+      "label": "投递细节白名单扩展的词条复核",
+      "sha256": "f189715c822b1ccda83fab85a52f3ccd8cff8fe8d7b853b0a5acee3fc15b3216",
+      "characters": 1390,
+      "rendered_sha256": "6bbfa10b2a9fbe8d5f06feae4f8c829d5305c8194c6e9d926597a2cfd5b574ee",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-a582ec7ef75fe6",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-02-knowledge-graph-template.md",
+      "line": 1,
+      "end_line": 98,
+      "node": "knowledge-vault",
+      "label": "知识图谱模板外部化为 Markdown 并支持管理台在线编辑",
+      "sha256": "656b34c922f94ff29f8b4ebafdbe237869416e9ff4f72c85639a77f697887ec4",
+      "characters": 5943,
+      "rendered_sha256": "84a52954fb2ebb9045a7b90ac6abc6826e8b3bebca6b566e301a80f6aaed7b44",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-980ea358badbe6",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-02-mention-picker-gating-residue.md",
+      "line": 1,
+      "end_line": 83,
+      "node": "wechat-ui",
+      "label": "群聊提及先等候选面板，失败残留登记为可清理草稿",
+      "sha256": "bf80c4f31eeb03d6789d3f5039b9e6428fbcd51afe92d50e2c553412c03616a9",
+      "characters": 4476,
+      "rendered_sha256": "b36b69e02927270ccd1d92275bccfb4fe42210e7aa1c94f1462b23de44271ec7",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-989f2003dec3a1",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-02-mention-residue-reverify.md",
+      "line": 1,
+      "end_line": 43,
+      "node": "wechat-ui",
+      "label": "提及残留登记引发的来源复核",
+      "sha256": "18f27160b2efd276126d1f7fa29d99869ccbe0719a7c3db1d378affe43253005",
+      "characters": 1943,
+      "rendered_sha256": "2bf999c707e79e701463588b91b6faba00dbf9eb45f0744053f03c3e16a34176",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-5688ce5c14b7b6",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-02-ui-snapshot-ref-contract.md",
+      "line": 1,
+      "end_line": 101,
+      "node": "delivery-pump",
+      "label": "UI 快照引用、发送确认证据与稳定失败码",
+      "sha256": "56046590699e6e474566b9ddb9c4fb52c3511ff960d488c9cf459ddb0b763fff",
+      "characters": 4429,
+      "rendered_sha256": "7bc63870787275b6157d894c771553df6859289c712acc585f54bbbc6fda7d78",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-5c4b4348a3410a",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-02-web-global-search-clear.md",
+      "line": 1,
+      "end_line": 38,
+      "node": "dashboard",
+      "label": "管理台全局搜索增加清空按钮",
+      "sha256": "aa4e803112d5f77574b173e5fe7da76b317651e927d3a659bc94fa17bc6087ab",
+      "characters": 912,
+      "rendered_sha256": "fec0311217a970f418810d0542ada916dab523c72874d71b9bc07272f7330726",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-f9d149494a6267",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-03-development-doc-baseline.md",
+      "line": 1,
+      "end_line": 68,
+      "node": "wxbot",
+      "label": "统一当前开发基线、配置来源与发送实现文档",
+      "sha256": "81520242d8e342d2c69117cb1e7118de84c9153bb8d59ebc442c2eb42c39cfa9",
+      "characters": 2478,
+      "rendered_sha256": "d0083ab8ef90e0f5f88bdedea0b965c04a5abc22db251041a9918b49c936af33",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-d313df34d8cc8b",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-001-anchor-refresh.md",
+      "line": 1,
+      "end_line": 45,
+      "node": "delivery-voice",
+      "label": "FEAT-VOICE-001 连带锚点刷新",
+      "sha256": "34911f13fdd06f87fe62db60788190f496972c13f2c5dafb01335b228c94cbf1",
+      "characters": 727,
+      "rendered_sha256": "bd99630a172ca5f57749de8f26829b21f015daa6a04bf4853a86294231c79593",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-3b7c8dcbc01ec2",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-001-virtual-mic.md",
+      "line": 1,
+      "end_line": 54,
+      "node": "delivery-voice",
+      "label": "FEAT-VOICE-001 P1 虚拟麦语音条（可插 TTS / Right Alt）",
+      "sha256": "79d23f512c822a2a5c329db8ac3020558f7683ec1e3562e9ca6a2e684f09babe",
+      "characters": 1632,
+      "rendered_sha256": "5647468b3d195b1b2de5890d6f79396d644b9e693d8bf0504d6a492820d3036d",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-56093eafa42389",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-002-indextts.md",
+      "line": 1,
+      "end_line": 46,
+      "node": "index-tts",
+      "label": "目标 / 背景",
+      "sha256": "8f59bd426c9e48c9e14b1faec1e3762477a803c6db3b4878bba746a2f9c35aa0",
+      "characters": 1114,
+      "rendered_sha256": "07c80feb457a54a2029707c4dcc4e94ae6192675b34bc8ed1972603d08a6a8f6",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-2f6dcdc8d592e1",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-003-model-worker-drift.md",
+      "line": 1,
+      "end_line": 36,
+      "node": "delivery-voice",
+      "label": "FEAT-VOICE-003 连带复核 model-worker 锚点",
+      "sha256": "eda08bf2405ceb7f176ad87459c03851d7a07c0c4ec507c2481b47446a70ba1a",
+      "characters": 520,
+      "rendered_sha256": "79a8eabe47afb59a5a0657532dcf2a00e326c3dba18b8b9cca44511845ce5997",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-a855357d83ac5d",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-03-feat-voice-003-voice-assets.md",
+      "line": 1,
+      "end_line": 77,
+      "node": "delivery-voice",
+      "label": "FEAT-VOICE-003 音色资产与会话绑定",
+      "sha256": "3bacde359110a7d954029688126422e535e0bfd3caea08eef1dbe2dc178f0ed1",
+      "characters": 2740,
+      "rendered_sha256": "27c63ef0bc455d4a8b1be853dd72ab4517244d110ff9ee8ff8a1e71a25594f82",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-29fc2d893f2889",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-03-indextts-enqueue-media.md",
+      "line": 1,
+      "end_line": 48,
+      "node": "index-tts",
+      "label": "IndexTTS 入队不再写入 P1 假音频路径",
+      "sha256": "3e7b376516cd2fc9038c3a15f4d1ece735b4b9f6d04b9f0928cbc83881015bb9",
+      "characters": 1942,
+      "rendered_sha256": "984cc86d2d7a1caff33db74c3115340e4be78d8a36c83ad7e189d8ee4e836481",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-5f445f7abfb4d8",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-03-voice-assets-polish.md",
+      "line": 1,
+      "end_line": 49,
+      "node": "delivery-voice",
+      "label": "音色资产页布局与状态打磨",
+      "sha256": "d0e97e62dd16e78a32e84722d4cd0a9c86bc6505353075ff2db11e6f9b0977f8",
+      "characters": 2189,
+      "rendered_sha256": "a2fb98053959bcc6a5b3e72fef93e9bdc552b48bdfb8b7d996da9054f41cc99b",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-cdb6f65d88730c",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-04-contact-index-tts.md",
+      "line": 1,
+      "end_line": 52,
+      "node": "index-tts",
+      "label": "联系人配置中的 IndexTTS",
+      "sha256": "36263522607dcde46cad61ffc2ec68991a1de3285f15e59998f925db60f2a5dc",
+      "characters": 2135,
+      "rendered_sha256": "ebae71cf243995a8db545327d9aeb6f8dc2d375978e49c7fdac4c3dbe05c4a74",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-a62e0514c7634a",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-04-index-tts-skill.md",
+      "line": 1,
+      "end_line": 76,
+      "node": "index-tts",
+      "label": "网页预设文字转语音 Skill",
+      "sha256": "20e2b1387db150cf39a232b52f892f96bd3a7ab36dff59eceb0ddeec880ceb90",
+      "characters": 2848,
+      "rendered_sha256": "a6dc4d2b5112036af48b0ab17a55b218beef31cad911c949bffa7b92d05731c6",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-b44eb256c557c6",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-04-root-workspace-unification.md",
+      "line": 1,
+      "end_line": 58,
+      "node": "wxbot",
+      "label": "统一主目录 main 与可编辑安装绑定",
+      "sha256": "bdbf6bded2cc78ce698ce619d0f68892b4f6d69be1855f017dcfec1231efefc5",
+      "characters": 1858,
+      "rendered_sha256": "ad2ae2d1ef8c3b2e0e6af15cdcd5d0cdedf0c53ffc303e6a4bb907ab834c0d12",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-14cc58d084986d",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-04-webui-preset-binding.md",
+      "line": 1,
+      "end_line": 65,
+      "node": "index-tts",
+      "label": "网页预设绑定与默认音色",
+      "sha256": "33bcf32b805b7009fe6dee6e34650c0c715f5ed3be26f94b896b8566ac0e9f31",
+      "characters": 2851,
+      "rendered_sha256": "02a85d446f41d316e810be7ab2feaa33e60885549ab88483552c4e7434f9f1fb",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-a877b64be56f43",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-04-webui-preset-graph-note.md",
+      "line": 1,
+      "end_line": 52,
+      "node": "index-tts",
+      "label": "网页预设图谱契约说明",
+      "sha256": "18ca4d5a40c18121af44c669ced16165f461c3fa728ba590f02cc37797a8858f",
+      "characters": 944,
+      "rendered_sha256": "4d6c372c9f234c09ff7b016ee35fc3dd4057d069cdd37081aaf820411dd55456",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-f267229129f9a4",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-05-contact-enrollment-and-tts-ui.md",
+      "line": 1,
+      "end_line": 52,
+      "node": "identity-tools",
+      "label": "修改记录",
+      "sha256": "67398ea81dba096be98cf6d7e27f11dabe9c7d8d4501a6987eb656323fb58bb0",
+      "characters": 2019,
+      "rendered_sha256": "c19f5ad9060d33051c55bf1c05972edbe594677f0ba818f2dc91b16d4858508e",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-ef8af1106d1713",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-05-contact-policy-save.md",
+      "line": 1,
+      "end_line": 50,
+      "node": "identity-tools",
+      "label": "修复联系人策略保存锁等待与不可见旧技能",
+      "sha256": "e09edc0bf5eb78a86923aed76b10bbb0bddf3d37113c13c8fc6bd435454a11a1",
+      "characters": 2417,
+      "rendered_sha256": "7886c2b44cd0ec79a92d654afc24c8877777550c4e4c25f7d4b774c6a8bf7978",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-dde024d7417249",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-05-delete-knowledge-fact.md",
+      "line": 1,
+      "end_line": 57,
+      "node": "knowledge-vault",
+      "label": "修改记录",
+      "sha256": "de5b71ccd3098f9bf6e26590fc91388c0fdb44669a78acada982ee02f229f915",
+      "characters": 1705,
+      "rendered_sha256": "c4c9f824d8beb8aac6398917bcce5834fce9bfe4c9295b0e1d89729c3bc2cc5b",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-6f2fac571f1610",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-05-enable-group-binding.md",
+      "line": 1,
+      "end_line": 39,
+      "node": "identity-tools",
+      "label": "修改记录",
+      "sha256": "fd6f75895e78dee9ca3959c7741b8cc39cdd8c96ade74ba0f423cc448fd30658",
+      "characters": 962,
+      "rendered_sha256": "23d0544e416b39c5b7d96ca20742e1217e62b95200c581e637b71b5a6419ac6e",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-264d648c9acbbe",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-05-group-auto-voice.md",
+      "line": 1,
+      "end_line": 51,
+      "node": "delivery-voice",
+      "label": "修复群聊越屏采集与自动语音回复链路",
+      "sha256": "ff72b0dedf87f4889ab697ee8b438c75abedde59d770d43368dbe9c5f609e6b4",
+      "characters": 2713,
+      "rendered_sha256": "f6526bf16bcbe91cee60d8bd20c1737b375a244e3d689550cd6a29f4b6e45ef5",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-867b5eee05957a",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-05-knowledge-group-sources.md",
+      "line": 1,
+      "end_line": 44,
+      "node": "knowledge-vault",
+      "label": "修改记录",
+      "sha256": "0536da5a5a75f0d1b3df6b3d33cc3acd25f4efc7cb58b927d76734711ee73490",
+      "characters": 1393,
+      "rendered_sha256": "41984c7d4ada4b158ca42adad05aa11927221a829a8c71c5102accdafc58e4ef",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-f24e68fc0316c1",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-05-resident-diary-web.md",
+      "line": 1,
+      "end_line": 45,
+      "node": "resident",
+      "label": "管理台查看小潮日记",
+      "sha256": "c2352620eaa46e9ddd2db1e0cadb66db4643efaaed9a3a2ec8f4e58681f1c0bb",
+      "characters": 1211,
+      "rendered_sha256": "6bae0a35f0ef35d7c31ddcc83883ec56f959c35b9bc636adc25602106f66cbd1",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-3b5de0b90aca6b",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-05-resident-xiaochao-readme.md",
+      "line": 1,
+      "end_line": 35,
+      "node": "resident",
+      "label": "复核常驻角色的 README 来源",
+      "sha256": "569ae4bdad1426792c2e129e24e0803eef6f93f4191ed0364d4c33f78ed0df92",
+      "characters": 424,
+      "rendered_sha256": "138ab884a03a46c8f1070bde5721472305faff3752c446f276d09002e68298ca",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-2d4efb23ee9751",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-05-resident-xiaochao.md",
+      "line": 1,
+      "end_line": 49,
+      "node": "resident",
+      "label": "小潮常驻角色与空闲刷抖音",
+      "sha256": "cfd11d071698cf77b25aee3ee69ec68fe69b7865c84a928eabed9c27a4a9a4b1",
+      "characters": 1474,
+      "rendered_sha256": "1679238703cfdcd605f8361ffb6bc07f223b99a971408b02b7e59eff8df62e8b",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-b2141987114c61",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-06-resident-recommend-navigation.md",
+      "line": 1,
+      "end_line": 35,
+      "node": "resident",
+      "label": "修复小潮推荐流跳转到精选",
+      "sha256": "966350b560a0a1036b4d91143644deb9a1ca3969d7630c78027ade3e2f4a155b",
+      "characters": 820,
+      "rendered_sha256": "519d5253f8f6d17fe9407d6f8226e4573690719bc2fde686a564219c6b1c41fb",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-eb3bb4d27e3f68",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-06-resident-visible-edge.md",
+      "line": 1,
+      "end_line": 37,
+      "node": "resident",
+      "label": "小潮有窗口模式与同页验证恢复",
+      "sha256": "f1b9e69045b8743c86339f83b7250c18c68269bbc5e6037046c1c1c1e0eb8200",
+      "characters": 943,
+      "rendered_sha256": "54803b4dad04e88d5fa4d876eeaa460880648d784a69969706b944fba1efe995",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-1968450e794d2a",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-07-archify-node-documents.md",
+      "line": 1,
+      "end_line": 45,
+      "node": "wxbot",
+      "label": "Archify 节点详情加入 Markdown 文档按钮",
+      "sha256": "46b06d23283571d491b7aaf71729a60e90feab71bd6ed9a4da1a0374672e51b8",
+      "characters": 2129,
+      "rendered_sha256": "7fbb8099aeec963fffc5e23cc16badb662fb314acdd3a34e7fd515df3cd755ef",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-7574510a1cf96f",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-07-architecture-diagram-trim.md",
+      "line": 1,
+      "end_line": 36,
+      "node": "wxbot",
+      "label": "精简架构图底部区块",
+      "sha256": "f7bdbaad2eb98e8544fb7a5fdc99226c7491dd9e2100fdd948323c0de0837458",
+      "characters": 514,
+      "rendered_sha256": "67d098553db7adb28366a2624f135ce544cc885f84a7a6d80feff20dc7407084",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-65d1db0ccb5dda",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-07-architecture-node-notes-readme.md",
+      "line": 1,
+      "end_line": 36,
+      "node": "wxbot",
+      "label": "架构图节点文档使用说明与开发基线复核",
+      "sha256": "fbe65a622421476d7ed7fe124f66fd1949c1875250ad32c13625f1a524560780",
+      "characters": 487,
+      "rendered_sha256": "72dd5d277be4eed58f73691fdfe789024140c2de64c5bc052ec156ad92f38d56",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-8790acdf96d310",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-07-architecture-node-notes.md",
+      "line": 1,
+      "end_line": 42,
+      "node": "wxbot",
+      "label": "架构图节点 Markdown 文档",
+      "sha256": "bea6d7b0a07a448d39413e9a2e14b86e796715816703eb4a76a68a6d3f0f84d6",
+      "characters": 809,
+      "rendered_sha256": "56143780dc51a45842db563e91b336b0a8c7da911b331dd4bbaad80f0509138c",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-83d2ae6b4c4ac1",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-07-delivery-handlers.md",
+      "line": 1,
+      "end_line": 58,
+      "node": "delivery-pump",
+      "label": "发件处理器按类型拆分",
+      "sha256": "b466306013b1be445a3e33cc4b08210dd0c5272bbbbc2ab5d5d233ac4e3f2c6a",
+      "characters": 1877,
+      "rendered_sha256": "35962f52ace457ac942031300917e40a6565e6db3ea20b37a115bf151bda4792",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-df3c99eaa835f8",
+      "source": "llm wiki/wxbot/raw/changes/2026-11-07-stale-regression-tests.md",
+      "line": 1,
+      "end_line": 48,
+      "node": "wxbot",
+      "label": "四项历史失败的测试合同修正",
+      "sha256": "30d6ecbac3739c812353969cd2c17708450505ca25ed245b295629fe58000c46",
+      "characters": 1305,
+      "rendered_sha256": "ca3359ee5b1b146d131b85b9c48947c0bcf3f021fbdf57a116ed8f5851206ded",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-5fd0435fe93ef7",
+      "source": "llm wiki/wxbot/raw/legacy/CLAUDE-wiki-schema.md",
+      "line": 1,
+      "end_line": 494,
+      "node": "wxbot",
+      "label": "3.2 file｜代码文件（Controller / Service / Mapper / Vue 页面 / JS 等）",
+      "sha256": "75624ba0e4f40ec8483e64caae0e3b1caab9c581dd885756d7ed9123d5eb4dee",
+      "characters": 7748,
+      "rendered_sha256": "01f0952374429cf4c3c4fa47e61a9d3704eeb77861ce1ec7b8d685db678c4755",
+      "group": "历史记录"
+    },
+    {
+      "id": "doc-eba67ca6f97d80",
+      "source": "llm wiki/wxbot/symbols/butler-handle.md",
+      "line": 1,
+      "end_line": 99,
+      "node": "butler",
+      "label": "Butler.handle",
+      "sha256": "035f6635c3824f496193a56a69264b31ff011f7ed4fc035c44dec42da902c5ba",
+      "characters": 3302,
+      "rendered_sha256": "6e27fc3e6efaa880705db09a7c5b1d00e804b899c619aeef8d2a9ec4b1cdabc3",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-0b0a168dc38d24",
+      "source": "llm wiki/wxbot/symbols/butler-processor.md",
+      "line": 1,
+      "end_line": 53,
+      "node": "queue-worker",
+      "label": "ButlerProcessor.handle_reply",
+      "sha256": "62162ae4d0ec64c5c934f2ebceaef10fb8e39debf4062618394792b1af961f3c",
+      "characters": 1637,
+      "rendered_sha256": "fcb76c80fa72cddf2e4256c676060ba9bd8ea389bd6eb9a14c88fcf632247073",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-a9181bbf2979fd",
+      "source": "llm wiki/wxbot/symbols/butler-result.md",
+      "line": 1,
+      "end_line": 87,
+      "node": "butler",
+      "label": "Result.as_dict",
+      "sha256": "948ae7ff8ca006a1892c7705426f57aade03ce02e115937428d6f46ff5b44349",
+      "characters": 2792,
+      "rendered_sha256": "ed58af06bc6f2922a372efecbbfb8e14f05aa9d1bf75f40ac7812cbb0169d2a1",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-9ba04de08ae10c",
+      "source": "llm wiki/wxbot/symbols/delivery-handlers.md",
+      "line": 1,
+      "end_line": 63,
+      "node": "delivery-pump",
+      "label": "发件类型处理器",
+      "sha256": "322f318e3f3ce593888d214e513a373d4d0ae9e70cacf73e0aa07da107538e75",
+      "characters": 2204,
+      "rendered_sha256": "3dea0a22047f2d1d0126fa7664e72198bca5799715731d1c11c7cffb3c7d1f17",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-7ca25975c49fca",
+      "source": "llm wiki/wxbot/symbols/delivery-pump.md",
+      "line": 1,
+      "end_line": 50,
+      "node": "delivery-pump",
+      "label": "统一发件调度 DeliveryPump",
+      "sha256": "6710478f0cc015bb3a33afe3f738740f41f1de8b432f55bb32e79bf33e6d7c07",
+      "characters": 1605,
+      "rendered_sha256": "150fc2563bb3930bb519e567bcbd49a895c1752b62c5e50cedab9f7816d410c2",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-8d31785e6eb1e7",
+      "source": "llm wiki/wxbot/symbols/knowledge-auto.md",
+      "line": 1,
+      "end_line": 133,
+      "node": "conversation-extraction",
+      "label": "knowledge_auto",
+      "sha256": "bf12f2f6f98b8181397dfa7532c5411b2def3428232821a5e1c37cfd804d5548",
+      "characters": 4689,
+      "rendered_sha256": "9ef21f06440c14d8cb51f35f2ff032b09e4a02edfc7a2a0450cee7b476c53011",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-7d9303870f5774",
+      "source": "llm wiki/wxbot/symbols/knowledge-extract.md",
+      "line": 1,
+      "end_line": 165,
+      "node": "conversation-extraction",
+      "label": "knowledge_extract",
+      "sha256": "4d44eadc75596461a9036ca6fce82db832e1d77f21c62937a3502ac9fd63e092",
+      "characters": 7528,
+      "rendered_sha256": "95e7b26e4b4e85161fc91dff9c48022e79f2d5549fb6850f4c94735920d6c67d",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-4656beba355895",
+      "source": "llm wiki/wxbot/symbols/knowledge-template.md",
+      "line": 1,
+      "end_line": 102,
+      "node": "knowledge-vault",
+      "label": "knowledge_template",
+      "sha256": "e8e02227d6885f095a4589cbb05e9274f8434b4d1458ac78f9c6ff7cfd826f6e",
+      "characters": 4336,
+      "rendered_sha256": "753f907ed272d50f01d77ceb2058af0859b84e327be63a1e37053469d4ccd744",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-058aec74f1727e",
+      "source": "llm wiki/wxbot/symbols/local-model-backend.md",
+      "line": 1,
+      "end_line": 58,
+      "node": "model-backends",
+      "label": "LocalModelBackend",
+      "sha256": "77b436586ae20b3c15a83b73ea7efa2d6efec784b4b7a58ba42fb27dce41448e",
+      "characters": 2020,
+      "rendered_sha256": "f99cee7afe2706c0c1611262819f858f8b34e2caa060fafd4602ed8fd4c2b67d",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-c251b5ba0c9ae7",
+      "source": "llm wiki/wxbot/symbols/mention-selection.md",
+      "line": 1,
+      "end_line": 95,
+      "node": "wechat-ui",
+      "label": "MentionSelection",
+      "sha256": "734a5ce1a9513eccbcbe39c72d09e4d3e1dcc8ac064dd234decbe40d0732baa3",
+      "characters": 4049,
+      "rendered_sha256": "73973e71e3bb2e8fd68c5273f5c9fec981ca576089165fba33294a53f0981627",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-0183b6974519f0",
+      "source": "llm wiki/wxbot/symbols/model-worker.md",
+      "line": 1,
+      "end_line": 66,
+      "node": "queue-worker",
+      "label": "ModelWorker.process_once",
+      "sha256": "2d037681ac9d83015e331f4e578722790526862bb6070a20542bec1220671ba1",
+      "characters": 2327,
+      "rendered_sha256": "fbecc44a22365a1978d644ec80eb1f2e83dd07d6a1bc81b70dffcbe8c4b5a504",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-b3c365f5c9fdf1",
+      "source": "llm wiki/wxbot/symbols/queue-finish.md",
+      "line": 1,
+      "end_line": 67,
+      "node": "outbox-text",
+      "label": "QueueStore.finish_batch_parts",
+      "sha256": "16d525971bc13e07217fbcc8198e0ee43d1cd60d8ba16c90f4beff17b8a38ce0",
+      "characters": 2094,
+      "rendered_sha256": "3477659d342d498f22786ae65a6c9c38e06b710c258adbe050b3dd663c36a84a",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-37f6245b143a25",
+      "source": "llm wiki/wxbot/symbols/queue-store.md",
+      "line": 1,
+      "end_line": 103,
+      "node": "queue-storage",
+      "label": "QueueStore",
+      "sha256": "7b93a19247c21d701e9dff17704d2c38c0d579e70069ff4d0b07abf50e53b91d",
+      "characters": 3579,
+      "rendered_sha256": "c34179e4a02f223f01511496050465e5234c77e509a4ba7fb9bd320c06bae802",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-85aba8d0cc88bd",
+      "source": "llm wiki/wxbot/symbols/reloadable-backend.md",
+      "line": 1,
+      "end_line": 39,
+      "node": "model-backends",
+      "label": "ReloadableBackend",
+      "sha256": "c6e545907257f77eb09df0bfef0c5ca07199b7620511f67b12fe7ce336a522ab",
+      "characters": 1124,
+      "rendered_sha256": "e1368a3b18d4d4d72c9bb8027fcb13ab732377f3dfb9297e946fdb335779bb72",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-81303bd5af31f1",
+      "source": "llm wiki/wxbot/symbols/resident-role.md",
+      "line": 1,
+      "end_line": 59,
+      "node": "resident",
+      "label": "小潮常驻角色",
+      "sha256": "4e87cd79cdcdd82a69b12c8dc53e28848d2c29d9d10c1960f5bc2d7df517dcd2",
+      "characters": 2274,
+      "rendered_sha256": "627e7a416d7de141e6333a7d091f7cea388f4dc64d497ac54d2c39dd620c8755",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-a41b10d5400ad9",
+      "source": "llm wiki/wxbot/symbols/voice-asset-store.md",
+      "line": 1,
+      "end_line": 30,
+      "node": "delivery-voice",
+      "label": "VoiceAssetStore",
+      "sha256": "987cd01898707540aac32def0586407f54fd410f29e478e04fa06c554438883f",
+      "characters": 828,
+      "rendered_sha256": "d2ffe05bda62733a9c6c3dff1a9ed275b8c52661e0f8834d16ff04823fe8bba1",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-84df4a3514bf20",
+      "source": "llm wiki/wxbot/tables/kb-episodes.md",
+      "line": 1,
+      "end_line": 108,
+      "node": "knowledge-vault",
+      "label": "SQLite kb_episodes（已退场）",
+      "sha256": "0b70d2dbbf029fa761651c2fa780b55d677ad29a633edb191dd7627e0d5e4f12",
+      "characters": 4198,
+      "rendered_sha256": "7362ad5316468267636b81665b933f3c1d42db20c725d38931882ba0bb4000b3",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-eae62eb158097e",
+      "source": "llm wiki/wxbot/tables/kb-facts.md",
+      "line": 1,
+      "end_line": 101,
+      "node": "knowledge-vault",
+      "label": "SQLite kb_facts（已退场）",
+      "sha256": "a81933ce21e1000db39a6c89e5fe3fe26c2bc6826160de3f50d9b07a9ccda15c",
+      "characters": 4310,
+      "rendered_sha256": "25fc26a33a53144bbc5a580d2d30794114dd190757111775cbf598b852a8d20e",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-68c7e63f609bfb",
+      "source": "llm wiki/wxbot/tables/kb-owners.md",
+      "line": 1,
+      "end_line": 108,
+      "node": "knowledge-vault",
+      "label": "SQLite kb_owners（已退场）",
+      "sha256": "378de9481f8b85fe5367b77100ee24f6634595789366b6124b317506baa223cc",
+      "characters": 4289,
+      "rendered_sha256": "ed81ff803d10ccb03af5aeba9933f761d211a992a6664e4b6ed3dad3efc8cc18",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-dc9956670d38fd",
+      "source": "llm wiki/wxbot/tables/knowledge-vault.md",
+      "line": 1,
+      "end_line": 245,
+      "node": "knowledge-vault",
+      "label": "用户知识库：一人一个 Obsidian vault",
+      "sha256": "464d68487ee97b65d323cda6f3545d1f1f3ec78d3f504933a87cc8951ac3e085",
+      "characters": 12213,
+      "rendered_sha256": "56add56285ea5a4db4bc0f64f0d15227f9bba1b3c65453f7c01d34307e308bb5",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-8e6cc338038d9a",
+      "source": "llm wiki/wxbot/tables/queue-batches.md",
+      "line": 1,
+      "end_line": 102,
+      "node": "queue-worker",
+      "label": "SQLite batches",
+      "sha256": "15e2d4c7d909b0bfd44e4da0987e3fed33a19c64c58116d356f849a14e81ce78",
+      "characters": 4027,
+      "rendered_sha256": "dde78e8a3f57612972bf67630d06d28eacfa4db37bd72d463834d318a7e7f7ae",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-6529d9966e604a",
+      "source": "llm wiki/wxbot/tables/queue-inbox.md",
+      "line": 1,
+      "end_line": 90,
+      "node": "inbox",
+      "label": "SQLite inbox",
+      "sha256": "57b939a6ecee23e98a3aa16a8366194ba9bd63a5ff855edcd4b759554991dd0b",
+      "characters": 2847,
+      "rendered_sha256": "34edff09d35a862ce17a461ff59cdd470b8e7d82c7dd6d92813b4009fde76f64",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-6dd6d137f99cdf",
+      "source": "llm wiki/wxbot/tables/queue-outbox.md",
+      "line": 1,
+      "end_line": 126,
+      "node": "queue-storage",
+      "label": "SQLite outbox",
+      "sha256": "0665b01e83f597cfe9db8b48fb7a6b228325f4eb0efe13817a8103b07a1e09d1",
+      "characters": 4982,
+      "rendered_sha256": "ebaa9368abceb485fa9b63a0cbccf0bb891f8ff3f168329ea36335ccdc7d7b76",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-9be513138ee5dc",
+      "source": "llm wiki/wxbot/templates/api.md",
+      "line": 1,
+      "end_line": 46,
+      "node": "wxbot",
+      "label": "标题",
+      "sha256": "78938681194822b52d32729243d207c22ff6c714445563a749019a15c52d3a06",
+      "characters": 521,
+      "rendered_sha256": "aa666f233aac5de926903c9f47b017c9e0aa0b0404bc9b99acefdab354bb28dc",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-876e1a0156045c",
+      "source": "llm wiki/wxbot/templates/change.md",
+      "line": 1,
+      "end_line": 35,
+      "node": "wxbot",
+      "label": "修改记录",
+      "sha256": "ba5735589aa80e4ae29695049656e627f3b529d00edca2d5314ff5106294bcb5",
+      "characters": 203,
+      "rendered_sha256": "ff2ea95bb1d411bf3f97054cb04b816a293a3d7b9c2bba9001008963186212b4",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-66a8899f322d51",
+      "source": "llm wiki/wxbot/templates/concept.md",
+      "line": 1,
+      "end_line": 38,
+      "node": "wxbot",
+      "label": "标题",
+      "sha256": "2ef4bc97bd3a1f8001fb260c897d2cbd03c583a405a93169fc6c8ede3d94717b",
+      "characters": 425,
+      "rendered_sha256": "78f5c129aa46cd5c2042c5633cdfb50ca6453cac3d92347087812cb8c2777270",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-2595bebb318aaa",
+      "source": "llm wiki/wxbot/templates/impact.md",
+      "line": 1,
+      "end_line": 30,
+      "node": "wxbot",
+      "label": "改前影响分析",
+      "sha256": "85d02550cb0aa161b61a11758336b3ffa98eb30b91bdfbceb366f5107deae36d",
+      "characters": 333,
+      "rendered_sha256": "3a6c9a4ead1a600b39f98234975afff0902631b8952da82fa639fca5d889aee3",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-6a76d4ecff85eb",
+      "source": "llm wiki/wxbot/templates/module.md",
+      "line": 1,
+      "end_line": 39,
+      "node": "wxbot",
+      "label": "标题",
+      "sha256": "c022f6f83fb9ea25a571ee8e5b98f5804d79c7608df6c3e91e61d5c2558b6c05",
+      "characters": 440,
+      "rendered_sha256": "449dfa73b6dd05ad5d2bb7b2a18fdaae1d3d006747dfc6a0e7affa2abf457dbc",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-b7b71e230e267e",
+      "source": "llm wiki/wxbot/templates/symbol.md",
+      "line": 1,
+      "end_line": 44,
+      "node": "wxbot",
+      "label": "标题",
+      "sha256": "c933e7d8531b070859107c7434b70986a84eea8be2a323142cfd0a885a00fad2",
+      "characters": 489,
+      "rendered_sha256": "3f25c5bad342c997ea04978e83697acefa1773bc1a2c1e52c8de7c44974cdbbe",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-b29fabcf0318a0",
+      "source": "llm wiki/wxbot/templates/table.md",
+      "line": 1,
+      "end_line": 42,
+      "node": "wxbot",
+      "label": "标题",
+      "sha256": "577bc98b2a8a70a23351ac2585afa9621875cb505dda0cd103d43d58ae93eaca",
+      "characters": 515,
+      "rendered_sha256": "5530b69b6ee8a53ae72c5142308380e4fe408b381394f666bcc8773a4aa12c15",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-951820f4d5f621",
+      "source": "llm wiki/wxbot/verification.md",
+      "line": 1,
+      "end_line": 39,
+      "node": "wxbot",
+      "label": "本次验证记录",
+      "sha256": "7fe121dcfd63284f04f55a553b084471dfb68b5a98766451edb56a25434694fd",
+      "characters": 1584,
+      "rendered_sha256": "9a7c81cc4a6cf862a4b036820e60d7ed5b1c4b46073ecdc87a44fcb8d2e6ad01",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-aa2bc4bbdc2544",
+      "source": "tools/README.md",
+      "line": 1,
+      "end_line": 101,
+      "node": "wxbot",
+      "label": "tools",
+      "sha256": "d1c4b3ecd9f3c44d72836c5930bd911c25646fad88711ace06a7aea24abdd0f5",
+      "characters": 3351,
+      "rendered_sha256": "a4d831db592818c5ebb2f3e54f3f94669dcc57a9d73e568cd7b82fd8292cb80a",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-5606dd82f2b492",
+      "source": "tools/indextts-ops.md",
+      "line": 1,
+      "end_line": 124,
+      "node": "index-tts",
+      "label": "IndexTTS 安装与接入（FEAT-VOICE-002 · 仓外）",
+      "sha256": "f876b000ed2c6ff93d148f2366f3060e60a19bc15147e06da0f838e99ea4cf76",
+      "characters": 3074,
+      "rendered_sha256": "80da433a93604151c2ce86d7e2e49f34c254a902624ca89cb746eb1a327e0759",
+      "group": "技术资料"
+    },
+    {
+      "id": "doc-153f05bdd2f77f",
+      "source": "tools/voice-ptt-ops.md",
+      "line": 1,
+      "end_line": 78,
+      "node": "delivery-voice",
+      "label": "虚拟麦 + Right Alt 语音条操作说明（FEAT-VOICE-001 P1）",
+      "sha256": "5805a9a87026a0d841620711a894441b8a7d406a1c08b45364862c63a1fc9cc3",
+      "characters": 1573,
+      "rendered_sha256": "36df5b8832348955d301144e99e1b6ac729a6469e9ace72c998e41279c4ba4a6",
+      "group": "技术资料"
+    }
+  ],
+  "notes": {
+    "architecture-notes/business-storage.md": {
+      "sha256": "5bb239b86fa2787aabe51c6d66dcff0da665197b8ac913e26dbbce1c4f1d5c87",
+      "bytes": 793,
+      "parts": []
+    },
+    "architecture-notes/butler.md": {
+      "sha256": "89908222484c4c1d6a61ceed8fcfc5423ebf34e469b87badbfa767a267269058",
+      "bytes": 34280,
+      "parts": [
+        "doc-1802b32aa1f822",
+        "doc-59e3b3420d609f",
+        "doc-ec452653482b80",
+        "doc-f0447a1ef5f389",
+        "doc-28e203f082f6ba",
+        "doc-5135f5350303bc",
+        "doc-4f70359e7ae440",
+        "doc-38393df7a7b4da",
+        "doc-eba67ca6f97d80",
+        "doc-a9181bbf2979fd"
+      ]
+    },
+    "architecture-notes/butler-functions.md": {
+      "sha256": "f981dbb240973a97097bd4260ffe125e00dde5e9f0791e1fd1e8c4de9eb3d51b",
+      "bytes": 17912,
+      "parts": [
+        "doc-81e20b159a9237",
+        "doc-500bcb6cafa01f",
+        "doc-d1c54564902dd5",
+        "doc-e225117d9b77d4",
+        "doc-f61f55fe09c5e9",
+        "doc-241e7c8bdd1c05",
+        "doc-8b0e2206d40805"
+      ]
+    },
+    "architecture-notes/codex.md": {
+      "sha256": "cc3e66b2cf935d834c6fb0a16a19e3a95b4bc6eda16062ee0c39377211733259",
+      "bytes": 690,
+      "parts": []
+    },
+    "architecture-notes/configuration.md": {
+      "sha256": "0b1e67924d261fbff5591a50b61890b5174f008304d6105428f6e5d080d98b90",
+      "bytes": 2233,
+      "parts": [
+        "doc-c12f2710f3c6a2"
+      ]
+    },
+    "architecture-notes/conversation-extraction.md": {
+      "sha256": "b7f097a8486137d4dee4e962cdb29b0625d025f4d37c173c84f12f43a650f0c9",
+      "bytes": 29521,
+      "parts": [
+        "doc-4f707cfb04b69a",
+        "doc-8d31785e6eb1e7",
+        "doc-7d9303870f5774"
+      ]
+    },
+    "architecture-notes/dashboard.md": {
+      "sha256": "ffba31730f314b07b9d4fab7e78edcc490f03c0b73192997bb629223350adbed",
+      "bytes": 42821,
+      "parts": [
+        "doc-3e3095a0cf397c",
+        "doc-c2fed6bbc9b2f7",
+        "doc-5838a9ba748b33",
+        "doc-8a288bbf5df118",
+        "doc-5c0dd8694810ec",
+        "doc-ac630fe13429c5",
+        "doc-e6175b44a5c084",
+        "doc-0d1f17e6436714",
+        "doc-bb47c9474691fe",
+        "doc-aeec90dfe23cd3",
+        "doc-5c4b4348a3410a"
+      ]
+    },
+    "architecture-notes/delivery-emoji.md": {
+      "sha256": "b04bac05a52a501adbe2c535b7459f3b45f1d841ee3281a2fa2ef62a3410e872",
+      "bytes": 959,
+      "parts": []
+    },
+    "architecture-notes/delivery-image.md": {
+      "sha256": "06e8f04514de1a0741a4d2bf72550d39b7bf9bc974083609d80a2bfd7dadaba7",
+      "bytes": 1020,
+      "parts": []
+    },
+    "architecture-notes/delivery-pump.md": {
+      "sha256": "d183f1b3666335c6688b0afac7bd4f466a5c10dc04cd4801a6f5999c8aee5ea0",
+      "bytes": 42528,
+      "parts": [
+        "doc-a85671cf7b8516",
+        "doc-7281dbe7fcbbd1",
+        "doc-4382681f9a2f3e",
+        "doc-1e3fe9ed2e96f6",
+        "doc-26369af37d5fda",
+        "doc-ae7b71a2b37518",
+        "doc-5688ce5c14b7b6",
+        "doc-83d2ae6b4c4ac1",
+        "doc-9ba04de08ae10c",
+        "doc-7ca25975c49fca"
+      ]
+    },
+    "architecture-notes/delivery-text.md": {
+      "sha256": "02ffe8d53702da38d715f511841f4f7210645e15356c18e898e9c23deab3b884",
+      "bytes": 1014,
+      "parts": []
+    },
+    "architecture-notes/delivery-voice.md": {
+      "sha256": "3dee38e30fa21c85f333c73243a386d1476f18c4f4298147a2248ec1c2d44695",
+      "bytes": 46517,
+      "parts": [
+        "doc-d265cc1e47a521",
+        "doc-070a8b5f81ad00",
+        "doc-7159ca2e34cdf0",
+        "doc-b194f18a38699d",
+        "doc-d313df34d8cc8b",
+        "doc-3b7c8dcbc01ec2",
+        "doc-2f6dcdc8d592e1",
+        "doc-a855357d83ac5d",
+        "doc-5f445f7abfb4d8",
+        "doc-264d648c9acbbe",
+        "doc-a41b10d5400ad9",
+        "doc-153f05bdd2f77f"
+      ]
+    },
+    "architecture-notes/douyin.md": {
+      "sha256": "6ce9dbbbb1cf185957ec4cb84176efb679b90c1aba0c42d61c134c3e496e2f23",
+      "bytes": 744,
+      "parts": []
+    },
+    "architecture-notes/identity-tools.md": {
+      "sha256": "4e2cf9999050fcdd0ed6fbdefe9c2e86433d3479ae4b4b5b346f483dba7a9a19",
+      "bytes": 62009,
+      "parts": [
+        "doc-43f53b95c0c803",
+        "doc-979c90a4e6a946",
+        "doc-fdc456753803cc",
+        "doc-82631ed77ef07a",
+        "doc-8dc39a23945b37",
+        "doc-fbe924ce9641ad",
+        "doc-98f596dd5f8d22",
+        "doc-62206a40735cb5",
+        "doc-b934820de6d35e",
+        "doc-5e308350a1ba25",
+        "doc-f39c15a6fe0885",
+        "doc-f3232d3cef51df",
+        "doc-f267229129f9a4",
+        "doc-ef8af1106d1713",
+        "doc-6f2fac571f1610"
+      ]
+    },
+    "architecture-notes/inbox.md": {
+      "sha256": "9206f522b4ee3111d8d6a3a9e4ea1fb6671cc3555f0f4520aa7b90777ae1339c",
+      "bytes": 4885,
+      "parts": [
+        "doc-6529d9966e604a"
+      ]
+    },
+    "architecture-notes/inbox-file.md": {
+      "sha256": "a0d55b332248301c2b307f83fec16a258b129af215c532a6ed8998b1c9d03cf3",
+      "bytes": 653,
+      "parts": []
+    },
+    "architecture-notes/inbox-image.md": {
+      "sha256": "129a5becfe2e218c10687a92b449820786b88faa4f3a546aeb4de21d60d05f23",
+      "bytes": 653,
+      "parts": []
+    },
+    "architecture-notes/inbox-link.md": {
+      "sha256": "c36140870729545770b2a5f389a327cbf9c11c83540a755b682084da776184d0",
+      "bytes": 653,
+      "parts": []
+    },
+    "architecture-notes/inbox-text.md": {
+      "sha256": "e906c0efc65ca633f705b6605b84be9e61aaaa1391258a8d117f3ad6850d9c67",
+      "bytes": 647,
+      "parts": []
+    },
+    "architecture-notes/index-tts.md": {
+      "sha256": "6c8372f25cb40b12ca62e2f18726d5a3231f057d6d3d95acc8af4fd582d1ef8d",
+      "bytes": 60189,
+      "parts": [
+        "doc-037c8e3925abd7",
+        "doc-fdc576d6ee7fbd",
+        "doc-f3a570551cedc3",
+        "doc-f72ff421fb5c31",
+        "doc-b47165c49a3a7a",
+        "doc-56093eafa42389",
+        "doc-29fc2d893f2889",
+        "doc-cdb6f65d88730c",
+        "doc-a62e0514c7634a",
+        "doc-14cc58d084986d",
+        "doc-a877b64be56f43",
+        "doc-5606dd82f2b492"
+      ]
+    },
+    "architecture-notes/knowledge-vault.md": {
+      "sha256": "82de21e87c082ab3dd73c6df2d2db27e4b0f0c069315f72cd4426939dc8684d5",
+      "bytes": 168675,
+      "parts": [
+        "doc-adb52ac360f25f",
+        "doc-17461d21600be6",
+        "doc-528d62fcf07d59",
+        "doc-b92e2632af0e9b",
+        "doc-f77e7236a67711",
+        "doc-2d4c142263c11b",
+        "doc-53fb2c0d450b09",
+        "doc-69eb9deaf900e3",
+        "doc-8614fbc4e2f39c",
+        "doc-697690fcf2df43",
+        "doc-97b2533a5ffcf7",
+        "doc-06dbdfdc7302a4",
+        "doc-ba214c308af8ff",
+        "doc-c0bff474452694",
+        "doc-3f269e1ad8b05e",
+        "doc-13c52ea2bba75a",
+        "doc-a582ec7ef75fe6",
+        "doc-dde024d7417249",
+        "doc-867b5eee05957a",
+        "doc-4656beba355895",
+        "doc-84df4a3514bf20",
+        "doc-eae62eb158097e",
+        "doc-68c7e63f609bfb",
+        "doc-dc9956670d38fd"
+      ]
+    },
+    "architecture-notes/model-backends.md": {
+      "sha256": "7bc5bd136be711e3e1ede9cc19c882edc4b7cf0878d719ce378a30625d3495a0",
+      "bytes": 47948,
+      "parts": [
+        "doc-3cc18faa25d1d5",
+        "doc-77e385a27b73a6",
+        "doc-7e58558178e006",
+        "doc-c5a09700a83870",
+        "doc-69928b2a06b8f9",
+        "doc-6510cadeadeb37",
+        "doc-954a7ea1e7487b",
+        "doc-85f41883967373",
+        "doc-60c1969bb5f6f6",
+        "doc-507fd880895f6c",
+        "doc-058aec74f1727e",
+        "doc-85aba8d0cc88bd"
+      ]
+    },
+    "architecture-notes/outbox-file.md": {
+      "sha256": "7f7d5d0b53b073c8d1f89ce36f578b0d814dd4d26b0b3c554c8bc48cc6ad67f8",
+      "bytes": 697,
+      "parts": []
+    },
+    "architecture-notes/outbox-text.md": {
+      "sha256": "d3e56595ccaa1ba553315ed8f45738e1eed6b11ccce559ebc8d02f2ee1ac1650",
+      "bytes": 4126,
+      "parts": [
+        "doc-b3c365f5c9fdf1"
+      ]
+    },
+    "architecture-notes/outbox-voice.md": {
+      "sha256": "a588a1cac6d65fa9fa82311c1f03859d04fff7b50b65526e767de22a2ae21d61",
+      "bytes": 1051,
+      "parts": []
+    },
+    "architecture-notes/queue-storage.md": {
+      "sha256": "88b8bc8caf689d39461ef4e3cd9f97f424343a1c64964dde48868bbde2787bbe",
+      "bytes": 18961,
+      "parts": [
+        "doc-0b08697b4d4a4f",
+        "doc-37f6245b143a25",
+        "doc-6dd6d137f99cdf"
+      ]
+    },
+    "architecture-notes/queue-worker.md": {
+      "sha256": "12b5b77cb251afd905647f3c031cc5daa7cd292d1e7208946ee5e5952461183f",
+      "bytes": 15679,
+      "parts": [
+        "doc-271abea1efa9ae",
+        "doc-33b232c2a9cf1f",
+        "doc-0b0a168dc38d24",
+        "doc-0183b6974519f0",
+        "doc-8e6cc338038d9a"
+      ]
+    },
+    "architecture-notes/reminders.md": {
+      "sha256": "8a57ba9a9385330b67211273f1df06a05408c2e1ed458ec0a8993039eddd33b6",
+      "bytes": 766,
+      "parts": []
+    },
+    "architecture-notes/resident.md": {
+      "sha256": "d9495902fd4a5f754d0bc991452dc81f46bebc83bd6f3759efa35bc9e3e2c3d0",
+      "bytes": 30376,
+      "parts": [
+        "doc-f544399fcbaca7",
+        "doc-68e9f87f4924a8",
+        "doc-38ef2f5a72288d",
+        "doc-5b4e90fba08643",
+        "doc-6323d188bd37df",
+        "doc-6cee41da4b9fa7",
+        "doc-f24e68fc0316c1",
+        "doc-3b5de0b90aca6b",
+        "doc-2d4efb23ee9751",
+        "doc-b2141987114c61",
+        "doc-eb3bb4d27e3f68",
+        "doc-81303bd5af31f1"
+      ]
+    },
+    "architecture-notes/resident-skills.md": {
+      "sha256": "4534d42b1dd526eff6b2cc3282cbf545948e10bbb8e96d473c05a8efcff5b35e",
+      "bytes": 7090,
+      "parts": [
+        "doc-9600492f18d384",
+        "doc-709338d3e083eb"
+      ]
+    },
+    "architecture-notes/wechat-client.md": {
+      "sha256": "cf05faadd373c4409665019210b5f74ff33c846c6597ea3c4370b6a103004be0",
+      "bytes": 710,
+      "parts": []
+    },
+    "architecture-notes/wechat-ui.md": {
+      "sha256": "5323cb0ac50ff60ea901dd797495e732c39fdb8b808da1a88f71d3fc43e61c5d",
+      "bytes": 42427,
+      "parts": [
+        "doc-62c4af56a71362",
+        "doc-de96c7615265db",
+        "doc-62362beb7f9b66",
+        "doc-8bf7e570157f43",
+        "doc-a5d65ee79e182a",
+        "doc-0dfa536a596503",
+        "doc-980ea358badbe6",
+        "doc-989f2003dec3a1",
+        "doc-c251b5ba0c9ae7"
+      ]
+    },
+    "architecture-notes/wxbot.md": {
+      "sha256": "e4bf5f3dd6dd4f65cf27cdaf55387cbb71b9fdf35e3feba4b724d46d39704515",
+      "bytes": 227106,
+      "parts": [
+        "doc-444746a8f4ae45",
+        "doc-7a2b649bf980a1",
+        "doc-2e0fdb7ecca3dc",
+        "doc-e178651dba2d68",
+        "doc-6b478247a17ac2",
+        "doc-39647c7dcd78d9",
+        "doc-97a684c459b114",
+        "doc-26722cd944ac40",
+        "doc-51827c911fad45",
+        "doc-d785adba6e08ef",
+        "doc-6b3ce096bc6d11",
+        "doc-8d1b6a58a9ba38",
+        "doc-f6cee738b73093",
+        "doc-afc7f2edb359cb",
+        "doc-fe89b8634639ba",
+        "doc-f149deca286e0e",
+        "doc-cd58dad2028698",
+        "doc-af40558e48160a",
+        "doc-b664511b293d11",
+        "doc-2359f8bc64950b",
+        "doc-6372a6d15b637a",
+        "doc-f0b302749d6eb3",
+        "doc-6cbfc97cc45d15",
+        "doc-3d945de7c38143",
+        "doc-ba7d4d46f1c73f",
+        "doc-9cf47fd939c877",
+        "doc-0c3db1f926d782",
+        "doc-6981deab6390ae",
+        "doc-1002b3869f9b4f",
+        "doc-a371c9f059b5c8",
+        "doc-6e5a10e80a7955",
+        "doc-dd2bd595b3d8f8",
+        "doc-ed5d88ddcd1b47",
+        "doc-8508032cbe5131",
+        "doc-f68e362b618ab8",
+        "doc-f0c0814f02ebe4",
+        "doc-4d0e5fc0ed39d9",
+        "doc-f9d149494a6267",
+        "doc-b44eb256c557c6",
+        "doc-1968450e794d2a",
+        "doc-7574510a1cf96f",
+        "doc-65d1db0ccb5dda",
+        "doc-8790acdf96d310",
+        "doc-df3c99eaa835f8",
+        "doc-5fd0435fe93ef7",
+        "doc-9be513138ee5dc",
+        "doc-876e1a0156045c",
+        "doc-66a8899f322d51",
+        "doc-2595bebb318aaa",
+        "doc-6a76d4ecff85eb",
+        "doc-b7b71e230e267e",
+        "doc-b29fabcf0318a0",
+        "doc-951820f4d5f621",
+        "doc-aa2bc4bbdc2544"
+      ]
+    }
+  },
+  "finalized": {
+    "date": "2026-11-07",
+    "source_cleanup": 160,
+    "bound_notes": 33,
+    "links_checked": 2072,
+    "runtime_plugin_documents_preserved": 22,
+    "agents_entry_redirected": true
+  }
+}

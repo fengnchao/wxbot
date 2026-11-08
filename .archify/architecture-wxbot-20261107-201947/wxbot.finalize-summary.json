@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "ok": true,
+  "command": "finalize",
+  "status": "pass",
+  "type": "architecture",
+  "quality": "showcase",
+  "specification": {
+    "path": "D:\\work\\code\\wxbot\\.archify\\architecture-wxbot-20261107-201947\\candidate.json",
+    "sha256": "cc8d8424ed017ed641cb571dbc6891823a774f2b3d59b0c83e7158235463bdb0",
+    "bytes": 15981
+  },
+  "artifact": {
+    "path": "D:\\work\\code\\wxbot\\.archify\\architecture-wxbot-20261107-201947\\wxbot.html",
+    "sha256": "aee7a41fa3f664d2c0a94a2303d41d045a7f1ee38e3cbed08f951d543b0bae8b",
+    "bytes": 871851
+  },
+  "gates": {
+    "validate": "pass",
+    "deliver": "pass",
+    "check": "pass",
+    "browser-check": "pass"
+  },
+  "diagnostics": [],
+  "diagnosticSummary": {
+    "total": 0,
+    "shown": 0,
+    "truncated": false
+  },
+  "evidence": {
+    "receipt": "D:\\work\\code\\wxbot\\.archify\\architecture-wxbot-20261107-201947\\wxbot.finalize.json",
+    "summaryReceipt": "D:\\work\\code\\wxbot\\.archify\\architecture-wxbot-20261107-201947\\wxbot.finalize-summary.json",
+    "browserCheckReceipt": "D:\\work\\code\\wxbot\\.archify\\architecture-wxbot-20261107-201947\\wxbot.browser-check.json"
+  },
+  "update": {
+    "status": "current",
+    "installedVersion": "3.2.0",
+    "availableVersion": "3.2.0",
+    "releaseNotes": null,
+    "checkedAt": "2026-11-07T12:23:35.620Z",
+    "source": "cache",
+    "noticeRequired": false,
+    "noticeText": null
+  },
+  "visualReview": "not-requested",
+  "durationMs": 2554,
+  "browserCheck": {
+    "requested": true,
+    "ran": true
+  }
+}

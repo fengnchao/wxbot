@@ -1,38 +1,15 @@
-"""UI 发件执行器：逐步输入、核对新增自己的气泡，保存确定/不确定结果。"""
-from dataclasses import dataclass
+"""Shared UI delivery scheduler; send details live in delivery_handlers."""
 import json
 import time
 
+from .delivery_handlers import create_handlers
+from .delivery_handlers.base import ActiveDelivery  # Public compatibility import.
+from .delivery_handlers.text import reply_evidence, reply_is_visible
 from .log import log
-from .ui_contract import Snapshot, disposition, failure, persisted_rows
+from .ui_contract import disposition, failure
 from .wechat.chat_window import Message
 from .queue_store import FAILURE_TIMEOUT_SECONDS, MAX_DELIVERY_RETRIES
 from .voice.policy import resolve_queued_media_path
-
-
-def reply_evidence(before, current, text):
-    """发送确认的证据：(证据类型, 行, 引用是否可用)。
-
-    'ref' 表示出现了 baseline 中没有、方向为自己的新行；'text' 是拿不到引用时的
-    显式降级。两种证据都不成立才算未确认。
-    """
-    previous, now = Snapshot.take(before), Snapshot.take(current)
-    evidence, row = now.sent_after(previous, text)
-    return evidence, row, now.evidence_available(previous)
-
-
-def reply_is_visible(before, current, text):
-    return reply_evidence(before, current, text)[0] is not None
-
-
-@dataclass
-class ActiveDelivery:
-    delivery: object
-    chat: object
-    typing: object
-    baseline: list
-    deadline: float | None = None
-    authorization_paused_at: float | None = None
 
 
 class DeliveryPump:
@@ -47,8 +24,8 @@ class DeliveryPump:
         self.voice_policy = voice_policy
         self.voice_policy_loader = voice_policy_loader
         self.tts_source = tts_source
-        self._voice_preparing = None
-        self._webui_deliveries = set()
+        self.handlers = create_handlers(self)
+        self.voice_handler = self.handlers["voice"]
         self._closed = False
         self.active = None
         self._waiters = {}
@@ -67,7 +44,7 @@ class DeliveryPump:
         try:
             if getattr(request,'items',None) is not None:
                 voice_bundle = getattr(request, 'kind', '') == 'voice_bundle'
-                if voice_bundle and self._voice_mode(request.contact) == 'off':
+                if voice_bundle and self.voice_handler.mode_for(request.contact) == 'off':
                     raise ValueError('请开启语音总开关和当前联系人的语音模式')
                 enqueue = self.store.enqueue_voice_package if voice_bundle else self.store.enqueue_package
                 package_id=enqueue(request.contact,request.items,request.request_id,
@@ -81,7 +58,7 @@ class DeliveryPump:
                 return package_id
             if getattr(request, 'kind', 'text') == 'voice':
                 media = ''
-                policy = self._current_voice_policy()
+                policy = self.voice_handler.current_policy()
                 if policy is not None:
                     media = resolve_queued_media_path(policy)
                 record_id = self.store.enqueue_voice(
@@ -119,22 +96,15 @@ class DeliveryPump:
 
     def _finish(self, delivery, state, error="",details=None):
         details=dict(details or {})
-        voice_failure = delivery.kind == 'voice' and state in {'blocked', 'uncertain'}
+        handler = self.handler_for(delivery.kind)
+        original_state = state
         if self.active is not None:
-            if delivery.kind=='image' and state!='sent' and getattr(self.active.typing,'_pasted',False):
-                details['manual_required']=True
+            details.update(handler.failure_details(self.active, state))
             details.update(getattr(self.active.typing,'failure_details',{}))
             details.setdefault('enter_attempted',self.active.typing.enter_attempted)
             close=getattr(self.active.typing,'close',None)
             if close is not None: close()
-        if (voice_failure and state == 'blocked' and not details.get('enter_attempted')
-                and not getattr(delivery, 'package_id', None)
-                and (delivery.id in self._webui_deliveries
-                     or getattr(self._current_voice_policy(), 'tts_provider', '') == 'webui')):
-            # A generated reply gets a single fallback. Generic blocked retries
-            # would otherwise synthesize and duplicate it after a UI failure.
-            state = 'skipped'
-            details.update(retry_safe=False, retry='never')
+        state = handler.prepare_finish(delivery, state, details)
         if state in {'blocked','uncertain'}:
             # 代码给队列和看板看；重试语义由代码决定，不由状态反推。
             details.setdefault('error_code','ui_error')
@@ -148,9 +118,7 @@ class DeliveryPump:
             log.error('[发送失败][%s][%s] 状态=%s 原因=%s 详情=%s 自动丢弃截止=%s',
                       delivery.contact,delivery.id,state,error,json.dumps(details,ensure_ascii=False),
                       '不自动重发，已退出阻塞，等待人工核对' if row.get('detached') else row['failed_at']+getattr(self.store,'failure_timeout_seconds',FAILURE_TIMEOUT_SECONDS))
-        if voice_failure:
-            self._voice_text_fallback(delivery, state, error)
-        self._webui_deliveries.discard(delivery.id)
+        handler.after_finish(delivery, state, error, original_state)
         waiter = self._waiters.pop(delivery.id, None)
         if waiter is not None:
             waiter.finish(state == "sent", "sent" if state == "sent" else error or state)
@@ -181,296 +149,34 @@ class DeliveryPump:
 
     def close(self):
         self._closed = True
-        if self._voice_preparing is not None:
-            self._voice_preparing[1].cancel()
-            self._voice_preparing = None
-        self._webui_deliveries.clear()
+        for handler in self.handlers.values():
+            handler.close()
         if self.active is not None:
-            close=getattr(self.active.typing,'close',None)
-            if close is not None: close()
+            close = getattr(self.active.typing, 'close', None)
+            if close is not None:
+                close()
 
-
-    def _current_voice_policy(self):
-        return self.voice_policy_loader() if self.voice_policy_loader else self.voice_policy
-
-    def _voice_mode(self, contact):
-        policy = self._current_voice_policy()
-        if policy is None:
-            return "off"
-        return policy.mode_for(contact)
-
-    def _queued_voice_mode(self, delivery):
-        # Automatic coexist rows follow their text parts. Preserve the queued
-        # decision when settings change before recording or before a failure.
-        if delivery.batch_id:
-            return 'coexist' if delivery.part_count > 1 else 'replace'
-        return self._voice_mode(delivery.contact)
-
-    def _voice_allowed(self, delivery):
-        policy = self._current_voice_policy()
-        if policy is None or policy.mode_for(delivery.contact) == 'off':
-            return False
-        if getattr(delivery, 'package_id', None) and getattr(delivery, 'media_id', ''):
-            return True
-        has_binding = getattr(policy, 'has_usable_binding', None)
-        return not callable(has_binding) or has_binding(delivery.contact)
-
-    def _voice_audio_allowed(self, delivery, audio):
-        if not self._voice_allowed(delivery):
-            return False
-        preset = getattr(audio, 'source_preset', '')
-        if not preset:
-            return True
-        policy = self._current_voice_policy()
-        if getattr(policy, 'tts_provider', '') != 'webui' or policy.webui_presets_path is None:
-            return False
-        from butler.delivery.tts_presets import PresetBindings
-        try:
-            return PresetBindings(policy.webui_presets_path).get(delivery.contact) == preset
-        except (OSError, ValueError):
-            return False
-
-    def _voice_text_fallback(self, delivery, state, error):
-        """replace 失败回退文字一次；coexist 不因语音失败重发已有文字。"""
-        if getattr(delivery, 'package_id', None):
-            return  # Explicit preset voice packages stop as a unit, without duplicate text.
-        mode = self._queued_voice_mode(delivery)
-        if mode != "replace":
-            return
-        text = (delivery.text or "").strip()
-        if not text:
-            log.warning("[语音回退][%s][%s] replace 失败但无正文可回退: %s", delivery.contact, delivery.id, error or state)
-            return
-        try:
-            record_id = self.store.enqueue_delivery(delivery.contact, text, now=self.clock())
-            log.warning("[语音回退][%s][%s] 语音失败(%s)→已回退文字 %s", delivery.contact, delivery.id, state, record_id)
-        except Exception as exc:
-            log.error("[语音回退][%s][%s] 回退文字入库失败: %s", delivery.contact, delivery.id, type(exc).__name__)
-
-    def _prepare_voice_audio(self, delivery, policy=None):
-        from .voice.tts import build_tts_source, load_wav_file
-
-        policy = policy if policy is not None else self._current_voice_policy()
-        media_path = getattr(delivery, "media_path", "") or ""
-        if self._webui_needs_synthesis(delivery, policy):
-            media_path = ''
-        if media_path:
-            return load_wav_file(media_path,
-                min_seconds=getattr(policy, "min_seconds", 0.4),
-                max_seconds=getattr(policy, "max_seconds", 60))
-        source = self.tts_source
-        if source is None and policy is not None:
-            source = build_tts_source(policy)
-        if source is None:
-            raise ValueError("未配置 TTS/假音频源")
-        return source.prepare(
-            delivery.text or "",
-            contact=getattr(delivery, "contact", "") or "",
-        )
-
-    @staticmethod
-    def _webui_needs_synthesis(delivery, policy):
-        if getattr(policy, 'tts_provider', '') != 'webui' or getattr(delivery, 'package_id', None):
-            return False
-        media = getattr(delivery, 'media_path', '')
-        if not media:
-            return True
-        # Old automatically queued test tones must not survive an implicit
-        # migration to real speech. Explicit authenticated packages are exempt.
-        from pathlib import Path
-        return Path(media).resolve() == Path(policy.fixture_wav).resolve()
-
-    def _prepare_voice_in_background(self, delivery, policy):
-        from concurrent.futures import Future
-        import threading
-        future = Future()
-        self._webui_deliveries.add(delivery.id)
-        self._voice_preparing = (delivery, future)
-        def prepare():
-            if not future.set_running_or_notify_cancel():
-                return
-            try:
-                audio = self._prepare_voice_audio(delivery, policy)
-            except BaseException as exc:
-                future.set_exception(exc)
-            else:
-                future.set_result(audio)
-        threading.Thread(target=prepare, name='wxbot-webui-tts', daemon=True).start()
-
-    def _fail_voice_preparation(self, delivery, exc):
-        # No PTT occurred. Finish this original row before queuing the one-time
-        # fallback, so the generic blocked-delivery recovery cannot synthesize
-        # again or duplicate the fallback after an unknown WebUI result.
-        error = f'TTS/音频准备失败: {type(exc).__name__}: {exc}'
-        self._finish(delivery, 'blocked', error,
-                     {'error_code': 'ui_error', 'phase': 'voice_audio', 'retry_safe': False})
+    def handler_for(self, kind):
+        # Preserve the legacy fallback for old rows with unrecognized kinds.
+        return self.handlers.get(kind, self.handlers['text'])
 
     def _start(self, delivery):
-        chat=None
         try:
-            authorization=self._package_authorization(delivery)
+            authorization = self._package_authorization(delivery)
             if authorization is None:
-                self.store.defer_delivery(delivery.id,now=self.clock())
-                return
-            if authorization is False:
-                self._finish(delivery,'skipped','新闻订阅已撤销，图文包停止')
-                return
-            if delivery.kind == "emoji":
-                self._start_emoji(delivery)
-                return
-            if delivery.kind == "voice":
-                self._start_voice(delivery)
-                return
-            self.discover()  # 点击前持久化未读数量。
-            chat = self.get_chat(delivery.contact)
-            if delivery.group_mode is not None:
-                chat.expected_group = delivery.group_mode
-            if not self.capture_target(delivery.contact):
-                self._finish(delivery, "blocked", "目标会话尚不可用，未键入",
-                             self._diagnostics(chat,'prepare_target','target_unavailable'))
-                return
-            baseline = chat.read_messages()
-            self.store.save_baseline(delivery.id, persisted_rows(baseline))
-            draft = self.store.owned_draft(delivery.contact)
-            if draft is not None and hasattr(chat, 'clear_owned_draft'):
-                if not chat.clear_owned_draft(draft):
-                    details=self._diagnostics(chat,'draft_cleanup','draft_conflict')
-                    details['manual_required']=getattr(chat,'draft_conflict',False)
-                    self._finish(delivery, 'blocked', '草稿与已核验的机器人输入不匹配，请人工清理后重试',
-                                 details)
-                    return
-                self.store.forget_draft(delivery.contact)
-            mention_name = getattr(delivery, 'mention_name', '')
-            if delivery.kind == 'image':
-                typing=chat.start_image(delivery.media_path,clock=self.monotonic)
+                self.store.defer_delivery(delivery.id, now=self.clock())
+            elif authorization is False:
+                self._finish(delivery, 'skipped', '新闻订阅已撤销，图文包停止')
             else:
-                typing = (chat.start_send(delivery.text, mention_name=mention_name, clock=self.monotonic)
-                          if mention_name else chat.start_send(delivery.text, clock=self.monotonic))
-            if typing is None:
-                code='draft_conflict' if getattr(chat,'draft_conflict',False) else 'target_unavailable'
-                details=self._diagnostics(chat,'prepare_input',code)
-                details['manual_required']=getattr(chat,'draft_conflict',False)
-                self._finish(delivery, "blocked", "输入框有草稿或无法读取、对象无法确认或窗口不可用", details)
-                return
-            stream_part=getattr(self.store,'stream_part',lambda _:None)(delivery.id)
-            if stream_part:
-                if not hasattr(typing,'update_stream'):
-                    close=getattr(typing,'close',None)
-                    if stream_part['status']!='complete':
-                        if close is not None: close()
-                        self.store.defer_stream_window(delivery.id,now=self.clock())
-                        log.info('[队列][%s] 窗口不支持流式输入，等待完整回复后发送',delivery.id)
-                        return
-                    # Completed immutable snapshot: legacy windows use their
-                    # existing buffered send path; never type an unsealed part.
-                else:
-                    typing.update_stream(stream_part['text'],sealed=stream_part['sealed'])
-                    typing.enter_gate=lambda: self.store.stream_enter_gate(
-                        delivery.id,typing.text,getattr(typing,'stream_version',None))
-                    typing.stream_version=stream_part['version']
-            elif (getattr(self.store,'delivery_typing_mode',lambda _:'chunked')(delivery.batch_id)=='full'
-                    and hasattr(typing,'full_paste')):
-                typing.full_paste()
-            active = ActiveDelivery(delivery, chat, typing, baseline)
-            typing.on_verified_draft = lambda text: self.store.save_draft(delivery.id, text)
-            typing.before_enter = lambda: self._prepare_enter(active)
-            self.active = active
-            log.info("[队列][%s][%s][%d/%d] 开始分批粘贴（每%d字/%g秒）", delivery.contact, delivery.id,
-                     delivery.part_seq, delivery.part_count,
-                     getattr(typing,'chunk_size',5),getattr(typing,'chunk_interval',.5))
+                self.handler_for(delivery.kind).start(delivery)
         except Exception as exc:
-            self._finish(delivery, "blocked", f"发送准备失败: {type(exc).__name__}",
-                         self._diagnostics(chat,'prepare','ui_error'))
-
-    def _start_emoji(self, delivery):
-        chat = None
-        try:
-            self.discover()
-            chat = self.get_chat(delivery.contact)
-            if delivery.group_mode is not None:
-                chat.expected_group = delivery.group_mode
-            if not self.capture_target(delivery.contact):
-                self._finish(delivery, "blocked", "目标会话尚不可用，未发送表情",
-                             self._diagnostics(chat, 'prepare_target', 'target_unavailable'))
-                return
-            status = chat.send_sticker(clock=self.monotonic, timeout=self.timeout)
-            if status == "sent":
-                self._finish(delivery, "sent")
-            elif status == "uncertain":
-                self._finish(delivery, "uncertain", "表情已点击但未确认发送，不自动重发",
-                             self._diagnostics(chat, 'sticker', 'sticker_unconfirmed'))
-            else:
-                self._finish(delivery, "blocked", "表情发送失败或控件未校准",
-                             self._diagnostics(chat, 'sticker', 'sticker_unavailable'))
-        except Exception as exc:
-            self._finish(delivery, "blocked", f"表情发送失败: {type(exc).__name__}",
-                         self._diagnostics(chat, 'sticker', 'ui_error'))
-
-    def _start_voice(self, delivery, prepared_audio=None):
-        chat = None
-        try:
-            policy = self._current_voice_policy()
-            if not self._voice_allowed(delivery):
-                # 非白名单/关开关/无绑定：不按 RALT，直接回退文字路径。
-                text = (delivery.text or "").strip()
-                if text and self._queued_voice_mode(delivery) != 'coexist':
-                    self.store.enqueue_delivery(delivery.contact, text, now=self.clock())
-                    self._finish(delivery, "skipped", "语音开关关闭，已改走文字")
-                elif text:
-                    self._finish(delivery, 'skipped', '语音开关关闭，保留已有文字')
-                else:
-                    self._finish(delivery, "blocked", "语音开关关闭且无文字可回退",
-                                 {"error_code": "ui_error", "phase": "voice_disabled"})
-                return
-            if prepared_audio is None and self._webui_needs_synthesis(delivery, policy):
-                self._prepare_voice_in_background(delivery, policy)
-                return
-            self.discover()
-            chat = self.get_chat(delivery.contact)
-            if delivery.group_mode is not None:
-                chat.expected_group = delivery.group_mode
-            if not self.capture_target(delivery.contact):
-                self._finish(delivery, "blocked", "目标会话尚不可用，未发语音条",
-                             self._diagnostics(chat, "prepare_target", "target_unavailable"))
-                return
-            try:
-                audio = prepared_audio if prepared_audio is not None else self._prepare_voice_audio(delivery, policy)
-            except Exception as exc:
-                self._finish(delivery, "blocked", f"TTS/音频准备失败: {type(exc).__name__}: {exc}",
-                             {"error_code": "ui_error", "phase": "voice_audio"})
-                return
-            if not self._voice_audio_allowed(delivery, audio):
-                self._finish(delivery, 'blocked', '语音设置已更改，停止录音',
-                             {'error_code': 'ui_error', 'phase': 'voice_disabled'})
-                return
-            policy = self._current_voice_policy()
-            device = getattr(policy, "playback_device", "CABLE Input") if policy else "CABLE Input"
-            padding = getattr(policy, "hold_padding_seconds", 0.3) if policy else 0.3
-            typing = chat.start_voice(
-                audio,
-                playback_device=device,
-                hold_padding_seconds=padding,
-                clock=self.monotonic,
-            )
-            if typing is None:
-                code = "draft_conflict" if getattr(chat, "draft_conflict", False) else "target_unavailable"
-                details = self._diagnostics(chat, "prepare_input", code)
-                self._finish(delivery, "blocked", "无法聚焦会话输入区，未按 RALT", details)
-                return
-            # 语音条确认不依赖默认 UIA 气泡；不做 baseline 气泡核验。
-            active = ActiveDelivery(delivery, chat, typing, [])
-            typing.before_enter = lambda: self._prepare_voice_enter(active, audio)
-            self.active = active
-            log.info("[队列][%s][%s][%d/%d] 开始语音条 PTT（Right Alt）", delivery.contact, delivery.id,
-                     delivery.part_seq, delivery.part_count)
-        except Exception as exc:
-            self._finish(delivery, "blocked", f"语音发送准备失败: {type(exc).__name__}",
-                         self._diagnostics(chat, "prepare", "ui_error"))
+            self._finish(delivery, 'blocked', f'发送准备失败: {type(exc).__name__}',
+                         self._diagnostics(None, 'prepare', 'ui_error'))
 
     def _package_authorization(self,delivery):
         if delivery.kind == 'voice' and getattr(delivery, 'package_id', None) and getattr(delivery, 'media_id', ''):
             # Authenticated speech packages are independent of news subscriptions.
-            return self._voice_mode(delivery.contact) != 'off'
+            return self.voice_handler.mode_for(delivery.contact) != 'off'
         if not getattr(delivery,'package_id',None) or self.package_authorizer is None:
             return True
         try:
@@ -492,34 +198,8 @@ class DeliveryPump:
         else:
             self._finish(active.delivery,'skipped','新闻订阅已撤销，图文包停止')
 
-    def _prepare_voice_enter(self, active, audio=None):
-        if self._closed or not self._voice_audio_allowed(active.delivery, audio):
-            raise PermissionError('语音开关或当前会话音色绑定已撤销')
-        if not active.chat.target_is_current(active.typing.win):
-            raise RuntimeError("语音发送前目标会话变化")
-
-    def _prepare_enter(self, active):
-        if not active.chat.target_is_current(active.typing.win):
-            raise RuntimeError("回车前目标会话变化")
-        current = active.chat.read_from_window(active.typing.win, strict_sender=True)
-        if self.capture_messages is not None:
-            self.capture_messages(active.delivery.contact, active.chat, current)
-        text = getattr(active.typing, "submitted_text", None) or active.delivery.text
-        self.store.save_baseline(active.delivery.id, persisted_rows(current), submitted_text=text)
-        active.baseline = current
-        # UIA reads may be slow: check freshness after the final snapshot, as
-        # close as possible to the caller's guarded native submit operation.
-        authorization=self._package_authorization(active.delivery)
-        if authorization is None:
-            if active.authorization_paused_at is None:
-                active.authorization_paused_at=self.monotonic()
-            return False
-        if authorization is False:
-            self._cancel_revoked(active)
-            return False
-
     def start_next(self):
-        if self.busy or self._voice_preparing is not None or self._closed:
+        if self.busy or any(handler.preparing for handler in self.handlers.values()) or self._closed:
             return False
         self.expire_failures()
         delivery = self.store.claim_delivery(now=self.clock())
@@ -538,22 +218,10 @@ class DeliveryPump:
         for package_id in list(self._package_waiters):
             self._notify_package(package_id)
         self.expire_failures()
-        if self._voice_preparing is not None and self.active is None:
-            delivery, future = self._voice_preparing
-            if not future.done():
-                return
-            self._voice_preparing = None
-            row = self.store.get_delivery(delivery.id)
-            if row is None or row['state'] != 'sending':
-                self._webui_deliveries.discard(delivery.id)
-                return  # Deleted/skipped work never records after synthesis.
-            try:
-                audio = future.result()
-            except Exception as exc:
-                self._fail_voice_preparation(delivery, exc)
-                return
-            self._start_voice(delivery, prepared_audio=audio)
-            return
+        if self.active is None:
+            for handler in self.handlers.values():
+                if handler.poll():
+                    return
         if self.active is None:
             if allow_start:
                 self.start_next()
@@ -575,25 +243,9 @@ class DeliveryPump:
                 active.deadline+=max(0,self.monotonic()-active.authorization_paused_at)
             active.authorization_paused_at=None
         row = self.store.get_delivery(active.delivery.id)
-        part=getattr(self.store,'stream_part',lambda _:None)(active.delivery.id)
-        if part and not active.typing.enter_attempted:
-            if part['status']=='cancelled' or row['state']=='skipped':
-                # Clear exclusively the exact UI-readback prefix we own.
-                draft=row.get('draft_text')
-                cleared=False
-                if draft and hasattr(active.chat,'clear_owned_draft'):
-                    try: cleared=active.chat.clear_owned_draft(draft)
-                    except Exception: pass
-                if cleared:
-                    self.store.forget_draft(active.delivery.contact)
-                    self.store.stream_draft_cleaned(active.delivery.id)
-                elif draft or getattr(active.typing,'_entered_length',0) or getattr(active.typing,'index',0):
-                    self.store.stream_draft_review(active.delivery.id)
-                self._finish(active.delivery,'skipped','流式回复已停止',{'manual_required':bool(draft and not cleared)})
-                return
-            if hasattr(active.typing,'update_stream'):
-                active.typing.update_stream(part['text'],sealed=part['sealed'])
-                active.typing.stream_version=part['version']
+        handler = self.handler_for(active.delivery.kind)
+        if not handler.sync_input(active, row):
+            return
         if (active.delivery.batch_id and row['failed_at'] is not None
                 and self.clock() >= row['failed_at'] + self.store.failure_timeout_seconds
                 and not active.typing.enter_attempted):
@@ -605,61 +257,7 @@ class DeliveryPump:
             return
         if state == "typing":
             return
-        if active.delivery.kind == "voice":
-            if state == "submitted":
-                details = {
-                    "bubble_verified": False,
-                    "confirm_evidence": getattr(active.typing, "confirm_evidence", "ptt_release"),
-                    "human_confirm_required": True,
-                    "voice_mode": self._voice_mode(active.delivery.contact),
-                }
-                self._finish(active.delivery, "sent", details=details)
-            else:
-                details = dict(getattr(active.typing, "failure_details", {}) or {})
-                details.setdefault("error_code", "ui_error")
-                details["phase"] = details.get("phase") or "voice_ptt"
-                self._finish(active.delivery, "uncertain" if active.typing.enter_attempted else "blocked",
-                             active.typing.error or state, details)
-            return
-        if not active.typing.enter_attempted:
-            self._finish(active.delivery, "blocked", active.typing.error)
-            return
-        if active.deadline is None:
-            self.store.confirming(active.delivery.id, now=self.clock())
-            log.info('[队列][%s][%s][%d/%d] 已回车，等待发送确认', active.delivery.contact,
-                     active.delivery.id, active.delivery.part_seq, active.delivery.part_count)
-            active.deadline = self.monotonic() + self.timeout
-        try:
-            if active.chat.target_is_current(active.typing.win):
-                current = active.chat.read_from_window(active.typing.win, strict_sender=True)
-                text = getattr(active.typing, "submitted_text", None) or active.delivery.text
-                evidence = by_ref = None
-                if active.delivery.kind=='image':
-                    visible = active.typing.confirmation_visible()
-                else:
-                    evidence, _, by_ref = reply_evidence(active.baseline, current, text)
-                    visible = evidence is not None
-                if visible:
-                    # Persist the same snapshot that proved the bubble is ours.
-                    # Capture concurrent incoming messages before advancing the
-                    # anchor; assigning the snapshot alone would lose them.
-                    if self.capture_messages is not None:
-                        self.capture_messages(active.delivery.contact, active.chat, current)
-                        log.info('[收件防回流][%s][%s] 已同步发送确认快照；自己的气泡不入收件队列',
-                                 active.delivery.contact, active.delivery.id)
-                    if active.delivery.kind!='image':
-                        active.chat.remember_sent(text)
-                    details={'mention_verified': getattr(active.typing, 'mention_verified', False),
-                             'bubble_verified': True}
-                    if evidence is not None:
-                        details.update(confirm_evidence=evidence, ref_available=by_ref)
-                    self._finish(active.delivery, "sent", details=details)
-                    return
-        except Exception as exc:
-            log.debug("[队列][%s] 发送确认暂时不可读: %s", active.delivery.id, type(exc).__name__)
-        if self.monotonic() >= active.deadline:
-            self._finish(active.delivery, "uncertain", "已尝试回车，但未确认新发送气泡，不自动重发",
-                         self._diagnostics(active.chat, 'confirm', 'enter_unconfirmed'))
+        handler.complete(active, state)
 
     def reconcile(self):
         """重启后只核对已知不确定发件；不再输入，也不再按回车。"""

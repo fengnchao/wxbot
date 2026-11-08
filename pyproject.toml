@@ -17,6 +17,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
 telegram = ["Telethon==1.45.0", "python-socks[asyncio]>=2.7,<3"]
+resident = ["playwright>=1.64,<2"]
 
 [build-system]
 requires = ["hatchling"]

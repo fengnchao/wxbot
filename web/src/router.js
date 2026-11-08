@@ -10,6 +10,7 @@ export const TABS = [
   { id: 'contacts', title: '联系人', group: '用户与任务' },
   { id: 'voice-assets', title: '音色', group: '用户与任务' },
   { id: 'jobs', title: '定时任务', group: '用户与任务' },
+  { id: 'resident-diary', title: '小潮日记', group: '用户与任务' },
   { id: 'configuration', title: '配置管理', group: '系统设置' },
   { id: 'telegram-relay', title: 'Telegram 转发', group: '系统设置' }
 ]
